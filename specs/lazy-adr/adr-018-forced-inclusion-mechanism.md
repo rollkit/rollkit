@@ -251,28 +251,6 @@ The following diagram illustrates the operation flow for the sequencer with forc
                                          └────────────────────────────────────────┘
 ```
 
-#### Full Node Changes
-
-1. **Fork Choice Rule**:
-   - Implement the modified fork choice rule that considers both sequencer-batched and direct transactions
-   - Prioritize the chain with the most recent valid DA layer references
-
-2. **Sequencer Status Monitoring**:
-   - Add monitoring of sequencer liveness based on batch submissions to the DA layer
-   - Implement a configurable delay threshold after which the sequencer is considered down
-
-3. **Fallback Mode**:
-   - Implement a fallback mode that processes direct transactions from the DA layer when the sequencer is down
-   - Create deterministic blocks based solely on direct transactions in fallback mode
-
-4. **Block Validation**:
-   - Enhance block validation to check DA references and timestamps in the `ExtraData` field
-   - Validate that all direct transactions from a referenced DA block are included
-
-5. **Header Processing**:
-   - Add functionality to decode the DA reference information from the `ExtraData` field
-   - Maintain backward compatibility for headers without forced inclusion data
-
 #### Full Node Operation Flow
 
 The following diagram illustrates the operation flow for full nodes with forced inclusion support:
@@ -280,57 +258,61 @@ The following diagram illustrates the operation flow for full nodes with forced 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                           Full Node Operation Flow                              │
-└─────────────────┬───────────────────────────────────────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────┐      ┌────────────────────────────────────────┐
-│ 1. Normal Operation Mode        │      │ 2. Sequencer Status Monitoring         │
-│                                 │      │                                        │
-│ - Receive blocks from sequencer │      │ - Monitor sequencer activity on DA     │
-│ - Validate blocks and headers   │◄────►│ - Track time since last sequencer batch│
-│ - Apply state transitions       │      │ - Check against downtime threshold     │
-└─────────────────┬───────────────┘      └────────────────────┬───────────────────┘
-                  │                                           │
-                  │                                           │
-                  │                                           ▼
-                  │                       ┌────────────────────────────────────────┐
-                  │                       │ Is Sequencer Down?                     │
-                  │                       │ (Based on configurable threshold)      │
-                  │                       └────────────┬───────────────────────────┘
-                  │                                    │
-                  │                                    │ Yes
-                  │                                    ▼
-                  │                       ┌────────────────────────────────────────┐
-                  │                       │ 3. Enter Fallback Mode                 │
-                  │                       │                                        │
-                  │                       │ - Switch to direct tx processing       │
-                  │                       │ - Notify other subsystems              │
-                  │                       └────────────────┬───────────────────────┘
-                  │                                        │
-                  │                                        ▼
-                  │                       ┌────────────────────────────────────────┐
-                  │                       │ 4. DA Layer Scanning                   │
-                  │                       │                                        │
-                  │                       │ - Scan DA layer for direct txs         │
-                  │                       │ - Track latest processed DA height     │
-                  │                       └────────────────┬───────────────────────┘
-                  │                                        │
-                  │                                        ▼
-                  │                       ┌────────────────────────────────────────┐
-                  │                       │ 5. Deterministic Block Creation        │
-                  │                       │                                        │
-                  │                       │ - Create blocks with direct txs only   │
-                  │                       │ - Add DA reference to extraData        │
-                  │                       │ - Apply deterministic ordering rules   │
-                  │                       └────────────────┬───────────────────────┘
-                  │                                        │
-                  ▼                                        ▼
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────┐     ┌────────────────────────────────────────┐
+│ 1. Normal Operation Mode        │     │ 2. Sequencer Status Monitoring         │
+│                                 │     │                                        │
+│ - Receive blocks from sequencer │     │ - Monitor sequencer activity on DA     │
+│ - Validate blocks and headers   │◄───►│ - Track time since last sequencer batch│
+│ - Apply state transitions       │     │ - Check against downtime threshold     │
+└─────────────────────────────────┘     └────────────────────┬───────────────────┘
+                                                            │
+                                                            ▼
+                                        ┌────────────────────────────────────────┐
+                                        │ Is Sequencer Down?                     │
+                                        │ (Based on configurable threshold)      │
+                                        └────────────┬───────────────┬───────────┘
+                                                    │               │
+                                                    │ Yes           │ No
+                                                    ▼               │
+                                        ┌────────────────────────┐  │
+                                        │ 3. Enter Fallback Mode │  │
+                                        │                        │  │
+                                        │ - Switch to direct tx  │  │
+                                        │   processing          │  │
+                                        │ - Notify subsystems   │  │
+                                        └──────────┬─────────────┘  │
+                                                  │                │
+                                                  ▼                │
+                                        ┌────────────────────────┐  │
+                                        │ 4. DA Layer Scanning   │  │
+                                        │                        │  │
+                                        │ - Scan DA for direct   │  │
+                                        │   transactions        │  │
+                                        │ - Track latest DA     │  │
+                                        │   height             │  │
+                                        └──────────┬─────────────┘  │
+                                                  │                │
+                                                  ▼                │
+                                        ┌────────────────────────┐  │
+                                        │ 5. Deterministic Block │  │
+                                        │    Creation           │  │
+                                        │                        │  │
+                                        │ - Create blocks with   │  │
+                                        │   direct txs only     │  │
+                                        │ - Add DA reference    │  │
+                                        │ - Apply deterministic │  │
+                                        │   ordering rules     │  │
+                                        └──────────┬─────────────┘  │
+                                                  │                │
+                                                  ▼                ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │ 6. Block Processing and State Update                                            │
 │                                                                                 │
 │ - Execute transactions                                                          │
 │ - Update state                                                                  │
-│ - Apply fork choice rule                                                        │
 │ - Persist blocks and state                                                      │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
