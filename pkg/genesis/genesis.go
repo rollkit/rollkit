@@ -23,7 +23,7 @@ type ValidatorInfo struct {
 // Genesis represents the genesis state of the blockchain
 type Genesis struct {
 	ChainID              string           `json:"chain_id"`
-	GenesisDAStartHeight time.Time        `json:"genesis_da_start_height"`
+	GenesisDAStartHeight time.Time        `json:"genesis_da_start_height"` // TODO: change to uint64 and remove time.Time, basically we need a mechanism to convert DAHeight to time.Time
 	InitialHeight        uint64           `json:"initial_height"`
 	ExtraData            GenesisExtraData `json:"extra_data"`
 	AppState             json.RawMessage  `json:"app_state,omitempty"`

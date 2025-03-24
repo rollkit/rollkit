@@ -15,7 +15,11 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "genesis-test-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Errorf("failed to remove temporary directory: %v", err)
+		}
+	}()
 
 	validTime := time.Now().UTC()
 	testCases := []struct {
@@ -111,7 +115,7 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 			assert.Equal(t, tc.genesis, loaded)
 
 			// Verify file contents are valid JSON
-			fileContent, err := os.ReadFile(tmpFile)
+			fileContent, err := os.ReadFile(filepath.Clean(tmpFile))
 			assert.NoError(t, err)
 			var jsonContent map[string]interface{}
 			err = json.Unmarshal(fileContent, &jsonContent)
@@ -129,7 +133,7 @@ func TestLoadGenesis_FileNotFound(t *testing.T) {
 func TestLoadGenesis_InvalidJSON(t *testing.T) {
 	// Create a temporary file with invalid JSON
 	tmpFile := filepath.Join(t.TempDir(), "invalid.json")
-	err := os.WriteFile(tmpFile, []byte("{invalid json}"), 0644)
+	err := os.WriteFile(filepath.Clean(tmpFile), []byte("{invalid json}"), 0600)
 	require.NoError(t, err)
 
 	_, err = LoadGenesis(tmpFile)
