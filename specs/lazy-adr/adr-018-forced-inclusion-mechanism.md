@@ -146,7 +146,7 @@ type DirectTxTracker struct {
 type SequencerStatus struct {
     IsActive          bool      // Whether the sequencer is considered active
     LastActiveHeight  uint64    // Last DA height where sequencer posted a batch
-    DownSince         time.Time // Time since sequencer was last seen active
+    InactiveBlocks    uint64    // Number of DA blocks since last sequencer activity
 }
 ```
 
@@ -363,25 +363,23 @@ The forced inclusion mechanism will be configurable with the following parameter
 ```go
 type ForcedInclusionConfig struct {
     Enabled                   bool          // Whether forced inclusion is enabled
-    SequencerDownThreshold    time.Duration // Time after which the sequencer is considered down
-    DAScanningSyncPeriod      time.Duration // How often to scan the DA layer for direct transactions
+    SequencerDownBlocks      uint64        // Number of DA blocks after which the sequencer is considered down
     MaxTimestampDrift         time.Duration // Maximum allowed drift between rollup and DA timestamps
 }
 ```
 
 ### Efficiency Considerations
 
-- The DA layer scanner is designed to be efficient, tracking the latest scanned height to avoid redundant queries
+- DA layer scanning is integrated into the core block processing pipeline for continuous monitoring
 - Direct transactions are indexed by hash for quick lookups
-- The sequencer status is cached and updated periodically rather than checked for every transaction
-- In fallback mode, blocks are created only when new direct transactions are found, minimizing empty blocks
+- The sequencer status is tracked by DA block heights rather than wall clock time
 - Using the existing `ExtraData` field instead of adding new header fields reduces overhead
 
 ### Security Considerations
 
 - The mechanism ensures that only valid direct transactions can be included in the chain
 - Timestamp validation prevents replay attacks where the sequencer could reference old DA blocks
-- The configurable delay threshold prevents premature switching to fallback mode due to temporary sequencer issues
+- The configurable block height threshold prevents premature switching to fallback mode due to temporary sequencer issues
 - All transactions, whether sequencer-batched or direct, undergo the same validation rules
 
 ### Privacy Considerations
