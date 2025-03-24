@@ -106,9 +106,8 @@ func NewRunNodeCmd() *cobra.Command {
 			// Create a cancellable context for the node
 			dummySequencer := coresequencer.NewDummySequencer()
 
-			// Load genesis using the default genesis loader
-			genesisLoader := &genesispkg.DefaultGenesisLoader{}
-			genesis, err := genesisLoader.LoadGenesis(nodeConfig.RootDir, nodeConfig.ConfigDir)
+			genesisPath := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "genesis.json")
+			genesis, err := genesispkg.LoadGenesis(genesisPath)
 			if err != nil {
 				return fmt.Errorf("failed to load genesis: %w", err)
 			}

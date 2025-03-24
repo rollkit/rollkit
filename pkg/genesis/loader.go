@@ -4,16 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
-// DefaultGenesisLoader implements GenesisLoader interface
-type DefaultGenesisLoader struct{}
-
-// LoadGenesis implements GenesisLoader.LoadGenesis
-func (l *DefaultGenesisLoader) LoadGenesis(rootDir string, configDir string) (Genesis, error) {
-	genesisPath := filepath.Join(rootDir, configDir, "genesis.json")
-
+// LoadGenesis loads the genesis state from the specified file path
+func LoadGenesis(genesisPath string) (Genesis, error) {
 	if _, err := os.Stat(genesisPath); os.IsNotExist(err) {
 		return Genesis{}, fmt.Errorf("genesis file not found at path: %s", genesisPath)
 	}
@@ -34,14 +28,4 @@ func (l *DefaultGenesisLoader) LoadGenesis(rootDir string, configDir string) (Ge
 	}
 
 	return genesis, nil
-}
-
-// NewDefaultGenesisLoader creates a new instance of DefaultGenesisLoader
-func NewDefaultGenesisLoader() *DefaultGenesisLoader {
-	return &DefaultGenesisLoader{}
-}
-
-// GenesisLoader defines the interface for loading genesis state
-type GenesisLoader interface {
-	LoadGenesis(rootDir string, configDir string) (Genesis, error)
 }
