@@ -1485,7 +1485,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		Signature: *lastSignature,
 		Signer: types.Signer{
 			PubKey:  m.proposerKey.GetPublic(),
-			Address: m.genesis.ProposerAddress,
+			Address: m.genesis.ProposerAddress(),
 		},
 	}
 
