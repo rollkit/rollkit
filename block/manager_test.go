@@ -22,6 +22,7 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	damocks "github.com/rollkit/rollkit/da/mocks"
+	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -143,11 +144,11 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	// Create genesis document with initial height 2
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
 	// Create a new genesis with height 2
-	genesis := coreexecutor.NewGenesis(
+	genesis := genesispkg.NewGenesis(
 		genesisData.ChainID,
 		uint64(2), // Set initial height to 2
 		genesisData.GenesisDAStartHeight,
-		coreexecutor.GenesisExtraData{
+		genesispkg.GenesisExtraData{
 			ProposerAddress: genesisData.ProposerAddress(),
 		},
 		nil, // No raw bytes for now
@@ -529,12 +530,12 @@ func TestAggregationLoop(t *testing.T) {
 	m := &Manager{
 		store:  mockStore,
 		logger: mockLogger,
-		genesis: coreexecutor.NewGenesis(
+		genesis: genesispkg.NewGenesis(
 			"myChain",
 			1,
 			time.Now(),
-			coreexecutor.GenesisExtraData{}, // Empty extra data
-			nil,                             // No raw bytes for now
+			genesispkg.GenesisExtraData{}, // Empty extra data
+			nil,                           // No raw bytes for now
 		),
 		config: config.Config{
 			Node: config.NodeConfig{

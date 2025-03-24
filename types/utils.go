@@ -13,7 +13,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	"github.com/rollkit/rollkit/pkg/genesis"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
@@ -272,29 +272,29 @@ func GetFirstSignedHeader(privkey cmEd25519.PrivKey, valSet *cmtypes.ValidatorSe
 	return &signedHeader, nil
 }
 
-// GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
-func GetGenesisWithPrivkey(chainID string) (coreexecutor.Genesis, crypto.PrivKey, cmEd25519.PubKey) {
-	// Generate Ed25519 key pair using CometBFT
-	cmtPrivKey := cmEd25519.GenPrivKey()
-	cmtPubKey := cmtPrivKey.PubKey().(cmEd25519.PubKey)
-
-	// Convert CometBFT private key to libp2p format
-	privKeyBytes := cmtPrivKey.Bytes()
-	libp2pPrivKey, err := crypto.UnmarshalEd25519PrivateKey(privKeyBytes)
+// GetGenesisWithPrivkey returns a genesis state and a private key
+func GetGenesisWithPrivkey(chainID string) (genesis.Genesis, crypto.PrivKey, cmEd25519.PubKey) {
+	privKey, pubKey, err := crypto.GenerateEd25519Key(nil)
 	if err != nil {
 		panic(err)
 	}
 
-	// Create base genesis with validator's address
-	return coreexecutor.NewGenesis(
+	pubKeyBytes, err := pubKey.Raw()
+	if err != nil {
+		panic(err)
+	}
+
+	cmPubKey := cmEd25519.PubKey(pubKeyBytes)
+
+	return genesis.NewGenesis(
 		chainID,
-		uint64(1),
-		time.Now(),
-		coreexecutor.GenesisExtraData{
-			ProposerAddress: cmtPubKey.Address().Bytes(),
+		1,
+		time.Now().UTC(),
+		genesis.GenesisExtraData{
+			ProposerAddress: cmPubKey.Address().Bytes(),
 		},
-		nil, // No raw bytes for now
-	), libp2pPrivKey, cmtPubKey
+		nil,
+	), privKey, cmPubKey
 }
 
 // GetRandomTx returns a tx with random data

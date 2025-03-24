@@ -10,8 +10,8 @@ import (
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
 )
@@ -29,7 +29,7 @@ type LightNode struct {
 
 func newLightNode(
 	conf config.Config,
-	genesis coreexecutor.Genesis,
+	genesis genesis.Genesis,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {

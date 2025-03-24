@@ -1,4 +1,4 @@
-package execution
+package genesis
 
 import (
 	"encoding/json"
@@ -17,12 +17,6 @@ type ValidatorInfo struct {
 	Address     []byte `json:"address"`
 	PublicKey   []byte `json:"public_key"`
 	VotingPower int64  `json:"voting_power"`
-}
-
-// GenesisLoader defines the interface for loading genesis data
-type GenesisLoader interface {
-	// LoadGenesis loads the genesis data from a file and returns a Genesis object
-	LoadGenesis(rootDir string, configDir string) (Genesis, error)
 }
 
 // Genesis represents the genesis state of the blockchain

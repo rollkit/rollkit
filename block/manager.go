@@ -22,6 +22,7 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
@@ -107,7 +108,7 @@ type Manager struct {
 	store        store.Store
 
 	config  config.Config
-	genesis coreexecutor.Genesis
+	genesis genesis.Genesis
 
 	proposerKey crypto.PrivKey
 
@@ -163,7 +164,7 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
-func getInitialState(ctx context.Context, genesis coreexecutor.Genesis, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
+func getInitialState(ctx context.Context, genesis genesis.Genesis, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(ctx)
 
@@ -225,7 +226,7 @@ func NewManager(
 	ctx context.Context,
 	proposerKey crypto.PrivKey,
 	config config.Config,
-	genesis coreexecutor.Genesis,
+	genesis genesis.Genesis,
 	store store.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,

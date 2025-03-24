@@ -23,6 +23,7 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/p2p"
+	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
 )
@@ -43,7 +44,7 @@ var _ Node = &FullNode{}
 type FullNode struct {
 	service.BaseService
 
-	genesis coreexecutor.Genesis
+	genesis genesispkg.Genesis
 	// cache of chunked genesis data.
 	genChunks []string
 
@@ -65,7 +66,7 @@ func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,
 	signingKey crypto.PrivKey,
-	genesis coreexecutor.Genesis,
+	genesis genesispkg.Genesis,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
@@ -145,7 +146,7 @@ func initBaseKV(nodeConfig config.Config, logger log.Logger) (ds.Batching, error
 func initHeaderSyncService(
 	mainKV ds.Batching,
 	nodeConfig config.Config,
-	genesis coreexecutor.Genesis,
+	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
 ) (*block.HeaderSyncService, error) {
@@ -159,7 +160,7 @@ func initHeaderSyncService(
 func initDataSyncService(
 	mainKV ds.Batching,
 	nodeConfig config.Config,
-	genesis coreexecutor.Genesis,
+	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
 ) (*block.DataSyncService, error) {
@@ -184,7 +185,7 @@ func initBlockManager(
 	signingKey crypto.PrivKey,
 	exec coreexecutor.Executor,
 	nodeConfig config.Config,
-	genesis coreexecutor.Genesis,
+	genesis genesispkg.Genesis,
 	store store.Store,
 	sequencer coresequencer.Sequencer,
 	dalc coreda.Client,
@@ -198,13 +199,11 @@ func initBlockManager(
 
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress())
 
-	rollGen := coreexecutor.NewGenesis(
+	rollGen := genesispkg.NewGenesis(
 		genesis.ChainID,
 		genesis.InitialHeight,
 		genesis.GenesisDAStartHeight,
-		coreexecutor.GenesisExtraData{
-			ProposerAddress: genesis.ProposerAddress(),
-		},
+		genesis.ExtraData,
 		nil,
 	)
 
@@ -432,7 +431,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 }
 
 // GetGenesis returns entire genesis doc.
-func (n *FullNode) GetGenesis() coreexecutor.Genesis {
+func (n *FullNode) GetGenesis() genesispkg.Genesis {
 	return n.genesis
 }
 

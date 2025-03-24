@@ -20,8 +20,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/rollkit/rollkit/config"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -37,7 +37,7 @@ const (
 // Uses the go-header library for handling all P2P logic.
 type SyncService[H header.Header[H]] struct {
 	conf      config.Config
-	genesis   coreexecutor.Genesis
+	genesis   genesis.Genesis
 	p2p       *p2p.Client
 	ex        *goheaderp2p.Exchange[H]
 	sub       *goheaderp2p.Subscriber[H]
@@ -61,7 +61,7 @@ type HeaderSyncService = SyncService[*types.SignedHeader]
 func NewDataSyncService(
 	store ds.Batching,
 	conf config.Config,
-	genesis coreexecutor.Genesis,
+	genesis genesis.Genesis,
 	p2p *p2p.Client,
 	logger log.Logger,
 ) (*DataSyncService, error) {
@@ -72,7 +72,7 @@ func NewDataSyncService(
 func NewHeaderSyncService(
 	store ds.Batching,
 	conf config.Config,
-	genesis coreexecutor.Genesis,
+	genesis genesis.Genesis,
 	p2p *p2p.Client,
 	logger log.Logger,
 ) (*HeaderSyncService, error) {
@@ -83,7 +83,7 @@ func newSyncService[H header.Header[H]](
 	store ds.Batching,
 	syncType syncType,
 	conf config.Config,
-	genesis coreexecutor.Genesis,
+	genesis genesis.Genesis,
 	p2p *p2p.Client,
 	logger log.Logger,
 ) (*SyncService[H], error) {

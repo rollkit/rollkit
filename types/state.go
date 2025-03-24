@@ -3,7 +3,7 @@ package types
 import (
 	"time"
 
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	"github.com/rollkit/rollkit/pkg/genesis"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
@@ -39,7 +39,7 @@ type State struct {
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
-func NewFromGenesisDoc(genDoc coreexecutor.Genesis) (State, error) {
+func NewFromGenesisDoc(genDoc genesis.Genesis) (State, error) {
 	s := State{
 		Version:       InitStateVersion,
 		ChainID:       genDoc.ChainID,

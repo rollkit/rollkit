@@ -26,11 +26,10 @@ import (
 
 	rollconf "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
-	"github.com/rollkit/rollkit/pkg/genesis"
+	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	rollos "github.com/rollkit/rollkit/pkg/os"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
@@ -108,7 +107,7 @@ func NewRunNodeCmd() *cobra.Command {
 			dummySequencer := coresequencer.NewDummySequencer()
 
 			// Load genesis using the default genesis loader
-			genesisLoader := &genesis.DefaultGenesisLoader{}
+			genesisLoader := &genesispkg.DefaultGenesisLoader{}
 			genesis, err := genesisLoader.LoadGenesis(nodeConfig.RootDir, nodeConfig.ConfigDir)
 			if err != nil {
 				return fmt.Errorf("failed to load genesis: %w", err)
@@ -331,12 +330,12 @@ func initFiles() error {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {
 		// Create a default genesis
-		genesis := coreexecutor.NewGenesis(
+		genesis := genesispkg.NewGenesis(
 			"test-chain",
 			uint64(1),
 			time.Now(),
-			coreexecutor.GenesisExtraData{}, // No proposer address for now
-			nil,                             // No raw bytes for now
+			genesispkg.GenesisExtraData{}, // No proposer address for now
+			nil,                           // No raw bytes for now
 		)
 
 		// Create a basic genesis JSON structure
