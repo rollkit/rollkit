@@ -1062,7 +1062,7 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 }
 
 func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
-	b, err := header.MarshalBinary()
+	b, err := header.Vote()
 	if err != nil {
 		return nil, err
 	}
