@@ -1242,6 +1242,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the signature to current block's signed header
 		header.Signature = signature
+
+		m.logger.Debug("header validation", "error", header.ValidateBasic())
+
 		err = m.store.SaveBlockData(ctx, header, data, &signature)
 		if err != nil {
 			return SaveBlockError{err}
