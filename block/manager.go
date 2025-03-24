@@ -1493,6 +1493,10 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			ProposerAddress: m.genesis.ProposerAddress,
 		},
 		Signature: *lastSignature,
+		Signer: types.Signer{
+			PubKey:  m.proposerKey.GetPublic(),
+			Address: m.genesis.ProposerAddress,
+		},
 	}
 
 	blockData := &types.Data{
