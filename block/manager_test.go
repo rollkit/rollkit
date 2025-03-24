@@ -143,11 +143,13 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	// Create genesis document with initial height 2
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
 	// Create a new genesis with height 2
-	genesisData = coreexecutor.NewGenesis(
+	genesis := coreexecutor.NewGenesis(
 		genesisData.ChainID,
 		uint64(2), // Set initial height to 2
 		genesisData.GenesisDAStartHeight,
-		genesisData.ProposerAddress(),
+		coreexecutor.GenesisExtraData{
+			ProposerAddress: genesisData.ProposerAddress(),
+		},
 		nil, // No raw bytes for now
 	)
 	sampleState := types.State{
@@ -161,7 +163,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	_, err = getInitialState(context.TODO(), genesisData, store, coreexecutor.NewDummyExecutor(), logger)
+	_, err = getInitialState(context.TODO(), genesis, store, coreexecutor.NewDummyExecutor(), logger)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 }
 
@@ -531,8 +533,8 @@ func TestAggregationLoop(t *testing.T) {
 			"myChain",
 			1,
 			time.Now(),
-			[]byte{},
-			nil, // No raw bytes for now
+			coreexecutor.GenesisExtraData{}, // Empty extra data
+			nil,                             // No raw bytes for now
 		),
 		config: config.Config{
 			Node: config.NodeConfig{

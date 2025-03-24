@@ -335,8 +335,8 @@ func initFiles() error {
 			"test-chain",
 			uint64(1),
 			time.Now(),
-			nil, // No proposer address for now
-			nil, // No raw bytes for now
+			coreexecutor.GenesisExtraData{}, // No proposer address for now
+			nil,                             // No raw bytes for now
 		)
 
 		// Create a basic genesis JSON structure

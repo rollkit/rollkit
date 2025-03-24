@@ -290,7 +290,9 @@ func GetGenesisWithPrivkey(chainID string) (coreexecutor.Genesis, crypto.PrivKey
 		chainID,
 		uint64(1),
 		time.Now(),
-		cmtPubKey.Address().Bytes(),
+		coreexecutor.GenesisExtraData{
+			ProposerAddress: cmtPubKey.Address().Bytes(),
+		},
 		nil, // No raw bytes for now
 	), libp2pPrivKey, cmtPubKey
 }

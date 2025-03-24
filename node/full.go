@@ -202,7 +202,9 @@ func initBlockManager(
 		genesis.ChainID,
 		genesis.InitialHeight,
 		genesis.GenesisDAStartHeight,
-		genesis.ProposerAddress(),
+		coreexecutor.GenesisExtraData{
+			ProposerAddress: genesis.ProposerAddress(),
+		},
 		nil,
 	)
 

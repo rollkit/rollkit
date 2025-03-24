@@ -58,7 +58,7 @@ func (l *DefaultGenesisLoader) LoadGenesis(rootDir string, configDir string) (ex
 		chainID,
 		initialHeight,
 		genesisTime,
-		nil, // No proposer address for now
+		execution.GenesisExtraData{}, // Empty extra data
 		genesisBytes,
 	), nil
 }
