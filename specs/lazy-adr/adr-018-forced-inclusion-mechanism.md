@@ -37,40 +37,38 @@ The mechanism will be designed to maintain backward compatibility with existing 
 
 The following diagram illustrates the high-level architecture of the forced inclusion mechanism:
 
-```
-┌───────────────────────────────────────────────────────────────────────────┐
-│                           Data Availability Layer                          │
-└───────────┬───────────────────────────────────────────────────┬───────────┘
-            │                                                   │
-            │ Batch Txs                                         │ Direct Txs
-            │                                                   │
-            ▼                                                   │
-┌───────────────────────────┐                                   │
-│    Centralized Sequencer  │                                   │
-│                           │                                   │
-│  ┌─────────────────────┐  │                                   │
-│  │   Normal Operation  │  │                                   │
-│  │  - Process user txs │  │                                   │
-│  │  - Create batches   │◄─┼───────────────────────────────────┘
-│  │  - Include direct   │  │         Scan for Direct Txs
-│  │    txs from DA      │  │
-│  └─────────────────────┘  │
-└───────────┬───────────────┘
-            │
-            │ Rollup Blocks
-            │ with DA Reference
-            ▼
-┌───────────────────────────────────────────────────────────────────────────┐
-│                              Rollup Full Nodes                             │
-│                                                                           │
-│  ┌─────────────────────────┐         ┌───────────────────────────────┐    │
-│  │   Normal Operation      │         │        Fallback Mode          │    │
-│  │  - Follow sequencer     │         │  - Detect sequencer down      │    │
-│  │    produced blocks      │         │  - Scan DA for direct txs     │    │
-│  │  - Validate DA          │◄───────►│  - Create deterministic blocks│    │
-│  │    references           │         │    from direct txs            │    │
-│  └─────────────────────────┘         └───────────────────────────────┘    │
-└───────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph DAL["Data Availability Layer"]
+    end
+
+    subgraph SEQ["Centralized Sequencer"]
+        subgraph NO["Normal Operation"]
+            direction TB
+            process["Process user txs"]
+            create["Create batches"]
+            include["Include direct txs from DA"]
+        end
+    end
+
+    subgraph FN["Rollup Full Nodes"]
+        subgraph NormalOp["Normal Operation"]
+            follow["Follow sequencer produced blocks"]
+            validate["Validate DA references"]
+        end
+        
+        subgraph FallbackMode["Fallback Mode"]
+            detect["Detect sequencer down"]
+            scan["Scan DA for direct txs"]
+            createBlocks["Create deterministic blocks from direct txs"]
+        end
+    end
+
+    SEQ -->|"Publish Batches"| DAL
+    DAL -->|"Direct Txs"| SEQ
+    DAL -->|"Direct Txs"| FN
+    SEQ -->|"Rollup Blocks with DA Reference"| FN
+    NormalOp <--> FallbackMode
 ```
 
 ## Detailed Design
