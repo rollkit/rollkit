@@ -337,8 +337,15 @@ func initFiles() error {
 			nil,                           // No raw bytes for now
 		)
 
-		// Marshal the genesis struct directly
-		genesisBytes, err := json.MarshalIndent(genesis, "", "  ")
+		// Create a basic genesis JSON structure
+		genesisJSON := map[string]interface{}{
+			"chain_id":       genesis.ChainID,
+			"initial_height": genesis.InitialHeight,
+			"genesis_time":   genesis.GenesisDAStartHeight.Format(time.RFC3339),
+		}
+
+		// Marshal the genesis JSON
+		genesisBytes, err := json.MarshalIndent(genesisJSON, "", "  ")
 		if err != nil {
 			return fmt.Errorf("failed to marshal genesis: %w", err)
 		}
