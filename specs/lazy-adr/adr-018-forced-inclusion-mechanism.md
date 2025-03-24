@@ -198,7 +198,7 @@ func (n *Node) ValidateBlockWithDAReference(ctx context.Context, block *types.Bl
 
 3. **Validation Rules**:
    - Implement timestamp validation to ensure the rollup block's timestamp is not significantly higher than the referenced DA block
-   - Prevent re-referencing of the same DA block across multiple rollup blocks
+   - Ensure the referenced DA block height never decreases (monotonically increasing or equal)
 
 4. **Recovery Mechanism**:
    - Add logic to detect when the sequencer comes back online after downtime
