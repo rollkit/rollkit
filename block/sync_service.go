@@ -87,9 +87,6 @@ func newSyncService[H header.Header[H]](
 	p2p *p2p.Client,
 	logger log.Logger,
 ) (*SyncService[H], error) {
-	if genesis == nil {
-		return nil, errors.New("genesis doc cannot be nil")
-	}
 	if p2p == nil {
 		return nil, errors.New("p2p client cannot be nil")
 	}

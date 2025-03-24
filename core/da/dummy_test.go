@@ -47,7 +47,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test GetIDs
-	result, err := dummyDA.GetIDs(ctx, 1, nil)
+	result, err := dummyDA.GetIDs(ctx, 0, nil)
 	if err != nil {
 		t.Fatalf("GetIDs failed: %v", err)
 	}

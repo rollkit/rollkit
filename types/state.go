@@ -3,9 +3,8 @@ package types
 import (
 	"time"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
-
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // InitStateVersion sets the Consensus.Block and Software versions,

@@ -4,26 +4,14 @@ import (
 	"time"
 )
 
-// Genesis defines the interface for genesis state
-type Genesis interface {
-	// ChainID returns the chain identifier
-	ChainID() string
-
-	// InitialHeight returns the initial block height
-	InitialHeight() uint64
-
-	// GenesisTime returns the genesis time
-	GenesisTime() time.Time
-
-	// ProposerAddress returns the address of the proposer
-	ProposerAddress() []byte
-
-	// Bytes returns the genesis state as bytes
-	Bytes() []byte
+// GenesisLoader defines the interface for loading genesis data
+type GenesisLoader interface {
+	// LoadGenesis loads the genesis data from a file and returns a Genesis object
+	LoadGenesis(rootDir string, configDir string) (Genesis, error)
 }
 
-// BaseGenesis provides a basic implementation of the Genesis interface
-type BaseGenesis struct {
+// Genesis represents the genesis state of the blockchain
+type Genesis struct {
 	chainID         string
 	initialHeight   uint64
 	genesisTime     time.Time
@@ -31,15 +19,15 @@ type BaseGenesis struct {
 	rawBytes        []byte
 }
 
-// NewBaseGenesis creates a new BaseGenesis instance
-func NewBaseGenesis(
+// NewGenesis creates a new Genesis instance
+func NewGenesis(
 	chainID string,
 	initialHeight uint64,
 	genesisTime time.Time,
 	proposerAddress []byte,
 	rawBytes []byte,
-) *BaseGenesis {
-	return &BaseGenesis{
+) Genesis {
+	return Genesis{
 		chainID:         chainID,
 		initialHeight:   initialHeight,
 		genesisTime:     genesisTime,
@@ -48,27 +36,27 @@ func NewBaseGenesis(
 	}
 }
 
-// ChainID implements Genesis interface
-func (bg *BaseGenesis) ChainID() string {
-	return bg.chainID
+// ChainID returns the chain identifier
+func (g Genesis) ChainID() string {
+	return g.chainID
 }
 
-// InitialHeight implements Genesis interface
-func (bg *BaseGenesis) InitialHeight() uint64 {
-	return bg.initialHeight
+// InitialHeight returns the initial block height
+func (g Genesis) InitialHeight() uint64 {
+	return g.initialHeight
 }
 
-// GenesisTime implements Genesis interface
-func (bg *BaseGenesis) GenesisTime() time.Time {
-	return bg.genesisTime
+// GenesisTime returns the genesis time
+func (g Genesis) GenesisTime() time.Time {
+	return g.genesisTime
 }
 
-// ProposerAddress implements Genesis interface
-func (bg *BaseGenesis) ProposerAddress() []byte {
-	return bg.proposerAddress
+// ProposerAddress returns the address of the proposer
+func (g Genesis) ProposerAddress() []byte {
+	return g.proposerAddress
 }
 
-// Bytes implements Genesis interface
-func (bg *BaseGenesis) Bytes() []byte {
-	return bg.rawBytes
+// Bytes returns the genesis state as bytes
+func (g Genesis) Bytes() []byte {
+	return g.rawBytes
 }

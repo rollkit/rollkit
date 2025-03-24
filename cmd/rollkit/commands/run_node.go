@@ -28,6 +28,7 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
+	"github.com/rollkit/rollkit/pkg/genesis"
 	rollos "github.com/rollkit/rollkit/pkg/os"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
@@ -63,10 +64,6 @@ func NewRunNodeCmd() *cobra.Command {
 			defer cancel() // Ensure context is cancelled when command exits
 
 			kvExecutor := createDirectKVExecutor(ctx)
-			genesis, err := kvExecutor.BuildGenesis(nodeConfig)
-			if err != nil {
-				return fmt.Errorf("failed to build genesis: %w", err)
-			}
 
 			// TODO: this should be moved elsewhere
 			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
@@ -107,6 +104,13 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// Create a cancellable context for the node
 			dummySequencer := coresequencer.NewDummySequencer()
+
+			// Load genesis using the default genesis loader
+			genesisLoader := &genesis.DefaultGenesisLoader{}
+			genesis, err := genesisLoader.LoadGenesis(nodeConfig.RootDir, nodeConfig.ConfigDir)
+			if err != nil {
+				return fmt.Errorf("failed to load genesis: %w", err)
+			}
 
 			dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.DA.SubmitOptions), logger)

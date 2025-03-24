@@ -286,7 +286,7 @@ func GetGenesisWithPrivkey(chainID string) (coreexecutor.Genesis, crypto.PrivKey
 	}
 
 	// Create base genesis with validator's address
-	return coreexecutor.NewBaseGenesis(
+	return coreexecutor.NewGenesis(
 		chainID,
 		uint64(1),
 		time.Now(),
