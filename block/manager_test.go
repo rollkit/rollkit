@@ -143,7 +143,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	// Create genesis document with initial height 2
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
 	// Create a new genesis with height 2
-	genesisData = coreexecutor.NewBaseGenesis(
+	genesisData = coreexecutor.NewGenesis(
 		genesisData.ChainID(),
 		uint64(2), // Set initial height to 2
 		genesisData.GenesisTime(),
@@ -527,7 +527,7 @@ func TestAggregationLoop(t *testing.T) {
 	m := &Manager{
 		store:  mockStore,
 		logger: mockLogger,
-		genesis: coreexecutor.NewBaseGenesis(
+		genesis: coreexecutor.NewGenesis(
 			"myChain",
 			1,
 			time.Now(),

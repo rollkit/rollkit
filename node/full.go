@@ -198,7 +198,7 @@ func initBlockManager(
 
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress())
 
-	rollGen := coreexecutor.NewBaseGenesis(
+	rollGen := coreexecutor.NewGenesis(
 		genesis.ChainID(),
 		genesis.InitialHeight(),
 		genesis.GenesisTime(),
@@ -232,10 +232,6 @@ func initBlockManager(
 // iterate through larger genesis structures.
 func (n *FullNode) initGenesisChunks() error {
 	if n.genChunks != nil {
-		return nil
-	}
-
-	if n.genesis == nil {
 		return nil
 	}
 

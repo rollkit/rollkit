@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -25,6 +26,7 @@ import (
 
 	rollconf "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
@@ -328,15 +330,30 @@ func initFiles() error {
 	if rollos.FileExists(genFile) {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {
-		// Create a KVExecutor to generate genesis
-		kvExecutor := testExecutor.NewKVExecutor()
-		genesis, err := kvExecutor.BuildGenesis(nodeConfig)
+		// Create a default genesis
+		genesis := coreexecutor.NewGenesis(
+			"test-chain",
+			uint64(1),
+			time.Now(),
+			nil, // No proposer address for now
+			nil, // No raw bytes for now
+		)
+
+		// Create a basic genesis JSON structure
+		genesisJSON := map[string]interface{}{
+			"chain_id":       genesis.ChainID(),
+			"initial_height": genesis.InitialHeight(),
+			"genesis_time":   genesis.GenesisTime().Format(time.RFC3339),
+		}
+
+		// Marshal the genesis JSON
+		genesisBytes, err := json.MarshalIndent(genesisJSON, "", "  ")
 		if err != nil {
-			return fmt.Errorf("failed to build genesis: %w", err)
+			return fmt.Errorf("failed to marshal genesis: %w", err)
 		}
 
 		// Write genesis bytes directly to file
-		if err := os.WriteFile(genFile, genesis.Bytes(), 0600); err != nil {
+		if err := os.WriteFile(genFile, genesisBytes, 0600); err != nil {
 			return fmt.Errorf("failed to write genesis file: %w", err)
 		}
 		logger.Info("Generated genesis file", "path", genFile)

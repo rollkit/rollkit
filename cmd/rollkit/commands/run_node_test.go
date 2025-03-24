@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	rollconf "github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/node"
 )
 
 func TestParseFlags(t *testing.T) {
@@ -321,9 +320,6 @@ func TestInitFiles(t *testing.T) {
 	err = os.MkdirAll(dataDir, rollconf.DefaultDirPerm)
 	assert.NoError(t, err)
 
-	err = node.InitFiles(tempDir)
-	assert.NoError(t, err)
-
 	// Set the nodeConfig to use the temporary directory
 	nodeConfig = rollconf.Config{
 		RootDir:   tempDir,
@@ -344,7 +340,6 @@ func TestInitFiles(t *testing.T) {
 	files := []string{
 		filepath.Join(tempDir, "config", "priv_validator_key.json"),
 		filepath.Join(tempDir, "data", "priv_validator_state.json"),
-		filepath.Join(tempDir, "config", "node_key.json"),
 		filepath.Join(tempDir, "config", "genesis.json"),
 	}
 
