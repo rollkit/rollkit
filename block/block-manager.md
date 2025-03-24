@@ -160,7 +160,7 @@ The communication between the full node and block manager:
 * The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.
 * Block sync over the P2P network works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.
 * Node's context is passed down to all the components of the P2P block sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
-* The block manager supports the separation of header and data structures in Rollkit. This allows for expanding the sequencing scheme beyond centralized sequencing and enables the use of a decentralized sequencer mode. For detailed information on this architecture, see the [Header and Data Separation ADR](https://github.com/rollkit/rollkit/blob/main/docs/architecture/adr-001-header-and-data-separation.md).
+* The block manager supports the separation of header and data structures in Rollkit. This allows for expanding the sequencing scheme beyond centralized sequencing and enables the use of a decentralized sequencer mode. For detailed information on this architecture, see the [Header and Data Separation ADR](../specs/lazy-adr/adr-014-header-and-data-separation.md).
 
 ## Implementation
 
