@@ -321,29 +321,39 @@ The following diagram illustrates the operation flow for full nodes with forced 
 
 The following diagram illustrates the transition between normal operation and fallback mode:
 
-```
-┌─────────────────┐                    ┌─────────────────┐
-│                 │                    │                 │
-│  Normal Mode    │  Sequencer Down    │  Fallback Mode  │
-│                 │─────────────────►  │                 │
-│  Sequencer-led  │                    │ DA-based blocks │
-│                 │  Sequencer Back    │                 │
-│                 │ ◄─────────────────│                 │
-└─────────────────┘                    └─────────────────┘
+```mermaid
+sequenceDiagram
+    participant DA as Data Availability Layer
+    participant S as Sequencer
+    participant R as Rollup Chain
 
-Time ──────────────────────────────────────────────────►
+    Note over S,R: Normal Operation
+    DA->>S: DA Block N
+    S->>R: Sequencer Block N
+    DA->>S: DA Block N+1
+    S->>R: Sequencer Block N+1
+    DA->>S: DA Block N+2
+    S->>R: Sequencer Block N+2
+    
+    Note over S,R: Sequencer Down
+    DA->>R: DA Block N+3 (Direct Txs)
+    Note over R: Fallback Mode Start
+    R->>R: Create Block from Direct Txs
+    DA->>R: DA Block N+4 (Direct Txs)
+    R->>R: Create Block from Direct Txs
+    DA->>R: DA Block N+5 (Direct Txs)
+    R->>R: Create Block from Direct Txs
+    
+    Note over S,R: Sequencer Back Online
+    DA->>S: DA Block N+6
+    S->>R: Sequencer Block N+6
+    DA->>S: DA Block N+7
+    S->>R: Sequencer Block N+7
 
-DA Layer Blocks ──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──►
-                  │  │  │  │  │  │  │  │  │  │  │  │  │
-Sequencer Batches ┴──┴──┴──┘  │  │  │  │  │  │  └──┴──┴──►
-                               │  │  │  │  │  │
-Direct Txs        ─────────────┬──┬──┬──┬──┬──┬───────────►
-                               │  │  │  │  │  │
-Rollup Blocks     ─┬──┬──┬────┼──┼──┼──┼──┼──┼───┬──┬──┬──►
-                   │  │  │    │  │  │  │  │  │   │  │  │
-                   │  │  │    └──┴──┴──┴──┴──┘   │  │  │
-                Sequencer    Fallback Mode      Sequencer
-                 Blocks        Blocks           Resumes
+    Note over R: Timeline shows:
+    Note over R: 1. Normal sequencer operation
+    Note over R: 2. Sequencer downtime & fallback
+    Note over R: 3. Sequencer recovery
 ```
 
 ### Configuration
