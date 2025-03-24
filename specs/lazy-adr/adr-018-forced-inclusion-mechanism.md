@@ -75,7 +75,7 @@ flowchart TB
 
 ### User Requirements
 
-- Rollup developers need a mechanism to ensure their chains can progress even when the centralized sequencer is unavailable
+- Rollup developers need a mechanism to ensure their chains can progress even when the single sequencer is unavailable
 - The system should maintain a deterministic and consistent state regardless of sequencer availability
 - The transition between sequencer-led and forced inclusion modes should be seamless
 
