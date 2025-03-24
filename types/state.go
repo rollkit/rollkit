@@ -48,10 +48,8 @@ func NewFromGenesisDoc(genDoc coreexecutor.Genesis) (State, error) {
 		DAHeight: 1,
 
 		LastBlockHeight: genDoc.InitialHeight - 1,
-		LastBlockTime:   genDoc.GenesisDAStartHeight, // TODO: check if this is correct
+		LastBlockTime:   genDoc.GenesisDAStartHeight,
 	}
-
-	s.AppHash = genDoc.Bytes()
 
 	return s, nil
 }

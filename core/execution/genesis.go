@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -26,11 +27,11 @@ type GenesisLoader interface {
 
 // Genesis represents the genesis state of the blockchain
 type Genesis struct {
-	ChainID              string
-	GenesisDAStartHeight time.Time
-	InitialHeight        uint64
-	extraData            GenesisExtraData
-	rawBytes             []byte
+	ChainID              string           `json:"chain_id"`
+	GenesisDAStartHeight time.Time        `json:"genesis_da_start_height"`
+	InitialHeight        uint64           `json:"initial_height"`
+	ExtraData            GenesisExtraData `json:"extra_data"`
+	AppState             json.RawMessage  `json:"app_state,omitempty"`
 }
 
 // NewGenesis creates a new Genesis instance
@@ -39,23 +40,18 @@ func NewGenesis(
 	initialHeight uint64,
 	genesisDAStartHeight time.Time,
 	extraData GenesisExtraData,
-	rawBytes []byte,
+	appState json.RawMessage,
 ) Genesis {
 	return Genesis{
 		ChainID:              chainID,
 		GenesisDAStartHeight: genesisDAStartHeight,
 		InitialHeight:        initialHeight,
-		extraData:            extraData,
-		rawBytes:             rawBytes,
+		ExtraData:            extraData,
+		AppState:             appState,
 	}
 }
 
 // ProposerAddress returns the address of the proposer (for backwards compatibility)
 func (g Genesis) ProposerAddress() []byte {
-	return g.extraData.ProposerAddress
-}
-
-// Bytes returns the genesis state as bytes
-func (g Genesis) Bytes() []byte {
-	return g.rawBytes
+	return g.ExtraData.ProposerAddress
 }
