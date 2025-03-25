@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/cometbft/cometbft/p2p"
 	"github.com/ipfs/go-datastore"
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -198,18 +197,13 @@ func (c *Client) Peers() []PeerConnection {
 	res := make([]PeerConnection, 0, len(conns))
 	for _, conn := range conns {
 		pc := PeerConnection{
-			NodeInfo: p2p.DefaultNodeInfo{
+			NodeInfo: DefaultNodeInfo{
 				ListenAddr:    c.conf.ListenAddress,
 				Network:       c.chainID,
-				DefaultNodeID: p2p.ID(conn.RemotePeer().String()),
-				// TODO(tzdybal): fill more fields
+				DefaultNodeID: conn.RemotePeer().String(),
 			},
 			IsOutbound: conn.Stat().Direction == network.DirOutbound,
-			ConnectionStatus: p2p.ConnectionStatus{
-				Duration: time.Since(conn.Stat().Opened),
-				// TODO(tzdybal): fill more fields
-			},
-			RemoteIP: conn.RemoteMultiaddr().String(),
+			RemoteIP:   conn.RemoteMultiaddr().String(),
 		}
 		res = append(res, pc)
 	}

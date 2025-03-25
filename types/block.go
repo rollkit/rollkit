@@ -42,14 +42,6 @@ type IntermediateStateRoots struct {
 	RawRootsList [][]byte
 }
 
-// GetCommitHash returns an ABCI commit equivalent hash associated to a signature.
-func (signature *Signature) GetCommitHash(header *Header, proposerAddress []byte) []byte {
-	abciCommit := GetABCICommit(header.Height(), header.Hash(), proposerAddress, header.Time(), *signature)
-	abciCommit.Signatures[0].ValidatorAddress = proposerAddress
-	abciCommit.Signatures[0].Timestamp = header.Time()
-	return abciCommit.Hash()
-}
-
 // ValidateBasic performs basic validation of block data.
 // Actually it's a placeholder, because nothing is checked.
 func (d *Data) ValidateBasic() error {

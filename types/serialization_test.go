@@ -5,9 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmtypes "github.com/cometbft/cometbft/types"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -47,8 +45,10 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		ProposerAddress: []byte{4, 3, 2, 1},
 	}
 
-	pubKey1 := ed25519.GenPrivKey().PubKey()
-	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1, VotingPower: 1}
+	pubKey1, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	require.NoError(err)
+	signer1, err := NewSigner(pubKey1.GetPublic())
+	require.NoError(err)
 
 	cases := []struct {
 		name   string
@@ -59,17 +59,10 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		{"full", &SignedHeader{
 			Header:    h1,
 			Signature: Signature([]byte{1, 1, 1}),
-			Validators: cmtypes.NewValidatorSet(
-				[]*cmtypes.Validator{
-					validator1,
-				}),
+			Signer:    signer1,
 		}, &Data{
 			Metadata: &Metadata{},
 			Txs:      nil,
-			//IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},
-			// TODO(tzdybal): update when we have actual evidence types
-			// Note: Temporarily remove Evidence #896
-			// Evidence: EvidenceData{Evidence: nil},
 		},
 		},
 	}
@@ -173,29 +166,4 @@ func TestTxsRoundtrip(t *testing.T) {
 	for i := range txs {
 		assert.Equal(t, txs[i], newTxs[i])
 	}
-}
-
-func TestConsensusParamsFromProto(t *testing.T) {
-	// Prepare test case
-	pbParams := cmproto.ConsensusParams{
-		Block: &cmproto.BlockParams{
-			MaxBytes: 12345,
-			MaxGas:   67890,
-		},
-		Validator: &cmproto.ValidatorParams{
-			PubKeyTypes: []string{cmtypes.ABCIPubKeyTypeEd25519},
-		},
-		Version: &cmproto.VersionParams{
-			App: 42,
-		},
-	}
-
-	// Call the function to be tested
-	params := ConsensusParamsFromProto(pbParams)
-
-	// Check the results
-	assert.Equal(t, int64(12345), params.Block.MaxBytes)
-	assert.Equal(t, int64(67890), params.Block.MaxGas)
-	assert.Equal(t, uint64(42), params.Version.App)
-	assert.Equal(t, []string{cmtypes.ABCIPubKeyTypeEd25519}, params.Validator.PubKeyTypes)
 }
