@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-header"
-
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/pkg/genesis"

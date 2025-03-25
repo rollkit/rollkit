@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/libp2p/go-libp2p/core/crypto"
+
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
