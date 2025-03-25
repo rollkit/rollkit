@@ -5,7 +5,7 @@ import "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 import "rollkit/v1/rollkit.proto";
 
-option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
+option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
 
 
 // State is the state of the blockchain.
