@@ -7,13 +7,6 @@ type PeerConnection struct {
 	RemoteIP   string          `json:"remote_ip"`
 }
 
-// ProtocolVersion contains the protocol versions for the software.
-type ProtocolVersion struct {
-	P2P   uint64 `json:"p2p"`
-	Block uint64 `json:"block"`
-	App   uint64 `json:"app"`
-}
-
 // DefaultNodeInfo is the basic node information exchanged
 // between two peers
 type DefaultNodeInfo struct {
