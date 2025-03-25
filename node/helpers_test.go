@@ -43,7 +43,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	config := getTestConfig(t, 1)
 
 	// Generate genesis and keys
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()

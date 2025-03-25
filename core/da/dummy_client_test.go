@@ -42,7 +42,7 @@ func TestDummyClient(t *testing.T) {
 	}
 
 	// Test Retrieve
-	retrieveResult := client.Retrieve(ctx, 1) // Use height 1 as set in the dummy implementation
+	retrieveResult := client.Retrieve(ctx, 0) // Use height 0 as that's where the first submission goes
 
 	// Check the result
 	if retrieveResult.Code != StatusSuccess {

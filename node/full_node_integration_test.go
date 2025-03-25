@@ -61,8 +61,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		config.Node.BlockTime.Duration, config.DA.BlockTime.Duration, config.Node.MaxPendingBlocks)
 
 	// Create genesis with current time
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
-	genesis.GenesisTime = time.Now() // Set genesis time to now
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
@@ -314,7 +313,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	config := getTestConfig(s.T(), 1)
 	config.Node.MaxPendingBlocks = 2
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
@@ -360,7 +359,7 @@ func (s *FullNodeTestSuite) TestGenesisInitialization() {
 
 	// Verify genesis state
 	state := s.node.blockManager.GetLastState()
-	require.Equal(s.node.genesis.InitialHeight, int64(state.InitialHeight))
+	require.Equal(s.node.genesis.InitialHeight, state.InitialHeight)
 	require.Equal(s.node.genesis.ChainID, state.ChainID)
 }
 
@@ -398,7 +397,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 
 	// Create a NEW node instance instead of reusing the old one
 	config := getTestConfig(s.T(), 1)
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()

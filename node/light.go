@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	"cosmossdk.io/log"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/store"
@@ -29,7 +29,7 @@ type LightNode struct {
 
 func newLightNode(
 	conf config.Config,
-	genesis *cmtypes.GenesisDoc,
+	genesis genesis.Genesis,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {

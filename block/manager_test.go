@@ -23,6 +23,7 @@ import (
 	damocks "github.com/rollkit/rollkit/da/mocks"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
+	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/queue"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
@@ -52,35 +53,29 @@ func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier
 		gasMultiplier: gasMultiplier,
 	}
 }
+
 func TestInitialStateClean(t *testing.T) {
-	const chainID = "TestInitialStateClean"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
-	genesis := &RollkitGenesis{
-		ChainID:         chainID,
-		InitialHeight:   1,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
-	}
+
+	// Create genesis document
+	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateClean")
 	logger := log.NewTestLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
-	s, err := getInitialState(context.TODO(), genesis, emptyStore, coreexecutor.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesisData, emptyStore, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
-	require.Equal(s.LastBlockHeight, genesis.InitialHeight-1)
-	require.Equal(genesis.InitialHeight, s.InitialHeight)
+	initialHeight := genesisData.InitialHeight
+	require.Equal(initialHeight-1, s.LastBlockHeight)
+	require.Equal(initialHeight, s.InitialHeight)
 }
 
 func TestInitialStateStored(t *testing.T) {
-	chainID := "TestInitialStateStored"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
-	genesis := &RollkitGenesis{
-		ChainID:         chainID,
-		InitialHeight:   1,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
-	}
+
+	// Create genesis document
+	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateStored")
 	sampleState := types.State{
-		ChainID:         chainID,
+		ChainID:         "TestInitialStateStored",
 		InitialHeight:   1,
 		LastBlockHeight: 100,
 	}
@@ -92,7 +87,7 @@ func TestInitialStateStored(t *testing.T) {
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	logger := log.NewTestLogger(t)
-	s, err := getInitialState(context.TODO(), genesis, store, coreexecutor.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesisData, store, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -147,12 +142,19 @@ func TestHandleEmptyDataHash(t *testing.T) {
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
-	genesis := &RollkitGenesis{
-		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
-		InitialHeight:   2,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
-	}
+
+	// Create genesis document with initial height 2
+	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
+	// Create a new genesis with height 2
+	genesis := genesispkg.NewGenesis(
+		genesisData.ChainID,
+		uint64(2), // Set initial height to 2
+		genesisData.GenesisDAStartHeight,
+		genesispkg.GenesisExtraData{
+			ProposerAddress: genesisData.ProposerAddress(),
+		},
+		nil, // No raw bytes for now
+	)
 	sampleState := types.State{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   1,
@@ -375,7 +377,7 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "Signing key matches genesis proposer public key",
 			args: func() args {
-				genesisData, privKey := types.GetGenesisWithPrivkey("Test_isProposer")
+				genesisData, privKey, _ := types.GetGenesisWithPrivkey("Test_isProposer")
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)
 				return args{
@@ -386,42 +388,6 @@ func Test_isProposer(t *testing.T) {
 			isProposer: true,
 			err:        nil,
 		},
-		//{
-		//	name: "Signing key does not match genesis proposer public key",
-		//	args: func() args {
-		//		genesisData, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
-		//		s, err := types.NewFromGenesisDoc(genesisData)
-		//		require.NoError(err)
-
-		//		randomPrivKey := ed25519.GenPrivKey()
-		//		signingKey, err := types.PrivKeyToSigningKey(randomPrivKey)
-		//		require.NoError(err)
-		//		return args{
-		//			s,
-		//			signingKey,
-		//		}
-		//	}(),
-		//	isProposer: false,
-		//	err:        nil,
-		//},
-		//{
-		//	name: "No validators found in genesis",
-		//	args: func() args {
-		//		genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
-		//		genesisData.Validators = nil
-		//		s, err := types.NewFromGenesisDoc(genesisData)
-		//		require.NoError(err)
-
-		//		signingKey, err := types.PrivKeyToSigningKey(privKey)
-		//		require.NoError(err)
-		//		return args{
-		//			s,
-		//			signingKey,
-		//		}
-		//	}(),
-		//	isProposer: false,
-		//	err:        ErrNoValidatorsInState,
-		//},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -566,10 +532,13 @@ func TestAggregationLoop(t *testing.T) {
 	m := &Manager{
 		store:  mockStore,
 		logger: mockLogger,
-		genesis: &RollkitGenesis{
-			ChainID:       "myChain",
-			InitialHeight: 1,
-		},
+		genesis: genesispkg.NewGenesis(
+			"myChain",
+			1,
+			time.Now(),
+			genesispkg.GenesisExtraData{}, // Empty extra data
+			nil,                           // No raw bytes for now
+		),
 		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      config.DurationWrapper{Duration: time.Second},

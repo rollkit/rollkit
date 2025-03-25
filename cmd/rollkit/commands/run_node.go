@@ -2,9 +2,9 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -15,7 +15,6 @@ import (
 
 	"cosmossdk.io/log"
 	cometprivval "github.com/cometbft/cometbft/privval"
-	comettypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
@@ -30,6 +29,7 @@ import (
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
+	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	rollos "github.com/rollkit/rollkit/pkg/os"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
@@ -61,11 +61,10 @@ func NewRunNodeCmd() *cobra.Command {
 			return initFiles()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			genDocProvider := RollkitGenesisDocProviderFunc(nodeConfig)
-			genDoc, err := genDocProvider()
-			if err != nil {
-				return err
-			}
+			ctx, cancel := context.WithCancel(cmd.Context())
+			defer cancel() // Ensure context is cancelled when command exits
+
+			kvExecutor := createDirectKVExecutor(ctx)
 
 			// TODO: this should be moved elsewhere
 			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
@@ -80,11 +79,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// initialize the metrics
 			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
-			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
-			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-				genDoc.ChainID = nodeConfig.Node.SequencerRollupID
-			}
-			sequencerRollupID := genDoc.ChainID
+			sequencerRollupID := nodeConfig.Node.SequencerRollupID
 			// Try and launch a mock gRPC sequencer if there is no sequencer running.
 			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
 			var seqSrv *grpc.Server = nil
@@ -104,11 +99,13 @@ func NewRunNodeCmd() *cobra.Command {
 			logger.Info("Executor address", "address", nodeConfig.Node.ExecutorAddress)
 
 			// Create a cancellable context for the node
-			ctx, cancel := context.WithCancel(cmd.Context())
-			defer cancel() // Ensure context is cancelled when command exits
-
-			kvExecutor := createDirectKVExecutor(ctx)
 			dummySequencer := coresequencer.NewDummySequencer()
+
+			genesisPath := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "genesis.json")
+			genesis, err := genesispkg.LoadGenesis(genesisPath)
+			if err != nil {
+				return fmt.Errorf("failed to load genesis: %w", err)
+			}
 
 			dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.DA.SubmitOptions), logger)
@@ -121,7 +118,7 @@ func NewRunNodeCmd() *cobra.Command {
 				dummySequencer,
 				dummyDALC,
 				signingKey,
-				genDoc,
+				genesis,
 				metrics,
 				logger,
 			)
@@ -311,13 +308,11 @@ func initFiles() error {
 	// Generate the private validator config files
 	cometprivvalKeyFile := filepath.Join(configDir, "priv_validator_key.json")
 	cometprivvalStateFile := filepath.Join(dataDir, "priv_validator_state.json")
-	var pv *cometprivval.FilePV
 	if rollos.FileExists(cometprivvalKeyFile) {
-		pv = cometprivval.LoadFilePV(cometprivvalKeyFile, cometprivvalStateFile)
 		logger.Info("Found private validator", "keyFile", cometprivvalKeyFile,
 			"stateFile", cometprivvalStateFile)
 	} else {
-		pv = cometprivval.GenFilePV(cometprivvalKeyFile, cometprivvalStateFile)
+		pv := cometprivval.GenFilePV(cometprivvalKeyFile, cometprivvalStateFile)
 		pv.Save()
 		logger.Info("Generated private validator", "keyFile", cometprivvalKeyFile,
 			"stateFile", cometprivvalStateFile)
@@ -328,24 +323,24 @@ func initFiles() error {
 	if rollos.FileExists(genFile) {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {
-		genDoc := comettypes.GenesisDoc{
-			ChainID:         fmt.Sprintf("test-rollup-%08x", rand.Uint32()), //nolint:gosec
-			GenesisTime:     time.Now().Round(0).UTC(),
-			ConsensusParams: comettypes.DefaultConsensusParams(),
-		}
-		pubKey, err := pv.GetPubKey()
-		if err != nil {
-			return fmt.Errorf("can't get pubkey: %w", err)
-		}
-		genDoc.Validators = []comettypes.GenesisValidator{{
-			Address: pubKey.Address(),
-			PubKey:  pubKey,
-			Power:   1000,
-			Name:    "Rollkit Sequencer",
-		}}
+		// Create a default genesis
+		genesis := genesispkg.NewGenesis(
+			"test-chain",
+			uint64(1),
+			time.Now(),
+			genesispkg.GenesisExtraData{}, // No proposer address for now
+			nil,                           // No raw bytes for now
+		)
 
-		if err := genDoc.SaveAs(genFile); err != nil {
-			return err
+		// Marshal the genesis struct directly
+		genesisBytes, err := json.MarshalIndent(genesis, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal genesis: %w", err)
+		}
+
+		// Write genesis bytes directly to file
+		if err := os.WriteFile(genFile, genesisBytes, 0600); err != nil {
+			return fmt.Errorf("failed to write genesis file: %w", err)
 		}
 		logger.Info("Generated genesis file", "path", genFile)
 	}
@@ -414,14 +409,4 @@ func setupLogger(config rollconf.Config) log.Logger {
 
 	// Add module to logger
 	return configuredLogger.With("module", "main")
-}
-
-// RollkitGenesisDocProviderFunc returns a function that loads the GenesisDoc from the filesystem
-// using nodeConfig instead of config.
-func RollkitGenesisDocProviderFunc(nodeConfig rollconf.Config) func() (*comettypes.GenesisDoc, error) {
-	return func() (*comettypes.GenesisDoc, error) {
-		// Construct the genesis file path using rootify
-		genFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "genesis.json")
-		return comettypes.GenesisDocFromFile(genFile)
-	}
 }
