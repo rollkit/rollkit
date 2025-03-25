@@ -16,17 +16,17 @@ Connect-Go has been chosen as the RPC framework due to its modern features, exce
 
 - Pros: Mature ecosystem, wide adoption
 - Cons: More complex setup, less flexible protocol support, requires more boilerplate
-- Not chosen because Connect-Go provides a more modern and streamlined developer experience while maintaining gRPC compatibility
 
 ### REST API
 
 - Pros: Familiar, widely supported
 - Cons: No built-in streaming, manual schema definition required
-- Not chosen because Connect-RPC provides better performance and type safety
 
 ## Decision
 
-Implement a Connect-Go service layer that exposes the Store interface functionality through a well-defined protocol buffer schema and Connect-RPC service definitions.
+Implement a Connect-Go service layer that exposes the Store interface functionality through a well-defined protocol buffer schema and Connect-Go service definitions.
+
+[Connect-Go](https://connectrpc.com/docs/go/getting-started/) is a lightweight gRPC library that provides REST out of the box, allowing users to switch between implementations.
 
 ## Detailed Design
 
@@ -70,8 +70,6 @@ service StoreService {
 ```tree
 pkg/
     rpc/
-      connect/
-        store.connect.go    // Generated Connect service code
       server/
         server.go         // Connect-RPC server implementation
       client/
