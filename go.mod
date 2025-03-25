@@ -13,7 +13,6 @@ require (
 	cosmossdk.io/log v1.5.0
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/celestiaorg/utils v0.1.0
-	github.com/cometbft/cometbft v0.38.15
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/go-kit/kit v0.13.0
 	github.com/goccy/go-yaml v1.16.0
