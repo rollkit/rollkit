@@ -4,11 +4,17 @@ go 1.24.0
 
 retract v0.12.0 // Published by accident
 
+replace (
+	github.com/rollkit/rollkit/core => ./core
+	github.com/rollkit/rollkit/da => ./da
+)
+
 require (
 	cosmossdk.io/log v1.5.0
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.15
+	github.com/cosmos/gogoproto v1.7.0
 	github.com/go-kit/kit v0.13.0
 	github.com/goccy/go-yaml v1.16.0
 	github.com/gogo/protobuf v1.3.2
@@ -32,11 +38,6 @@ require (
 	google.golang.org/protobuf v1.36.5
 )
 
-replace (
-	github.com/rollkit/rollkit/core => ./core
-	github.com/rollkit/rollkit/da => ./da
-)
-
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
@@ -56,7 +57,6 @@ require (
 	github.com/cometbft/cometbft-db v0.14.1 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
-	github.com/cosmos/gogoproto v1.7.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect

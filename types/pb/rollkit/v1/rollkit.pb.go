@@ -5,9 +5,9 @@ package v1
 
 import (
 	fmt "fmt"
+	proto "github.com/cosmos/gogoproto/proto"
+	github_com_cosmos_gogoproto_types "github.com/cosmos/gogoproto/types"
 	_ "github.com/gogo/protobuf/gogoproto"
-	proto "github.com/gogo/protobuf/proto"
-	github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
 	_ "google.golang.org/protobuf/types/known/timestamppb"
 	io "io"
 	math "math"
@@ -972,7 +972,7 @@ func (m *Vote) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x22
 	}
-	n5, err5 := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.Timestamp, dAtA[i-github_com_gogo_protobuf_types.SizeOfStdTime(m.Timestamp):])
+	n5, err5 := github_com_cosmos_gogoproto_types.StdTimeMarshalTo(m.Timestamp, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdTime(m.Timestamp):])
 	if err5 != nil {
 		return 0, err5
 	}
@@ -1169,7 +1169,7 @@ func (m *Vote) Size() (n int) {
 	if m.Height != 0 {
 		n += 1 + sovRollkit(uint64(m.Height))
 	}
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.Timestamp)
+	l = github_com_cosmos_gogoproto_types.SizeOfStdTime(m.Timestamp)
 	n += 1 + l + sovRollkit(uint64(l))
 	l = len(m.BlockIdHash)
 	if l > 0 {
@@ -2359,7 +2359,7 @@ func (m *Vote) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.Timestamp, dAtA[iNdEx:postIndex]); err != nil {
+			if err := github_com_cosmos_gogoproto_types.StdTimeUnmarshal(&m.Timestamp, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
