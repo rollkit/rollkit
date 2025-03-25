@@ -5,8 +5,6 @@ import (
 	"encoding"
 	"errors"
 	"time"
-
-	cmtypes "github.com/cometbft/cometbft/types"
 )
 
 // Version captures the consensus rules for processing a block in the blockchain,
@@ -33,14 +31,6 @@ type Metadata struct {
 type Data struct {
 	*Metadata
 	Txs Txs
-	// IntermediateStateRoots IntermediateStateRoots
-	// Note: Temporarily remove Evidence #896
-	// Evidence               EvidenceData
-}
-
-// EvidenceData defines how evidence is stored in block.
-type EvidenceData struct {
-	Evidence []cmtypes.Evidence
 }
 
 // Signature represents signature of block creator.
@@ -50,14 +40,6 @@ type Signature []byte
 // They are required for fraud proofs.
 type IntermediateStateRoots struct {
 	RawRootsList [][]byte
-}
-
-// GetCommitHash returns an ABCI commit equivalent hash associated to a signature.
-func (signature *Signature) GetCommitHash(header *Header, proposerAddress []byte) []byte {
-	abciCommit := GetABCICommit(header.Height(), header.Hash(), proposerAddress, header.Time(), *signature)
-	abciCommit.Signatures[0].ValidatorAddress = proposerAddress
-	abciCommit.Signatures[0].Timestamp = header.Time()
-	return abciCommit.Hash()
 }
 
 // ValidateBasic performs basic validation of block data.

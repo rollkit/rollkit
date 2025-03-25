@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/rollkit/rollkit/block"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p"
 )
 
 const readHeaderTimeout = 10 * time.Second

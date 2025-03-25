@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	rollconf "github.com/rollkit/rollkit/config"
+	rollconf "github.com/rollkit/rollkit/pkg/config"
 	rollos "github.com/rollkit/rollkit/pkg/os"
 )
 

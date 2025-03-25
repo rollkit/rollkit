@@ -16,10 +16,10 @@ import (
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 
-	rollkitconfig "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -178,7 +178,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		},
 	}
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(chainID)
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey(chainID)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()

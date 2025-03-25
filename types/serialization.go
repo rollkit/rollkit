@@ -1,8 +1,7 @@
 package types
 
 import (
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/types"
+	"github.com/libp2p/go-libp2p/core/crypto"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
@@ -57,14 +56,25 @@ func (d *Data) UnmarshalBinary(data []byte) error {
 
 // ToProto converts SignedHeader into protobuf representation and returns it.
 func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
-	vSet, err := sh.Validators.ToProto()
+	if sh.Signer.PubKey == nil {
+		return &pb.SignedHeader{
+			Header:    sh.Header.ToProto(),
+			Signature: sh.Signature[:],
+			Signer:    &pb.Signer{},
+		}, nil
+	}
+
+	pubKey, err := crypto.MarshalPublicKey(sh.Signer.PubKey)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.SignedHeader{
-		Header:     sh.Header.ToProto(),
-		Signature:  sh.Signature[:],
-		Validators: vSet,
+		Header:    sh.Header.ToProto(),
+		Signature: sh.Signature[:],
+		Signer: &pb.Signer{
+			Address: sh.Signer.Address,
+			PubKey:  pubKey,
+		},
 	}, nil
 }
 
@@ -76,13 +86,15 @@ func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 	}
 	sh.Signature = other.Signature
 
-	if other.Validators != nil && other.Validators.GetProposer() != nil {
-		validators, err := types.ValidatorSetFromProto(other.Validators)
+	if len(other.Signer.PubKey) > 0 {
+		pubKey, err := crypto.UnmarshalPublicKey(other.Signer.PubKey)
 		if err != nil {
 			return err
 		}
-
-		sh.Validators = validators
+		sh.Signer = Signer{
+			Address: other.Signer.Address,
+			PubKey:  pubKey,
+		}
 	}
 	return nil
 }
@@ -153,7 +165,7 @@ func (h *Header) FromProto(other *pb.Header) error {
 	return nil
 }
 
-// ToProto ...
+// ToProto converts Metadata into protobuf representation and returns it.
 func (m *Metadata) ToProto() *pb.Metadata {
 	return &pb.Metadata{
 		ChainId:      m.ChainID,
@@ -163,7 +175,7 @@ func (m *Metadata) ToProto() *pb.Metadata {
 	}
 }
 
-// FromProto ...
+// FromProto fills Metadata with data from its protobuf representation.
 func (m *Metadata) FromProto(other *pb.Metadata) {
 	m.ChainID = other.ChainId
 	m.Height = other.Height
@@ -259,43 +271,4 @@ func byteSlicesToTxs(bytes [][]byte) Txs {
 		txs[i] = bytes[i]
 	}
 	return txs
-}
-
-// Note: Temporarily remove Evidence #896
-
-// func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
-// 	var ret []*abci.Evidence
-// 	for _, e := range evidence.Evidence {
-// 		for i := range e.ABCI() {
-// 			ae := e.ABCI()[i]
-// 			ret = append(ret, &ae)
-// 		}
-// 	}
-// 	return ret
-// }
-
-// func evidenceFromProto(evidence []*abci.Evidence) EvidenceData {
-// 	var ret EvidenceData
-// 	// TODO(tzdybal): right now Evidence is just an interface without implementations
-// 	return ret
-// }
-
-// ConsensusParamsFromProto converts protobuf consensus parameters to consensus parameters
-func ConsensusParamsFromProto(pbParams cmproto.ConsensusParams) types.ConsensusParams {
-	c := types.ConsensusParams{
-		Block: types.BlockParams{
-			MaxBytes: pbParams.Block.MaxBytes,
-			MaxGas:   pbParams.Block.MaxGas,
-		},
-		Validator: types.ValidatorParams{
-			PubKeyTypes: pbParams.Validator.PubKeyTypes,
-		},
-		Version: types.VersionParams{
-			App: pbParams.Version.App,
-		},
-	}
-	if pbParams.Abci != nil {
-		c.ABCI.VoteExtensionsEnableHeight = pbParams.Abci.GetVoteExtensionsEnableHeight()
-	}
-	return c
 }

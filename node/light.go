@@ -6,14 +6,14 @@ import (
 	"fmt"
 
 	"cosmossdk.io/log"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 
-	"github.com/rollkit/rollkit/block"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
-	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/pkg/store"
+	"github.com/rollkit/rollkit/pkg/sync"
 )
 
 var _ Node = &LightNode{}
@@ -24,12 +24,12 @@ type LightNode struct {
 
 	P2P *p2p.Client
 
-	hSyncService *block.HeaderSyncService
+	hSyncService *sync.HeaderSyncService
 }
 
 func newLightNode(
 	conf config.Config,
-	genesis *cmtypes.GenesisDoc,
+	genesis genesis.Genesis,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
@@ -45,7 +45,7 @@ func newLightNode(
 		return nil, err
 	}
 
-	headerSyncService, err := block.NewHeaderSyncService(datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := sync.NewHeaderSyncService(datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}

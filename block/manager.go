@@ -7,23 +7,25 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/go-sequencing"
 
-	"github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/cache"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/queue"
 	"github.com/rollkit/rollkit/pkg/remote_signer"
-	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/third_party/log"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
@@ -72,11 +74,6 @@ var (
 	// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
 	dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
 
-	// ErrNoBatch indicate no batch is available for creating block
-	ErrNoBatch = errors.New("no batch to process")
-
-	// ErrHeightFromFutureStr is the error message for height from future returned by da
-	ErrHeightFromFutureStr = "given height is from the future"
 	// initialBackoff defines initial value for block submission backoff
 	initialBackoff = 100 * time.Millisecond
 )
@@ -108,7 +105,7 @@ type Manager struct {
 	store        store.Store
 
 	config  config.Config
-	genesis *RollkitGenesis
+	genesis genesis.Genesis
 
 	proposerKey remote_signer.Signer
 
@@ -124,8 +121,8 @@ type Manager struct {
 	dataInCh  chan NewDataEvent
 	dataStore *goheaderstore.Store[*types.Data]
 
-	headerCache *HeaderCache
-	dataCache   *DataCache
+	headerCache *cache.Cache[types.SignedHeader]
+	dataCache   *cache.Cache[types.Data]
 
 	// headerStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve headers from headerStore
 	headerStoreCh chan struct{}
@@ -160,19 +157,11 @@ type Manager struct {
 
 	sequencer     coresequencer.Sequencer
 	lastBatchData [][]byte
-	bq            *BatchQueue
+	bq            *queue.Queue[BatchData]
 }
 
-// RollkitGenesis is the genesis state of the rollup
-type RollkitGenesis struct {
-	GenesisTime     time.Time
-	InitialHeight   uint64
-	ChainID         string
-	ProposerAddress []byte
-}
-
-// getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
-func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
+// getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
+func getInitialState(ctx context.Context, genesis genesis.Genesis, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(ctx)
 
@@ -183,11 +172,11 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 		err = store.SaveBlockData(ctx,
 			&types.SignedHeader{Header: types.Header{
 				DataHash:        new(types.Data).Hash(),
-				ProposerAddress: genesis.ProposerAddress,
+				ProposerAddress: genesis.ProposerAddress(),
 				BaseHeader: types.BaseHeader{
 					ChainID: genesis.ChainID,
 					Height:  genesis.InitialHeight,
-					Time:    uint64(genesis.GenesisTime.UnixNano()),
+					Time:    uint64(genesis.GenesisDAStartHeight.UnixNano()),
 				}}},
 			&types.Data{},
 			&types.Signature{},
@@ -198,7 +187,7 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		// TODO(tzdybal): handle max bytes
-		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisTime, genesis.InitialHeight, genesis.ChainID)
+		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartHeight, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
 			logger.Error("error while initializing chain", "error", err)
 			return types.State{}, err
@@ -209,7 +198,7 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 			ChainID:         genesis.ChainID,
 			InitialHeight:   genesis.InitialHeight,
 			LastBlockHeight: genesis.InitialHeight - 1,
-			LastBlockTime:   genesis.GenesisTime,
+			LastBlockTime:   genesis.GenesisDAStartHeight,
 			AppHash:         stateRoot,
 			DAHeight:        0,
 		}
@@ -234,7 +223,7 @@ func NewManager(
 	ctx context.Context,
 	proposerKey remote_signer.Signer,
 	config config.Config,
-	genesis *RollkitGenesis,
+	genesis genesis.Genesis,
 	store store.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
@@ -329,8 +318,8 @@ func NewManager(
 		dataStore:      dataStore,
 		lastStateMtx:   new(sync.RWMutex),
 		lastBatchData:  lastBatchData,
-		headerCache:    NewHeaderCache(),
-		dataCache:      NewDataCache(),
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
 		retrieveCh:     make(chan struct{}, 1),
 		logger:         logger,
 		buildingBlock:  false,
@@ -338,7 +327,7 @@ func NewManager(
 		metrics:        seqMetrics,
 		isProposer:     isProposer,
 		sequencer:      sequencer,
-		bq:             NewBatchQueue(),
+		bq:             queue.New[BatchData](),
 		exec:           exec,
 		gasPrice:       gasPrice,
 		gasMultiplier:  gasMultiplier,
@@ -434,12 +423,12 @@ func (m *Manager) GetDataInCh() chan NewDataEvent {
 
 // IsBlockHashSeen returns true if the block with the given hash has been seen.
 func (m *Manager) IsBlockHashSeen(blockHash string) bool {
-	return m.headerCache.isSeen(blockHash)
+	return m.headerCache.IsSeen(blockHash)
 }
 
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
 func (m *Manager) IsDAIncluded(hash types.Hash) bool {
-	return m.headerCache.isDAIncluded(hash.String())
+	return m.headerCache.IsDAIncluded(hash.String())
 }
 
 // getRemainingSleep calculates the remaining sleep time based on config and a start time.
@@ -506,7 +495,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 					"txCount", len(res.Batch.Transactions),
 					"timestamp", res.Timestamp)
 
-				m.bq.AddBatch(BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData})
+				m.bq.Add(BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData})
 				if len(res.Batch.Transactions) != 0 {
 					h := convertBatchDataToBytes(res.BatchData)
 					if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
@@ -538,7 +527,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 
 	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
 	if height < initialHeight {
-		delay = time.Until(m.genesis.GenesisTime)
+		delay = time.Until(m.genesis.GenesisDAStartHeight.Add(m.config.Node.BlockTime.Duration))
 	} else {
 		lastBlockTime := m.getLastBlockTime()
 		delay = time.Until(lastBlockTime.Add(m.config.Node.BlockTime.Duration))
@@ -580,7 +569,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		case <-ctx.Done():
 			return
 		// the m.bq.notifyCh channel is signalled when batch becomes available in the batch queue
-		case _, ok := <-m.bq.notifyCh:
+		case _, ok := <-m.bq.NotifyCh():
 			if ok && !m.buildingBlock {
 				// set the buildingBlock flag to prevent multiple calls to reset the time
 				m.buildingBlock = true
@@ -666,7 +655,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 			d := &types.Data{
 				Metadata: metadata,
 			}
-			m.dataCache.setData(headerHeight, d)
+			m.dataCache.SetItem(headerHeight, d)
 		}
 	}
 }
@@ -698,11 +687,11 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", headerHash,
 			)
-			if headerHeight <= m.store.Height() || m.headerCache.isSeen(headerHash) {
+			if headerHeight <= m.store.Height() || m.headerCache.IsSeen(headerHash) {
 				m.logger.Debug("header already seen", "height", headerHeight, "block hash", headerHash)
 				continue
 			}
-			m.headerCache.setHeader(headerHeight, header)
+			m.headerCache.SetItem(headerHeight, header)
 
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToRetrieveCh()
@@ -717,7 +706,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				m.logger.Info("failed to sync next block", "error", err)
 				continue
 			}
-			m.headerCache.setSeen(headerHash)
+			m.headerCache.SetSeen(headerHash)
 		case dataEvent := <-m.dataInCh:
 			data := dataEvent.Data
 			daHeight := dataEvent.DAHeight
@@ -728,11 +717,11 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", dataHash,
 			)
-			if dataHeight <= m.store.Height() || m.dataCache.isSeen(dataHash) {
+			if dataHeight <= m.store.Height() || m.dataCache.IsSeen(dataHash) {
 				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue
 			}
-			m.dataCache.setData(dataHeight, data)
+			m.dataCache.SetItem(dataHeight, data)
 
 			m.sendNonBlockingSignalToDataStoreCh()
 
@@ -741,7 +730,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				m.logger.Info("failed to sync next block", "error", err)
 				continue
 			}
-			m.dataCache.setSeen(dataHash)
+			m.dataCache.SetSeen(dataHash)
 		case <-ctx.Done():
 			return
 		}
@@ -783,12 +772,12 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		default:
 		}
 		currentHeight := m.store.Height()
-		h := m.headerCache.getHeader(currentHeight + 1)
+		h := m.headerCache.GetItem(currentHeight + 1)
 		if h == nil {
 			m.logger.Debug("header not found in cache", "height", currentHeight+1)
 			return nil
 		}
-		d := m.dataCache.getData(currentHeight + 1)
+		d := m.dataCache.GetItem(currentHeight + 1)
 		if d == nil {
 			m.logger.Debug("data not found in cache", "height", currentHeight+1)
 			return nil
@@ -827,8 +816,8 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
-		m.headerCache.deleteHeader(currentHeight + 1)
-		m.dataCache.deleteData(currentHeight + 1)
+		m.headerCache.DeleteItem(currentHeight + 1)
+		m.dataCache.DeleteItem(currentHeight + 1)
 	}
 }
 
@@ -959,7 +948,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		err := m.processNextDAHeader(ctx)
 		if err != nil && ctx.Err() == nil {
 			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
-			if !strings.Contains(err.Error(), ErrHeightFromFutureStr) {
+			if !errors.Is(err, ErrHeightFromFutureStr) {
 				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 			}
 			continue
@@ -1021,13 +1010,13 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 					continue
 				}
 				blockHash := header.Hash().String()
-				m.headerCache.setDAIncluded(blockHash)
+				m.headerCache.SetDAIncluded(blockHash)
 				err = m.setDAIncludedHeight(ctx, header.Height())
 				if err != nil {
 					return err
 				}
 				m.logger.Info("block marked as DA included", "blockHeight", header.Height(), "blockHash", blockHash)
-				if !m.headerCache.isSeen(blockHash) {
+				if !m.headerCache.IsSeen(blockHash) {
 					// Check for shut down event prior to logging
 					// and sending block to blockInCh. The reason
 					// for checking for the shutdown event
@@ -1058,7 +1047,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 }
 
 func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
-	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
+	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress()) && header.ValidateBasic() == nil
 }
 
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
@@ -1146,7 +1135,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
 			m.logger.Error("failed to get txs from executor", "err", err)
@@ -1251,7 +1239,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	headerHeight := header.Height()
 
 	headerHash := header.Hash().String()
-	m.headerCache.setSeen(headerHash)
+	m.headerCache.SetSeen(headerHash)
 
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlockData(ctx, header, data, &signature)
@@ -1367,7 +1355,7 @@ daSubmitRetryLoop:
 			submittedBlocks, notSubmittedBlocks := headersToSubmit[:res.SubmittedCount], headersToSubmit[res.SubmittedCount:]
 			numSubmittedHeaders += len(submittedBlocks)
 			for _, block := range submittedBlocks {
-				m.headerCache.setDAIncluded(block.Hash().String())
+				m.headerCache.SetDAIncluded(block.Hash().String())
 				err = m.setDAIncludedHeight(ctx, block.Height())
 				if err != nil {
 					return err
@@ -1491,7 +1479,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			DataHash:        batchdata,
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         lastState.AppHash,
-			ProposerAddress: m.genesis.ProposerAddress,
+			ProposerAddress: m.genesis.ProposerAddress(),
 		},
 		Signature: *lastSignature,
 	}

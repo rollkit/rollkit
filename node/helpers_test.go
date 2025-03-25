@@ -9,10 +9,10 @@ import (
 	"cosmossdk.io/log"
 	"github.com/stretchr/testify/require"
 
-	rollkitconfig "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -43,7 +43,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	config := getTestConfig(t, 1)
 
 	// Generate genesis and keys
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()

@@ -9,22 +9,24 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	damocks "github.com/rollkit/rollkit/da/mocks"
+	"github.com/rollkit/rollkit/pkg/cache"
+	"github.com/rollkit/rollkit/pkg/config"
+	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/queue"
 	"github.com/rollkit/rollkit/pkg/remote_signer"
 	noopsigner "github.com/rollkit/rollkit/pkg/remote_signer/noop"
-	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -46,41 +48,35 @@ func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier
 	logger := log.NewTestLogger(t)
 	return &Manager{
 		dalc:          da.NewDAClient(backend, gasPrice, gasMultiplier, nil, nil, logger),
-		headerCache:   NewHeaderCache(),
+		headerCache:   cache.NewCache[types.SignedHeader](),
 		logger:        logger,
 		gasPrice:      gasPrice,
 		gasMultiplier: gasMultiplier,
 	}
 }
+
 func TestInitialStateClean(t *testing.T) {
-	const chainID = "TestInitialStateClean"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
-	genesis := &RollkitGenesis{
-		ChainID:         chainID,
-		InitialHeight:   1,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
-	}
+
+	// Create genesis document
+	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateClean")
 	logger := log.NewTestLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
-	s, err := getInitialState(context.TODO(), genesis, emptyStore, coreexecutor.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesisData, emptyStore, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
-	require.Equal(s.LastBlockHeight, genesis.InitialHeight-1)
-	require.Equal(genesis.InitialHeight, s.InitialHeight)
+	initialHeight := genesisData.InitialHeight
+	require.Equal(initialHeight-1, s.LastBlockHeight)
+	require.Equal(initialHeight, s.InitialHeight)
 }
 
 func TestInitialStateStored(t *testing.T) {
-	chainID := "TestInitialStateStored"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
-	genesis := &RollkitGenesis{
-		ChainID:         chainID,
-		InitialHeight:   1,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
-	}
+
+	// Create genesis document
+	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateStored")
 	sampleState := types.State{
-		ChainID:         chainID,
+		ChainID:         "TestInitialStateStored",
 		InitialHeight:   1,
 		LastBlockHeight: 100,
 	}
@@ -92,7 +88,7 @@ func TestInitialStateStored(t *testing.T) {
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	logger := log.NewTestLogger(t)
-	s, err := getInitialState(context.TODO(), genesis, store, coreexecutor.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesisData, store, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -104,7 +100,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 
 	// Mock store and data cache
 	store := mocks.NewStore(t)
-	dataCache := NewDataCache()
+	dataCache := cache.NewCache[types.Data]()
 
 	// Setup the manager with the mock and data cache
 	m := &Manager{
@@ -136,7 +132,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 	store.AssertExpectations(t)
 
 	// make sure that the store has the correct data
-	d := dataCache.getData(header.Height())
+	d := dataCache.GetItem(header.Height())
 	require.NotNil(d)
 	require.Equal(d.Metadata.LastDataHash, lastDataHash)
 	require.Equal(d.Metadata.ChainID, header.ChainID())
@@ -147,12 +143,19 @@ func TestHandleEmptyDataHash(t *testing.T) {
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
-	genesis := &RollkitGenesis{
-		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
-		InitialHeight:   2,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
-	}
+
+	// Create genesis document with initial height 2
+	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
+	// Create a new genesis with height 2
+	genesis := genesispkg.NewGenesis(
+		genesisData.ChainID,
+		uint64(2), // Set initial height to 2
+		genesisData.GenesisDAStartHeight,
+		genesispkg.GenesisExtraData{
+			ProposerAddress: genesisData.ProposerAddress(),
+		},
+		nil, // No raw bytes for now
+	)
 	sampleState := types.State{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   1,
@@ -198,7 +201,7 @@ func TestIsDAIncluded(t *testing.T) {
 
 	// Create a minimalistic block manager
 	m := &Manager{
-		headerCache: NewHeaderCache(),
+		headerCache: cache.NewCache[types.SignedHeader](),
 	}
 	hash := types.Hash([]byte("hash"))
 
@@ -206,7 +209,7 @@ func TestIsDAIncluded(t *testing.T) {
 	require.False(m.IsDAIncluded(hash))
 
 	// Set the hash as DAIncluded and verify IsDAIncluded returns true
-	m.headerCache.setDAIncluded(hash.String())
+	m.headerCache.SetDAIncluded(hash.String())
 	require.True(m.IsDAIncluded(hash))
 }
 
@@ -349,14 +352,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 // invalidateBlockHeader results in a block header that produces a marshalling error
 func invalidateBlockHeader(header *types.SignedHeader) {
-	for i := range header.Validators.Validators {
-		header.Validators.Validators[i] = &cmtypes.Validator{
-			Address:          []byte(""),
-			PubKey:           nil,
-			VotingPower:      -1,
-			ProposerPriority: 0,
-		}
-	}
+	header.Signer.PubKey = &crypto.Ed25519PublicKey{}
 }
 
 func Test_isProposer(t *testing.T) {
@@ -375,7 +371,7 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "Signing key matches genesis proposer public key",
 			args: func() args {
-				genesisData, privKey := types.GetGenesisWithPrivkey("Test_isProposer")
+				genesisData, privKey, _ := types.GetGenesisWithPrivkey("Test_isProposer")
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)
 				signer, err := noopsigner.NewNoopSigner()
@@ -388,42 +384,6 @@ func Test_isProposer(t *testing.T) {
 			isProposer: true,
 			err:        nil,
 		},
-		//{
-		//	name: "Signing key does not match genesis proposer public key",
-		//	args: func() args {
-		//		genesisData, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
-		//		s, err := types.NewFromGenesisDoc(genesisData)
-		//		require.NoError(err)
-
-		//		randomPrivKey := ed25519.GenPrivKey()
-		//		signingKey, err := types.PrivKeyToSigningKey(randomPrivKey)
-		//		require.NoError(err)
-		//		return args{
-		//			s,
-		//			signingKey,
-		//		}
-		//	}(),
-		//	isProposer: false,
-		//	err:        nil,
-		//},
-		//{
-		//	name: "No validators found in genesis",
-		//	args: func() args {
-		//		genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
-		//		genesisData.Validators = nil
-		//		s, err := types.NewFromGenesisDoc(genesisData)
-		//		require.NoError(err)
-
-		//		signingKey, err := types.PrivKeyToSigningKey(privKey)
-		//		require.NoError(err)
-		//		return args{
-		//			s,
-		//			signingKey,
-		//		}
-		//	}(),
-		//	isProposer: false,
-		//	err:        ErrNoValidatorsInState,
-		//},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -446,131 +406,6 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
 }
-
-//func TestManager_publishBlock(t *testing.T) {
-//	mockStore := new(mocks.Store)
-//	mockLogger := new(test.MockLogger)
-//	assert := assert.New(t)
-//	require := require.New(t)
-//
-//	logger := log.TestingLogger()
-//
-//	var mockAppHash []byte
-//	_, err := rand.Read(mockAppHash[:])
-//	require.NoError(err)
-//
-//	app := &mocks.Application{}
-//	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
-//	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-//	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-//		return &abci.ResponsePrepareProposal{
-//			Txs: req.Txs,
-//		}, nil
-//	})
-//	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-//	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(
-//		func(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
-//			txResults := make([]*abci.ExecTxResult, len(req.Txs))
-//			for idx := range req.Txs {
-//				txResults[idx] = &abci.ExecTxResult{
-//					Code: abci.CodeTypeOK,
-//				}
-//			}
-//
-//			return &abci.ResponseFinalizeBlock{
-//				TxResults: txResults,
-//				AppHash:   mockAppHash,
-//			}, nil
-//		},
-//	)
-//
-//	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
-//	require.NoError(err)
-//	require.NotNil(client)
-//
-//	vKey := ed25519.GenPrivKey()
-//	validators := []*cmtypes.Validator{
-//		{
-//			Address:          vKey.PubKey().Address(),
-//			PubKey:           vKey.PubKey(),
-//			VotingPower:      int64(100),
-//			ProposerPriority: int64(1),
-//		},
-//	}
-//
-//	lastState := types.State{}
-//	lastState.ConsensusParams.Block = &cmproto.BlockParams{}
-//	lastState.ConsensusParams.Block.MaxBytes = 100
-//	lastState.ConsensusParams.Block.MaxGas = 100000
-//	lastState.ConsensusParams.Abci = &cmproto.ABCIParams{VoteExtensionsEnableHeight: 0}
-//	lastState.Validators = cmtypes.NewValidatorSet(validators)
-//	lastState.NextValidators = cmtypes.NewValidatorSet(validators)
-//	lastState.LastValidators = cmtypes.NewValidatorSet(validators)
-//
-//	chainID := "TestManager_publishBlock"
-//	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
-//	seqClient := seqGRPC.NewClient()
-//	require.NoError(seqClient.Start(
-//		MockSequencerAddress,
-//		grpc.WithTransportCredentials(insecure.NewCredentials()),
-//	))
-//	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(chainID), seqClient, logger)
-//	executor := state.NewBlockExecutor(vKey.PubKey().Address(), chainID, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, state.NopMetrics())
-//
-//	signingKey, err := types.PrivKeyToSigningKey(vKey)
-//	require.NoError(err)
-//	m := &Manager{
-//		lastState:    lastState,
-//		lastStateMtx: new(sync.RWMutex),
-//		headerCache:  NewHeaderCache(),
-//		dataCache:    NewDataCache(),
-//		//executor:     executor,
-//		store:  mockStore,
-//		logger: mockLogger,
-//		genesis: &RollkitGenesis{
-//			ChainID:       chainID,
-//			InitialHeight: 1,
-//		},
-//		conf: config.BlockManagerConfig{
-//			BlockTime:      time.Second,
-//			LazyAggregator: false,
-//		},
-//		isProposer:  true,
-//		proposerKey: signingKey,
-//		metrics:     NopMetrics(),
-//		exec:        execTest.NewDummyExecutor(),
-//	}
-//
-//	t.Run("height should not be updated if saving block responses fails", func(t *testing.T) {
-//		mockStore.On("Height").Return(uint64(0))
-//		mockStore.On("SetHeight", mock.Anything, uint64(0)).Return(nil).Once()
-//
-//		signature := types.Signature([]byte{1, 1, 1})
-//		header, data, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState, cmtypes.Txs{}, time.Now())
-//		require.NoError(err)
-//		require.NotNil(header)
-//		require.NotNil(data)
-//		assert.Equal(uint64(0), header.Height())
-//		dataHash := data.Hash()
-//		header.DataHash = dataHash
-//
-//		// Update the signature on the block to current from last
-//		voteBytes := header.Header.MakeCometBFTVote()
-//		signature, _ = vKey.Sign(voteBytes)
-//		header.Signature = signature
-//		header.Validators = lastState.Validators
-//
-//		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(header, data, nil).Once()
-//		mockStore.On("SaveBlockData", mock.Anything, header, data, mock.Anything).Return(nil).Once()
-//		mockStore.On("SaveBlockResponses", mock.Anything, uint64(0), mock.Anything).Return(SaveBlockResponsesError{}).Once()
-//
-//		ctx := context.Background()
-//		err = m.publishBlock(ctx)
-//		assert.ErrorAs(err, &SaveBlockResponsesError{})
-//
-//		mockStore.AssertExpectations(t)
-//	})
-//}
 
 func TestManager_getRemainingSleep(t *testing.T) {
 	tests := []struct {
@@ -693,17 +528,20 @@ func TestAggregationLoop(t *testing.T) {
 	m := &Manager{
 		store:  mockStore,
 		logger: mockLogger,
-		genesis: &RollkitGenesis{
-			ChainID:       "myChain",
-			InitialHeight: 1,
-		},
+		genesis: genesispkg.NewGenesis(
+			"myChain",
+			1,
+			time.Now(),
+			genesispkg.GenesisExtraData{}, // Empty extra data
+			nil,                           // No raw bytes for now
+		),
 		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      config.DurationWrapper{Duration: time.Second},
 				LazyAggregator: false,
 			},
 		},
-		bq: NewBatchQueue(),
+		bq: queue.New[BatchData](),
 	}
 
 	mockStore.On("Height").Return(uint64(0))
@@ -731,7 +569,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 				LazyAggregator: true,
 			},
 		},
-		bq: NewBatchQueue(),
+		bq: queue.New[BatchData](),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -741,7 +579,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 	defer blockTimer.Stop()
 
 	go m.lazyAggregationLoop(ctx, blockTimer)
-	m.bq.notifyCh <- struct{}{}
+	m.bq.Notify(BatchData{Batch: &coresequencer.Batch{}})
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
@@ -771,73 +609,4 @@ func TestNormalAggregationLoop(t *testing.T) {
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
-}
-
-func TestGetTxsFromBatch(t *testing.T) {
-	now := time.Now()
-
-	tests := []struct {
-		name          string
-		batchQueue    []BatchData
-		wantBatchData *BatchData
-		wantErr       error
-		assertions    func(t *testing.T, gotBatchData *BatchData)
-	}{
-		{
-			name:          "no batch available",
-			batchQueue:    nil,
-			wantBatchData: nil,
-			wantErr:       ErrNoBatch,
-			assertions:    nil,
-		},
-		{
-			name: "empty batch",
-			batchQueue: []BatchData{
-				{Batch: &coresequencer.Batch{Transactions: nil}, Time: now},
-			},
-			wantBatchData: &BatchData{Batch: &coresequencer.Batch{Transactions: nil}, Time: now},
-			wantErr:       nil,
-			assertions: func(t *testing.T, gotBatchData *BatchData) {
-				assert.Empty(t, gotBatchData.Batch.Transactions, "Transactions should be empty when batch has no transactions")
-				assert.NotNil(t, gotBatchData.Time, "Timestamp should not be nil for empty batch")
-			},
-		},
-		{
-			name: "valid batch with transactions",
-			batchQueue: []BatchData{
-				{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: now},
-			},
-			wantBatchData: &BatchData{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: now},
-			wantErr:       nil,
-			assertions: func(t *testing.T, gotBatchData *BatchData) {
-				assert.Len(t, gotBatchData.Batch.Transactions, 2, "Expected 2 transactions")
-				assert.NotNil(t, gotBatchData.Time, "Timestamp should not be nil for valid batch")
-				assert.Equal(t, [][]byte{[]byte("tx1"), []byte("tx2")}, gotBatchData.Batch.Transactions, "Transactions do not match")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create manager with the test batch queue
-			m := &Manager{
-				bq: &BatchQueue{queue: tt.batchQueue},
-			}
-
-			// Call the method under test
-			gotBatchData, err := m.getTxsFromBatch()
-
-			// Check error
-			if tt.wantErr != nil {
-				assert.Equal(t, tt.wantErr, err)
-			} else {
-				require.NoError(t, err)
-			}
-
-			// Run additional assertions if provided
-			if tt.assertions != nil {
-				tt.assertions(t, gotBatchData)
-			}
-		})
-	}
 }
