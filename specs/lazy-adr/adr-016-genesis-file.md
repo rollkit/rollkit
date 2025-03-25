@@ -36,6 +36,7 @@ We will define a completely new genesis file format specific to Rollkit with no 
 ### 3. Hybrid Approach
 
 Define a Rollkit-specific genesis file format that:
+
 1. Contains only the fields needed by Rollkit
 2. Supports importing/exporting to/from CometBFT genesis format for compatibility
 3. Includes validation specific to Rollkit's requirements
@@ -162,4 +163,4 @@ Proposed
 ## References
 
 - [Block Manager Implementation](https://github.com/rollkit/rollkit/blob/main/block/manager.go)
-- [Data Availability Layer Integration](https://docs.celestia.org/developers/rollkit-tutorial) 
+- [Data Availability Layer Integration](https://docs.celestia.org/developers/rollkit-tutorial)
