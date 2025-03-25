@@ -165,4 +165,3 @@ Proposed
 ## References
 
 - [Block Manager Implementation](https://github.com/rollkit/rollkit/blob/main/block/manager.go)
-- [Data Availability Layer Integration](https://docs.celestia.org/developers/rollkit-tutorial) 
