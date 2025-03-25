@@ -5,7 +5,7 @@ import (
 	"os"
 
 	cmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
-	rollconf "github.com/rollkit/rollkit/config"
+	rollconf "github.com/rollkit/rollkit/pkg/config"
 )
 
 func main() {

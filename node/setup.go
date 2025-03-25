@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/rollkit/rollkit/block"
-	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 )
 

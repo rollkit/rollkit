@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	rollconf "github.com/rollkit/rollkit/config"
+	rollconf "github.com/rollkit/rollkit/pkg/config"
 )
 
 // RebuildCmd is a command to rebuild rollup entrypoint

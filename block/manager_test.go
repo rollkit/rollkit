@@ -15,15 +15,16 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	damocks "github.com/rollkit/rollkit/da/mocks"
 	"github.com/rollkit/rollkit/pkg/cache"
+	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
-	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/pkg/queue"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -536,7 +537,7 @@ func TestAggregationLoop(t *testing.T) {
 				LazyAggregator: false,
 			},
 		},
-		bq: NewBatchQueue(),
+		bq: queue.New[BatchData](),
 	}
 
 	mockStore.On("Height").Return(uint64(0))
@@ -564,7 +565,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 				LazyAggregator: true,
 			},
 		},
-		bq: NewBatchQueue(),
+		bq: queue.New[BatchData](),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -574,7 +575,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 	defer blockTimer.Stop()
 
 	go m.lazyAggregationLoop(ctx, blockTimer)
-	m.bq.notifyCh <- struct{}{}
+	m.bq.Notify(BatchData{Batch: &coresequencer.Batch{}})
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
@@ -604,73 +605,4 @@ func TestNormalAggregationLoop(t *testing.T) {
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
-}
-
-func TestGetTxsFromBatch(t *testing.T) {
-	now := time.Now()
-
-	tests := []struct {
-		name          string
-		batchQueue    []BatchData
-		wantBatchData *BatchData
-		wantErr       error
-		assertions    func(t *testing.T, gotBatchData *BatchData)
-	}{
-		{
-			name:          "no batch available",
-			batchQueue:    nil,
-			wantBatchData: nil,
-			wantErr:       ErrNoBatch,
-			assertions:    nil,
-		},
-		{
-			name: "empty batch",
-			batchQueue: []BatchData{
-				{Batch: &coresequencer.Batch{Transactions: nil}, Time: now},
-			},
-			wantBatchData: &BatchData{Batch: &coresequencer.Batch{Transactions: nil}, Time: now},
-			wantErr:       nil,
-			assertions: func(t *testing.T, gotBatchData *BatchData) {
-				assert.Empty(t, gotBatchData.Batch.Transactions, "Transactions should be empty when batch has no transactions")
-				assert.NotNil(t, gotBatchData.Time, "Timestamp should not be nil for empty batch")
-			},
-		},
-		{
-			name: "valid batch with transactions",
-			batchQueue: []BatchData{
-				{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: now},
-			},
-			wantBatchData: &BatchData{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: now},
-			wantErr:       nil,
-			assertions: func(t *testing.T, gotBatchData *BatchData) {
-				assert.Len(t, gotBatchData.Batch.Transactions, 2, "Expected 2 transactions")
-				assert.NotNil(t, gotBatchData.Time, "Timestamp should not be nil for valid batch")
-				assert.Equal(t, [][]byte{[]byte("tx1"), []byte("tx2")}, gotBatchData.Batch.Transactions, "Transactions do not match")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create manager with the test batch queue
-			m := &Manager{
-				bq: &BatchQueue{queue: tt.batchQueue},
-			}
-
-			// Call the method under test
-			gotBatchData, err := m.getTxsFromBatch()
-
-			// Check error
-			if tt.wantErr != nil {
-				assert.Equal(t, tt.wantErr, err)
-			} else {
-				require.NoError(t, err)
-			}
-
-			// Run additional assertions if provided
-			if tt.assertions != nil {
-				tt.assertions(t, gotBatchData)
-			}
-		})
-	}
 }
