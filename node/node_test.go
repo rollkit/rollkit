@@ -178,7 +178,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		},
 	}
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(chainID)
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey(chainID)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()

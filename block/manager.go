@@ -23,6 +23,7 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/cache"
+	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
@@ -108,7 +109,7 @@ type Manager struct {
 	store        store.Store
 
 	config  config.Config
-	genesis *RollkitGenesis
+	genesis genesis.Genesis
 
 	proposerKey crypto.PrivKey
 
@@ -163,16 +164,8 @@ type Manager struct {
 	bq            *BatchQueue
 }
 
-// RollkitGenesis is the genesis state of the rollup
-type RollkitGenesis struct {
-	GenesisTime     time.Time
-	InitialHeight   uint64
-	ChainID         string
-	ProposerAddress []byte
-}
-
-// getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
-func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
+// getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
+func getInitialState(ctx context.Context, genesis genesis.Genesis, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(ctx)
 
@@ -183,11 +176,11 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 		err = store.SaveBlockData(ctx,
 			&types.SignedHeader{Header: types.Header{
 				DataHash:        new(types.Data).Hash(),
-				ProposerAddress: genesis.ProposerAddress,
+				ProposerAddress: genesis.ProposerAddress(),
 				BaseHeader: types.BaseHeader{
 					ChainID: genesis.ChainID,
 					Height:  genesis.InitialHeight,
-					Time:    uint64(genesis.GenesisTime.UnixNano()),
+					Time:    uint64(genesis.GenesisDAStartHeight.UnixNano()),
 				}}},
 			&types.Data{},
 			&types.Signature{},
@@ -198,7 +191,7 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		// TODO(tzdybal): handle max bytes
-		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisTime, genesis.InitialHeight, genesis.ChainID)
+		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartHeight, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
 			logger.Error("error while initializing chain", "error", err)
 			return types.State{}, err
@@ -209,7 +202,7 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 			ChainID:         genesis.ChainID,
 			InitialHeight:   genesis.InitialHeight,
 			LastBlockHeight: genesis.InitialHeight - 1,
-			LastBlockTime:   genesis.GenesisTime,
+			LastBlockTime:   genesis.GenesisDAStartHeight,
 			AppHash:         stateRoot,
 			DAHeight:        0,
 		}
@@ -234,7 +227,7 @@ func NewManager(
 	ctx context.Context,
 	proposerKey crypto.PrivKey,
 	config config.Config,
-	genesis *RollkitGenesis,
+	genesis genesis.Genesis,
 	store store.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
@@ -538,7 +531,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 
 	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
 	if height < initialHeight {
-		delay = time.Until(m.genesis.GenesisTime)
+		delay = time.Until(m.genesis.GenesisDAStartHeight.Add(m.config.Node.BlockTime.Duration))
 	} else {
 		lastBlockTime := m.getLastBlockTime()
 		delay = time.Until(lastBlockTime.Add(m.config.Node.BlockTime.Duration))
@@ -1058,7 +1051,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 }
 
 func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
-	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
+	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress()) && header.ValidateBasic() == nil
 }
 
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
@@ -1490,7 +1483,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			DataHash:        batchdata,
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         lastState.AppHash,
-			ProposerAddress: m.genesis.ProposerAddress,
+			ProposerAddress: m.genesis.ProposerAddress(),
 		},
 		Signature: *lastSignature,
 	}

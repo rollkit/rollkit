@@ -1,11 +1,9 @@
 package types
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/cometbft/cometbft/types"
-
+	"github.com/rollkit/rollkit/pkg/genesis"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
@@ -41,23 +39,17 @@ type State struct {
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
-func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
-	err := genDoc.ValidateAndComplete()
-	if err != nil {
-		return State{}, fmt.Errorf("error in genesis doc: %w", err)
-	}
-
+func NewFromGenesisDoc(genDoc genesis.Genesis) (State, error) {
 	s := State{
 		Version:       InitStateVersion,
 		ChainID:       genDoc.ChainID,
-		InitialHeight: uint64(genDoc.InitialHeight),
+		InitialHeight: genDoc.InitialHeight,
 
 		DAHeight: 1,
 
-		LastBlockHeight: uint64(genDoc.InitialHeight) - 1,
-		LastBlockTime:   genDoc.GenesisTime,
+		LastBlockHeight: genDoc.InitialHeight - 1,
+		LastBlockTime:   genDoc.GenesisDAStartHeight,
 	}
-	s.AppHash = genDoc.AppHash.Bytes()
 
 	return s, nil
 }

@@ -12,7 +12,6 @@ import (
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	goheadersync "github.com/celestiaorg/go-header/sync"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -21,6 +20,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/types"
 )
@@ -37,7 +37,7 @@ const (
 // Uses the go-header library for handling all P2P logic.
 type SyncService[H header.Header[H]] struct {
 	conf      config.Config
-	genesis   *cmtypes.GenesisDoc
+	genesis   genesis.Genesis
 	p2p       *p2p.Client
 	ex        *goheaderp2p.Exchange[H]
 	sub       *goheaderp2p.Subscriber[H]
@@ -58,19 +58,35 @@ type DataSyncService = SyncService[*types.Data]
 type HeaderSyncService = SyncService[*types.SignedHeader]
 
 // NewDataSyncService returns a new DataSyncService.
-func NewDataSyncService(store ds.Batching, conf config.Config, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*DataSyncService, error) {
+func NewDataSyncService(
+	store ds.Batching,
+	conf config.Config,
+	genesis genesis.Genesis,
+	p2p *p2p.Client,
+	logger log.Logger,
+) (*DataSyncService, error) {
 	return newSyncService[*types.Data](store, dataSync, conf, genesis, p2p, logger)
 }
 
 // NewHeaderSyncService returns a new HeaderSyncService.
-func NewHeaderSyncService(store ds.Batching, conf config.Config, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
+func NewHeaderSyncService(
+	store ds.Batching,
+	conf config.Config,
+	genesis genesis.Genesis,
+	p2p *p2p.Client,
+	logger log.Logger,
+) (*HeaderSyncService, error) {
 	return newSyncService[*types.SignedHeader](store, headerSync, conf, genesis, p2p, logger)
 }
 
-func newSyncService[H header.Header[H]](store ds.Batching, syncType syncType, conf config.Config, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*SyncService[H], error) {
-	if genesis == nil {
-		return nil, errors.New("genesis doc cannot be nil")
-	}
+func newSyncService[H header.Header[H]](
+	store ds.Batching,
+	syncType syncType,
+	conf config.Config,
+	genesis genesis.Genesis,
+	p2p *p2p.Client,
+	logger log.Logger,
+) (*SyncService[H], error) {
 	if p2p == nil {
 		return nil, errors.New("p2p client cannot be nil")
 	}
@@ -115,10 +131,10 @@ func (syncService *SyncService[H]) initStoreAndStartSyncer(ctx context.Context, 
 // WriteToStoreAndBroadcast initializes store if needed and broadcasts  provided header or block.
 // Note: Only returns an error in case store can't be initialized. Logs error if there's one while broadcasting.
 func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context, headerOrData H) error {
-	if syncService.genesis.InitialHeight < 0 {
-		return fmt.Errorf("invalid initial height; cannot be negative")
+	if syncService.genesis.InitialHeight == 0 {
+		return fmt.Errorf("invalid initial height; cannot be zero")
 	}
-	isGenesis := headerOrData.Height() == uint64(syncService.genesis.InitialHeight)
+	isGenesis := headerOrData.Height() == syncService.genesis.InitialHeight
 	// For genesis header/block initialize the store and start the syncer
 	if isGenesis {
 		if err := syncService.store.Init(ctx, headerOrData); err != nil {
@@ -262,7 +278,7 @@ func (syncService *SyncService[H]) setFirstAndStart(ctx context.Context, peerIDs
 		} else {
 			// Try fetching the genesis header/block if available, otherwise fallback to block
 			var err error
-			if trusted, err = syncService.ex.GetByHeight(ctx, uint64(syncService.genesis.InitialHeight)); err != nil {
+			if trusted, err = syncService.ex.GetByHeight(ctx, syncService.genesis.InitialHeight); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis block
 				// proposing aggregator can init the store and start the syncer when the first block is published
 				return fmt.Errorf("failed to fetch the genesis: %w", err)
