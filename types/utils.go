@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-header"
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-	cmtypes "github.com/cometbft/cometbft/types"
+
 	"github.com/libp2p/go-libp2p/core/crypto"
+
+	"github.com/rollkit/rollkit/pkg/genesis"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
@@ -227,27 +227,61 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey crypto.PrivKe
 	return newSignedHeader, nil
 }
 
-// GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
-func GetGenesisWithPrivkey(chainID string) (*cmtypes.GenesisDoc, crypto.PrivKey) {
-	genesisValidatorKey := ed25519.GenPrivKey()
-	pubKey := genesisValidatorKey.PubKey()
-
-	genesisValidators := []cmtypes.GenesisValidator{{
-		Address: pubKey.Address(),
-		PubKey:  pubKey,
-		Power:   int64(1),
-		Name:    "sequencer",
-	}}
-	genDoc := &cmtypes.GenesisDoc{
-		ChainID:       chainID,
-		InitialHeight: 1,
-		Validators:    genesisValidators,
+// GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
+func GetFirstSignedHeader(privkey crypto.PrivKey, chainID string) (*SignedHeader, error) {
+	signer, err := NewSigner(privkey.GetPublic())
+	if err != nil {
+		return nil, err
 	}
-	privKey, err := crypto.UnmarshalEd25519PrivateKey(genesisValidatorKey.Bytes())
+	header := Header{
+		BaseHeader: BaseHeader{
+			Height:  1,
+			Time:    uint64(time.Now().UnixNano()),
+			ChainID: chainID,
+		},
+		Version: Version{
+			Block: InitStateVersion.Block,
+			App:   InitStateVersion.App,
+		},
+		LastHeaderHash:  GetRandomBytes(32),
+		LastCommitHash:  GetRandomBytes(32),
+		DataHash:        GetRandomBytes(32),
+		AppHash:         make([]byte, 32),
+		ProposerAddress: signer.Address,
+	}
+	signedHeader := SignedHeader{
+		Header: header,
+		Signer: signer,
+	}
+	signature, err := GetSignature(header, privkey)
+	if err != nil {
+		return nil, err
+	}
+	signedHeader.Signature = *signature
+	return &signedHeader, nil
+}
+
+// GetGenesisWithPrivkey returns a genesis state and a private key
+func GetGenesisWithPrivkey(chainID string) (genesis.Genesis, crypto.PrivKey, crypto.PubKey) {
+	privKey, pubKey, err := crypto.GenerateEd25519Key(nil)
 	if err != nil {
 		panic(err)
 	}
-	return genDoc, privKey
+
+	signer, err := NewSigner(pubKey)
+	if err != nil {
+		panic(err)
+	}
+
+	return genesis.NewGenesis(
+		chainID,
+		1,
+		time.Now().UTC(),
+		genesis.GenesisExtraData{
+			ProposerAddress: signer.Address,
+		},
+		nil,
+	), privKey, pubKey
 }
 
 // GetRandomTx returns a tx with random data
@@ -299,27 +333,4 @@ func getBlockDataWith(nTxs int) *Data {
 		// block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 	return data
-}
-
-// GetABCICommit returns a commit format defined by ABCI.
-// Other fields (especially ValidatorAddress and Timestamp of Signature) have to be filled by caller.
-func GetABCICommit(height uint64, hash Hash, val cmtypes.Address, time time.Time, signature Signature) *cmtypes.Commit {
-	tmCommit := cmtypes.Commit{
-		Height: int64(height), //nolint:gosec
-		Round:  0,
-		BlockID: cmtypes.BlockID{
-			Hash:          cmbytes.HexBytes(hash),
-			PartSetHeader: cmtypes.PartSetHeader{},
-		},
-		Signatures: make([]cmtypes.CommitSig, 1),
-	}
-	commitSig := cmtypes.CommitSig{
-		BlockIDFlag:      cmtypes.BlockIDFlagCommit,
-		Signature:        signature,
-		ValidatorAddress: val,
-		Timestamp:        time,
-	}
-	tmCommit.Signatures[0] = commitSig
-
-	return &tmCommit
 }

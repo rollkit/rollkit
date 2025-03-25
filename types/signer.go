@@ -26,6 +26,14 @@ func NewSigner(pubKey crypto.PubKey) (Signer, error) {
 	}, nil
 }
 
+func (s *Signer) GetAddress() []byte {
+	return s.Address
+}
+
+func (s *Signer) GetPubKey() crypto.PubKey {
+	return s.PubKey
+}
+
 // Verify verifies a vote with a signature.
 func (s *Signer) Verify(vote []byte, signature []byte) (bool, error) {
 	return s.PubKey.Verify(vote, signature)

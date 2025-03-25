@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/rollkit/rollkit/p2p/key"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 )
 
 // Source is an enum representing different sources of height

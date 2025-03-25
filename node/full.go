@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -23,15 +22,14 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/p2p"
+	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
-var (
-	mainPrefix = "0"
-)
+var mainPrefix = "0"
 
 const (
 	// genesisChunkSize is the maximum size, in bytes, of each
@@ -46,7 +44,7 @@ var _ Node = &FullNode{}
 type FullNode struct {
 	service.BaseService
 
-	genesis *cmtypes.GenesisDoc
+	genesis genesispkg.Genesis
 	// cache of chunked genesis data.
 	genChunks []string
 
@@ -68,7 +66,7 @@ func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,
 	signingKey crypto.PrivKey,
-	genesis *cmtypes.GenesisDoc,
+	genesis genesispkg.Genesis,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
@@ -148,7 +146,7 @@ func initBaseKV(nodeConfig config.Config, logger log.Logger) (ds.Batching, error
 func initHeaderSyncService(
 	mainKV ds.Batching,
 	nodeConfig config.Config,
-	genesis *cmtypes.GenesisDoc,
+	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
 ) (*block.HeaderSyncService, error) {
@@ -162,7 +160,7 @@ func initHeaderSyncService(
 func initDataSyncService(
 	mainKV ds.Batching,
 	nodeConfig config.Config,
-	genesis *cmtypes.GenesisDoc,
+	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
 ) (*block.DataSyncService, error) {
@@ -187,7 +185,7 @@ func initBlockManager(
 	signingKey crypto.PrivKey,
 	exec coreexecutor.Executor,
 	nodeConfig config.Config,
-	genesis *cmtypes.GenesisDoc,
+	genesis genesispkg.Genesis,
 	store store.Store,
 	sequencer coresequencer.Sequencer,
 	dalc coreda.Client,
@@ -199,14 +197,16 @@ func initBlockManager(
 	gasMultiplier float64,
 ) (*block.Manager, error) {
 
-	logger.Debug("Proposer address", "address", genesis.Validators[0].Address.Bytes())
+	logger.Debug("Proposer address", "address", genesis.ProposerAddress())
 
-	rollGen := &block.RollkitGenesis{
-		GenesisTime:     genesis.GenesisTime,
-		InitialHeight:   uint64(genesis.InitialHeight),
-		ChainID:         genesis.ChainID,
-		ProposerAddress: genesis.Validators[0].Address.Bytes(),
-	}
+	rollGen := genesispkg.NewGenesis(
+		genesis.ChainID,
+		genesis.InitialHeight,
+		genesis.GenesisDAStartHeight,
+		genesis.ExtraData,
+		nil,
+	)
+
 	blockManager, err := block.NewManager(
 		ctx,
 		signingKey,
@@ -233,10 +233,6 @@ func initBlockManager(
 // iterate through larger genesis structures.
 func (n *FullNode) initGenesisChunks() error {
 	if n.genChunks != nil {
-		return nil
-	}
-
-	if n.genesis == nil {
 		return nil
 	}
 
@@ -435,7 +431,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 }
 
 // GetGenesis returns entire genesis doc.
-func (n *FullNode) GetGenesis() *cmtypes.GenesisDoc {
+func (n *FullNode) GetGenesis() genesispkg.Genesis {
 	return n.genesis
 }
 
