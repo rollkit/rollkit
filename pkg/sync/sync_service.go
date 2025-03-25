@@ -1,4 +1,4 @@
-package block
+package sync
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
 
-	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/types"
@@ -36,19 +36,20 @@ const (
 //
 // Uses the go-header library for handling all P2P logic.
 type SyncService[H header.Header[H]] struct {
-	conf      config.Config
-	genesis   genesis.Genesis
-	p2p       *p2p.Client
-	ex        *goheaderp2p.Exchange[H]
-	sub       *goheaderp2p.Subscriber[H]
-	p2pServer *goheaderp2p.ExchangeServer[H]
-	store     *goheaderstore.Store[H]
-	syncType  syncType
+	conf     config.Config
+	logger   log.Logger
+	syncType syncType
 
+	genesis genesis.Genesis
+
+	p2p *p2p.Client
+
+	ex           *goheaderp2p.Exchange[H]
+	sub          *goheaderp2p.Subscriber[H]
+	p2pServer    *goheaderp2p.ExchangeServer[H]
+	store        *goheaderstore.Store[H]
 	syncer       *goheadersync.Syncer[H]
 	syncerStatus *SyncerStatus
-
-	logger log.Logger
 }
 
 // DataSyncService is the P2P Sync Service for blocks.

@@ -12,6 +12,12 @@ var (
 
 	// ErrNotProposer is used when the manager is not a proposer
 	ErrNotProposer = errors.New("not a proposer")
+
+	// ErrNoBatch indicate no batch is available for creating block
+	ErrNoBatch = errors.New("no batch to process")
+
+	// ErrHeightFromFutureStr is the error message for height from future returned by da
+	ErrHeightFromFutureStr = errors.New("given height is from the future")
 )
 
 // SaveBlockError is returned on failure to save block data

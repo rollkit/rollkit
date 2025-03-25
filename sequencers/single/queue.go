@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {

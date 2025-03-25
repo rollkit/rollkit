@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	rollconf "github.com/rollkit/rollkit/config"
+	rollconf "github.com/rollkit/rollkit/pkg/config"
 )
 
 // InitCmd initializes a new rollkit.yaml file in the current directory

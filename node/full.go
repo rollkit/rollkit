@@ -18,14 +18,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/rollkit/rollkit/block"
-	"github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
-	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/pkg/store"
+	"github.com/rollkit/rollkit/pkg/sync"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -52,8 +53,8 @@ type FullNode struct {
 
 	dalc         coreda.Client
 	p2pClient    *p2p.Client
-	hSyncService *block.HeaderSyncService
-	dSyncService *block.DataSyncService
+	hSyncService *sync.HeaderSyncService
+	dSyncService *sync.DataSyncService
 	Store        store.Store
 	blockManager *block.Manager
 
@@ -149,8 +150,8 @@ func initHeaderSyncService(
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
-) (*block.HeaderSyncService, error) {
-	headerSyncService, err := block.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+) (*sync.HeaderSyncService, error) {
+	headerSyncService, err := sync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -163,8 +164,8 @@ func initDataSyncService(
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
-) (*block.DataSyncService, error) {
-	dataSyncService, err := block.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
+) (*sync.DataSyncService, error) {
+	dataSyncService, err := sync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing DataSyncService: %w", err)
 	}
@@ -190,8 +191,8 @@ func initBlockManager(
 	sequencer coresequencer.Sequencer,
 	dalc coreda.Client,
 	logger log.Logger,
-	headerSyncService *block.HeaderSyncService,
-	dataSyncService *block.DataSyncService,
+	headerSyncService *sync.HeaderSyncService,
+	dataSyncService *sync.DataSyncService,
 	seqMetrics *block.Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
