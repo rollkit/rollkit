@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,20 +17,19 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 
 	coreda "github.com/rollkit/rollkit/core/da"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	rollos "github.com/rollkit/rollkit/pkg/os"
-	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
 
 var (
@@ -45,7 +43,11 @@ var (
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
-func NewRunNodeCmd() *cobra.Command {
+func NewRunNodeCmd(executor coreexecutor.Executor) *cobra.Command {
+	if executor == nil {
+		panic("executor cannot be nil")
+	}
+
 	cmd := &cobra.Command{
 		Use:     "start",
 		Aliases: []string{"node", "run"},
@@ -63,8 +65,6 @@ func NewRunNodeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits
-
-			kvExecutor := createDirectKVExecutor(ctx)
 
 			// TODO: this should be moved elsewhere
 			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
@@ -114,7 +114,7 @@ func NewRunNodeCmd() *cobra.Command {
 				ctx,
 				nodeConfig,
 				// THIS IS FOR TESTING ONLY
-				kvExecutor,
+				executor,
 				dummySequencer,
 				dummyDALC,
 				signingKey,
@@ -261,33 +261,6 @@ func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*gr
 	}()
 	logger.Info("Starting mock sequencer", "address", listenAddress, "rollupID", rollupId)
 	return server, nil
-}
-
-// createDirectKVExecutor creates a KVExecutor for testing
-func createDirectKVExecutor(ctx context.Context) *testExecutor.KVExecutor {
-	kvExecutor := testExecutor.NewKVExecutor()
-
-	// Pre-populate with some test transactions
-	for i := 0; i < 5; i++ {
-		tx := []byte(fmt.Sprintf("test%d=value%d", i, i))
-		kvExecutor.InjectTx(tx)
-	}
-
-	// Start HTTP server for transaction submission if address is specified
-	httpAddr := viper.GetString("kv-executor-http")
-	if httpAddr != "" {
-		httpServer := testExecutor.NewHTTPServer(kvExecutor, httpAddr)
-		logger.Info("Creating KV Executor HTTP server", "address", httpAddr)
-		go func() {
-			logger.Info("Starting KV Executor HTTP server", "address", httpAddr)
-			if err := httpServer.Start(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Error("KV Executor HTTP server error", "error", err)
-			}
-			logger.Info("KV Executor HTTP server stopped", "address", httpAddr)
-		}()
-	}
-
-	return kvExecutor
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default

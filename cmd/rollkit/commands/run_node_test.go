@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	rollconf "github.com/rollkit/rollkit/pkg/config"
+	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
 
 func TestParseFlags(t *testing.T) {
@@ -62,7 +63,9 @@ func TestParseFlags(t *testing.T) {
 
 	args := append([]string{"start"}, flags...)
 
-	newRunNodeCmd := NewRunNodeCmd()
+	executor := testExecutor.CreateDirectKVExecutor(context.Background())
+
+	newRunNodeCmd := NewRunNodeCmd(executor)
 
 	// Register root flags to be able to use --home flag
 	registerFlagsRootCmd(newRunNodeCmd)
@@ -138,7 +141,9 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	for i, flags := range flagVariants {
 		args := append([]string{"start"}, flags...)
 
-		newRunNodeCmd := NewRunNodeCmd()
+		executor := testExecutor.CreateDirectKVExecutor(context.Background())
+
+		newRunNodeCmd := NewRunNodeCmd(executor)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
@@ -162,7 +167,9 @@ func TestDefaultAggregatorValue(t *testing.T) {
 
 	// Create a new command without specifying any flags
 	args := []string{"start"}
-	newRunNodeCmd := NewRunNodeCmd()
+	executor := testExecutor.CreateDirectKVExecutor(context.Background())
+
+	newRunNodeCmd := NewRunNodeCmd(executor)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
@@ -186,7 +193,9 @@ func TestCentralizedAddresses(t *testing.T) {
 		"--node.sequencer_rollup_id=centralrollup",
 	}
 
-	cmd := NewRunNodeCmd()
+	executor := testExecutor.CreateDirectKVExecutor(context.Background())
+
+	cmd := NewRunNodeCmd(executor)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
@@ -382,7 +391,7 @@ func TestKVExecutorHTTPServerShutdown(t *testing.T) {
 	defer cancel()
 
 	// Create the KV executor with the context
-	kvExecutor := createDirectKVExecutor(ctx)
+	kvExecutor := testExecutor.CreateDirectKVExecutor(ctx)
 	if kvExecutor == nil {
 		t.Fatal("Failed to create KV executor")
 	}

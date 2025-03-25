@@ -1,21 +1,26 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	cmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
+	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
 
 func main() {
 	// Initiate the root command
 	rootCmd := cmd.RootCmd
 
+	// Create context for the executor
+	ctx := context.Background()
+
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
 		cmd.DocsGenCmd,
-		cmd.NewRunNodeCmd(),
+		cmd.NewRunNodeCmd(testExecutor.CreateDirectKVExecutor(ctx)),
 		cmd.VersionCmd,
 		cmd.InitCmd,
 		cmd.RebuildCmd,
