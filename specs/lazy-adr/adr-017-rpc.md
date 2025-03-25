@@ -54,17 +54,6 @@ message GetBlockResponse {
   Block block = 1;
 }
 
-message GetSignatureRequest {
-  oneof identifier {
-    uint64 height = 1;
-    bytes hash = 2;
-  }
-}
-
-message GetSignatureResponse {
-  bytes signature = 1;
-}
-
 message GetStateResponse {
   State state = 1;
 }
@@ -83,9 +72,6 @@ pkg/
     rpc/
       connect/
         store.connect.go    // Generated Connect service code
-      pb/
-        store.proto        // Protocol buffer definitions
-        store.pb.go        // Generated protobuf code
       server/
         server.go         // Connect-RPC server implementation
       client/
