@@ -27,7 +27,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/remote_signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
-
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 

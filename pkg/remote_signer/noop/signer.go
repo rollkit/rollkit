@@ -2,6 +2,7 @@ package noop
 
 import (
 	"github.com/libp2p/go-libp2p/core/crypto"
+
 	"github.com/rollkit/rollkit/pkg/remote_signer"
 )
 
@@ -13,16 +14,11 @@ type NoopSigner struct {
 }
 
 // NewNoopSigner creates a new signer with a fresh Ed25519 key pair.
-func NewNoopSigner() (remote_signer.Signer, error) {
-	// Generate new Ed25519 key pair
-	priv, pub, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
-	if err != nil {
-		return nil, err
-	}
+func NewNoopSigner(privKey crypto.PrivKey) (remote_signer.Signer, error) {
 
 	return &NoopSigner{
-		privKey: priv,
-		pubKey:  pub,
+		privKey: privKey,
+		pubKey:  privKey.GetPublic(),
 	}, nil
 }
 

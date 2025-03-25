@@ -17,6 +17,7 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	remote_signer "github.com/rollkit/rollkit/pkg/remote_signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -62,13 +63,15 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	// Create genesis with current time
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(s.T(), err)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
-	err := InitFiles(config.RootDir)
+	err = InitFiles(config.RootDir)
 	require.NoError(s.T(), err)
 
 	node, err := NewNode(
@@ -77,7 +80,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		genesisValidatorKey,
+		remoteSigner,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -314,13 +317,15 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	config.Node.MaxPendingBlocks = 2
 
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(err)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
-	err := InitFiles(config.RootDir)
+	err = InitFiles(config.RootDir)
 	require.NoError(err)
 
 	node, err := NewNode(
@@ -329,7 +334,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		genesisValidatorKey,
+		remoteSigner,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -398,6 +403,8 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	// Create a NEW node instance instead of reusing the old one
 	config := getTestConfig(s.T(), 1)
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(err)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
@@ -410,7 +417,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		genesisValidatorKey,
+		remoteSigner,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),

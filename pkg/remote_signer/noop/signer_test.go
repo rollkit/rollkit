@@ -3,18 +3,23 @@ package noop
 import (
 	"testing"
 
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNoopSigner(t *testing.T) {
 	t.Run("create new signer", func(t *testing.T) {
-		signer, err := NewNoopSigner()
+		privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+		require.NoError(t, err)
+		signer, err := NewNoopSigner(privKey)
 		require.NoError(t, err)
 		require.NotNil(t, signer)
 	})
 
 	t.Run("get public key", func(t *testing.T) {
-		signer, err := NewNoopSigner()
+		privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+		require.NoError(t, err)
+		signer, err := NewNoopSigner(privKey)
 		require.NoError(t, err)
 
 		pubKey, err := signer.GetPublic()
@@ -23,7 +28,9 @@ func TestNoopSigner(t *testing.T) {
 	})
 
 	t.Run("sign and verify", func(t *testing.T) {
-		signer, err := NewNoopSigner()
+		privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+		require.NoError(t, err)
+		signer, err := NewNoopSigner(privKey)
 		require.NoError(t, err)
 
 		message := []byte("test message")
@@ -41,10 +48,14 @@ func TestNoopSigner(t *testing.T) {
 	})
 
 	t.Run("different signers have different keys", func(t *testing.T) {
-		signer1, err := NewNoopSigner()
+		privKey1, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+		require.NoError(t, err)
+		signer1, err := NewNoopSigner(privKey1)
 		require.NoError(t, err)
 
-		signer2, err := NewNoopSigner()
+		privKey2, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+		require.NoError(t, err)
+		signer2, err := NewNoopSigner(privKey2)
 		require.NoError(t, err)
 
 		pub1, err := signer1.GetPublic()
@@ -63,7 +74,9 @@ func TestNoopSigner(t *testing.T) {
 	})
 
 	t.Run("verify wrong message fails", func(t *testing.T) {
-		signer, err := NewNoopSigner()
+		privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+		require.NoError(t, err)
+		signer, err := NewNoopSigner(privKey)
 		require.NoError(t, err)
 
 		message := []byte("test message")

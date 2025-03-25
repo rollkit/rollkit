@@ -20,6 +20,7 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	remote_signer "github.com/rollkit/rollkit/pkg/remote_signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -179,13 +180,15 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	}
 
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey(chainID)
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(t, err)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
-	err := InitFiles(config.RootDir)
+	err = InitFiles(config.RootDir)
 	require.NoError(t, err)
 
 	logger := log.NewTestLogger(t)
@@ -196,7 +199,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		genesisValidatorKey,
+		remoteSigner,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		logger,

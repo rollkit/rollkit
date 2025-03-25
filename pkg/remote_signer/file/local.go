@@ -12,8 +12,9 @@ import (
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/rollkit/rollkit/pkg/remote_signer"
 	"golang.org/x/crypto/argon2"
+
+	"github.com/rollkit/rollkit/pkg/remote_signer"
 )
 
 // FileSystemSigner implements a signer that securely stores keys on disk
