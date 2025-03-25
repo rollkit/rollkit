@@ -36,6 +36,7 @@ We will define a completely new genesis file format specific to Rollkit with no 
 ### 3. Hybrid Approach
 
 Define a Rollkit-specific genesis file format that:
+
 1. Contains only the fields needed by Rollkit
 2. Supports importing/exporting to/from CometBFT genesis format for compatibility
 3. Includes validation specific to Rollkit's requirements
@@ -63,6 +64,8 @@ The new genesis file structure will contain the following key fields:
 5. **AppState**: Application-specific genesis state as a JSON object.
 
 The `ExtraData` field is particularly important as it allows different node types (sequencer, full node) to store type-specific information. For example, a centralized sequencer setup might include the sequencer's address in this field, while a decentralized setup might include validator set information.
+
+The `AppState` field should contain the genesis file specific to the execution layer as a JSON Object. It will be passed on the execution layer during initialization.
 
 ### Genesis Validation
 
