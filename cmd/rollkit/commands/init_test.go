@@ -40,7 +40,7 @@ func TestInitCommand(t *testing.T) {
 	cmd.AddCommand(&initCmd)
 
 	// Register all persistent flags from root command
-	registerFlagsRootCmd(cmd)
+	rollconf.RegisterBasicFlags(cmd, AppName)
 
 	// Set home flag to the test directory
 	cmd.SetArgs([]string{"init", "--home", dir})

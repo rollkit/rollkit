@@ -113,7 +113,7 @@ LDFLAGS := \
 ## install: Install rollkit CLI
 install:
 	@echo "--> Installing Rollkit CLI"
-	@go install -ldflags "$(LDFLAGS)" ./cmd/rollkit
+	@go install -ldflags "$(LDFLAGS)" ./testapp
 	@echo "--> Rollkit CLI Installed!"
 	@echo "    Check the version with: rollkit version"
 	@echo "    Check the binary with: which rollkit"

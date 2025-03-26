@@ -193,6 +193,15 @@ type P2PConfig struct {
 	AllowedPeers  string `mapstructure:"allowed_peers" yaml:"allowed_peers" comment:"Comma separated list of peer IDs to allow connections from"`
 }
 
+// RegisterBasicFlags registers the basic configuration flags that are common across applications
+// This includes logging configuration and root directory settings
+func RegisterBasicFlags(cmd *cobra.Command, appName string) {
+	cmd.PersistentFlags().String(FlagLogLevel, DefaultLogLevel, "Set the log level (debug, info, warn, error)")
+	cmd.PersistentFlags().String(FlagLogFormat, "plain", "Set the log format (text, json)")
+	cmd.PersistentFlags().Bool(FlagLogTrace, false, "Enable stack traces in error logs")
+	cmd.PersistentFlags().String(FlagRootDir, DefaultRootDirWithName(appName), "Root directory for application data")
+}
+
 // AddFlags adds Rollkit specific configuration options to cobra Command.
 //
 // This function is called in cosmos-sdk.

@@ -68,7 +68,7 @@ func TestParseFlags(t *testing.T) {
 	newRunNodeCmd := NewRunNodeCmd(executor)
 
 	// Register root flags to be able to use --home flag
-	registerFlagsRootCmd(newRunNodeCmd)
+	rollconf.RegisterBasicFlags(newRunNodeCmd, AppName)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error: %v", err)

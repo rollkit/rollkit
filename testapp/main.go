@@ -5,25 +5,26 @@ import (
 	"fmt"
 	"os"
 
-	cmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
+	rollcmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
+	commands "github.com/rollkit/rollkit/testapp/commands"
 )
 
 func main() {
 	// Initiate the root command
-	rootCmd := cmd.RootCmd
+	rootCmd := commands.RootCmd
 
 	// Create context for the executor
 	ctx := context.Background()
 
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
-		cmd.DocsGenCmd,
-		cmd.NewRunNodeCmd(testExecutor.CreateDirectKVExecutor(ctx)),
-		cmd.VersionCmd,
-		cmd.InitCmd,
-		cmd.RebuildCmd,
+		rollcmd.DocsGenCmd,
+		rollcmd.NewRunNodeCmd(testExecutor.CreateDirectKVExecutor(ctx)),
+		rollcmd.VersionCmd,
+		rollcmd.InitCmd,
+		rollcmd.RebuildCmd,
 	)
 
 	// Wrapper function for ReadYaml that doesn't take arguments
@@ -35,10 +36,10 @@ func main() {
 	// directory tree - we want to intercept the command and execute it against an entrypoint
 	// specified in the rollkit.yaml file. In case of missing yaml file or missing entrypoint key
 	// or missing actual entrypoint file - the normal rootCmd command is executed.
-	executed, err := cmd.InterceptCommand(
+	executed, err := rollcmd.InterceptCommand(
 		rootCmd,
 		readYamlWrapper,
-		cmd.RunRollupEntrypoint,
+		rollcmd.RunRollupEntrypoint,
 	)
 	if err != nil {
 		fmt.Println("Error intercepting command: ", err)
