@@ -31,18 +31,38 @@ func TestGetBlock(t *testing.T) {
 	// Create server with mock store
 	server := NewStoreServer(mockStore)
 
-	// Call GetBlock
-	req := connect.NewRequest(&pb.GetBlockRequest{
-		Identifier: &pb.GetBlockRequest_Height{
-			Height: height,
-		},
-	})
-	resp, err := server.GetBlock(context.Background(), req)
+	// Test GetBlock with height
+	t.Run("by height", func(t *testing.T) {
+		req := connect.NewRequest(&pb.GetBlockRequest{
+			Identifier: &pb.GetBlockRequest_Height{
+				Height: height,
+			},
+		})
+		resp, err := server.GetBlock(context.Background(), req)
 
-	// Assert expectations
-	require.NoError(t, err)
-	require.NotNil(t, resp.Msg.Block)
-	mockStore.AssertExpectations(t)
+		// Assert expectations
+		require.NoError(t, err)
+		require.NotNil(t, resp.Msg.Block)
+		mockStore.AssertExpectations(t)
+	})
+
+	// Test GetBlock with hash
+	t.Run("by hash", func(t *testing.T) {
+		hash := types.Hash([]byte("test_hash"))
+		mockStore.On("GetBlockByHash", mock.Anything, hash).Return(header, data, nil)
+
+		req := connect.NewRequest(&pb.GetBlockRequest{
+			Identifier: &pb.GetBlockRequest_Hash{
+				Hash: hash,
+			},
+		})
+		resp, err := server.GetBlock(context.Background(), req)
+
+		// Assert expectations
+		require.NoError(t, err)
+		require.NotNil(t, resp.Msg.Block)
+		mockStore.AssertExpectations(t)
+	})
 }
 
 func TestGetState(t *testing.T) {
@@ -55,6 +75,11 @@ func TestGetState(t *testing.T) {
 		InitialHeight:   10,
 		LastBlockHeight: 10,
 		LastBlockTime:   time.Now(),
+		ChainID:         "test-chain",
+		Version: types.Version{
+			Block: 1,
+			App:   1,
+		},
 	}
 
 	// Setup mock expectations
@@ -73,7 +98,10 @@ func TestGetState(t *testing.T) {
 	require.Equal(t, state.AppHash, resp.Msg.State.AppHash)
 	require.Equal(t, state.InitialHeight, resp.Msg.State.InitialHeight)
 	require.Equal(t, state.LastBlockHeight, resp.Msg.State.LastBlockHeight)
-	require.Equal(t, state.LastBlockTime, resp.Msg.State.LastBlockTime)
+	require.Equal(t, state.LastBlockTime, resp.Msg.State.LastBlockTime.AsTime())
+	require.Equal(t, state.ChainID, resp.Msg.State.ChainId)
+	require.Equal(t, state.Version.Block, resp.Msg.State.Version.Block)
+	require.Equal(t, state.Version.App, resp.Msg.State.Version.App)
 	mockStore.AssertExpectations(t)
 }
 

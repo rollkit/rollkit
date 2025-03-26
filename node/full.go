@@ -24,6 +24,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
+	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/pkg/sync"
@@ -60,6 +61,7 @@ type FullNode struct {
 
 	prometheusSrv *http.Server
 	pprofSrv      *http.Server
+	rpcServer     *http.Server
 }
 
 // newFullNode creates a new Rollkit full node.
@@ -369,8 +371,32 @@ func (n *FullNode) Run(ctx context.Context) error {
 		(n.nodeConfig.Instrumentation.IsPrometheusEnabled() || n.nodeConfig.Instrumentation.IsPprofEnabled()) {
 		n.prometheusSrv, n.pprofSrv = n.startInstrumentationServer()
 	}
+
+	// Start RPC server
+	rpcAddr := fmt.Sprintf("%s:%d", n.nodeConfig.RPC.Address, n.nodeConfig.RPC.Port)
+	handler, err := rpcserver.NewStoreServiceHandler(n.Store)
+	if err != nil {
+		return fmt.Errorf("error creating RPC handler: %w", err)
+	}
+
+	n.rpcServer = &http.Server{
+		Addr:         rpcAddr,
+		Handler:      handler,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	go func() {
+		if err := n.rpcServer.ListenAndServe(); err != http.ErrServerClosed {
+			n.Logger.Error("RPC server error", "err", err)
+		}
+	}()
+
+	n.Logger.Info("Started RPC server", "addr", rpcAddr)
+
 	n.Logger.Info("starting P2P client")
-	err := n.p2pClient.Start(ctx)
+	err = n.p2pClient.Start(ctx)
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
@@ -421,6 +447,10 @@ func (n *FullNode) Run(ctx context.Context) error {
 
 	if n.pprofSrv != nil {
 		err = errors.Join(err, n.pprofSrv.Shutdown(shutdownCtx))
+	}
+
+	if n.rpcServer != nil {
+		err = errors.Join(err, n.rpcServer.Shutdown(shutdownCtx))
 	}
 
 	err = errors.Join(err, n.Store.Close())

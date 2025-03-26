@@ -131,21 +131,3 @@ func NewStoreServiceHandler(store store.Store) (http.Handler, error) {
 		PingTimeout:          15 * time.Second,  // Timeout for ping frames
 	}), nil
 }
-
-// StartServer starts the Store RPC server
-func StartServer(store store.Store, address string) error {
-	handler, err := NewStoreServiceHandler(store)
-	if err != nil {
-		return err
-	}
-
-	server := &http.Server{
-		Addr:         address,
-		Handler:      handler,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	return server.ListenAndServe()
-}
