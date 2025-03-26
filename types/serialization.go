@@ -2,19 +2,21 @@ package types
 
 import (
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // MarshalBinary encodes Metadata into binary form and returns it.
 func (m *Metadata) MarshalBinary() ([]byte, error) {
-	return m.ToProto().Marshal()
+	return proto.Marshal(m.ToProto())
 }
 
 // UnmarshalBinary decodes binary form of Metadata into object.
 func (m *Metadata) UnmarshalBinary(metadata []byte) error {
 	var pMetadata pb.Metadata
-	err := pMetadata.Unmarshal(metadata)
+	err := proto.Unmarshal(metadata, &pMetadata)
 	if err != nil {
 		return err
 	}
@@ -24,13 +26,13 @@ func (m *Metadata) UnmarshalBinary(metadata []byte) error {
 
 // MarshalBinary encodes Header into binary form and returns it.
 func (h *Header) MarshalBinary() ([]byte, error) {
-	return h.ToProto().Marshal()
+	return proto.Marshal(h.ToProto())
 }
 
 // UnmarshalBinary decodes binary form of Header into object.
 func (h *Header) UnmarshalBinary(data []byte) error {
 	var pHeader pb.Header
-	err := pHeader.Unmarshal(data)
+	err := proto.Unmarshal(data, &pHeader)
 	if err != nil {
 		return err
 	}
@@ -40,13 +42,13 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 
 // MarshalBinary encodes Data into binary form and returns it.
 func (d *Data) MarshalBinary() ([]byte, error) {
-	return d.ToProto().Marshal()
+	return proto.Marshal(d.ToProto())
 }
 
 // UnmarshalBinary decodes binary form of Data into object.
 func (d *Data) UnmarshalBinary(data []byte) error {
 	var pData pb.Data
-	err := pData.Unmarshal(data)
+	err := proto.Unmarshal(data, &pData)
 	if err != nil {
 		return err
 	}
@@ -105,13 +107,13 @@ func (sh *SignedHeader) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return hp.Marshal()
+	return proto.Marshal(hp)
 }
 
 // UnmarshalBinary decodes binary form of SignedHeader into object.
 func (sh *SignedHeader) UnmarshalBinary(data []byte) error {
 	var pHeader pb.SignedHeader
-	err := pHeader.Unmarshal(data)
+	err := proto.Unmarshal(data, &pHeader)
 	if err != nil {
 		return err
 	}
@@ -225,7 +227,7 @@ func (s *State) ToProto() (*pb.State, error) {
 		ChainId:         s.ChainID,
 		InitialHeight:   s.InitialHeight,
 		LastBlockHeight: s.LastBlockHeight,
-		LastBlockTime:   s.LastBlockTime,
+		LastBlockTime:   timestamppb.New(s.LastBlockTime),
 		DaHeight:        s.DAHeight,
 		LastResultsHash: s.LastResultsHash[:],
 		AppHash:         s.AppHash[:],
@@ -234,7 +236,7 @@ func (s *State) ToProto() (*pb.State, error) {
 
 // FromProto fills State with data from its protobuf representation.
 func (s *State) FromProto(other *pb.State) error {
-	s.Version = pb.Version{
+	s.Version = Version{
 		Block: other.Version.Block,
 		App:   other.Version.App,
 	}
@@ -242,7 +244,7 @@ func (s *State) FromProto(other *pb.State) error {
 	s.InitialHeight = other.InitialHeight
 	s.LastBlockHeight = other.LastBlockHeight
 
-	s.LastBlockTime = other.LastBlockTime
+	s.LastBlockTime = other.LastBlockTime.AsTime()
 
 	s.LastResultsHash = other.LastResultsHash
 	s.AppHash = other.AppHash

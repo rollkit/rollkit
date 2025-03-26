@@ -10,11 +10,11 @@ replace (
 )
 
 require (
+	connectrpc.com/connect v1.18.1
 	cosmossdk.io/log v1.5.0
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.15
-	github.com/cosmos/gogoproto v1.7.0
 	github.com/go-kit/kit v0.13.0
 	github.com/goccy/go-yaml v1.16.0
 	github.com/gogo/protobuf v1.3.2
@@ -34,6 +34,7 @@ require (
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
+	golang.org/x/net v0.35.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
 )
@@ -57,6 +58,7 @@ require (
 	github.com/cometbft/cometbft-db v0.14.1 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/cosmos/gogoproto v1.7.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
@@ -208,7 +210,6 @@ require (
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
 	golang.org/x/mod v0.23.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
