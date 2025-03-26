@@ -13,7 +13,7 @@ import (
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 )
 
-var docsDirectory = "./cmd/rollkit/docs"
+var docsDirectory = "./docs/cmd"
 
 // NewDocsGenCmd creates a new docs-gen command that generates documentation for the provided root command
 func NewDocsGenCmd(rootCmd *cobra.Command) *cobra.Command {

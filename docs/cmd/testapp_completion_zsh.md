@@ -1,4 +1,4 @@
-## rollkit completion zsh
+## testapp completion zsh
 
 Generate the autocompletion script for zsh
 
@@ -13,23 +13,23 @@ to enable it.  You can execute the following once:
 
 To load completions in your current shell session:
 
-	source <(rollkit completion zsh)
+	source <(testapp completion zsh)
 
 To load completions for every new session, execute once:
 
 #### Linux:
 
-	rollkit completion zsh > "${fpath[1]}/_rollkit"
+	testapp completion zsh > "${fpath[1]}/_testapp"
 
 #### macOS:
 
-	rollkit completion zsh > $(brew --prefix)/share/zsh/site-functions/_rollkit
+	testapp completion zsh > $(brew --prefix)/share/zsh/site-functions/_testapp
 
 You will need to start a new shell for this setup to take effect.
 
 
 ```
-rollkit completion zsh [flags]
+testapp completion zsh [flags]
 ```
 
 ### Options
@@ -42,12 +42,12 @@ rollkit completion zsh [flags]
 ### Options inherited from parent commands
 
 ```
-      --home string         root directory for Rollkit (default "HOME/.rollkit")
-      --log_format string   set the log format; options include plain and json (default "plain")
-      --log_level string    set the log level; default is info. other options include debug, info, error, none (default "info")
-      --trace               print out full stack trace on errors
+      --home string         Root directory for application data (default "/Users/jgimeno/.testapp")
+      --log.format string   Set the log format (text, json) (default "plain")
+      --log.level string    Set the log level (debug, info, warn, error) (default "info")
+      --log.trace           Enable stack traces in error logs
 ```
 
 ### SEE ALSO
 
-* [rollkit completion](rollkit_completion.md)	 - Generate the autocompletion script for the specified shell
+* [testapp completion](testapp_completion.md)	 - Generate the autocompletion script for the specified shell
