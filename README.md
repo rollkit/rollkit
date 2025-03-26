@@ -12,25 +12,24 @@ Rollkit is the first sovereign rollup framework. For more in-depth information a
 
 ## Using Rollkit
 
-### Rollkit CLI
+### Example Implementation: TestApp CLI
 
-The easiest way to use rollkit is via the rollkit CLI.
+The easiest way to understand how to use Rollkit is by exploring our example implementation, TestApp.
 
 Requires Go version >= 1.22.
 
-A cli tool that allows you to run different kinds of nodes for a rollkit network
-while also helping you generate the required configuration files
+TestApp is a CLI tool that demonstrates how to run different kinds of nodes using the Rollkit framework. It serves as a reference implementation and helps you understand how to build your own Rollkit-based blockchain.
 
 #### Install
 
-To install `rollkit`, simply run the following command at the root of the
-rollkit repo
+To install the example `testapp`, simply run the following command at the root of the
+rollkit repo:
 
 ```bash
 make install
 ```
 
-The latest Rollkit is now installed. You can verify the installation by running:
+The latest TestApp example is now installed. You can verify the installation by running:
 
 ```bash
 testapp version
@@ -38,18 +37,18 @@ testapp version
 
 #### Quick Start
 
-You can spin up a local rollkit network with the following command:
+You can spin up a local TestApp network (powered by Rollkit) with the following command:
 
 ```bash
 testapp start
 ```
 
-Explore the CLI documentation [here](./docs/cmd/testapp.md )
+Explore the CLI documentation [here](./docs/cmd/testapp.md)
 
 ## Building with Rollkit
 
 Rollkit is the first sovereign rollup framework that allows you to launch
-a sovereign, customizable blockchain as easily as a smart contract.
+a sovereign, customizable blockchain as easily as a smart contract. TestApp serves as a reference implementation to help you get started with your own Rollkit-based blockchain.
 
 Check out our tutorials on our [website][docs].
 
