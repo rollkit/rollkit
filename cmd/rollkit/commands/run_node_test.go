@@ -62,7 +62,7 @@ func TestParseFlags(t *testing.T) {
 
 	args := append([]string{"start"}, flags...)
 
-	newRunNodeCmd := NewRunNodeCmd()
+	newRunNodeCmd := NewRunNodeCmd(CreateExecutor, AddNodeFlags)
 
 	// Register root flags to be able to use --home flag
 	registerFlagsRootCmd(newRunNodeCmd)
@@ -138,7 +138,7 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	for i, flags := range flagVariants {
 		args := append([]string{"start"}, flags...)
 
-		newRunNodeCmd := NewRunNodeCmd()
+		newRunNodeCmd := NewRunNodeCmd(CreateExecutor, AddNodeFlags)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
@@ -162,7 +162,7 @@ func TestDefaultAggregatorValue(t *testing.T) {
 
 	// Create a new command without specifying any flags
 	args := []string{"start"}
-	newRunNodeCmd := NewRunNodeCmd()
+	newRunNodeCmd := NewRunNodeCmd(CreateExecutor, AddNodeFlags)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
@@ -186,7 +186,7 @@ func TestCentralizedAddresses(t *testing.T) {
 		"--node.sequencer_rollup_id=centralrollup",
 	}
 
-	cmd := NewRunNodeCmd()
+	cmd := NewRunNodeCmd(CreateExecutor, AddNodeFlags)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
