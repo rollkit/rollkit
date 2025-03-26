@@ -33,7 +33,7 @@ make install
 The latest Rollkit is now installed. You can verify the installation by running:
 
 ```bash
-rollkit version
+testapp version
 ```
 
 #### Quick Start
@@ -41,10 +41,10 @@ rollkit version
 You can spin up a local rollkit network with the following command:
 
 ```bash
-rollkit start
+testapp start
 ```
 
-Explore the CLI documentation [here](./cmd/rollkit/docs/rollkit.md)
+Explore the CLI documentation [here](./docs/cmd/testapp.md )
 
 ## Building with Rollkit
 
