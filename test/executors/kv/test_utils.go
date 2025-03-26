@@ -8,8 +8,9 @@ import (
 	"os"
 
 	"cosmossdk.io/log"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	"github.com/spf13/viper"
+
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 )
 
 var logger = log.NewLogger(os.Stdout)

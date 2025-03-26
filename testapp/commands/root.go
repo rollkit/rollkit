@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	// AppName is the name of the application, the name of the command, and the name of the home directory.
 	AppName = "testapp"
 )
 
