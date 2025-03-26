@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	ds "github.com/ipfs/go-datastore"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
@@ -173,7 +174,7 @@ func (s *DefaultStore) UpdateState(ctx context.Context, state types.State) error
 	if err != nil {
 		return fmt.Errorf("failed to marshal state to JSON: %w", err)
 	}
-	data, err := pbState.Marshal()
+	data, err := proto.Marshal(pbState)
 	if err != nil {
 		return err
 	}
@@ -187,7 +188,7 @@ func (s *DefaultStore) GetState(ctx context.Context) (types.State, error) {
 		return types.State{}, fmt.Errorf("failed to retrieve state: %w", err)
 	}
 	var pbState pb.State
-	err = pbState.Unmarshal(blob)
+	err = proto.Unmarshal(blob, &pbState)
 	if err != nil {
 		return types.State{}, fmt.Errorf("failed to unmarshal state from JSON: %w", err)
 	}

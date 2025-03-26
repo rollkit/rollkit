@@ -4,21 +4,20 @@ import (
 	"time"
 
 	"github.com/rollkit/rollkit/pkg/genesis"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // InitStateVersion sets the Consensus.Block and Software versions,
 // but leaves the Consensus.App version blank.
 // The Consensus.App version will be set during the Handshake, once
 // we hear from the app what protocol version it is running.
-var InitStateVersion = pb.Version{
+var InitStateVersion = Version{
 	Block: 1,
 	App:   0,
 }
 
 // State contains information about current state of the blockchain.
 type State struct {
-	Version pb.Version
+	Version Version
 
 	// immutable
 	ChainID       string

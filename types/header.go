@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-header"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	v1 "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
@@ -128,10 +130,10 @@ func (h *Header) Vote() ([]byte, error) {
 		Height:           h.Height(),
 		BlockIdHash:      h.Hash(),
 		ValidatorAddress: h.ProposerAddress,
-		Timestamp:        h.Time(),
+		Timestamp:        timestamppb.New(h.Time()),
 	}
 
-	bz, err := v.Marshal()
+	bz, err := proto.Marshal(v)
 	if err != nil {
 		return nil, err
 	}

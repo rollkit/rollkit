@@ -5,6 +5,8 @@ import (
 	"encoding"
 	"errors"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 )
 
 // Version captures the consensus rules for processing a block in the blockchain,
@@ -125,5 +127,5 @@ func (d *Data) Validate() error {
 
 // Size returns size of the block in bytes.
 func (d *Data) Size() int {
-	return d.ToProto().Size()
+	return proto.Size(d.ToProto())
 }
