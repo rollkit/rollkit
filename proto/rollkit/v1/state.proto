@@ -7,7 +7,6 @@ import "rollkit/v1/rollkit.proto";
 
 option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
 
-
 // State is the state of the blockchain.
 message State {
   rollkit.v1.Version version = 1;
