@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -40,55 +41,57 @@ func TestDefaultNodeConfig(t *testing.T) {
 }
 
 func TestAddFlags(t *testing.T) {
-	cmd := &cobra.Command{}
+	// Create a command with flags
+	cmd := &cobra.Command{Use: "test"}
 	AddFlags(cmd)
 
-	// Test that all flags are added
+	// Get the flags
 	flags := cmd.Flags()
 
-	// Test root flags
-	// Note: FlagRootDir is added by registerFlagsRootCmd in root.go, not by AddFlags
-	assert.NotNil(t, flags.Lookup(FlagDBPath))
+	// Test specific flags
+	assertFlagValue(t, flags, FlagDBPath, DefaultNodeConfig.DBPath)
+	assertFlagValue(t, flags, FlagEntrypoint, DefaultNodeConfig.Entrypoint)
+	assertFlagValue(t, flags, FlagChainConfigDir, DefaultNodeConfig.ConfigDir)
 
-	// Test Rollkit flags
-	assert.NotNil(t, flags.Lookup(FlagAggregator))
-	assert.NotNil(t, flags.Lookup(FlagLazyAggregator))
-	assert.NotNil(t, flags.Lookup(FlagDAAddress))
-	assert.NotNil(t, flags.Lookup(FlagDAAuthToken))
-	assert.NotNil(t, flags.Lookup(FlagBlockTime))
-	assert.NotNil(t, flags.Lookup(FlagDABlockTime))
-	assert.NotNil(t, flags.Lookup(FlagDAGasPrice))
-	assert.NotNil(t, flags.Lookup(FlagDAGasMultiplier))
-	assert.NotNil(t, flags.Lookup(FlagDAStartHeight))
-	assert.NotNil(t, flags.Lookup(FlagDANamespace))
-	assert.NotNil(t, flags.Lookup(FlagDASubmitOptions))
-	assert.NotNil(t, flags.Lookup(FlagLight))
-	assert.NotNil(t, flags.Lookup(FlagTrustedHash))
-	assert.NotNil(t, flags.Lookup(FlagMaxPendingBlocks))
-	assert.NotNil(t, flags.Lookup(FlagDAMempoolTTL))
-	assert.NotNil(t, flags.Lookup(FlagLazyBlockTime))
-	assert.NotNil(t, flags.Lookup(FlagSequencerAddress))
-	assert.NotNil(t, flags.Lookup(FlagSequencerRollupID))
-	assert.NotNil(t, flags.Lookup(FlagExecutorAddress))
+	// Node flags
+	assertFlagValue(t, flags, FlagAggregator, DefaultNodeConfig.Node.Aggregator)
+	assertFlagValue(t, flags, FlagLight, DefaultNodeConfig.Node.Light)
+	assertFlagValue(t, flags, FlagBlockTime, DefaultNodeConfig.Node.BlockTime.Duration)
+	assertFlagValue(t, flags, FlagTrustedHash, DefaultNodeConfig.Node.TrustedHash)
+	assertFlagValue(t, flags, FlagLazyAggregator, DefaultNodeConfig.Node.LazyAggregator)
+	assertFlagValue(t, flags, FlagMaxPendingBlocks, DefaultNodeConfig.Node.MaxPendingBlocks)
+	assertFlagValue(t, flags, FlagLazyBlockTime, DefaultNodeConfig.Node.LazyBlockTime.Duration)
+	assertFlagValue(t, flags, FlagSequencerAddress, DefaultNodeConfig.Node.SequencerAddress)
+	assertFlagValue(t, flags, FlagSequencerRollupID, DefaultNodeConfig.Node.SequencerRollupID)
+	assertFlagValue(t, flags, FlagExecutorAddress, DefaultNodeConfig.Node.ExecutorAddress)
 
-	// Test instrumentation flags
-	assert.NotNil(t, flags.Lookup(FlagPrometheus))
-	assert.NotNil(t, flags.Lookup(FlagPrometheusListenAddr))
-	assert.NotNil(t, flags.Lookup(FlagMaxOpenConnections))
+	// DA flags
+	assertFlagValue(t, flags, FlagDAAddress, DefaultNodeConfig.DA.Address)
+	assertFlagValue(t, flags, FlagDAAuthToken, DefaultNodeConfig.DA.AuthToken)
+	assertFlagValue(t, flags, FlagDABlockTime, DefaultNodeConfig.DA.BlockTime.Duration)
+	assertFlagValue(t, flags, FlagDAGasPrice, DefaultNodeConfig.DA.GasPrice)
+	assertFlagValue(t, flags, FlagDAGasMultiplier, DefaultNodeConfig.DA.GasMultiplier)
+	assertFlagValue(t, flags, FlagDAStartHeight, DefaultNodeConfig.DA.StartHeight)
+	assertFlagValue(t, flags, FlagDANamespace, DefaultNodeConfig.DA.Namespace)
+	assertFlagValue(t, flags, FlagDASubmitOptions, DefaultNodeConfig.DA.SubmitOptions)
+	assertFlagValue(t, flags, FlagDAMempoolTTL, DefaultNodeConfig.DA.MempoolTTL)
 
-	// Test P2P flags
-	assert.NotNil(t, flags.Lookup(FlagP2PListenAddress))
-	assert.NotNil(t, flags.Lookup(FlagP2PSeeds))
-	assert.NotNil(t, flags.Lookup(FlagP2PBlockedPeers))
-	assert.NotNil(t, flags.Lookup(FlagP2PAllowedPeers))
+	// P2P flags
+	assertFlagValue(t, flags, FlagP2PListenAddress, DefaultNodeConfig.P2P.ListenAddress)
+	assertFlagValue(t, flags, FlagP2PSeeds, DefaultNodeConfig.P2P.Seeds)
+	assertFlagValue(t, flags, FlagP2PBlockedPeers, DefaultNodeConfig.P2P.BlockedPeers)
+	assertFlagValue(t, flags, FlagP2PAllowedPeers, DefaultNodeConfig.P2P.AllowedPeers)
 
-	// Test YAML config flags
-	assert.NotNil(t, flags.Lookup(FlagEntrypoint))
-	assert.NotNil(t, flags.Lookup(FlagChainConfigDir))
+	// Instrumentation flags
+	instrDef := DefaultInstrumentationConfig()
+	assertFlagValue(t, flags, FlagPrometheus, instrDef.Prometheus)
+	assertFlagValue(t, flags, FlagPrometheusListenAddr, instrDef.PrometheusListenAddr)
+	assertFlagValue(t, flags, FlagMaxOpenConnections, instrDef.MaxOpenConnections)
+	assertFlagValue(t, flags, FlagPprof, instrDef.Pprof)
+	assertFlagValue(t, flags, FlagPprofListenAddr, instrDef.PprofListenAddr)
 
-	// Verify that there are no additional flags
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 34 // Update this number if you add more flag checks above
+	expectedFlagCount := 31 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags
 	actualFlagCount := 0
@@ -174,4 +177,25 @@ config_dir: "config"
 
 	// 4. Values not in flags or YAML should remain as default
 	assert.Equal(t, DefaultNodeConfig.DA.BlockTime.Duration, config.DA.BlockTime.Duration, "DABlockTime should remain as default")
+}
+
+func assertFlagValue(t *testing.T, flags *pflag.FlagSet, name string, expectedValue interface{}) {
+	flag := flags.Lookup(name)
+	assert.NotNil(t, flag, "Flag %s should exist", name)
+	if flag != nil {
+		switch v := expectedValue.(type) {
+		case bool:
+			assert.Equal(t, fmt.Sprintf("%v", v), flag.DefValue, "Flag %s should have default value %v", name, v)
+		case time.Duration:
+			assert.Equal(t, v.String(), flag.DefValue, "Flag %s should have default value %v", name, v)
+		case int:
+			assert.Equal(t, fmt.Sprintf("%d", v), flag.DefValue, "Flag %s should have default value %v", name, v)
+		case uint64:
+			assert.Equal(t, fmt.Sprintf("%d", v), flag.DefValue, "Flag %s should have default value %v", name, v)
+		case float64:
+			assert.Equal(t, fmt.Sprintf("%g", v), flag.DefValue, "Flag %s should have default value %v", name, v)
+		default:
+			assert.Equal(t, fmt.Sprintf("%v", v), flag.DefValue, "Flag %s should have default value %v", name, v)
+		}
+	}
 }
