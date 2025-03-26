@@ -43,10 +43,12 @@ func TestDefaultNodeConfig(t *testing.T) {
 func TestAddFlags(t *testing.T) {
 	// Create a command with flags
 	cmd := &cobra.Command{Use: "test"}
+	AddBasicFlags(cmd, "test") // Add basic flags first
 	AddFlags(cmd)
 
-	// Get the flags
+	// Get both persistent and regular flags
 	flags := cmd.Flags()
+	persistentFlags := cmd.PersistentFlags()
 
 	// Test specific flags
 	assertFlagValue(t, flags, FlagDBPath, DefaultNodeConfig.DBPath)
@@ -89,12 +91,20 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagPprof, instrDef.Pprof)
 	assertFlagValue(t, flags, FlagPprofListenAddr, instrDef.PprofListenAddr)
 
-	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 33 // Update this number if you add more flag checks above
+	// Logging flags (in persistent flags)
+	assertFlagValue(t, persistentFlags, FlagLogLevel, DefaultLogLevel)
+	assertFlagValue(t, persistentFlags, FlagLogFormat, "plain")
+	assertFlagValue(t, persistentFlags, FlagLogTrace, false)
 
-	// Get the actual number of flags
+	// Count the number of flags we're explicitly checking
+	expectedFlagCount := 36 // Update this number to include all flags (32 regular + 4 persistent)
+
+	// Get the actual number of flags (both regular and persistent)
 	actualFlagCount := 0
 	flags.VisitAll(func(flag *pflag.Flag) {
+		actualFlagCount++
+	})
+	persistentFlags.VisitAll(func(flag *pflag.Flag) {
 		actualFlagCount++
 	})
 
