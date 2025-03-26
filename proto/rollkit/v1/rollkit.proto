@@ -103,10 +103,7 @@ message Vote {
   // Block height
   uint64 height = 2;
   // Timestamp
-  google.protobuf.Timestamp timestamp = 3 [
-    (gogoproto.nullable) = false,
-    (gogoproto.stdtime) = true
-  ];
+  google.protobuf.Timestamp timestamp = 3;
   // Block ID hash
   bytes block_id_hash = 4;
   // Validator address
