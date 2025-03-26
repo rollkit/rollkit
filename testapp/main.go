@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	rollcmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
+	rollcmd "github.com/rollkit/rollkit/cmd"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 	commands "github.com/rollkit/rollkit/testapp/commands"
@@ -20,7 +20,7 @@ func main() {
 
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
-		rollcmd.DocsGenCmd,
+		rollcmd.NewDocsGenCmd(rootCmd),
 		rollcmd.NewRunNodeCmd(testExecutor.CreateDirectKVExecutor(ctx)),
 		rollcmd.VersionCmd,
 		rollcmd.InitCmd,

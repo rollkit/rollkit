@@ -1,4 +1,4 @@
-package commands
+package cmd
 
 import (
 	"bufio"
@@ -15,27 +15,29 @@ import (
 
 var docsDirectory = "./cmd/rollkit/docs"
 
-// DocsGenCmd is the command to generate documentation for rollkit CLI
-var DocsGenCmd = &cobra.Command{
-	Use:   "docs-gen",
-	Short: "Generate documentation for rollkit CLI",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Clear out the docs directory
-		err := os.RemoveAll(docsDirectory)
-		if err != nil {
-			return err
-		}
-		// Initiate the docs directory
-		err = os.MkdirAll(docsDirectory, rollconf.DefaultDirPerm)
-		if err != nil {
-			return err
-		}
-		err = doc.GenMarkdownTree(RootCmd, docsDirectory)
-		if err != nil {
-			return err
-		}
-		return docCleanUp()
-	},
+// NewDocsGenCmd creates a new docs-gen command that generates documentation for the provided root command
+func NewDocsGenCmd(rootCmd *cobra.Command) *cobra.Command {
+	return &cobra.Command{
+		Use:   "docs-gen",
+		Short: "Generate documentation for rollkit CLI",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Clear out the docs directory
+			err := os.RemoveAll(docsDirectory)
+			if err != nil {
+				return err
+			}
+			// Initiate the docs directory
+			err = os.MkdirAll(docsDirectory, rollconf.DefaultDirPerm)
+			if err != nil {
+				return err
+			}
+			err = doc.GenMarkdownTree(rootCmd, docsDirectory)
+			if err != nil {
+				return err
+			}
+			return docCleanUp()
+		},
+	}
 }
 
 // docCleanUp is a helper function to clean up the generated documentation by
