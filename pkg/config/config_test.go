@@ -91,7 +91,7 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagPprofListenAddr, instrDef.PprofListenAddr)
 
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 31 // Update this number if you add more flag checks above
+	expectedFlagCount := 33 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags
 	actualFlagCount := 0

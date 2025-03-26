@@ -43,12 +43,14 @@ testapp start [flags]
       --p2p.blocked_peers string                        Comma separated list of nodes to ignore
       --p2p.listen_address string                       P2P listen address (host:port) (default "/ip4/0.0.0.0/tcp/7676")
       --p2p.seeds string                                Comma separated list of seed nodes to connect to
+      --rpc.address string                              RPC server address (host) (default "127.0.0.1")
+      --rpc.port uint16                                 RPC server port (default 7331)
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --home string         Root directory for application data (default "/Users/jgimeno/.testapp")
+      --home string         Root directory for application data (default "HOME/.testapp")
       --log.format string   Set the log format (text, json) (default "plain")
       --log.level string    Set the log level (debug, info, warn, error) (default "info")
       --log.trace           Enable stack traces in error logs

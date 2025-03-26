@@ -19,7 +19,7 @@ func main() {
 
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
-		rollcmd.NewDocsGenCmd(rootCmd),
+		rollcmd.NewDocsGenCmd(rootCmd, commands.AppName),
 		rollcmd.NewRunNodeCmd(testExecutor.CreateDirectKVExecutor(ctx)),
 		rollcmd.VersionCmd,
 		rollcmd.InitCmd,

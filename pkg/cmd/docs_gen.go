@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,8 +17,8 @@ import (
 var docsDirectory = "./docs/cmd"
 
 // NewDocsGenCmd creates a new docs-gen command that generates documentation for the provided root command
-func NewDocsGenCmd(rootCmd *cobra.Command) *cobra.Command {
-	return &cobra.Command{
+func NewDocsGenCmd(rootCmd *cobra.Command, appName string) *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "docs-gen",
 		Short: "Generate documentation for rollkit CLI",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -35,20 +36,22 @@ func NewDocsGenCmd(rootCmd *cobra.Command) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return docCleanUp()
+			return docCleanUp(appName)
 		},
 	}
+
+	return cmd
 }
 
 // docCleanUp is a helper function to clean up the generated documentation by
 // replacing the absolute path with $HOME/.rollkit and removing the auto
 // generated comment about the generation date.
-func docCleanUp() error {
+func docCleanUp(appName string) error {
 	var searchAndReplace = []struct {
 		search  string
 		replace string
 	}{
-		{`(\"\/(?:Users\/\w+|home\/\w+|[^\/]+)\/\.rollkit\")`, `"HOME/.rollkit"`},
+		{fmt.Sprintf(`(\"\/(?:Users\/\w+|home\/\w+|[^\/]+)\/\.%s\")`, appName), fmt.Sprintf(`"HOME/.%s"`, appName)},
 		{`(--moniker string\s+node name \(default ")[^"]+(")`, `${1}Your Computer Username${2}`},
 	}
 

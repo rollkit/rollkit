@@ -40,7 +40,7 @@ testapp completion bash
 ### Options inherited from parent commands
 
 ```
-      --home string         Root directory for application data (default "/Users/jgimeno/.testapp")
+      --home string         Root directory for application data (default "HOME/.testapp")
       --log.format string   Set the log format (text, json) (default "plain")
       --log.level string    Set the log level (debug, info, warn, error) (default "info")
       --log.trace           Enable stack traces in error logs
