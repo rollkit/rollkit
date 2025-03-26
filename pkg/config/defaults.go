@@ -76,7 +76,7 @@ var DefaultNodeConfig = Config{
 		Trace:  false,
 	},
 	RPC: RPCConfig{
-		Address: "0.0.0.0",
-		Port:    26657,
+		Address: "127.0.0.1",
+		Port:    7331,
 	},
 }
