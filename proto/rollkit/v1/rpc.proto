@@ -4,7 +4,6 @@ package rollkit.v1;
 import "google/protobuf/empty.proto";
 import "rollkit/v1/rollkit.proto";
 import "rollkit/v1/state.proto";
-import "gogoproto/gogo.proto";
 
 option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
 
@@ -16,6 +15,7 @@ message Block {
 
 // GetBlockRequest defines the request for retrieving a block
 message GetBlockRequest {
+  // The height or hash of the block to retrieve
   oneof identifier {
     uint64 height = 1;
     bytes hash = 2;

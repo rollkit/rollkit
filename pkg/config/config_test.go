@@ -88,7 +88,7 @@ func TestAddFlags(t *testing.T) {
 
 	// Verify that there are no additional flags
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 34 // Update this number if you add more flag checks above
+	expectedFlagCount := 36 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags
 	actualFlagCount := 0

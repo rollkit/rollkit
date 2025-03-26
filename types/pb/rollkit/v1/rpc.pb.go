@@ -7,7 +7,6 @@
 package v1
 
 import (
-	_ "github.com/gogo/protobuf/gogoproto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	_ "google.golang.org/protobuf/types/known/emptypb"
@@ -28,7 +27,6 @@ type Block struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Header        *SignedHeader          `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	Data          *Data                  `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	Signature     []byte                 `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -77,16 +75,11 @@ func (x *Block) GetData() *Data {
 	return nil
 }
 
-func (x *Block) GetSignature() []byte {
-	if x != nil {
-		return x.Signature
-	}
-	return nil
-}
-
 // GetBlockRequest defines the request for retrieving a block
 type GetBlockRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// The height or hash of the block to retrieve
+	//
 	// Types that are valid to be assigned to Identifier:
 	//
 	//	*GetBlockRequest_Height
@@ -389,11 +382,10 @@ var File_rollkit_v1_rpc_proto protoreflect.FileDescriptor
 const file_rollkit_v1_rpc_proto_rawDesc = "" +
 	"\n" +
 	"\x14rollkit/v1/rpc.proto\x12\n" +
-	"rollkit.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x18rollkit/v1/rollkit.proto\x1a\x16rollkit/v1/state.proto\x1a\x14gogoproto/gogo.proto\"}\n" +
+	"rollkit.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x18rollkit/v1/rollkit.proto\x1a\x16rollkit/v1/state.proto\"_\n" +
 	"\x05Block\x120\n" +
 	"\x06header\x18\x01 \x01(\v2\x18.rollkit.v1.SignedHeaderR\x06header\x12$\n" +
-	"\x04data\x18\x02 \x01(\v2\x10.rollkit.v1.DataR\x04data\x12\x1c\n" +
-	"\tsignature\x18\x03 \x01(\fR\tsignature\"O\n" +
+	"\x04data\x18\x02 \x01(\v2\x10.rollkit.v1.DataR\x04data\"O\n" +
 	"\x0fGetBlockRequest\x12\x18\n" +
 	"\x06height\x18\x01 \x01(\x04H\x00R\x06height\x12\x14\n" +
 	"\x04hash\x18\x02 \x01(\fH\x00R\x04hashB\f\n" +
