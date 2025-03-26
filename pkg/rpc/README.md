@@ -67,11 +67,11 @@ func main() {
     fmt.Printf("Current height: %d\n", height)
 
     // Get a block
-    header, data, signature, err := storeClient.GetBlockByHeight(ctx, height)
+    block err := storeClient.GetBlockByHeight(ctx, height)
     if err != nil {
         log.Fatal(err)
     }
-    fmt.Printf("Block at height %d: %+v\n", height, header)
+    fmt.Printf("Block at height %d", block)
 }
 ```
 
@@ -87,4 +87,4 @@ The RPC service provides the following methods:
 
 ## Protocol Buffers
 
-The service is defined in `proto/rollkit/v1/store.proto`. The protocol buffer definitions are compiled using the standard Rollkit build process.
+The service is defined in `proto/rollkit/v1/rpc.proto`. The protocol buffer definitions are compiled using the standard Rollkit build process.
