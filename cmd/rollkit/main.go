@@ -15,7 +15,7 @@ func main() {
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
 		cmd.DocsGenCmd,
-		cmd.NewRunNodeCmd(),
+		cmd.NewRunNodeCmd(cmd.CreateExecutor, cmd.AddNodeFlags),
 		cmd.VersionCmd,
 		cmd.InitCmd,
 		cmd.RebuildCmd,
