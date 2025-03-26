@@ -2,6 +2,8 @@
 name: Protobuf
 on:
   workflow_call:
+permissions:
+  contents: read
 
 jobs:
   proto-gen:
@@ -9,19 +11,4 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: "Check protobuf generated code matches committed code"
-        # yamllint disable
-        run: |
-          set -euo pipefail
-
-          make proto-gen
-
-          if ! git diff --stat --exit-code ; then
-            echo ">> ERROR:"
-            echo ">>"
-            echo ">> Protobuf generated code requires update (either tools or .proto files may have changed)."
-            echo ">> Ensure your tools are up-to-date, re-run 'make proto-gen' and update this PR."
-            echo ">>"
-            exit 1
-          fi
-        # yamllint enable
+      - uses: bufbuild/buf-action@v1
