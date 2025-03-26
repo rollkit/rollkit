@@ -115,8 +115,8 @@ install:
 	@echo "--> Installing Rollkit CLI"
 	@go install -ldflags "$(LDFLAGS)" ./testapp
 	@echo "--> Rollkit CLI Installed!"
-	@echo "    Check the version with: rollkit version"
-	@echo "    Check the binary with: which rollkit"
+	@echo "    Check the version with: testapp version"
+	@echo "    Check the binary with: which testapp"
 .PHONY: install
 
 ## build: build rollkit CLI
