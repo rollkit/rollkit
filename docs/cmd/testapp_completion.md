@@ -7,6 +7,7 @@ Generate the autocompletion script for the specified shell
 Generate the autocompletion script for testapp for the specified shell.
 See each sub-command's help for details on how to use the generated script.
 
+
 ### Options
 
 ```
@@ -24,8 +25,8 @@ See each sub-command's help for details on how to use the generated script.
 
 ### SEE ALSO
 
-* [testapp](testapp.md)  - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
-* [testapp completion bash](testapp_completion_bash.md)  - Generate the autocompletion script for bash
-* [testapp completion fish](testapp_completion_fish.md)  - Generate the autocompletion script for fish
-* [testapp completion powershell](testapp_completion_powershell.md)  - Generate the autocompletion script for powershell
-* [testapp completion zsh](testapp_completion_zsh.md)  - Generate the autocompletion script for zsh
+* [testapp](testapp.md)	 - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
+* [testapp completion bash](testapp_completion_bash.md)	 - Generate the autocompletion script for bash
+* [testapp completion fish](testapp_completion_fish.md)	 - Generate the autocompletion script for fish
+* [testapp completion powershell](testapp_completion_powershell.md)	 - Generate the autocompletion script for powershell
+* [testapp completion zsh](testapp_completion_zsh.md)	 - Generate the autocompletion script for zsh

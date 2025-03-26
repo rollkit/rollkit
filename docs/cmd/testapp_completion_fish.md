@@ -16,6 +16,7 @@ To load completions for every new session, execute once:
 
 You will need to start a new shell for this setup to take effect.
 
+
 ```
 testapp completion fish [flags]
 ```
@@ -38,4 +39,4 @@ testapp completion fish [flags]
 
 ### SEE ALSO
 
-* [testapp completion](testapp_completion.md)  - Generate the autocompletion script for the specified shell
+* [testapp completion](testapp_completion.md)	 - Generate the autocompletion script for the specified shell

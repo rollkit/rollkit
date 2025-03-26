@@ -17,15 +17,16 @@ To load completions in your current shell session:
 
 To load completions for every new session, execute once:
 
-#### Linux
+#### Linux:
 
 	testapp completion zsh > "${fpath[1]}/_testapp"
 
-#### macOS
+#### macOS:
 
 	testapp completion zsh > $(brew --prefix)/share/zsh/site-functions/_testapp
 
 You will need to start a new shell for this setup to take effect.
+
 
 ```
 testapp completion zsh [flags]
@@ -49,4 +50,4 @@ testapp completion zsh [flags]
 
 ### SEE ALSO
 
-* [testapp completion](testapp_completion.md)  - Generate the autocompletion script for the specified shell
+* [testapp completion](testapp_completion.md)	 - Generate the autocompletion script for the specified shell

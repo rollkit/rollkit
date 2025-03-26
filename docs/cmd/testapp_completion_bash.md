@@ -15,15 +15,16 @@ To load completions in your current shell session:
 
 To load completions for every new session, execute once:
 
-#### Linux
+#### Linux:
 
 	testapp completion bash > /etc/bash_completion.d/testapp
 
-#### macOS
+#### macOS:
 
 	testapp completion bash > $(brew --prefix)/etc/bash_completion.d/testapp
 
 You will need to start a new shell for this setup to take effect.
+
 
 ```
 testapp completion bash
@@ -47,4 +48,4 @@ testapp completion bash
 
 ### SEE ALSO
 
-* [testapp completion](testapp_completion.md)  - Generate the autocompletion script for the specified shell
+* [testapp completion](testapp_completion.md)	 - Generate the autocompletion script for the specified shell
