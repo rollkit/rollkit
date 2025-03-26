@@ -8,6 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
@@ -104,7 +105,7 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			name: "with all fields set",
 			state: State{
-				Version: pb.Version{
+				Version: Version{
 					Block: 123,
 					App:   456,
 				},
@@ -127,13 +128,13 @@ func TestStateRoundTrip(t *testing.T) {
 			require.NoError(err)
 			require.NotNil(pState)
 
-			bytes, err := pState.Marshal()
+			bytes, err := proto.Marshal(pState)
 			require.NoError(err)
 			require.NotEmpty(bytes)
 
 			var newProtoState pb.State
 			var newState State
-			err = newProtoState.Unmarshal(bytes)
+			err = proto.Unmarshal(bytes, &newProtoState)
 			require.NoError(err)
 
 			err = newState.FromProto(&newProtoState)

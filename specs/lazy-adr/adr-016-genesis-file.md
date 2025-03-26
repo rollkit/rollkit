@@ -65,6 +65,8 @@ The new genesis file structure will contain the following key fields:
 
 The `ExtraData` field is particularly important as it allows different node types (sequencer, full node) to store type-specific information. For example, a centralized sequencer setup might include the sequencer's address in this field, while a decentralized setup might include validator set information.
 
+The `AppState` field should contain the genesis file specific to the execution layer as a JSON Object. It will be passed on the execution layer during initialization.
+
 ### Genesis Validation
 
 The genesis structure will include validation logic to ensure all required fields are present and valid. This would include checks that:
@@ -163,4 +165,3 @@ Proposed
 ## References
 
 - [Block Manager Implementation](https://github.com/rollkit/rollkit/blob/main/block/manager.go)
-- [Data Availability Layer Integration](https://docs.celestia.org/developers/rollkit-tutorial)

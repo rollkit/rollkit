@@ -20,12 +20,12 @@ type Store interface {
 	// GetBlock returns block at given height, or error if it's not found in Store.
 	GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error)
 	// GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
-	GetBlockByHash(ctx context.Context, hash types.Hash) (*types.SignedHeader, *types.Data, error)
+	GetBlockByHash(ctx context.Context, hash []byte) (*types.SignedHeader, *types.Data, error)
 
 	// GetSignature returns signature for a block at given height, or error if it's not found in Store.
 	GetSignature(ctx context.Context, height uint64) (*types.Signature, error)
 	// GetSignatureByHash returns signature for a block with given block header hash, or error if it's not found in Store.
-	GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error)
+	GetSignatureByHash(ctx context.Context, hash []byte) (*types.Signature, error)
 
 	// UpdateState updates state saved in Store. Only one State is stored.
 	// If there is no State in Store, state will be saved.

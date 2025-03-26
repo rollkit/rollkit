@@ -14,6 +14,7 @@ import (
 	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/rollkit/go-sequencing"
 
@@ -193,7 +194,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, store store.S
 		}
 
 		s := types.State{
-			Version:         pb.Version{},
+			Version:         types.Version{},
 			ChainID:         genesis.ChainID,
 			InitialHeight:   genesis.InitialHeight,
 			LastBlockHeight: genesis.InitialHeight - 1,
@@ -991,7 +992,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 				header := new(types.SignedHeader)
 				// decode the header
 				var headerPb pb.SignedHeader
-				err := headerPb.Unmarshal(bz)
+				err := proto.Unmarshal(bz, &headerPb)
 				if err != nil {
 					m.logger.Error("failed to unmarshal header", "error", err)
 					continue
@@ -1335,7 +1336,7 @@ daSubmitRetryLoop:
 				// do we drop the header from attempting to be submitted?
 				return fmt.Errorf("failed to transform header to proto: %w", err)
 			}
-			headersBz[i], err = headerPb.Marshal()
+			headersBz[i], err = proto.Marshal(headerPb)
 			if err != nil {
 				// do we drop the header from attempting to be submitted?
 				return fmt.Errorf("failed to marshal header: %w", err)
