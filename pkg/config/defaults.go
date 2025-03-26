@@ -52,7 +52,7 @@ var DefaultNodeConfig = Config{
 		Seeds:         "",
 	},
 	Node: NodeConfig{
-		Aggregator:        true,
+		Aggregator:        false,
 		BlockTime:         DurationWrapper{1 * time.Second},
 		LazyAggregator:    false,
 		LazyBlockTime:     DurationWrapper{60 * time.Second},

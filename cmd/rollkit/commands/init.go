@@ -67,7 +67,7 @@ var InitCmd = &cobra.Command{
 		}
 
 		// If using local file signer, initialize the key
-		if config.RemoteSigner.SignerType == "file" {
+		if config.RemoteSigner.SignerType == "file" && config.Node.Aggregator {
 			// Get passphrase if local signing is enabled
 			passphrase, err := cmd.Flags().GetString(rollconf.FlagRemoteSignerPassphrase)
 			if err != nil {
