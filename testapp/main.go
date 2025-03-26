@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	rollcmd "github.com/rollkit/rollkit/cmd"
+	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 	commands "github.com/rollkit/rollkit/testapp/commands"
