@@ -7,7 +7,6 @@
 package v1
 
 import (
-	_ "github.com/gogo/protobuf/gogoproto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -129,13 +128,13 @@ var File_rollkit_v1_state_proto protoreflect.FileDescriptor
 const file_rollkit_v1_state_proto_rawDesc = "" +
 	"\n" +
 	"\x16rollkit/v1/state.proto\x12\n" +
-	"rollkit.v1\x1a\x14gogoproto/gogo.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18rollkit/v1/rollkit.proto\"\xd6\x02\n" +
+	"rollkit.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18rollkit/v1/rollkit.proto\"\xcc\x02\n" +
 	"\x05State\x12-\n" +
 	"\aversion\x18\x01 \x01(\v2\x13.rollkit.v1.VersionR\aversion\x12\x19\n" +
 	"\bchain_id\x18\x02 \x01(\tR\achainId\x12%\n" +
 	"\x0einitial_height\x18\x03 \x01(\x04R\rinitialHeight\x12*\n" +
-	"\x11last_block_height\x18\x04 \x01(\x04R\x0flastBlockHeight\x12L\n" +
-	"\x0flast_block_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\b\xc8\xde\x1f\x00\x90\xdf\x1f\x01R\rlastBlockTime\x12\x1b\n" +
+	"\x11last_block_height\x18\x04 \x01(\x04R\x0flastBlockHeight\x12B\n" +
+	"\x0flast_block_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\rlastBlockTime\x12\x1b\n" +
 	"\tda_height\x18\x06 \x01(\x04R\bdaHeight\x12*\n" +
 	"\x11last_results_hash\x18\a \x01(\fR\x0flastResultsHash\x12\x19\n" +
 	"\bapp_hash\x18\b \x01(\fR\aappHashB0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"

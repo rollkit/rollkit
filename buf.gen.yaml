@@ -1,14 +1,12 @@
 version: v2
 
-# The plugins to run.
-plugins:
-  # The name of the plugin.
-  - remote: buf.build/protocolbuffers/go
-     # The relative output directory.
-    out: types/pb
-    # Any options to provide to the plugin.
-    opt: paths=source_relative
 
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: types/pb
+    opt: paths=source_relative
   - remote: buf.build/connectrpc/go
     out: types/pb
     opt: paths=source_relative
+inputs:
+  - directory: proto

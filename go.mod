@@ -17,7 +17,6 @@ require (
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/go-kit/kit v0.13.0
 	github.com/goccy/go-yaml v1.16.0
-	github.com/gogo/protobuf v1.3.2
 	github.com/ipfs/go-datastore v0.7.0
 	github.com/ipfs/go-ds-badger4 v0.1.5
 	github.com/libp2p/go-libp2p v0.40.0
@@ -68,6 +67,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.2.4 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
