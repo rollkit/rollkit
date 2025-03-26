@@ -50,7 +50,6 @@ func TestAddFlags(t *testing.T) {
 
 	// Test specific flags
 	assertFlagValue(t, flags, FlagDBPath, DefaultNodeConfig.DBPath)
-	assertFlagValue(t, flags, FlagEntrypoint, DefaultNodeConfig.Entrypoint)
 	assertFlagValue(t, flags, FlagChainConfigDir, DefaultNodeConfig.ConfigDir)
 
 	// Node flags
@@ -165,7 +164,6 @@ config_dir: "config"
 
 	// Verify the order of precedence:
 	// 1. Default values should be overridden by YAML
-	assert.Equal(t, "./cmd/app/main.go", config.Entrypoint, "Entrypoint should be set from YAML")
 	assert.Equal(t, true, config.Node.Aggregator, "Aggregator should be set from YAML")
 
 	// 2. YAML values should be overridden by flags

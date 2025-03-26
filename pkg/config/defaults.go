@@ -75,7 +75,6 @@ var DefaultNodeConfig = Config{
 		GasMultiplier: 0,
 	},
 	Instrumentation: DefaultInstrumentationConfig(),
-	Entrypoint:      "",
 	Log: LogConfig{
 		Level:  DefaultLogLevel,
 		Format: "",

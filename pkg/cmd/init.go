@@ -54,7 +54,6 @@ var InitCmd = &cobra.Command{
 		config := rollconf.DefaultNodeConfig
 
 		// Update with the values we found
-		config.Entrypoint = entrypoint
 		config.ConfigDir = chainConfigDir
 
 		// Set the root directory to the specified home path

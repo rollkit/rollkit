@@ -19,8 +19,6 @@ const (
 	FlagRootDir = "home"
 	// FlagDBPath is a flag for specifying the database path
 	FlagDBPath = "db_path"
-	// FlagEntrypoint is a flag for specifying the entrypoint
-	FlagEntrypoint = "entrypoint"
 	// FlagChainConfigDir is a flag for specifying the chain config directory
 	FlagChainConfigDir = "config_dir"
 
@@ -130,10 +128,9 @@ func (d *DurationWrapper) UnmarshalText(text []byte) error {
 // Config stores Rollkit configuration.
 type Config struct {
 	// Base configuration
-	RootDir    string `mapstructure:"home" yaml:"home" comment:"Root directory where rollkit files are located"`
-	DBPath     string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
-	Entrypoint string `mapstructure:"entrypoint" yaml:"entrypoint" comment:"Path to the rollup application's main.go file. Rollkit will build and execute this file when processing commands. This allows Rollkit to act as a wrapper around your rollup application."`
-	ConfigDir  string `mapstructure:"config_dir" yaml:"config_dir" comment:"Directory containing the rollup chain configuration"`
+	RootDir   string `mapstructure:"home" yaml:"home" comment:"Root directory where rollkit files are located"`
+	DBPath    string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
+	ConfigDir string `mapstructure:"config_dir" yaml:"config_dir" comment:"Directory containing the rollup chain configuration"`
 
 	// P2P configuration
 	P2P P2PConfig `mapstructure:"p2p" yaml:"p2p"`
@@ -224,7 +221,6 @@ func AddFlags(cmd *cobra.Command) {
 
 	// Base configuration flags
 	cmd.Flags().String(FlagDBPath, def.DBPath, "database path relative to root directory")
-	cmd.Flags().String(FlagEntrypoint, def.Entrypoint, "entrypoint for the application")
 	cmd.Flags().String(FlagChainConfigDir, def.ConfigDir, "chain configuration directory")
 
 	// Node configuration flags
@@ -344,7 +340,6 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 	// Base configuration defaults
 	v.SetDefault(FlagRootDir, config.RootDir)
 	v.SetDefault(FlagDBPath, config.DBPath)
-	v.SetDefault(FlagEntrypoint, config.Entrypoint)
 	v.SetDefault(FlagChainConfigDir, config.ConfigDir)
 
 	// Node configuration defaults
