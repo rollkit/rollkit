@@ -20,7 +20,7 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
-	remote_signer "github.com/rollkit/rollkit/pkg/remote_signer/noop"
+	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
 

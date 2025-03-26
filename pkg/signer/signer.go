@@ -1,4 +1,4 @@
-package remote_signer
+package signer
 
 import (
 	"github.com/libp2p/go-libp2p/core/crypto"

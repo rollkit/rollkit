@@ -109,6 +109,7 @@ const (
 	FlagRemoteSignerPath = "remote_signer.path"
 
 	// FlagRemoteSignerPassphrase is a flag for specifying the remote signer passphrase
+	//nolint:gosec
 	FlagRemoteSignerPassphrase = "remote_signer.passphrase"
 
 	// RPC configuration flags

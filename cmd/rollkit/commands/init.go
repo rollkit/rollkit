@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	rollconf "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/signer/file"
 )
 
 // InitCmd initializes a new rollkit.yaml file in the current directory
@@ -65,6 +66,34 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error creating directory %s: %w", homePath, err)
 		}
 
+		// If using local file signer, initialize the key
+		if config.RemoteSigner.SignerType == "file" {
+			// Get passphrase if local signing is enabled
+			passphrase, err := cmd.Flags().GetString(rollconf.FlagRemoteSignerPassphrase)
+			if err != nil {
+				return fmt.Errorf("error reading passphrase flag: %w", err)
+			}
+
+			if passphrase == "" {
+				return fmt.Errorf("passphrase is required when using local file signer")
+			}
+
+			// Create signer directory if it doesn't exist
+			signerDir := filepath.Join(homePath, "signer")
+			if err := os.MkdirAll(signerDir, rollconf.DefaultDirPerm); err != nil {
+				return fmt.Errorf("failed to create signer directory: %w", err)
+			}
+
+			// Set signer path
+			config.RemoteSigner.SignerPath = filepath.Join(signerDir, "key.json")
+
+			// Initialize the signer
+			_, err = file.NewFileSystemSigner(config.RemoteSigner.SignerPath, []byte(passphrase))
+			if err != nil {
+				return fmt.Errorf("failed to initialize signer: %w", err)
+			}
+		}
+
 		// Use writeYamlConfig instead of manual marshaling and file writing
 		if err := rollconf.WriteYamlConfig(config); err != nil {
 			return fmt.Errorf("error writing rollkit.yaml file: %w", err)
@@ -73,4 +102,9 @@ var InitCmd = &cobra.Command{
 		fmt.Printf("Initialized %s file in %s\n", rollconf.RollkitConfigYaml, homePath)
 		return nil
 	},
+}
+
+func init() {
+	// Add passphrase flag
+	InitCmd.Flags().String(rollconf.FlagRemoteSignerPassphrase, "", "Passphrase for encrypting the local signer key (required when using local file signer)")
 }

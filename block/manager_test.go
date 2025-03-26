@@ -24,8 +24,8 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/queue"
-	"github.com/rollkit/rollkit/pkg/remote_signer"
-	noopsigner "github.com/rollkit/rollkit/pkg/remote_signer/noop"
+	"github.com/rollkit/rollkit/pkg/signer"
+	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -177,13 +177,13 @@ func TestSignVerifySignature(t *testing.T) {
 	payload := []byte("test")
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
-	signer, err := noopsigner.NewNoopSigner(privKey)
+	noopSigner, err := noopsigner.NewNoopSigner(privKey)
 	require.NoError(err)
 	cases := []struct {
 		name   string
-		signer remote_signer.Signer
+		signer signer.Signer
 	}{
-		{"ed25519", signer},
+		{"ed25519", noopSigner},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -363,7 +363,7 @@ func Test_isProposer(t *testing.T) {
 
 	type args struct {
 		state         types.State
-		signerPrivKey remote_signer.Signer
+		signerPrivKey signer.Signer
 	}
 	tests := []struct {
 		name       string

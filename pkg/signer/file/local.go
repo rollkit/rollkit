@@ -14,7 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"golang.org/x/crypto/argon2"
 
-	"github.com/rollkit/rollkit/pkg/remote_signer"
+	"github.com/rollkit/rollkit/pkg/signer"
 )
 
 // FileSystemSigner implements a signer that securely stores keys on disk
@@ -36,7 +36,7 @@ type keyData struct {
 
 // NewFileSystemSigner creates a new signer that stores keys securely on disk.
 // If the keys don't exist at the specified paths, it generates new ones.
-func NewFileSystemSigner(keyPath string, passphrase []byte) (remote_signer.Signer, error) {
+func NewFileSystemSigner(keyPath string, passphrase []byte) (signer.Signer, error) {
 	defer zeroBytes(passphrase) // Wipe passphrase from memory after use
 
 	// Create directory if it doesn't exist

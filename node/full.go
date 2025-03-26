@@ -23,9 +23,9 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/remote_signer"
 	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/service"
+	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/pkg/sync"
 )
@@ -68,7 +68,7 @@ type FullNode struct {
 func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,
-	signer remote_signer.Signer,
+	signer signer.Signer,
 	genesis genesispkg.Genesis,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
@@ -185,7 +185,7 @@ func initDataSyncService(
 
 func initBlockManager(
 	ctx context.Context,
-	signer remote_signer.Signer,
+	signer signer.Signer,
 	exec coreexecutor.Executor,
 	nodeConfig config.Config,
 	genesis genesispkg.Genesis,

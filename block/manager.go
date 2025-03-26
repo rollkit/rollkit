@@ -25,7 +25,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/queue"
-	"github.com/rollkit/rollkit/pkg/remote_signer"
+	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
@@ -107,7 +107,7 @@ type Manager struct {
 	config  config.Config
 	genesis genesis.Genesis
 
-	proposerKey remote_signer.Signer
+	proposerKey signer.Signer
 
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
@@ -221,7 +221,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, store store.S
 // NewManager creates new block Manager.
 func NewManager(
 	ctx context.Context,
-	proposerKey remote_signer.Signer,
+	proposerKey signer.Signer,
 	config config.Config,
 	genesis genesis.Genesis,
 	store store.Store,
@@ -395,7 +395,7 @@ func (m *Manager) SetDALC(dalc coreda.Client) {
 }
 
 // isProposer returns whether or not the manager is a proposer
-func isProposer(_ remote_signer.Signer, _ types.State) (bool, error) {
+func isProposer(_ signer.Signer, _ types.State) (bool, error) {
 	return true, nil
 }
 

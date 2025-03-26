@@ -10,8 +10,8 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
-	"github.com/rollkit/rollkit/pkg/remote_signer"
 	"github.com/rollkit/rollkit/pkg/service"
+	"github.com/rollkit/rollkit/pkg/signer"
 )
 
 // Node is the interface for a rollup node
@@ -28,7 +28,7 @@ func NewNode(
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
-	signer remote_signer.Signer,
+	signer signer.Signer,
 	genesis genesis.Genesis,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
