@@ -100,6 +100,13 @@ const (
 	FlagLogFormat = "log.format"
 	// FlagLogTrace is a flag for enabling stack traces in error logs
 	FlagLogTrace = "log.trace"
+
+	// RPC configuration flags
+
+	// FlagRPCAddress is a flag for specifying the RPC server address
+	FlagRPCAddress = "rpc.address"
+	// FlagRPCPort is a flag for specifying the RPC server port
+	FlagRPCPort = "rpc.port"
 )
 
 // DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
@@ -136,6 +143,9 @@ type Config struct {
 
 	// Data availability configuration
 	DA DAConfig `mapstructure:"da" yaml:"da"`
+
+	// RPC configuration
+	RPC RPCConfig `mapstructure:"rpc" yaml:"rpc"`
 
 	// Instrumentation configuration
 	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation" yaml:"instrumentation"`
@@ -193,6 +203,12 @@ type P2PConfig struct {
 	AllowedPeers  string `mapstructure:"allowed_peers" yaml:"allowed_peers" comment:"Comma separated list of peer IDs to allow connections from"`
 }
 
+// RPCConfig contains all RPC server configuration parameters
+type RPCConfig struct {
+	Address string `mapstructure:"address" yaml:"address" comment:"Address to bind the RPC server to (host). Default: tcp://0.0.0.0"`
+	Port    uint16 `mapstructure:"port" yaml:"port" comment:"Port to bind the RPC server to. Default: 26657"`
+}
+
 // AddFlags adds Rollkit specific configuration options to cobra Command.
 //
 // This function is called in cosmos-sdk.
@@ -232,6 +248,10 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagP2PSeeds, def.P2P.Seeds, "Comma separated list of seed nodes to connect to")
 	cmd.Flags().String(FlagP2PBlockedPeers, def.P2P.BlockedPeers, "Comma separated list of nodes to ignore")
 	cmd.Flags().String(FlagP2PAllowedPeers, def.P2P.AllowedPeers, "Comma separated list of nodes to whitelist")
+
+	// RPC configuration flags
+	cmd.Flags().String(FlagRPCAddress, def.RPC.Address, "RPC server address (host)")
+	cmd.Flags().Uint16(FlagRPCPort, def.RPC.Port, "RPC server port")
 
 	// Instrumentation configuration flags
 	instrDef := DefaultInstrumentationConfig()
@@ -353,6 +373,10 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 	v.SetDefault(FlagP2PSeeds, config.P2P.Seeds)
 	v.SetDefault(FlagP2PBlockedPeers, config.P2P.BlockedPeers)
 	v.SetDefault(FlagP2PAllowedPeers, config.P2P.AllowedPeers)
+
+	// RPC configuration defaults
+	v.SetDefault(FlagRPCAddress, config.RPC.Address)
+	v.SetDefault(FlagRPCPort, config.RPC.Port)
 
 	// Instrumentation configuration defaults
 	if config.Instrumentation != nil {
