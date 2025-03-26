@@ -66,7 +66,7 @@ func TestClientGetState(t *testing.T) {
 	require.Equal(t, state.AppHash, resultState.AppHash)
 	require.Equal(t, state.InitialHeight, resultState.InitialHeight)
 	require.Equal(t, state.LastBlockHeight, resultState.LastBlockHeight)
-	require.Equal(t, state.LastBlockTime, resultState.LastBlockTime)
+	require.Equal(t, state.LastBlockTime.UTC(), resultState.LastBlockTime.AsTime())
 	mockStore.AssertExpectations(t)
 }
 
@@ -102,11 +102,9 @@ func TestClientGetBlockByHeight(t *testing.T) {
 	height := uint64(10)
 	header := &types.SignedHeader{}
 	data := &types.Data{}
-	signature := &types.Signature{}
 
 	// Setup mock expectations
 	mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil)
-	mockStore.On("GetSignature", mock.Anything, height).Return(signature, nil)
 
 	// Setup test server and client
 	testServer, client := setupTestServer(t, mockStore)
@@ -126,14 +124,12 @@ func TestClientGetBlockByHash(t *testing.T) {
 	mockStore := mocks.NewStore(t)
 
 	// Create test data
-	hash := types.Hash([]byte("block_hash"))
+	hash := []byte("block_hash")
 	header := &types.SignedHeader{}
 	data := &types.Data{}
-	signature := &types.Signature{}
 
 	// Setup mock expectations
 	mockStore.On("GetBlockByHash", mock.Anything, hash).Return(header, data, nil)
-	mockStore.On("GetSignatureByHash", mock.Anything, hash).Return(signature, nil)
 
 	// Setup test server and client
 	testServer, client := setupTestServer(t, mockStore)

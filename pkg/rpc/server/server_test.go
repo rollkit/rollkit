@@ -22,11 +22,9 @@ func TestGetBlock(t *testing.T) {
 	height := uint64(10)
 	header := &types.SignedHeader{}
 	data := &types.Data{}
-	signature := &types.Signature{}
 
 	// Setup mock expectations
 	mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil)
-	mockStore.On("GetSignature", mock.Anything, height).Return(signature, nil)
 
 	// Create server with mock store
 	server := NewStoreServer(mockStore)
@@ -48,7 +46,7 @@ func TestGetBlock(t *testing.T) {
 
 	// Test GetBlock with hash
 	t.Run("by hash", func(t *testing.T) {
-		hash := types.Hash([]byte("test_hash"))
+		hash := []byte("test_hash")
 		mockStore.On("GetBlockByHash", mock.Anything, hash).Return(header, data, nil)
 
 		req := connect.NewRequest(&pb.GetBlockRequest{
@@ -98,7 +96,7 @@ func TestGetState(t *testing.T) {
 	require.Equal(t, state.AppHash, resp.Msg.State.AppHash)
 	require.Equal(t, state.InitialHeight, resp.Msg.State.InitialHeight)
 	require.Equal(t, state.LastBlockHeight, resp.Msg.State.LastBlockHeight)
-	require.Equal(t, state.LastBlockTime, resp.Msg.State.LastBlockTime.AsTime())
+	require.Equal(t, state.LastBlockTime.UTC(), resp.Msg.State.LastBlockTime.AsTime())
 	require.Equal(t, state.ChainID, resp.Msg.State.ChainId)
 	require.Equal(t, state.Version.Block, resp.Msg.State.Version.Block)
 	require.Equal(t, state.Version.App, resp.Msg.State.Version.App)

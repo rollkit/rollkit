@@ -127,7 +127,7 @@ func (s *DefaultStore) GetBlockData(ctx context.Context, height uint64) (*types.
 }
 
 // GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*types.SignedHeader, *types.Data, error) {
+func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash []byte) (*types.SignedHeader, *types.Data, error) {
 	height, err := s.getHeightByHash(ctx, hash)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load height from index %w", err)
@@ -136,7 +136,7 @@ func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*ty
 }
 
 // getHeightByHash returns height for a block with given block header hash.
-func (s *DefaultStore) getHeightByHash(ctx context.Context, hash types.Hash) (uint64, error) {
+func (s *DefaultStore) getHeightByHash(ctx context.Context, hash []byte) (uint64, error) {
 	heightBytes, err := s.db.Get(ctx, ds.NewKey(getIndexKey(hash)))
 	if err != nil {
 		return 0, fmt.Errorf("failed to get height for hash %v: %w", hash, err)
@@ -149,7 +149,7 @@ func (s *DefaultStore) getHeightByHash(ctx context.Context, hash types.Hash) (ui
 }
 
 // GetSignatureByHash returns signature for a block at given height, or error if it's not found in Store.
-func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error) {
+func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash []byte) (*types.Signature, error) {
 	height, err := s.getHeightByHash(ctx, hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load hash from index: %w", err)

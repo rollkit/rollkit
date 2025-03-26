@@ -34,7 +34,7 @@ type State struct {
 	LastResultsHash Hash
 
 	// the latest AppHash we've received from calling abci.Commit()
-	AppHash Hash
+	AppHash []byte
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.

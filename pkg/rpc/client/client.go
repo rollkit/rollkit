@@ -6,7 +6,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 	rpc "github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
 )
@@ -47,7 +46,7 @@ func (c *StoreClient) GetBlockByHeight(ctx context.Context, height uint64) (*pb.
 }
 
 // GetBlockByHash returns a block by hash
-func (c *StoreClient) GetBlockByHash(ctx context.Context, hash types.Hash) (*pb.Block, error) {
+func (c *StoreClient) GetBlockByHash(ctx context.Context, hash []byte) (*pb.Block, error) {
 	req := connect.NewRequest(&pb.GetBlockRequest{
 		Identifier: &pb.GetBlockRequest_Hash{
 			Hash: hash,
