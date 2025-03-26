@@ -67,9 +67,9 @@ var InitCmd = &cobra.Command{
 		}
 
 		// If using local file signer, initialize the key
-		if config.RemoteSigner.SignerType == "file" && config.Node.Aggregator {
+		if config.Signer.SignerType == "file" && config.Node.Aggregator {
 			// Get passphrase if local signing is enabled
-			passphrase, err := cmd.Flags().GetString(rollconf.FlagRemoteSignerPassphrase)
+			passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
 			if err != nil {
 				return fmt.Errorf("error reading passphrase flag: %w", err)
 			}
@@ -85,10 +85,10 @@ var InitCmd = &cobra.Command{
 			}
 
 			// Set signer path
-			config.RemoteSigner.SignerPath = filepath.Join(signerDir, "key.json")
+			config.Signer.SignerPath = filepath.Join(signerDir, "key.json")
 
 			// Initialize the signer
-			_, err = file.NewFileSystemSigner(config.RemoteSigner.SignerPath, []byte(passphrase))
+			_, err = file.NewFileSystemSigner(config.Signer.SignerPath, []byte(passphrase))
 			if err != nil {
 				return fmt.Errorf("failed to initialize signer: %w", err)
 			}
@@ -106,5 +106,5 @@ var InitCmd = &cobra.Command{
 
 func init() {
 	// Add passphrase flag
-	InitCmd.Flags().String(rollconf.FlagRemoteSignerPassphrase, "", "Passphrase for encrypting the local signer key (required when using local file signer)")
+	InitCmd.Flags().String(rollconf.FlagSignerPassphrase, "", "Passphrase for encrypting the local signer key (required when using local file signer)")
 }

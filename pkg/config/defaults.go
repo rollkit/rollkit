@@ -75,7 +75,7 @@ var DefaultNodeConfig = Config{
 		Format: "",
 		Trace:  false,
 	},
-	RemoteSigner: RemoteSignerConfig{
+	Signer: SignerConfig{
 		SignerType: "file",
 		SignerPath: "",
 	},

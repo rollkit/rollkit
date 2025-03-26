@@ -57,8 +57,8 @@ func NewRunNodeCmd() *cobra.Command {
 			defer cancel() // Ensure context is cancelled when command exits
 
 			// Check if passphrase is required and provided
-			if nodeConfig.Node.Aggregator && nodeConfig.RemoteSigner.SignerType == "file" {
-				passphrase, err := cmd.Flags().GetString(rollconf.FlagRemoteSignerPassphrase)
+			if nodeConfig.Node.Aggregator && nodeConfig.Signer.SignerType == "file" {
+				passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
 				if err != nil {
 					return err
 				}
@@ -76,20 +76,20 @@ func NewRunNodeCmd() *cobra.Command {
 
 			//create a new remote signer
 			var signer signer.Signer
-			if nodeConfig.RemoteSigner.SignerType == "file" {
-				passphrase, err := cmd.Flags().GetString(rollconf.FlagRemoteSignerPassphrase)
+			if nodeConfig.Signer.SignerType == "file" {
+				passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
 				if err != nil {
 					return err
 				}
 
-				signer, err = file.NewFileSystemSigner(nodeConfig.RemoteSigner.SignerPath, []byte(passphrase))
+				signer, err = file.NewFileSystemSigner(nodeConfig.Signer.SignerPath, []byte(passphrase))
 				if err != nil {
 					return err
 				}
-			} else if nodeConfig.RemoteSigner.SignerType == "grpc" {
+			} else if nodeConfig.Signer.SignerType == "grpc" {
 				panic("grpc remote signer not implemented")
 			} else {
-				return fmt.Errorf("unknown remote signer type: %s", nodeConfig.RemoteSigner.SignerType)
+				return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 			}
 
 			dummySequencer := coresequencer.NewDummySequencer()
@@ -231,9 +231,6 @@ func addNodeFlags(cmd *cobra.Command) {
 
 	// This is for testing only
 	cmd.Flags().String("kv-executor-http", ":40042", "address for the KV executor HTTP server (empty to disable)")
-
-	// Add passphrase flag
-	cmd.Flags().String(rollconf.FlagRemoteSignerPassphrase, "", "Passphrase for decrypting the local signer key (required for aggregator nodes using local file signer)")
 
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
