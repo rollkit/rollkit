@@ -1,7 +1,6 @@
 syntax = "proto3";
 package rollkit.v1;
 
-import "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 import "rollkit/v1/rollkit.proto";
 
@@ -16,10 +15,7 @@ message State {
 
   uint64 last_block_height = 4;
 
-  google.protobuf.Timestamp last_block_time = 5 [
-    (gogoproto.nullable) = false,
-    (gogoproto.stdtime) = true
-  ];
+  google.protobuf.Timestamp last_block_time = 5;
 
   uint64 da_height = 6;
   bytes last_results_hash = 7;
