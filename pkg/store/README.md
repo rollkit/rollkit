@@ -41,7 +41,7 @@ sequenceDiagram
     participant App as Application
     participant Store as DefaultStore
     participant DS as Datastore
-    
+
     App->>Store: SaveBlockData(header, data, signature)
     Store->>Store: Prepare batch
     Store->>DS: Put header
@@ -49,7 +49,7 @@ sequenceDiagram
     Store->>DS: Put signature
     Store->>DS: Put block hash → height index
     Store->>DS: Commit batch
-    
+
     App->>Store: GetBlockData(height)
     Store->>DS: Get header
     DS->>Store: Return header blob
@@ -79,7 +79,7 @@ classDiagram
         +GetMetadata(ctx, key) (value, error)
         +Close() error
     }
-    
+
     class DefaultStore {
         -db ds.Batching
         -height atomic.Uint64
@@ -96,7 +96,7 @@ classDiagram
         +GetMetadata(ctx, key) (value, error)
         +Close() error
     }
-    
+
     class Datastore {
         <<interface>>
         +Put(key, value) error
@@ -106,7 +106,7 @@ classDiagram
         +Query(q query.Query) (Results, error)
         +Close() error
     }
-    
+
     Store <|.. DefaultStore
     DefaultStore --> Datastore : uses
 ```

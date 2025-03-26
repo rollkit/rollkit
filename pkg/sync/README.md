@@ -20,23 +20,23 @@ graph TD
         HSS[Header Sync Service]
         DSS[Data Sync Service]
         P2P[P2P Client]
-        
+
         BM -->|Headers| HSS
         BM -->|Data| DSS
         HSS <-->|P2P| P2P
         DSS <-->|P2P| P2P
     end
-    
+
     subgraph "DA Layer"
         DAL[Data Availability Layer]
     end
-    
+
     BM <-->|Submit/Retrieve| DAL
-    
+
     subgraph "Other Nodes"
         ON[Other Nodes]
     end
-    
+
     P2P <-->|Gossip| ON
 ```
 
@@ -65,7 +65,7 @@ classDiagram
         +Start(ctx) error
         +Stop(ctx) error
     }
-    
+
     DataSyncService --|> SyncService : H = *types.Data
     HeaderSyncService --|> SyncService : H = *types.SignedHeader
 ```
@@ -83,10 +83,10 @@ flowchart TD
     SL --> |periodic| NBDCH[Send Signal to Data Store Channel]
     SL --> |on header event| HC[Process Header]
     SL --> |on data event| DC[Process Data]
-    
+
     HC --> |cache header| TSYNC[Try Sync Next Block]
     DC --> |cache data| TSYNC
-    
+
     TSYNC --> |if header & data available| AB[Apply Block]
     AB --> |if successful| SB[Store Block]
     SB --> |if successful| UH[Update Height]
@@ -156,23 +156,23 @@ sequenceDiagram
     participant P as Proposer Node
     participant DA as Data Availability Layer
     participant FN as Full Node
-    
+
     P->>P: Create Block
     P->>DA: Submit Header to DA
     P->>FN: Broadcast Header (P2P)
     P->>FN: Broadcast Data (P2P)
-    
+
     FN->>FN: Receive Header via P2P
     FN->>FN: Store Header
     FN->>FN: Receive Data via P2P
     FN->>FN: Store Data
-    
+
     FN->>FN: Validate and Apply Block
-    
+
     alt Header missing
         FN->>DA: Retrieve Header
     end
-    
+
     alt Data missing
         FN->>P: Request Data via P2P
     end
