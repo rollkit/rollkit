@@ -134,18 +134,10 @@ func NewRunNodeCmd(
 		},
 	}
 
-	addNodeFlags(cmd)
-
-	return cmd
-}
-
-// addNodeFlags exposes some common configuration options on the command-line
-// These are exposed for convenience of commands embedding a rollkit node
-func addNodeFlags(cmd *cobra.Command) {
-	cmd.Flags().Bool("ci", false, "run node for ci testing")
-
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
+
+	return cmd
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default

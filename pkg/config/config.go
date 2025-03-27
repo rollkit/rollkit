@@ -219,9 +219,13 @@ type RPCConfig struct {
 func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 
-	// Base configuration flags
-	cmd.Flags().String(FlagDBPath, def.DBPath, "database path relative to root directory")
-	cmd.Flags().String(FlagChainConfigDir, def.ConfigDir, "chain configuration directory")
+	// Add CI flag for testing
+	cmd.Flags().Bool("ci", false, "run node for ci testing")
+
+	// Add base flags
+	cmd.Flags().String(FlagRootDir, DefaultNodeConfig.RootDir, "root directory for config and data")
+	cmd.Flags().String(FlagDBPath, DefaultNodeConfig.DBPath, "path for the node database")
+	cmd.Flags().String(FlagChainConfigDir, DefaultNodeConfig.ConfigDir, "directory containing chain configuration files")
 
 	// Node configuration flags
 	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")

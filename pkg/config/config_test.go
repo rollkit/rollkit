@@ -97,7 +97,7 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, persistentFlags, FlagLogTrace, false)
 
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 36 // Update this number to include all flags (32 regular + 4 persistent)
+	expectedFlagCount := 38 // Update this number to include all flags (34 regular + 4 persistent)
 
 	// Get the actual number of flags (both regular and persistent)
 	actualFlagCount := 0
