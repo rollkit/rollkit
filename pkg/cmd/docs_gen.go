@@ -16,7 +16,7 @@ import (
 
 var docsDirectory = "./docs/cmd"
 
-// NewDocsGenCmd creates a new docs-gen command that generates documentation for the provided root command
+// NewDocsGenCmd creates a new docs-gen command that generates cli documentation for the provided root command
 func NewDocsGenCmd(rootCmd *cobra.Command, appName string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "docs-gen",
