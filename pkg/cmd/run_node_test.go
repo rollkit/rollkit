@@ -2,18 +2,12 @@ package cmd
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/binary"
-	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"cosmossdk.io/log"
@@ -233,98 +227,6 @@ func TestCentralizedAddresses(t *testing.T) {
 	}
 }
 
-func TestStartMockSequencerServer(t *testing.T) {
-	// Use a random base port to avoid conflicts
-	var randomBytes [2]byte
-	if _, err := rand.Read(randomBytes[:]); err != nil {
-		t.Fatalf("Failed to generate random port: %v", err)
-	}
-	basePort := 60000 + int(binary.LittleEndian.Uint16(randomBytes[:]))%5000
-
-	tests := []struct {
-		name        string
-		seqAddress  string
-		expectedErr error
-		setup       func() (*net.Listener, error)
-		teardown    func(*net.Listener)
-	}{
-		{
-			name:        "Success",
-			seqAddress:  fmt.Sprintf("localhost:%d", basePort),
-			expectedErr: nil,
-		},
-		{
-			name:        "Invalid URL",
-			seqAddress:  "://invalid",
-			expectedErr: &net.OpError{},
-		},
-		{
-			name:        "Server Already Running",
-			seqAddress:  fmt.Sprintf("localhost:%d", basePort+1),
-			expectedErr: errSequencerAlreadyRunning,
-			setup: func() (*net.Listener, error) {
-				// Start a TCP listener to simulate a running server
-				l, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", basePort+1))
-				if err != nil {
-					return nil, err
-				}
-				// Keep the connection open
-				go func() {
-					for {
-						conn, err := l.Accept()
-						if err != nil {
-							return
-						}
-						if err := conn.Close(); err != nil {
-							t.Errorf("Failed to close connection: %v", err)
-							return
-						}
-					}
-				}()
-				return &l, nil
-			},
-			teardown: func(l *net.Listener) {
-				if l != nil {
-					if err := (*l).Close(); err != nil {
-						t.Errorf("Failed to close listener: %v", err)
-					}
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var listener *net.Listener
-			if tt.setup != nil {
-				var err error
-				listener, err = tt.setup()
-				if err != nil {
-					t.Fatal(err)
-				}
-			}
-
-			if tt.teardown != nil && listener != nil {
-				defer tt.teardown(listener)
-			}
-
-			srv, err := tryStartMockSequencerServerGRPC(tt.seqAddress, "test-rollup-id")
-			if srv != nil {
-				srv.Stop()
-			}
-
-			if tt.expectedErr != nil {
-				assert.Error(t, err)
-				assert.IsType(t, tt.expectedErr, err)
-				assert.Nil(t, srv)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, srv)
-			}
-		})
-	}
-}
-
 func TestInitFiles(t *testing.T) {
 	// Save the original nodeConfig
 	origNodeConfig := nodeConfig
@@ -358,7 +260,7 @@ func TestInitFiles(t *testing.T) {
 	}()
 
 	// Call initFiles
-	err = initFiles()
+	err = initConfigFiles()
 	assert.NoError(t, err)
 
 	// Verify that the expected files were created
@@ -370,74 +272,5 @@ func TestInitFiles(t *testing.T) {
 
 	for _, file := range files {
 		assert.FileExists(t, file)
-	}
-}
-
-// TestKVExecutorHTTPServerShutdown tests that the KVExecutor HTTP server properly
-// shuts down when the context is cancelled
-func TestKVExecutorHTTPServerShutdown(t *testing.T) {
-	// Create a temporary directory for test
-	tempDir, err := os.MkdirTemp("", "kvexecutor-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() {
-		if err := os.RemoveAll(tempDir); err != nil {
-			t.Logf("Failed to remove temp dir: %v", err)
-		}
-	}()
-
-	// Find an available port
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("Failed to find available port: %v", err)
-	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	if err := listener.Close(); err != nil {
-		t.Fatalf("Failed to close listener: %v", err)
-	}
-
-	// Set up the KV executor HTTP address
-	httpAddr := fmt.Sprintf("127.0.0.1:%d", port)
-	viper.Set("kv-executor-http", httpAddr)
-	defer viper.Set("kv-executor-http", "") // Reset after test
-
-	// Create a context with cancel function
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Create the KV executor with the context
-	kvExecutor := testExecutor.CreateDirectKVExecutor(ctx)
-	if kvExecutor == nil {
-		t.Fatal("Failed to create KV executor")
-	}
-
-	// Wait a moment for the server to start
-	time.Sleep(300 * time.Millisecond)
-
-	// Send a request to confirm it's running
-	client := &http.Client{Timeout: 1 * time.Second}
-	resp, err := client.Get(fmt.Sprintf("http://%s/store", httpAddr))
-	if err != nil {
-		t.Fatalf("Failed to connect to server: %v", err)
-	}
-	if err := resp.Body.Close(); err != nil {
-		t.Logf("Failed to close response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
-	}
-
-	// Cancel the context to shut down the server
-	cancel()
-
-	// Wait for shutdown to complete
-	time.Sleep(300 * time.Millisecond)
-
-	// Verify server is actually shutdown by attempting a new connection
-	_, err = client.Get(fmt.Sprintf("http://%s/store", httpAddr))
-	if err == nil {
-		t.Fatal("Expected connection error after shutdown, but got none")
 	}
 }

@@ -27,7 +27,6 @@ testapp start [flags]
       --instrumentation.pprof_listen_addr string        pprof HTTP server listening address (default ":6060")
       --instrumentation.prometheus                      enable Prometheus metrics
       --instrumentation.prometheus_listen_addr string   Prometheus metrics listen address (default ":26660")
-      --kv-executor-http string                         address for the KV executor HTTP server (empty to disable) (default ":40042")
       --node.aggregator                                 run node in aggregator mode (default true)
       --node.block_time duration                        block time (for aggregator mode) (default 1s)
       --node.executor_address string                    executor middleware address (host:port) (default "localhost:40041")
