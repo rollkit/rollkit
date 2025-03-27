@@ -9,32 +9,19 @@ import (
 
 // Sequencer is a generic interface for a rollup sequencer
 type Sequencer interface {
-	SequencerInput
-	SequencerOutput
-	BatchVerifier
-}
-
-// SequencerInput provides a method for submitting a transaction from rollup to sequencer
-type SequencerInput interface {
 	// SubmitRollupBatchTxs submits a batch of transactions from rollup to sequencer
 	// RollupId is the unique identifier for the rollup chain
 	// Batch is the batch of transactions to submit
 	// returns an error if any from the sequencer
 	SubmitRollupBatchTxs(ctx context.Context, req SubmitRollupBatchTxsRequest) (*SubmitRollupBatchTxsResponse, error)
-}
 
-// SequencerOutput provides a method for getting the next batch of transactions from sequencer to rollup
-type SequencerOutput interface {
 	// GetNextBatch returns the next batch of transactions from sequencer to rollup
 	// RollupId is the unique identifier for the rollup chain
 	// LastBatchHash is the cryptographic hash of the last batch received by the rollup
 	// MaxBytes is the maximum number of bytes to return in the batch
 	// returns the next batch of transactions and an error if any from the sequencer
 	GetNextBatch(ctx context.Context, req GetNextBatchRequest) (*GetNextBatchResponse, error)
-}
 
-// BatchVerifier provides a method for verifying a batch of transactions received from the sequencer
-type BatchVerifier interface {
 	// VerifyBatch verifies a batch of transactions received from the sequencer
 	// RollupId is the unique identifier for the rollup chain
 	// BatchHash is the cryptographic hash of the batch to verify
