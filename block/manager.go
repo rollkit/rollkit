@@ -1135,6 +1135,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
+		fmt.Printf("%s (%6d): Calling GetTxs\n", time.Now().Format(time.StampMilli), newHeight)
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
 			m.logger.Error("failed to get txs from executor", "err", err)
@@ -1164,7 +1165,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		for {
 			batchData, err = m.getTxsFromBatch()
 			if errors.Is(err, ErrNoBatch) {
-				m.logger.Debug("Waiting for batch...")
+				//m.logger.Debug("Waiting for batch...")
 				time.Sleep(100 * time.Millisecond)
 				continue
 			} else if err != nil {
@@ -1507,6 +1508,7 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
+	fmt.Printf("%s (%6d): Calling ExecuteTxs\n", time.Now().Format(time.StampMilli), lastState.LastBlockHeight+1)
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
 		return types.State{}, err
