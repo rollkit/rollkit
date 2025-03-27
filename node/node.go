@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"cosmossdk.io/log"
-	"github.com/libp2p/go-libp2p/core/crypto"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -12,6 +11,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/service"
+	"github.com/rollkit/rollkit/pkg/signer"
 )
 
 // Node is the interface for a rollup node
@@ -28,7 +28,7 @@ func NewNode(
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
-	signingKey crypto.PrivKey,
+	signer signer.Signer,
 	genesis genesis.Genesis,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
@@ -40,7 +40,7 @@ func NewNode(
 	return newFullNode(
 		ctx,
 		conf,
-		signingKey,
+		signer,
 		genesis,
 		exec,
 		sequencer,

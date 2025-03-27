@@ -101,6 +101,17 @@ const (
 	// FlagLogTrace is a flag for enabling stack traces in error logs
 	FlagLogTrace = "log.trace"
 
+	// Signer configuration flags
+
+	// FlagSignerType is a flag for specifying the signer type
+	FlagSignerType = "signer.type"
+	// FlagSignerPath is a flag for specifying the signer path
+	FlagSignerPath = "signer.path"
+
+	// FlagSignerPassphrase is a flag for specifying the signer passphrase
+	//nolint:gosec
+	FlagSignerPassphrase = "signer.passphrase"
+
 	// RPC configuration flags
 
 	// FlagRPCAddress is a flag for specifying the RPC server address
@@ -152,6 +163,9 @@ type Config struct {
 
 	// Logging configuration
 	Log LogConfig `mapstructure:"log" yaml:"log"`
+
+	// Remote signer configuration
+	Signer SignerConfig `mapstructure:"signer" yaml:"signer"`
 }
 
 // DAConfig contains all Data Availability configuration parameters
@@ -201,6 +215,12 @@ type P2PConfig struct {
 	Seeds         string `mapstructure:"seeds" yaml:"seeds" comment:"Comma separated list of seed nodes to connect to"`
 	BlockedPeers  string `mapstructure:"blocked_peers" yaml:"blocked_peers" comment:"Comma separated list of peer IDs to block from connecting"`
 	AllowedPeers  string `mapstructure:"allowed_peers" yaml:"allowed_peers" comment:"Comma separated list of peer IDs to allow connections from"`
+}
+
+// SignerConfig contains all signer configuration parameters
+type SignerConfig struct {
+	SignerType string `mapstructure:"signer_type" yaml:"signer_type" comment:"Type of remote signer to use (file, grpc)"`
+	SignerPath string `mapstructure:"signer_path" yaml:"signer_path" comment:"Path to the signer file or address"`
 }
 
 // RPCConfig contains all RPC server configuration parameters
@@ -265,6 +285,11 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagLogLevel, "info", "log level (debug, info, warn, error)")
 	cmd.Flags().String(FlagLogFormat, "", "log format (text, json)")
 	cmd.Flags().Bool(FlagLogTrace, false, "enable stack traces in error logs")
+
+	// Signer configuration flags
+	cmd.Flags().String(FlagSignerType, def.Signer.SignerType, "type of signer to use (file, grpc)")
+	cmd.Flags().String(FlagSignerPath, def.Signer.SignerPath, "path to the signer file or address")
+	cmd.Flags().String(FlagSignerPassphrase, "", "passphrase for the signer")
 }
 
 // LoadNodeConfig loads the node configuration in the following order of precedence:

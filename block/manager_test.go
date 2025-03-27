@@ -24,6 +24,8 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/queue"
+	"github.com/rollkit/rollkit/pkg/signer"
+	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -173,21 +175,24 @@ func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
 	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
 	payload := []byte("test")
-	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(err)
+	noopSigner, err := noopsigner.NewNoopSigner(privKey)
 	require.NoError(err)
 	cases := []struct {
-		name    string
-		privKey crypto.PrivKey
-		pubKey  crypto.PubKey
+		name   string
+		signer signer.Signer
 	}{
-		{"ed25519", privKey, pubKey},
+		{"ed25519", noopSigner},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			m.proposerKey = c.privKey
+			m.proposerKey = c.signer
 			signature, err := m.proposerKey.Sign(payload)
 			require.NoError(err)
-			ok, err := c.pubKey.Verify(payload, signature)
+			pubKey, err := c.signer.GetPublic()
+			require.NoError(err)
+			ok, err := pubKey.Verify(payload, signature)
 			require.NoError(err)
 			require.True(ok)
 		})
@@ -358,7 +363,7 @@ func Test_isProposer(t *testing.T) {
 
 	type args struct {
 		state         types.State
-		signerPrivKey crypto.PrivKey
+		signerPrivKey signer.Signer
 	}
 	tests := []struct {
 		name       string
@@ -372,9 +377,11 @@ func Test_isProposer(t *testing.T) {
 				genesisData, privKey, _ := types.GetGenesisWithPrivkey("Test_isProposer")
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)
+				signer, err := noopsigner.NewNoopSigner(privKey)
+				require.NoError(err)
 				return args{
 					s,
-					privKey,
+					signer,
 				}
 			}(),
 			isProposer: true,

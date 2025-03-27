@@ -13,7 +13,6 @@ import (
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p"
 	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/service"
+	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/pkg/sync"
 )
@@ -68,7 +68,7 @@ type FullNode struct {
 func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,
-	signingKey crypto.PrivKey,
+	signer signer.Signer,
 	genesis genesispkg.Genesis,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
@@ -103,7 +103,7 @@ func newFullNode(
 
 	blockManager, err := initBlockManager(
 		ctx,
-		signingKey,
+		signer,
 		exec,
 		nodeConfig,
 		genesis,
@@ -185,7 +185,7 @@ func initDataSyncService(
 
 func initBlockManager(
 	ctx context.Context,
-	signingKey crypto.PrivKey,
+	signer signer.Signer,
 	exec coreexecutor.Executor,
 	nodeConfig config.Config,
 	genesis genesispkg.Genesis,
@@ -212,7 +212,7 @@ func initBlockManager(
 
 	blockManager, err := block.NewManager(
 		ctx,
-		signingKey,
+		signer,
 		nodeConfig,
 		rollGen,
 		store,

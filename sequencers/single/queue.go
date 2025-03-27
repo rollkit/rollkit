@@ -9,6 +9,7 @@ import (
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"google.golang.org/protobuf/proto"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
@@ -45,7 +46,7 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch coresequencer.Batch) e
 		Txs: batch.Transactions,
 	}
 
-	encodedBatch, err := pbBatch.Marshal()
+	encodedBatch, err := proto.Marshal(pbBatch)
 	if err != nil {
 		return err
 	}
@@ -108,7 +109,7 @@ func (bq *BatchQueue) Load(ctx context.Context) error {
 	// Load each batch
 	for result := range results.Next() {
 		pbBatch := &pb.Batch{}
-		err := pbBatch.Unmarshal(result.Value)
+		err := proto.Unmarshal(result.Value, pbBatch)
 		if err != nil {
 			fmt.Printf("Error decoding batch: %v\n", err)
 			continue

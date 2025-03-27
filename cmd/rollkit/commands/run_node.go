@@ -5,24 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
-	cometprivval "github.com/cometbft/cometbft/privval"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"google.golang.org/grpc"
-
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
-	seqTest "github.com/rollkit/go-sequencing/test"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -31,6 +23,8 @@ import (
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	rollos "github.com/rollkit/rollkit/pkg/os"
+	"github.com/rollkit/rollkit/pkg/signer"
+	"github.com/rollkit/rollkit/pkg/signer/file"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
 
@@ -40,8 +34,6 @@ var (
 
 	// initialize the logger with the cometBFT defaults
 	logger = log.NewLogger(os.Stdout)
-
-	errSequencerAlreadyRunning = errors.New("sequencer already running")
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
@@ -64,41 +56,42 @@ func NewRunNodeCmd() *cobra.Command {
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits
 
-			kvExecutor := createDirectKVExecutor(ctx)
-
-			// TODO: this should be moved elsewhere
-			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
-			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath, "priv_validator_state.json")
-			pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
-
-			signingKey, err := crypto.UnmarshalEd25519PrivateKey(pval.Key.PrivKey.Bytes())
-			if err != nil {
-				return err
+			// Check if passphrase is required and provided
+			if nodeConfig.Node.Aggregator && nodeConfig.Signer.SignerType == "file" {
+				passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
+				if err != nil {
+					return err
+				}
+				if passphrase == "" {
+					return fmt.Errorf("passphrase is required for aggregator nodes using local file signer")
+				}
 			}
+
+			kvExecutor := createDirectKVExecutor(ctx)
 
 			// initialize the metrics
 			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
-			sequencerRollupID := nodeConfig.Node.SequencerRollupID
-			// Try and launch a mock gRPC sequencer if there is no sequencer running.
-			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
-			var seqSrv *grpc.Server = nil
-			if !cmd.Flags().Lookup(rollconf.FlagSequencerAddress).Changed {
-				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.Node.SequencerAddress, sequencerRollupID)
-				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if seqSrv != nil {
-						seqSrv.Stop()
-					}
-				}()
-			}
-
 			logger.Info("Executor address", "address", nodeConfig.Node.ExecutorAddress)
 
-			// Create a cancellable context for the node
+			//create a new remote signer
+			var signer signer.Signer
+			if nodeConfig.Signer.SignerType == "file" {
+				passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
+				if err != nil {
+					return err
+				}
+
+				signer, err = file.NewFileSystemSigner(nodeConfig.Signer.SignerPath, []byte(passphrase))
+				if err != nil {
+					return err
+				}
+			} else if nodeConfig.Signer.SignerType == "grpc" {
+				panic("grpc remote signer not implemented")
+			} else {
+				return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
+			}
+
 			dummySequencer := coresequencer.NewDummySequencer()
 
 			genesisPath := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "genesis.json")
@@ -117,7 +110,7 @@ func NewRunNodeCmd() *cobra.Command {
 				kvExecutor,
 				dummySequencer,
 				dummyDALC,
-				signingKey,
+				signer,
 				genesis,
 				metrics,
 				logger,
@@ -243,26 +236,6 @@ func addNodeFlags(cmd *cobra.Command) {
 	rollconf.AddFlags(cmd)
 }
 
-// tryStartMockSequencerServerGRPC will try and start a mock gRPC server with the given listenAddress.
-func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.Server, error) {
-	dummySeq := seqTest.NewDummySequencer([]byte(rollupId))
-	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) || errors.Is(err, syscall.EADDRNOTAVAIL) {
-			logger.Info(errSequencerAlreadyRunning.Error(), "address", listenAddress)
-			logger.Info("make sure your rollupID matches your sequencer", "rollupID", rollupId)
-			return nil, errSequencerAlreadyRunning
-		}
-		return nil, err
-	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	logger.Info("Starting mock sequencer", "address", listenAddress, "rollupID", rollupId)
-	return server, nil
-}
-
 // createDirectKVExecutor creates a KVExecutor for testing
 func createDirectKVExecutor(ctx context.Context) *testExecutor.KVExecutor {
 	kvExecutor := testExecutor.NewKVExecutor()
@@ -303,19 +276,6 @@ func initFiles() error {
 
 	if err := os.MkdirAll(dataDir, rollconf.DefaultDirPerm); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
-	}
-
-	// Generate the private validator config files
-	cometprivvalKeyFile := filepath.Join(configDir, "priv_validator_key.json")
-	cometprivvalStateFile := filepath.Join(dataDir, "priv_validator_state.json")
-	if rollos.FileExists(cometprivvalKeyFile) {
-		logger.Info("Found private validator", "keyFile", cometprivvalKeyFile,
-			"stateFile", cometprivvalStateFile)
-	} else {
-		pv := cometprivval.GenFilePV(cometprivvalKeyFile, cometprivvalStateFile)
-		pv.Save()
-		logger.Info("Generated private validator", "keyFile", cometprivvalKeyFile,
-			"stateFile", cometprivvalStateFile)
 	}
 
 	// Generate the genesis file
