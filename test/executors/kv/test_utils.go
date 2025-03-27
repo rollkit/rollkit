@@ -3,14 +3,9 @@ package executor
 import (
 	"context"
 	"fmt"
-	"os"
-
-	"cosmossdk.io/log"
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 )
-
-var logger = log.NewLogger(os.Stdout)
 
 // CreateDirectKVExecutor creates a KVExecutor for testing
 func CreateDirectKVExecutor(ctx context.Context) coreexecutor.Executor {

@@ -13,7 +13,6 @@ To load completions in your current shell session:
 To load completions for every new session, add the output of the above command
 to your powershell profile.
 
-
 ```
 testapp completion powershell [flags]
 ```
@@ -36,4 +35,4 @@ testapp completion powershell [flags]
 
 ### SEE ALSO
 
-* [testapp completion](testapp_completion.md)	 - Generate the autocompletion script for the specified shell
+* [testapp completion](testapp_completion.md)  - Generate the autocompletion script for the specified shell

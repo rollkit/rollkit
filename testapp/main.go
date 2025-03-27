@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"cosmossdk.io/log"
+
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
