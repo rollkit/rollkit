@@ -23,7 +23,7 @@ func main() {
 			cmd.Stderr = os.Stderr
 
 			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("failed to run go mod tidy in %s: %v", dir, err)
+				return fmt.Errorf("failed to run go mod tidy in %s: %w", dir, err)
 			}
 		}
 		return nil
