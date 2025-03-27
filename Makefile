@@ -37,11 +37,11 @@ deps:
 	@echo "--> Installing dependencies"
 	@go mod download
 	@go mod tidy
-	@./scripts/go-mod-tidy-all.sh
+	@go run scripts/go-mod-tidy-all.go
 .PHONY: deps
 
 tidy-all:
-	@sh ./scripts/go-mod-tidy-all.sh
+	@go run scripts/go-mod-tidy-all.go
 .PHONY: tidy-all
 
 ## lint: Run linters golangci-lint and markdownlint.
