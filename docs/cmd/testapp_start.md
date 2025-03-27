@@ -21,7 +21,6 @@ testapp start [flags]
       --da.start_height uint                            starting DA block height (for syncing)
       --da.submit_options string                        DA submit options
       --db_path string                                  database path relative to root directory (default "data")
-      --entrypoint string                               entrypoint for the application
   -h, --help                                            help for start
       --instrumentation.max_open_connections int        maximum number of simultaneous connections for metrics (default 3)
       --instrumentation.pprof                           enable pprof HTTP endpoint
