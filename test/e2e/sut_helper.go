@@ -18,11 +18,10 @@ import (
 
 	"github.com/cometbft/cometbft/p2p"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/rollkit/rollkit/types"
 )
 
 // WorkDir defines the default working directory for spawned processes.
@@ -259,7 +258,7 @@ func NodeID(t *testing.T, nodeDir string) peer.ID {
 	t.Helper()
 	node1Key, err := p2p.LoadOrGenNodeKey(filepath.Join(nodeDir, "config", "node_key.json"))
 	require.NoError(t, err)
-	p2pKey, err := types.GetNodeKey(node1Key)
+	p2pKey, err := crypto.UnmarshalEd25519PrivateKey(node1Key.PrivKey.Bytes())
 	require.NoError(t, err)
 	node1ID, err := peer.IDFromPrivateKey(p2pKey)
 	require.NoError(t, err)
