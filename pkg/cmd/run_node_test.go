@@ -26,14 +26,14 @@ import (
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
 
-func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.SignerProvider) {
+func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.KeyProvider) {
 	executor := testExecutor.CreateDirectKVExecutor(ctx)
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	logger := log.NewLogger(os.Stdout)
 	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
-	signerProvider := signer.NewFileSignerProvider("", "config", "data")
-	return executor, sequencer, dac, signerProvider
+	keyProvider := signer.NewFileKeyProvider("", "config", "data")
+	return executor, sequencer, dac, keyProvider
 }
 
 func TestParseFlags(t *testing.T) {
@@ -79,9 +79,9 @@ func TestParseFlags(t *testing.T) {
 
 	args := append([]string{"start"}, flags...)
 
-	executor, sequencer, dac, signerProvider := createTestComponents(context.Background())
+	executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
 
-	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, signerProvider)
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
 
 	// Register root flags to be able to use --home flag
 	rollconf.AddBasicFlags(newRunNodeCmd, "testapp")
@@ -157,9 +157,9 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	for i, flags := range flagVariants {
 		args := append([]string{"start"}, flags...)
 
-		executor, sequencer, dac, signerProvider := createTestComponents(context.Background())
+		executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
 
-		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, signerProvider)
+		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
@@ -183,9 +183,9 @@ func TestDefaultAggregatorValue(t *testing.T) {
 
 	// Create a new command without specifying any flags
 	args := []string{"start"}
-	executor, sequencer, dac, signerProvider := createTestComponents(context.Background())
+	executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
 
-	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, signerProvider)
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
@@ -209,9 +209,9 @@ func TestCentralizedAddresses(t *testing.T) {
 		"--node.sequencer_rollup_id=centralrollup",
 	}
 
-	executor, sequencer, dac, signerProvider := createTestComponents(context.Background())
+	executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
 
-	cmd := NewRunNodeCmd(executor, sequencer, dac, signerProvider)
+	cmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}

@@ -31,13 +31,13 @@ func main() {
 	logger := log.NewLogger(os.Stdout)
 	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
 
-	// Create signer provider
-	signerProvider := signer.NewFileSignerProvider("", "config", "data")
+	// Create key provider
+	keyProvider := signer.NewFileKeyProvider("", "config", "data")
 
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
 		rollcmd.NewDocsGenCmd(rootCmd, commands.AppName),
-		rollcmd.NewRunNodeCmd(executor, sequencer, dac, signerProvider),
+		rollcmd.NewRunNodeCmd(executor, sequencer, dac, keyProvider),
 		rollcmd.VersionCmd,
 		rollcmd.InitCmd,
 	)

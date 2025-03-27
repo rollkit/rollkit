@@ -46,7 +46,7 @@ func NewRunNodeCmd(
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
-	signerProvider signer.SignerProvider,
+	keyProvider signer.KeyProvider,
 ) *cobra.Command {
 	if executor == nil {
 		panic("executor cannot be nil")
@@ -57,8 +57,8 @@ func NewRunNodeCmd(
 	if dac == nil {
 		panic("da client cannot be nil")
 	}
-	if signerProvider == nil {
-		panic("signer provider cannot be nil")
+	if keyProvider == nil {
+		panic("key provider cannot be nil")
 	}
 
 	cmd := &cobra.Command{
@@ -79,14 +79,8 @@ func NewRunNodeCmd(
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits
 
-			// Get the signer
-			signer, err := signerProvider.NewSigner()
-			if err != nil {
-				return fmt.Errorf("failed to create signer: %w", err)
-			}
-
 			// Get the signing key
-			signingKey, err := signer.GetSigningKey()
+			signingKey, err := keyProvider.GetSigningKey()
 			if err != nil {
 				return fmt.Errorf("failed to get signing key: %w", err)
 			}
