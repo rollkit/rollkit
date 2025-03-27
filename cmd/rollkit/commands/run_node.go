@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/rollkit/rollkit/core/execution"
 	"net"
 	"net/http"
 	"os"
@@ -45,7 +46,7 @@ var (
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
-func NewRunNodeCmd() *cobra.Command {
+func NewRunNodeCmd(createExecutor func(*cobra.Command) (execution.Executor, error), addExecFlags func(*cobra.Command) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "start",
 		Aliases: []string{"node", "run"},
@@ -63,8 +64,6 @@ func NewRunNodeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits
-
-			kvExecutor := createDirectKVExecutor(ctx)
 
 			// TODO: this should be moved elsewhere
 			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
@@ -96,6 +95,11 @@ func NewRunNodeCmd() *cobra.Command {
 				}()
 			}
 
+			executor, err := createExecutor(cmd)
+			if err != nil {
+				return fmt.Errorf("failed to create executor: %w", err)
+			}
+
 			logger.Info("Executor address", "address", nodeConfig.Node.ExecutorAddress)
 
 			// Create a cancellable context for the node
@@ -114,7 +118,7 @@ func NewRunNodeCmd() *cobra.Command {
 				ctx,
 				nodeConfig,
 				// THIS IS FOR TESTING ONLY
-				kvExecutor,
+				executor,
 				dummySequencer,
 				dummyDALC,
 				signingKey,
@@ -226,21 +230,27 @@ func NewRunNodeCmd() *cobra.Command {
 		},
 	}
 
-	addNodeFlags(cmd)
+	// Add Rollkit flags
+	rollconf.AddFlags(cmd)
 
+	// Add Executor related flags
+	addExecFlags(cmd)
 	return cmd
 }
 
-// addNodeFlags exposes some common configuration options on the command-line
+// AddNodeFlags exposes some common configuration options on the command-line
 // These are exposed for convenience of commands embedding a rollkit node
-func addNodeFlags(cmd *cobra.Command) {
+func AddNodeFlags(cmd *cobra.Command) error {
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
 	// This is for testing only
 	cmd.Flags().String("kv-executor-http", ":40042", "address for the KV executor HTTP server (empty to disable)")
 
-	// Add Rollkit flags
-	rollconf.AddFlags(cmd)
+	return nil
+}
+
+func CreateExecutor(cmd *cobra.Command) (execution.Executor, error) {
+	return createDirectKVExecutor(cmd.Context()), nil
 }
 
 // tryStartMockSequencerServerGRPC will try and start a mock gRPC server with the given listenAddress.

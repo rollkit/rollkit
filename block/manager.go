@@ -1062,7 +1062,7 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 }
 
 func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
-	b, err := header.MarshalBinary()
+	b, err := header.Vote()
 	if err != nil {
 		return nil, err
 	}
@@ -1135,6 +1135,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
+		fmt.Printf("%s (%6d): Calling GetTxs\n", time.Now().Format(time.StampMilli), newHeight)
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
 			m.logger.Error("failed to get txs from executor", "err", err)
@@ -1146,7 +1147,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 
 		m.logger.Debug("Submitting transaction to sequencer",
-			"txCount", len(execTxs))
+			"txCount", len(execTxs), "rollupId", m.genesis.ChainID)
 		_, err = m.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
 			RollupId: sequencing.RollupId(m.genesis.ChainID),
 			Batch:    &coresequencer.Batch{Transactions: execTxs},
@@ -1160,17 +1161,18 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			m.logger.Debug("Successfully submitted transaction to sequencer")
 		}
 
-		batchData, err := m.getTxsFromBatch()
-		if errors.Is(err, ErrNoBatch) {
-			m.logger.Debug("No batch available, creating empty block")
-			// Create an empty block instead of returning
-			batchData = &BatchData{
-				Batch: &coresequencer.Batch{Transactions: [][]byte{}},
-				Time:  time.Now().Round(0).UTC(),
-				Data:  [][]byte{},
+		var batchData *BatchData
+		for {
+			batchData, err = m.getTxsFromBatch()
+			if errors.Is(err, ErrNoBatch) {
+				//m.logger.Debug("Waiting for batch...")
+				time.Sleep(100 * time.Millisecond)
+				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to get transactions from batch: %w", err)
+			} else {
+				break
 			}
-		} else if err != nil {
-			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
 		// sanity check timestamp for monotonically increasing
 		if batchData.Time.Before(lastHeaderTime) {
@@ -1199,6 +1201,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the signature to current block's signed header
 		header.Signature = signature
+
+		m.logger.Debug("header validation", "error", header.ValidateBasic())
+
 		err = m.store.SaveBlockData(ctx, header, data, &signature)
 		if err != nil {
 			return SaveBlockError{err}
@@ -1482,6 +1487,10 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			ProposerAddress: m.genesis.ProposerAddress(),
 		},
 		Signature: *lastSignature,
+		Signer: types.Signer{
+			PubKey:  m.proposerKey.GetPublic(),
+			Address: m.genesis.ProposerAddress(),
+		},
 	}
 
 	blockData := &types.Data{
@@ -1499,6 +1508,7 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
+	fmt.Printf("%s (%6d): Calling ExecuteTxs\n", time.Now().Format(time.StampMilli), lastState.LastBlockHeight+1)
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
 		return types.State{}, err
