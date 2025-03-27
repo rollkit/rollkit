@@ -14,7 +14,6 @@ import (
 
 	"cosmossdk.io/log"
 	cometprivval "github.com/cometbft/cometbft/privval"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -29,6 +28,7 @@ import (
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	rollos "github.com/rollkit/rollkit/pkg/os"
+	"github.com/rollkit/rollkit/pkg/signer"
 )
 
 var (
@@ -42,7 +42,12 @@ var (
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
-func NewRunNodeCmd(executor coreexecutor.Executor, sequencer coresequencer.Sequencer, dac coreda.Client) *cobra.Command {
+func NewRunNodeCmd(
+	executor coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
+	dac coreda.Client,
+	signerProvider signer.SignerProvider,
+) *cobra.Command {
 	if executor == nil {
 		panic("executor cannot be nil")
 	}
@@ -51,6 +56,9 @@ func NewRunNodeCmd(executor coreexecutor.Executor, sequencer coresequencer.Seque
 	}
 	if dac == nil {
 		panic("da client cannot be nil")
+	}
+	if signerProvider == nil {
+		panic("signer provider cannot be nil")
 	}
 
 	cmd := &cobra.Command{
@@ -71,14 +79,16 @@ func NewRunNodeCmd(executor coreexecutor.Executor, sequencer coresequencer.Seque
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits
 
-			// TODO: this should be moved elsewhere
-			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
-			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath, "priv_validator_state.json")
-			pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
-
-			signingKey, err := crypto.UnmarshalEd25519PrivateKey(pval.Key.PrivKey.Bytes())
+			// Get the signer
+			signer, err := signerProvider.NewSigner()
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create signer: %w", err)
+			}
+
+			// Get the signing key
+			signingKey, err := signer.GetSigningKey()
+			if err != nil {
+				return fmt.Errorf("failed to get signing key: %w", err)
 			}
 
 			// initialize the metrics

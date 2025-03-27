@@ -10,6 +10,7 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
+	"github.com/rollkit/rollkit/pkg/signer"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 	commands "github.com/rollkit/rollkit/testapp/commands"
 )
@@ -30,10 +31,13 @@ func main() {
 	logger := log.NewLogger(os.Stdout)
 	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
 
+	// Create signer provider
+	signerProvider := signer.NewFileSignerProvider("", "config", "data")
+
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
 		rollcmd.NewDocsGenCmd(rootCmd, commands.AppName),
-		rollcmd.NewRunNodeCmd(executor, sequencer, dac),
+		rollcmd.NewRunNodeCmd(executor, sequencer, dac, signerProvider),
 		rollcmd.VersionCmd,
 		rollcmd.InitCmd,
 	)
