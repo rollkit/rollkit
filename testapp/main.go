@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"os"
 
+	"cosmossdk.io/log"
+	coreda "github.com/rollkit/rollkit/core/da"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 	commands "github.com/rollkit/rollkit/testapp/commands"
@@ -17,10 +21,19 @@ func main() {
 	// Create context for the executor
 	ctx := context.Background()
 
+	// Create test implementations
+	executor := testExecutor.CreateDirectKVExecutor(ctx)
+	sequencer := coresequencer.NewDummySequencer()
+
+	// Create DA client with dummy DA
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
+	logger := log.NewLogger(os.Stdout)
+	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
+
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
 		rollcmd.NewDocsGenCmd(rootCmd, commands.AppName),
-		rollcmd.NewRunNodeCmd(testExecutor.CreateDirectKVExecutor(ctx)),
+		rollcmd.NewRunNodeCmd(executor, sequencer, dac),
 		rollcmd.VersionCmd,
 		rollcmd.InitCmd,
 	)

@@ -25,7 +25,6 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
@@ -43,9 +42,15 @@ var (
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
-func NewRunNodeCmd(executor coreexecutor.Executor) *cobra.Command {
+func NewRunNodeCmd(executor coreexecutor.Executor, sequencer coresequencer.Sequencer, dac coreda.Client) *cobra.Command {
 	if executor == nil {
 		panic("executor cannot be nil")
+	}
+	if sequencer == nil {
+		panic("sequencer cannot be nil")
+	}
+	if dac == nil {
+		panic("da client cannot be nil")
 	}
 
 	cmd := &cobra.Command{
@@ -99,24 +104,19 @@ func NewRunNodeCmd(executor coreexecutor.Executor) *cobra.Command {
 			logger.Info("Executor address", "address", nodeConfig.Node.ExecutorAddress)
 
 			// Create a cancellable context for the node
-			dummySequencer := coresequencer.NewDummySequencer()
-
 			genesisPath := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "genesis.json")
 			genesis, err := genesispkg.LoadGenesis(genesisPath)
 			if err != nil {
 				return fmt.Errorf("failed to load genesis: %w", err)
 			}
 
-			dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.DA.SubmitOptions), logger)
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,
 				nodeConfig,
-				// THIS IS FOR TESTING ONLY
 				executor,
-				dummySequencer,
-				dummyDALC,
+				sequencer,
+				dac,
 				signingKey,
 				genesis,
 				metrics,

@@ -16,9 +16,23 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"cosmossdk.io/log"
+	coreda "github.com/rollkit/rollkit/core/da"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/da"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
+
+func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client) {
+	executor := testExecutor.CreateDirectKVExecutor(ctx)
+	sequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
+	logger := log.NewLogger(os.Stdout)
+	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
+	return executor, sequencer, dac
+}
 
 func TestParseFlags(t *testing.T) {
 	// Initialize nodeConfig with default values to avoid issues with instrument
@@ -63,9 +77,9 @@ func TestParseFlags(t *testing.T) {
 
 	args := append([]string{"start"}, flags...)
 
-	executor := testExecutor.CreateDirectKVExecutor(context.Background())
+	executor, sequencer, dac := createTestComponents(context.Background())
 
-	newRunNodeCmd := NewRunNodeCmd(executor)
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac)
 
 	// Register root flags to be able to use --home flag
 	rollconf.AddBasicFlags(newRunNodeCmd, "testapp")
@@ -141,9 +155,9 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	for i, flags := range flagVariants {
 		args := append([]string{"start"}, flags...)
 
-		executor := testExecutor.CreateDirectKVExecutor(context.Background())
+		executor, sequencer, dac := createTestComponents(context.Background())
 
-		newRunNodeCmd := NewRunNodeCmd(executor)
+		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
@@ -167,9 +181,9 @@ func TestDefaultAggregatorValue(t *testing.T) {
 
 	// Create a new command without specifying any flags
 	args := []string{"start"}
-	executor := testExecutor.CreateDirectKVExecutor(context.Background())
+	executor, sequencer, dac := createTestComponents(context.Background())
 
-	newRunNodeCmd := NewRunNodeCmd(executor)
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
@@ -193,9 +207,9 @@ func TestCentralizedAddresses(t *testing.T) {
 		"--node.sequencer_rollup_id=centralrollup",
 	}
 
-	executor := testExecutor.CreateDirectKVExecutor(context.Background())
+	executor, sequencer, dac := createTestComponents(context.Background())
 
-	cmd := NewRunNodeCmd(executor)
+	cmd := NewRunNodeCmd(executor, sequencer, dac)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
