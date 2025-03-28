@@ -59,14 +59,6 @@ func newLightNode(
 	return node, nil
 }
 
-func openDatastore(conf config.Config, logger log.Logger) (ds.Batching, error) {
-	if conf.RootDir == "" && conf.DBPath == "" {
-		logger.Info("WARNING: working in in-memory mode")
-		return store.NewDefaultInMemoryKVStore()
-	}
-	return store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit-light")
-}
-
 // OnStart starts the P2P and HeaderSync services
 func (ln *LightNode) OnStart(ctx context.Context) error {
 	// Start RPC server

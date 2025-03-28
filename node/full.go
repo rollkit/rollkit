@@ -129,15 +129,6 @@ func newFullNode(
 	return node, nil
 }
 
-// initBaseKV initializes the base key-value store.
-func initBaseKV(nodeConfig config.Config, logger log.Logger) (ds.Batching, error) {
-	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" {
-		logger.Info("WARNING: working in in-memory mode")
-		return store.NewDefaultInMemoryKVStore()
-	}
-	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
-}
-
 func initHeaderSyncService(
 	mainKV ds.Batching,
 	nodeConfig config.Config,

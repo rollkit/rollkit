@@ -21,7 +21,7 @@ const (
 	// FlagRootDir is a flag for specifying the root directory
 	FlagRootDir = "home"
 	// FlagDBPath is a flag for specifying the database path
-	FlagDBPath = "db_path"
+	FlagDBPath = "rollkit.db_path"
 	// FlagChainConfigDir is a flag for specifying the chain config directory
 	FlagChainConfigDir = "config_dir"
 
@@ -206,9 +206,9 @@ type P2PConfig struct {
 // AddBasicFlags registers the basic configuration flags that are common across applications
 // This includes logging configuration and root directory settings
 func AddBasicFlags(cmd *cobra.Command, appName string) {
-	cmd.PersistentFlags().String(FlagLogLevel, DefaultLogLevel, "Set the log level (debug, info, warn, error)")
-	cmd.PersistentFlags().String(FlagLogFormat, "plain", "Set the log format (text, json)")
-	cmd.PersistentFlags().Bool(FlagLogTrace, false, "Enable stack traces in error logs")
+	cmd.PersistentFlags().String(FlagLogLevel, DefaultNodeConfig.Log.Level, "Set the log level (debug, info, warn, error)")
+	cmd.PersistentFlags().String(FlagLogFormat, DefaultNodeConfig.Log.Format, "Set the log format (text, json)")
+	cmd.PersistentFlags().Bool(FlagLogTrace, DefaultNodeConfig.Log.Trace, "Enable stack traces in error logs")
 	cmd.PersistentFlags().String(FlagRootDir, DefaultRootDirWithName(appName), "Root directory for application data")
 }
 
@@ -291,7 +291,7 @@ func LoadNodeConfig(cmd *cobra.Command, home string) (Config, error) {
 	// Check if RootDir is set in the default config
 	if home != "" {
 		v.AddConfigPath(home)
-		v.AddConfigPath(filepath.Join(home, DefaultConfigDir))
+		v.AddConfigPath(filepath.Join(home, DefaultNodeConfig.ConfigDir))
 		config.RootDir = home
 	} else {
 		// If home is not set, use the default root directory

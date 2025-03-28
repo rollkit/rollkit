@@ -69,7 +69,7 @@ func NewClient(conf config.Config, chainID string, nodeKey *key.NodeKey, ds data
 	}
 
 	if conf.P2P.ListenAddress == "" {
-		conf.P2P.ListenAddress = config.DefaultListenAddress
+		conf.P2P.ListenAddress = config.DefaultNodeConfig.P2P.ListenAddress
 	}
 
 	gater, err := conngater.NewBasicConnectionGater(ds)

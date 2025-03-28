@@ -24,7 +24,7 @@ func TestReadYaml(t *testing.T) {
 			},
 			validate: func(t *testing.T, cfg Config, err error) {
 				require.NoError(t, err)
-				require.Equal(t, DefaultListenAddress, cfg.P2P.ListenAddress)
+				require.Equal(t, DefaultNodeConfig.P2P.ListenAddress, cfg.P2P.ListenAddress)
 			},
 		},
 		{
@@ -105,7 +105,7 @@ func TestYamlConfigOperations(t *testing.T) {
 			setup: func(t *testing.T, dir string) *Config {
 				cfg := DefaultNodeConfig
 				cfg.RootDir = dir
-				cfg.P2P.ListenAddress = DefaultListenAddress
+				cfg.P2P.ListenAddress = DefaultNodeConfig.P2P.ListenAddress
 				cfg.P2P.Seeds = "seed1.example.com:26656,seed2.example.com:26656"
 
 				// Write the config file
@@ -115,7 +115,7 @@ func TestYamlConfigOperations(t *testing.T) {
 				return &cfg
 			},
 			validate: func(t *testing.T, cfg *Config) {
-				require.Equal(t, DefaultListenAddress, cfg.P2P.ListenAddress)
+				require.Equal(t, DefaultNodeConfig.P2P.ListenAddress, cfg.P2P.ListenAddress)
 				require.Equal(t, "seed1.example.com:26656,seed2.example.com:26656", cfg.P2P.Seeds)
 			},
 		},
@@ -132,9 +132,8 @@ func TestYamlConfigOperations(t *testing.T) {
 				return &cfg
 			},
 			validate: func(t *testing.T, cfg *Config) {
-				defaultCfg := DefaultNodeConfig
-				require.Equal(t, defaultCfg.P2P.ListenAddress, cfg.P2P.ListenAddress)
-				require.Equal(t, defaultCfg.P2P.Seeds, cfg.P2P.Seeds)
+				require.Equal(t, DefaultNodeConfig.P2P.ListenAddress, cfg.P2P.ListenAddress)
+				require.Equal(t, DefaultNodeConfig.P2P.Seeds, cfg.P2P.Seeds)
 			},
 		},
 	}

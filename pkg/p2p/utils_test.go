@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 )
 
 type testNet []*Client
@@ -108,6 +109,8 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 	for i := 0; i < n; i++ {
 		tempDir := filepath.Join(t.TempDir(), fmt.Sprintf("client_%d", i))
 		ClientInitFiles(t, tempDir)
+		nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tempDir, "config", "node_key.json"))
+		require.NoError(err)
 		client, err := NewClient(
 			config.Config{
 				RootDir: tempDir,
@@ -116,6 +119,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 				},
 			},
 			conf[i].chainID,
+			nodeKey,
 			sync.MutexWrap(datastore.NewMapDatastore()),
 			logger,
 			NopMetrics(),

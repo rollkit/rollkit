@@ -241,7 +241,10 @@ func NewManager(
 		return nil, err
 	}
 	//set block height in store
-	store.SetHeight(ctx, s.LastBlockHeight)
+	err = store.SetHeight(ctx, s.LastBlockHeight)
+	if err != nil {
+		return nil, err
+	}
 
 	if s.DAHeight < config.DA.StartHeight {
 		s.DAHeight = config.DA.StartHeight
@@ -807,7 +810,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 
 		// Height gets updated
-		m.store.SetHeight(ctx, hHeight)
+		err = m.store.SetHeight(ctx, hHeight)
+		if err != nil {
+			return err
+		}
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
@@ -1256,7 +1262,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	newState.AppHash = appHash
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
-	m.store.SetHeight(ctx, headerHeight)
+	err = m.store.SetHeight(ctx, headerHeight)
+	if err != nil {
+		return err
+	}
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock

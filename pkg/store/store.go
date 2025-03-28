@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -56,7 +57,7 @@ func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) error {
 // Height returns height of the highest block saved in the Store.
 func (s *DefaultStore) Height(ctx context.Context) uint64 {
 	heightBytes, err := s.db.Get(ctx, ds.NewKey(getHeightKey()))
-	if err == ds.ErrNotFound {
+	if errors.Is(err, ds.ErrNotFound) {
 		return 0
 	}
 	if err != nil {

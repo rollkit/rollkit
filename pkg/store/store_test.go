@@ -42,16 +42,17 @@ func TestStoreHeight(t *testing.T) {
 			assert := assert.New(t)
 			ds, _ := NewDefaultInMemoryKVStore()
 			bstore := New(ds)
-			assert.Equal(uint64(0), bstore.Height())
+			assert.Equal(uint64(0), bstore.Height(ctx))
 
 			for i, header := range c.headers {
 				data := c.data[i]
 				err := bstore.SaveBlockData(ctx, header, data, &types.Signature{})
-				bstore.SetHeight(ctx, header.Height())
-				assert.NoError(err)
+				require.NoError(t, err)
+				err = bstore.SetHeight(ctx, header.Height())
+				require.NoError(t, err)
 			}
 
-			assert.Equal(c.expected, bstore.Height())
+			assert.Equal(c.expected, bstore.Height(ctx))
 		})
 	}
 }
