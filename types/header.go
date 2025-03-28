@@ -92,7 +92,7 @@ func (h *Header) LastHeader() Hash {
 
 // Time returns timestamp as unix time with nanosecond precision
 func (h *Header) Time() time.Time {
-	return time.Unix(0, int64(h.BaseHeader.Time)) //nolint:gosec
+	return time.Unix(0, int64(h.BaseHeader.Time))
 }
 
 // Verify verifies the header.

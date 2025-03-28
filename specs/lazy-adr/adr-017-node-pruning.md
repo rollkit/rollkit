@@ -50,13 +50,13 @@ graph TB
     Store --> PM
     Store --> VM
     Store --> Cache
-    
+
     PM --> VM
     VM --> MV
     VM --> HV
     VM --> WV
     VM --> CV
-    
+
     PS --> PM
     VC --> VM
     PC --> VM
@@ -64,7 +64,7 @@ graph TB
     classDef configNode fill:#f9f,stroke:#333,stroke-width:2px,color:black
     classDef volumeNode fill:#bbf,stroke:#333,stroke-width:2px,color:black
     classDef nodeComponent fill:#bfb,stroke:#333,stroke-width:2px,color:black
-    
+
     class PS,VC,PC configNode
     class MV,HV,WV,CV volumeNode
     class API,Store,PM,VM,Cache nodeComponent
@@ -155,29 +155,29 @@ The pruning system is designed to work with various types of storage volumes and
      - High-performance SAN volumes
      - Used for recent blocks and frequently accessed data
    - **Warm Storage** (Medium Latency):
-     - Local HDDs
-     - NFS mounts
-     - Network block storage
-     - Used for moderately old or occasionally accessed data
+      - Local HDDs
+      - NFS mounts
+      - Network block storage
+      - Used for moderately old or occasionally accessed data
    - **Cold Storage** (High Latency):
-     - Object storage
-     - Archive storage
-     - Used for historical data with infrequent access
+      - Object storage
+      - Archive storage
+      - Used for historical data with infrequent access
 
 5. **Implementation Considerations**:
    - **Local Volumes**:
-     - Direct filesystem access
-     - Native OS-level caching
-     - Immediate consistency
+      - Direct filesystem access
+      - Native OS-level caching
+      - Immediate consistency
    - **Network Volumes**:
-     - Connection management
-     - Caching strategies
-     - Network latency handling
+      - Connection management
+      - Caching strategies
+      - Network latency handling
    - **Cloud Storage**:
-     - API-based access
-     - Eventual consistency
-     - Bandwidth costs
-     - Lifecycle management
+      - API-based access
+      - Eventual consistency
+      - Bandwidth costs
+      - Lifecycle management
 
 6. **Volume Interface Requirements**:
    Each volume type must implement:
@@ -188,15 +188,15 @@ The pruning system is designed to work with various types of storage volumes and
        Read(ctx context.Context, key []byte) ([]byte, error)
        Write(ctx context.Context, key []byte, value []byte) error
        Delete(ctx context.Context, key []byte) error
-       
+
        // Performance metrics
        GetLatency() time.Duration
        GetThroughput() int64
-       
+
        // Storage type
        GetStorageType() StorageType
        GetTier() StorageTier
-       
+
        // Lifecycle
        Mount(ctx context.Context) error
        Unmount(ctx context.Context) error
@@ -355,10 +355,10 @@ The volume management system is designed to work in harmony with node operators'
    - Performance tiers (e.g., "fast" for SSD, "standard" for HDD, "cold" for archival storage)
    - Query statistics are built over time to optimize data placement and retrieval
    - System automatically routes queries to the most appropriate volume based on:
-     - Query patterns
-     - Data access frequency
-     - Volume performance characteristics
-     - Historical latency measurements
+      - Query patterns
+      - Data access frequency
+      - Volume performance characteristics
+      - Historical latency measurements
 
 3. **Node Operator Responsibilities**:
    - Create the base volume directory structure
@@ -381,44 +381,44 @@ The volume management system is designed to work in harmony with node operators'
    - Logs warning if no suitable subdirectory is found
    - Node operator must ensure appropriate devices are mounted before volumes can be created
 
-Example directory structure with performance tiers:
+   Example directory structure with performance tiers:
 
-```bash
-/data/rollkit/volumes/  # VolumesDirectory
-├── volume-main/        # Main volume (fast tier - NVMe SSD)
-├── volume-hot-1/      # Hot data volume (fast tier - SSD)
-├── volume-hot-2/      # Hot data volume (fast tier - SSD)
-├── volume-warm-1/     # Warm data volume (standard tier - HDD)
-├── volume-warm-2/     # Warm data volume (standard tier - HDD)
-└── volume-cold-1/     # Cold storage volume (cold tier - HDD)
-```
+   ```bash
+   /data/rollkit/volumes/  # VolumesDirectory
+   ├── volume-main/        # Main volume (fast tier - NVMe SSD)
+   ├── volume-hot-1/      # Hot data volume (fast tier - SSD)
+   ├── volume-hot-2/      # Hot data volume (fast tier - SSD)
+   ├── volume-warm-1/     # Warm data volume (standard tier - HDD)
+   ├── volume-warm-2/     # Warm data volume (standard tier - HDD)
+   └── volume-cold-1/     # Cold storage volume (cold tier - HDD)
+   ```
 
 6. **Configuration Example with Performance Tiers**:
 
-```yaml
-pruning:
-  volume_config:
-    enabled: true
-    main_volume_path: "/data/rollkit/volumes/volume-main"
-    volumes_directory: "/data/rollkit/volumes"
-    volume_pattern: "volume-*"
-    auto_create_volumes: true
-    target_max_volume_size: 1099511627776  # 1 TB
-    size_monitoring_interval: 1000
-    volumes:
-      - path: "/data/rollkit/volumes/volume-hot-1"
-        performance:
-          tier: "fast"
-          estimated_latency_ms: 5
-      - path: "/data/rollkit/volumes/volume-warm-1"
-        performance:
-          tier: "standard"
-          estimated_latency_ms: 20
-      - path: "/data/rollkit/volumes/volume-cold-1"
-        performance:
-          tier: "cold"
-          estimated_latency_ms: 100
-```
+   ```yaml
+   pruning:
+   volume_config:
+      enabled: true
+      main_volume_path: "/data/rollkit/volumes/volume-main"
+      volumes_directory: "/data/rollkit/volumes"
+      volume_pattern: "volume-*"
+      auto_create_volumes: true
+      target_max_volume_size: 1099511627776  # 1 TB
+      size_monitoring_interval: 1000
+      volumes:
+         - path: "/data/rollkit/volumes/volume-hot-1"
+         performance:
+            tier: "fast"
+            estimated_latency_ms: 5
+         - path: "/data/rollkit/volumes/volume-warm-1"
+         performance:
+            tier: "standard"
+            estimated_latency_ms: 20
+         - path: "/data/rollkit/volumes/volume-cold-1"
+         performance:
+            tier: "cold"
+            estimated_latency_ms: 100
+   ```
 
 7. **Query Optimization**:
    - System maintains statistics about query patterns per volume
@@ -675,43 +675,43 @@ rollkit migrate-storage [subcommand] [flags]
 
 1. **analyze**: Scans existing data and plans migration
 
-```bash
-rollkit migrate-storage analyze [--data-dir=<path>]
-```
+   ```bash
+   rollkit migrate-storage analyze [--data-dir=<path>]
+   ```
 
-- Estimates storage requirements
-- Generates migration plan with volume configuration
-- Reports potential issues
-- Estimates duration and resource needs
+   - Estimates storage requirements
+   - Generates migration plan with volume configuration
+   - Reports potential issues
+   - Estimates duration and resource needs
 
 2. **backup**: Creates pre-migration backup
 
-```bash
-rollkit migrate-storage backup [--data-dir=<path>] [--backup-dir=<path>]
-```
+   ```bash
+   rollkit migrate-storage backup [--data-dir=<path>] [--backup-dir=<path>]
+   ```
 
-- Full backup with checksums
-- Backup metadata and manifest generation
+   - Full backup with checksums
+   - Backup metadata and manifest generation
 
 3. **execute**: Performs migration
 
-```bash
-rollkit migrate-storage execute [--config=<path>] [--data-dir=<path>] [--dry-run] [--parallel=<n>]
-```
+   ```bash
+   rollkit migrate-storage execute [--config=<path>] [--data-dir=<path>] [--dry-run] [--parallel=<n>]
+   ```
 
-- Supports resumable operations
-- Dry-run mode for testing
-- Configurable parallelism
+   - Supports resumable operations
+   - Dry-run mode for testing
+   - Configurable parallelism
 
 4. **verify**: Validates migration
 
-```bash
-rollkit migrate-storage verify [--data-dir=<path>]
-```
+   ```bash
+   rollkit migrate-storage verify [--data-dir=<path>]
+   ```
 
-- Data integrity checks
-- Block height continuity validation
-- Volume configuration verification
+   - Data integrity checks
+   - Block height continuity validation
+   - Volume configuration verification
 
 5. **rollback**: Reverts migration
 
@@ -747,19 +747,19 @@ migration:
         performance:
           tier: "cold"
           estimated_latency_ms: 100
-        
+
   settings:
     parallel_workers: 4
     batch_size: 10000
     checkpoint_interval: 1000
     validate_checksums: true
     size_monitoring_interval: 1000
-    
+
   backup:
     enabled: true
     path: /path/to/backup
     compress: true
-    
+
   monitoring:
     log_level: "info"
     metrics_enabled: true
@@ -841,39 +841,39 @@ type MonitoringConfig struct {
 
 1. Pre-migration analysis and backup:
 
-```bash
-# Analyze existing data
-rollkit migrate-storage analyze --data-dir=/path/to/node
+   ```bash
+   # Analyze existing data
+   rollkit migrate-storage analyze --data-dir=/path/to/node
 
-# Create backup
-rollkit migrate-storage backup --data-dir=/path/to/node --backup-dir=/path/to/backup
-```
+   # Create backup
+   rollkit migrate-storage backup --data-dir=/path/to/node --backup-dir=/path/to/backup
+   ```
 
 2. Execute migration and verify:
 
-```bash
-# Perform migration
-rollkit migrate-storage execute --config=migration-config.yaml
+   ```bash
+   # Perform migration
+   rollkit migrate-storage execute --config=migration-config.yaml
 
-# Verify results
-rollkit migrate-storage verify --data-dir=/path/to/node
-```
+   # Verify results
+   rollkit migrate-storage verify --data-dir=/path/to/node
+   ```
 
 3. Rollback if needed:
 
-```bash
-# Revert changes
-rollkit migrate-storage rollback --data-dir=/path/to/node --backup-dir=/path/to/backup
-```
+   ```bash
+   # Revert changes
+   rollkit migrate-storage rollback --data-dir=/path/to/node --backup-dir=/path/to/backup
+   ```
 
-This CLI-based approach provides a structured and safe way to migrate existing nodes while addressing key challenges:
+   This CLI-based approach provides a structured and safe way to migrate existing nodes while addressing key challenges:
 
-- Data integrity through validation
-- Rollback capability via backups
-- Resumable operations for large datasets
-- Progress monitoring and tracking
-- Pre-migration configuration validation
-- Parallel processing for performance
+   - Data integrity through validation
+   - Rollback capability via backups
+   - Resumable operations for large datasets
+   - Progress monitoring and tracking
+   - Pre-migration configuration validation
+   - Parallel processing for performance
 
 ## Status
 

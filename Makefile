@@ -16,7 +16,7 @@ count := 1
 ## help: Show this help message
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
-	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
+	@sed -n 's/^##//p' $< | column -t -s ':' | sort | sed -e 's/^/ /'
 .PHONY: help
 
 ## clean-testcache: clean testcache
@@ -37,11 +37,11 @@ deps:
 	@echo "--> Installing dependencies"
 	@go mod download
 	@go mod tidy
-	@./scripts/go-mod-tidy-all.sh
+	@go run scripts/go-mod-tidy-all.go
 .PHONY: deps
 
 tidy-all:
-	@sh ./scripts/go-mod-tidy-all.sh
+	@go run scripts/go-mod-tidy-all.go
 .PHONY: tidy-all
 
 ## lint: Run linters golangci-lint and markdownlint.
@@ -81,6 +81,12 @@ test: vet
 	@go test -race -covermode=atomic -coverprofile=coverage.txt $(pkgs) -run $(run) -count=$(count)
 .PHONY: test
 
+## test-e2e: Running e2e tests
+test-e2e: build
+	@echo "--> Running e2e tests"
+	@go test -mod=readonly -failfast -timeout=15m -tags='e2e' ./test/e2e/... --binary=$(CURDIR)/build/rollkit
+.PHONY: test-e2e
+
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:
 	@echo "--> Generating Protobuf files"
@@ -107,6 +113,14 @@ GITSHA := $(shell git rev-parse --short HEAD)
 LDFLAGS := \
 	-X github.com/rollkit/rollkit/cmd/rollkit/commands.Version=$(VERSION) \
 	-X github.com/rollkit/rollkit/cmd/rollkit/commands.GitSHA=$(GITSHA)
+
+## build: create rollkit CLI binary
+build:
+	@echo "--> Building Rollkit CLI"
+	@mkdir -p ./build
+	@go build -ldflags "$(LDFLAGS)" -o ./build ./cmd/rollkit
+	@echo "--> Rollkit CLI built!"
+.PHONY: build
 
 ## install: Install rollkit CLI
 install:
