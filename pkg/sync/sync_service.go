@@ -118,7 +118,7 @@ func (syncService *SyncService[H]) Store() *goheaderstore.Store[H] {
 
 func (syncService *SyncService[H]) initStoreAndStartSyncer(ctx context.Context, initial H) error {
 	if initial.IsZero() {
-		return fmt.Errorf("failed to initialize the store and start syncer")
+		return errors.New("failed to initialize the store and start syncer")
 	}
 	if err := syncService.store.Init(ctx, initial); err != nil {
 		return err
@@ -139,7 +139,7 @@ func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context,
 	// For genesis header/block initialize the store and start the syncer
 	if isGenesis {
 		if err := syncService.store.Init(ctx, headerOrData); err != nil {
-			return fmt.Errorf("failed to initialize the store")
+			return errors.New("failed to initialize the store")
 		}
 	}
 
@@ -246,16 +246,15 @@ func (syncService *SyncService[H]) prepareSyncer(ctx context.Context) error {
 		syncService.sub,
 		[]goheadersync.Option{goheadersync.WithBlockTime(syncService.conf.Node.BlockTime.Duration)},
 	); err != nil {
-		return nil
+		return err
 	}
 
 	if syncService.isInitialized() {
 		if err := syncService.StartSyncer(ctx); err != nil {
-			return nil
+			return err
 		}
-		return nil
 	}
-	return err
+	return nil
 }
 
 // setFirstAndStart looks up for the trusted hash or the genesis header/block.

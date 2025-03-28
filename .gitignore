@@ -8,3 +8,4 @@ types/pb/tendermint
 *.env
 .*env
 build
+.aider*

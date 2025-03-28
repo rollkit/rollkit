@@ -55,7 +55,7 @@ func (dac *DAClient) GasMultiplier(ctx context.Context) (float64, error) {
 // SubmitHeaders submits block headers to DA.
 func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) coreda.ResultSubmit {
 	var (
-		blobs    [][]byte
+		blobs    [][]byte = make([][]byte, 0, len(data))
 		blobSize uint64
 		message  string
 	)

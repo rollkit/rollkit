@@ -94,34 +94,6 @@ func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHead
 	return signedHeader, data, config.PrivKey
 }
 
-// GetRandomNextBlock returns a block with random data and height of +1 from the provided block
-func GetRandomNextBlock(header *SignedHeader, data *Data, privKey crypto.PrivKey, appHash header.Hash, nTxs int, chainID string) (*SignedHeader, *Data) {
-	nextData := getBlockDataWith(nTxs)
-	dataHash := nextData.Hash()
-
-	newSignedHeader := &SignedHeader{
-		Header: GetRandomNextHeader(header.Header, chainID),
-		Signer: header.Signer,
-	}
-	newSignedHeader.ProposerAddress = header.Header.ProposerAddress
-	newSignedHeader.LastResultsHash = nil
-	newSignedHeader.Header.DataHash = dataHash
-	newSignedHeader.AppHash = appHash
-
-	signature, err := GetSignature(newSignedHeader.Header, privKey)
-	if err != nil {
-		panic(err)
-	}
-	newSignedHeader.Signature = *signature
-	nextData.Metadata = &Metadata{
-		ChainID:      chainID,
-		Height:       newSignedHeader.Height(),
-		LastDataHash: nil,
-		Time:         uint64(newSignedHeader.Time().UnixNano()),
-	}
-	return newSignedHeader, nextData
-}
-
 // HeaderConfig carries all necessary state for header generation
 type HeaderConfig struct {
 	Height      uint64
