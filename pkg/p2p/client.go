@@ -64,7 +64,7 @@ type Client struct {
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-func NewClient(conf config.Config, chainID string, ds datastore.Datastore, logger log.Logger, metrics *Metrics) (*Client, error) {
+func NewClient(conf config.Config, chainID string, nodeKey *key.NodeKey, ds datastore.Datastore, logger log.Logger, metrics *Metrics) (*Client, error) {
 	if conf.RootDir == "" {
 		return nil, fmt.Errorf("rootDir is required")
 	}
@@ -78,10 +78,12 @@ func NewClient(conf config.Config, chainID string, ds datastore.Datastore, logge
 		return nil, fmt.Errorf("failed to create connection gater: %w", err)
 	}
 
-	nodeKeyFile := filepath.Join(conf.RootDir, "config", "node_key.json")
-	nodeKey, err := key.LoadOrGenNodeKey(nodeKeyFile)
-	if err != nil {
-		return nil, err
+	if nodeKey == nil {
+		nodeKeyFile := filepath.Join(conf.RootDir, "config", "node_key.json")
+		nodeKey, err = key.LoadOrGenNodeKey(nodeKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load or generate node key: %w", err)
+		}
 	}
 
 	return &Client{

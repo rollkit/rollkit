@@ -15,8 +15,6 @@ import (
 func TestDefaultNodeConfig(t *testing.T) {
 	// Test that default config has expected values
 	def := DefaultNodeConfig
-
-	assert.Equal(t, DefaultRootDir(), def.RootDir)
 	assert.Equal(t, "data", def.DBPath)
 	assert.Equal(t, true, def.Node.Aggregator)
 	assert.Equal(t, false, def.Node.Light)
@@ -148,16 +146,16 @@ config_dir: "config"
 
 	// Set some flags that should override YAML values
 	flagArgs := []string{
-		"--node.block_time", "10s",
-		"--da.address", "http://flag-da:26657",
-		"--node.light", "true", // This is not in YAML, should be set from flag
+		"--rollkit.node.block_time", "10s",
+		"--rollkit.da.address", "http://flag-da:26657",
+		"--rollkit.node.light", "true", // This is not in YAML, should be set from flag
 	}
 	cmd.SetArgs(flagArgs)
 	err = cmd.ParseFlags(flagArgs)
 	require.NoError(t, err)
 
 	// Load the configuration
-	config, err := LoadNodeConfig(cmd)
+	config, err := LoadNodeConfig(cmd, tempDir)
 	require.NoError(t, err)
 
 	// Verify the order of precedence:

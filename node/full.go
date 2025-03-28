@@ -69,26 +69,18 @@ func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,
 	signingKey crypto.PrivKey,
+	p2pClient *p2p.Client,
 	genesis genesispkg.Genesis,
+	database ds.Batching,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
-	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
+	seqMetrics, _ := metricsProvider(genesis.ChainID)
 
-	baseKV, err := initBaseKV(nodeConfig, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	p2pClient, err := p2p.NewClient(nodeConfig, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
-	if err != nil {
-		return nil, err
-	}
-
-	mainKV := newPrefixKV(baseKV, mainPrefix)
+	mainKV := newPrefixKV(database, mainPrefix)
 	headerSyncService, err := initHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err

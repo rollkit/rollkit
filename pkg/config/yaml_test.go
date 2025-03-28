@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -159,4 +160,46 @@ func TestYamlConfigOperations(t *testing.T) {
 			tc.validate(t, &cfg)
 		})
 	}
+}
+
+func TestCreateInitialConfig(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Test creating initial config with default values
+	err := CreateInitialConfig(tempDir)
+	require.NoError(t, err)
+
+	// Verify the config file exists
+	configPath := filepath.Join(tempDir, RollkitConfigYaml)
+	_, err = os.Stat(configPath)
+	require.NoError(t, err)
+
+	// Read the config back
+	cfg, err := ReadYaml(tempDir)
+	require.NoError(t, err)
+
+	// Verify root directory is set correctly
+	require.Equal(t, tempDir, cfg.RootDir)
+
+	// Test creating config with customizations
+	tempDir2 := t.TempDir()
+	err = CreateInitialConfig(tempDir2, func(cfg *Config) {
+		cfg.Node.Aggregator = true
+		cfg.Node.BlockTime.Duration = 5 * time.Second
+	})
+	require.NoError(t, err)
+
+	// Read the customized config
+	cfg, err = ReadYaml(tempDir2)
+	require.NoError(t, err)
+
+	// Verify customizations were applied
+	require.True(t, cfg.Node.Aggregator)
+	require.Equal(t, 5*time.Second, cfg.Node.BlockTime.Duration)
+
+	// Test error when config file already exists
+	err = CreateInitialConfig(tempDir)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "file already exists")
 }

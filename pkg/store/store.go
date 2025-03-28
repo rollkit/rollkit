@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strconv"
-	"sync/atomic"
 
 	ds "github.com/ipfs/go-datastore"
 	"google.golang.org/protobuf/proto"
@@ -21,12 +20,12 @@ var (
 	signaturePrefix = "c"
 	statePrefix     = "s"
 	metaPrefix      = "m"
+	heightPrefix    = "0"
 )
 
 // DefaultStore is a default store implmementation.
 type DefaultStore struct {
-	db     ds.Batching
-	height atomic.Uint64
+	db ds.Batching
 }
 
 var _ Store = &DefaultStore{}
@@ -44,21 +43,33 @@ func (s *DefaultStore) Close() error {
 }
 
 // SetHeight sets the height saved in the Store if it is higher than the existing height
-func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) {
-	for {
-		storeHeight := s.height.Load()
-		if height <= storeHeight {
-			break
-		}
-		if s.height.CompareAndSwap(storeHeight, height) {
-			break
-		}
+func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) error {
+	currentHeight := s.Height(ctx)
+	if height <= currentHeight {
+		return nil
 	}
+
+	heightBytes := encodeHeight(height)
+	return s.db.Put(ctx, ds.NewKey(getHeightKey()), heightBytes)
 }
 
 // Height returns height of the highest block saved in the Store.
-func (s *DefaultStore) Height() uint64 {
-	return s.height.Load()
+func (s *DefaultStore) Height(ctx context.Context) uint64 {
+	heightBytes, err := s.db.Get(ctx, ds.NewKey(getHeightKey()))
+	if err == ds.ErrNotFound {
+		return 0
+	}
+	if err != nil {
+		// Since we can't return an error due to interface constraints,
+		// we log by returning 0 when there's an error reading from disk
+		return 0
+	}
+
+	height, err := decodeHeight(heightBytes)
+	if err != nil {
+		return 0
+	}
+	return height
 }
 
 // SaveBlockData adds block header and data to the store along with corresponding signature.
@@ -240,6 +251,10 @@ func getMetaKey(key string) string {
 
 func getIndexKey(hash types.Hash) string {
 	return GenerateKey([]string{indexPrefix, hash.String()})
+}
+
+func getHeightKey() string {
+	return GenerateKey([]string{heightPrefix})
 }
 
 const heightLength = 8

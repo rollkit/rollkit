@@ -264,3 +264,57 @@ func EnsureRoot(rootDir string) error {
 
 	return nil
 }
+
+// CreateInitialConfig creates the initial config file with default values and optional customizations.
+// It will:
+// 1. Create the root directory if it doesn't exist
+// 2. Look for a main.go entrypoint in the current directory
+// 3. Look for a chain config directory
+// 4. Create a config file with default values and any found values
+// 5. Apply any customizations provided
+func CreateInitialConfig(rootDir string, opts ...func(*Config)) error {
+	// Ensure root directory exists
+	if err := os.MkdirAll(rootDir, DefaultDirPerm); err != nil {
+		return fmt.Errorf("error creating directory %s: %w", rootDir, err)
+	}
+
+	// Check if config file already exists
+	configPath := filepath.Join(rootDir, RollkitConfigYaml)
+	if _, err := os.Stat(configPath); err == nil {
+		return fmt.Errorf("%s file already exists in %s", RollkitConfigYaml, rootDir)
+	}
+
+	// Create config with default values
+	config := DefaultNodeConfig
+	config.RootDir = rootDir
+
+	// Try to find main.go entrypoint
+	dirName, entrypoint := FindEntrypoint()
+	if entrypoint != "" {
+		fmt.Printf("Found rollup entrypoint: %s\n", entrypoint)
+		config.Entrypoint = entrypoint
+	} else {
+		fmt.Println("Could not find a rollup main.go entrypoint. Please set the entrypoint manually in the config file.")
+	}
+
+	// Try to find chain config directory
+	if chainConfigDir, ok := FindConfigDir(dirName); ok {
+		fmt.Printf("Found rollup configuration under %s\n", chainConfigDir)
+		config.ConfigDir = chainConfigDir
+	} else {
+		fmt.Println("Could not find rollup config directory. Please set the config_dir manually in the config file.")
+	}
+
+	// Apply any customizations
+	for _, opt := range opts {
+		opt(&config)
+	}
+
+	// Write the config file
+	if err := WriteYamlConfig(config); err != nil {
+		return fmt.Errorf("error writing %s file: %w", RollkitConfigYaml, err)
+	}
+
+	fmt.Printf("Created %s file in %s\n", RollkitConfigYaml, rootDir)
+	return nil
+}
