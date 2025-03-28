@@ -17,7 +17,7 @@ import (
 	"github.com/rollkit/rollkit/da"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer"
-	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
+	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
 
 func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.KeyProvider) {

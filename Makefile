@@ -114,13 +114,6 @@ LDFLAGS := \
 	-X github.com/rollkit/rollkit/cmd/rollkit/commands.Version=$(VERSION) \
 	-X github.com/rollkit/rollkit/cmd/rollkit/commands.GitSHA=$(GITSHA)
 
-## build: create rollkit CLI binary
-build:
-	@echo "--> Building Rollkit CLI"
-	@mkdir -p ./build
-	@go build -ldflags "$(LDFLAGS)" -o ./build ./cmd/rollkit
-	@echo "--> Rollkit CLI built!"
-.PHONY: build
 
 ## install: Install rollkit CLI
 install:
