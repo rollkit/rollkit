@@ -140,8 +140,7 @@ func NewRunNodeCmd(
 	return cmd
 }
 
-// TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
-// note that such a change would also require changing the cosmos-sdk
+// initConfigFiles initializes the config and data directories
 func initConfigFiles() error {
 	// Create config and data directories using nodeConfig values
 	configDir := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir)
