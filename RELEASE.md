@@ -16,13 +16,13 @@
 
 #### CI and Release Actions Workflows
 
-![CI and Release](./assets/ci-release.png)
+The CI and Release workflow involves using GitHub Actions to automate the release process. This automated process runs tests, builds the project, and handles versioning and release creation. To use this method, navigate to the GitHub Actions tab in the repository, select the CI and Release workflow, and trigger it with appropriate parameters.
 
 #### Manual
 
-![Manual](./assets/manual.png)
+To manually create a release, navigate to the Releases section in the GitHub repository. Click on "Draft a new release", fill in the tag version, write a title and description for your release, and select the target branch. You can also attach binaries or other assets to the release.
 
-![Manual](./assets/manual-2.png)
+The manual release process also allows for creating release candidates and pre-releases by selecting the appropriate options in the release form. This gives you full control over the release process, allowing you to add detailed release notes and customize all aspects of the release.
 
 ## Update Rollkit/Cosmos-SDK
 

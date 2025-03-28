@@ -1,33 +1,23 @@
 package types
 
 import (
-	"fmt"
 	"time"
 
-	// TODO(tzdybal): copy to local project?
-
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
-	"github.com/cometbft/cometbft/types"
-	"github.com/cometbft/cometbft/version"
+	"github.com/rollkit/rollkit/pkg/genesis"
 )
 
 // InitStateVersion sets the Consensus.Block and Software versions,
 // but leaves the Consensus.App version blank.
 // The Consensus.App version will be set during the Handshake, once
 // we hear from the app what protocol version it is running.
-var InitStateVersion = cmstate.Version{
-	Consensus: cmversion.Consensus{
-		Block: version.BlockProtocol,
-		App:   0,
-	},
-	Software: version.TMCoreSemVer,
+var InitStateVersion = Version{
+	Block: 1,
+	App:   0,
 }
 
 // State contains information about current state of the blockchain.
 type State struct {
-	Version cmstate.Version
+	Version Version
 
 	// immutable
 	ChainID       string
@@ -35,89 +25,30 @@ type State struct {
 
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
 	LastBlockHeight uint64
-	LastBlockID     types.BlockID
 	LastBlockTime   time.Time
 
 	// DAHeight identifies DA block containing the latest applied Rollkit block.
 	DAHeight uint64
 
-	// Consensus parameters used for validating blocks.
-	// Changes returned by EndBlock and updated after Commit.
-	ConsensusParams                  cmproto.ConsensusParams
-	LastHeightConsensusParamsChanged uint64
-
 	// Merkle root of the results from executing prev block
 	LastResultsHash Hash
 
 	// the latest AppHash we've received from calling abci.Commit()
-	AppHash Hash
-
-	// In the MVP implementation, there will be only one Validator
-	Validators                  *types.ValidatorSet
-	NextValidators              *types.ValidatorSet
-	LastValidators              *types.ValidatorSet
-	LastHeightValidatorsChanged int64
+	AppHash []byte
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
-func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
-	err := genDoc.ValidateAndComplete()
-	if err != nil {
-		return State{}, fmt.Errorf("error in genesis doc: %w", err)
-	}
-
-	var validatorSet, nextValidatorSet *types.ValidatorSet
-	if genDoc.Validators == nil {
-		validatorSet = types.NewValidatorSet(nil)
-		nextValidatorSet = types.NewValidatorSet(nil)
-	} else {
-		validators := make([]*types.Validator, len(genDoc.Validators))
-		for i, val := range genDoc.Validators {
-			validators[i] = types.NewValidator(val.PubKey, val.Power)
-		}
-		validatorSet = types.NewValidatorSet(validators)
-		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
-	}
-
+func NewFromGenesisDoc(genDoc genesis.Genesis) (State, error) {
 	s := State{
 		Version:       InitStateVersion,
 		ChainID:       genDoc.ChainID,
-		InitialHeight: uint64(genDoc.InitialHeight),
+		InitialHeight: genDoc.InitialHeight,
 
 		DAHeight: 1,
 
-		LastBlockHeight: uint64(genDoc.InitialHeight) - 1,
-		LastBlockID:     types.BlockID{},
-		LastBlockTime:   genDoc.GenesisTime,
-
-		NextValidators:              nextValidatorSet,
-		Validators:                  validatorSet,
-		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: genDoc.InitialHeight,
-
-		ConsensusParams: cmproto.ConsensusParams{
-			Block: &cmproto.BlockParams{
-				MaxBytes: genDoc.ConsensusParams.Block.MaxBytes,
-				MaxGas:   genDoc.ConsensusParams.Block.MaxGas,
-			},
-			Evidence: &cmproto.EvidenceParams{
-				MaxAgeNumBlocks: genDoc.ConsensusParams.Evidence.MaxAgeNumBlocks,
-				MaxAgeDuration:  genDoc.ConsensusParams.Evidence.MaxAgeDuration,
-				MaxBytes:        genDoc.ConsensusParams.Evidence.MaxBytes,
-			},
-			Validator: &cmproto.ValidatorParams{
-				PubKeyTypes: genDoc.ConsensusParams.Validator.PubKeyTypes,
-			},
-			Version: &cmproto.VersionParams{
-				App: genDoc.ConsensusParams.Version.App,
-			},
-			Abci: &cmproto.ABCIParams{
-				VoteExtensionsEnableHeight: genDoc.ConsensusParams.ABCI.VoteExtensionsEnableHeight,
-			},
-		},
-		LastHeightConsensusParamsChanged: uint64(genDoc.InitialHeight),
+		LastBlockHeight: genDoc.InitialHeight - 1,
+		LastBlockTime:   genDoc.GenesisDAStartHeight,
 	}
-	s.AppHash = genDoc.AppHash.Bytes()
 
 	return s, nil
 }

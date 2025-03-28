@@ -3,56 +3,49 @@ package node
 import (
 	"context"
 
+	"cosmossdk.io/log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	"github.com/cometbft/cometbft/libs/log"
-	proxy "github.com/cometbft/cometbft/proxy"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	cmtypes "github.com/cometbft/cometbft/types"
-
-	"github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/service"
 )
 
 // Node is the interface for a rollup node
 type Node interface {
-	Start() error
-	GetClient() rpcclient.Client
-	Stop() error
-	IsRunning() bool
-	Cancel()
+	service.Service
 }
 
 // NewNode returns a new Full or Light Node based on the config
+// This is the entry point for composing a node, when compiling a node, you need to provide an executor
+// Example executors can be found: TODO: add link
 func NewNode(
 	ctx context.Context,
-	conf config.NodeConfig,
-	p2pKey crypto.PrivKey,
+	conf config.Config,
+	exec coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
+	dac coreda.Client,
 	signingKey crypto.PrivKey,
-	appClient proxy.ClientCreator,
-	genesis *cmtypes.GenesisDoc,
+	genesis genesis.Genesis,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
-	if !conf.Light {
-		return newFullNode(
-			ctx,
-			conf,
-			p2pKey,
-			signingKey,
-			appClient,
-			genesis,
-			metricsProvider,
-			logger,
-		)
-	} else {
-		return newLightNode(
-			ctx,
-			conf,
-			p2pKey,
-			appClient,
-			genesis,
-			metricsProvider,
-			logger,
-		)
+	if conf.Node.Light {
+		return newLightNode(conf, genesis, metricsProvider, logger)
 	}
+
+	return newFullNode(
+		ctx,
+		conf,
+		signingKey,
+		genesis,
+		exec,
+		sequencer,
+		dac,
+		metricsProvider,
+		logger,
+	)
 }

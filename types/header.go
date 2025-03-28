@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"time"
 
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmtypes "github.com/cometbft/cometbft/types"
-
 	"github.com/celestiaorg/go-header"
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	v1 "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // Hash is a 32-byte array which is used to represent a hash result.
@@ -123,27 +123,21 @@ func (h *Header) ValidateBasic() error {
 	return nil
 }
 
-// MakeCometBFTVote make a cometBFT consensus vote for the sequencer to commit
-// we have the sequencer signs cometBFT consensus vote for compatibility with cometBFT client
-func (h *Header) MakeCometBFTVote() []byte {
-	vote := cmtproto.Vote{
-		Type:   cmtproto.PrecommitType,
-		Height: int64(h.Height()),
-		Round:  0,
-		// Header hash = block hash in rollkit
-		BlockID: cmtproto.BlockID{
-			Hash:          cmbytes.HexBytes(h.Hash()),
-			PartSetHeader: cmtproto.PartSetHeader{},
-		},
-		Timestamp: h.Time(),
-		// proposerAddress = sequencer = validator
+// Vote returns a vote for the header.
+func (h *Header) Vote() ([]byte, error) {
+	v := &v1.Vote{
+		ChainId:          h.ChainID(),
+		Height:           h.Height(),
+		BlockIdHash:      h.Hash(),
 		ValidatorAddress: h.ProposerAddress,
-		ValidatorIndex:   0,
+		Timestamp:        timestamppb.New(h.Time()),
 	}
-	chainID := h.ChainID()
-	consensusVoteBytes := cmtypes.VoteSignBytes(chainID, &vote)
 
-	return consensusVoteBytes
+	bz, err := proto.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	return bz, nil
 }
 
 var _ header.Header[*Header] = &Header{}

@@ -4,19 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"time"
 
-	"github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/libs/service"
-	proxy "github.com/cometbft/cometbft/proxy"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	cmtypes "github.com/cometbft/cometbft/types"
+	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p/core/crypto"
 
-	"github.com/rollkit/rollkit/block"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/p2p"
-	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/p2p"
+	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
+	"github.com/rollkit/rollkit/pkg/service"
+	"github.com/rollkit/rollkit/pkg/store"
+	"github.com/rollkit/rollkit/pkg/sync"
 )
 
 var _ Node = &LightNode{}
@@ -27,100 +27,87 @@ type LightNode struct {
 
 	P2P *p2p.Client
 
-	proxyApp proxy.AppConns
-
-	hSyncService *block.HeaderSyncService
-
-	client rpcclient.Client
-
-	ctx    context.Context
-	cancel context.CancelFunc
-}
-
-// GetClient returns a new rpcclient for the light node
-func (ln *LightNode) GetClient() rpcclient.Client {
-	return ln.client
+	hSyncService *sync.HeaderSyncService
+	Store        store.Store
+	rpcServer    *http.Server
+	nodeConfig   config.Config
 }
 
 func newLightNode(
-	ctx context.Context,
-	conf config.NodeConfig,
-	p2pKey crypto.PrivKey,
-	clientCreator proxy.ClientCreator,
-	genesis *cmtypes.GenesisDoc,
+	conf config.Config,
+	genesis genesis.Genesis,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
-	// Create context with cancel so that all services using the context can
-	// catch the cancel signal when the node shutdowns
-	ctx, cancel := context.WithCancel(ctx)
-	defer func() {
-		// If there is an error, cancel the context
-		if err != nil {
-			cancel()
-		}
-	}()
 
-	_, p2pMetrics, _, _, abciMetrics := metricsProvider(genesis.ChainID)
-
-	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
-	proxyApp := proxy.NewAppConns(clientCreator, abciMetrics)
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error while starting proxy app connections: %w", err)
-	}
+	_, p2pMetrics := metricsProvider(genesis.ChainID)
 
 	datastore, err := openDatastore(conf, logger)
 	if err != nil {
 		return nil, err
 	}
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, datastore, logger.With("module", "p2p"), p2pMetrics)
+	client, err := p2p.NewClient(conf, genesis.ChainID, datastore, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
 
-	headerSyncService, err := block.NewHeaderSyncService(datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := sync.NewHeaderSyncService(datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
 
+	store := store.New(datastore)
+
 	node := &LightNode{
 		P2P:          client,
-		proxyApp:     proxyApp,
 		hSyncService: headerSyncService,
-		cancel:       cancel,
-		ctx:          ctx,
+		Store:        store,
+		nodeConfig:   conf,
 	}
 
-	node.P2P.SetTxValidator(node.falseValidator())
-
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
-
-	node.client = NewLightClient(node)
 
 	return node, nil
 }
 
-func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
-	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
+func openDatastore(conf config.Config, logger log.Logger) (ds.Batching, error) {
+	if conf.RootDir == "" && conf.DBPath == "" {
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
 	}
 	return store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit-light")
 }
 
-// Cancel calls the underlying context's cancel function.
-func (n *LightNode) Cancel() {
-	n.cancel()
-}
-
 // OnStart starts the P2P and HeaderSync services
-func (ln *LightNode) OnStart() error {
-	if err := ln.P2P.Start(ln.ctx); err != nil {
+func (ln *LightNode) OnStart(ctx context.Context) error {
+	// Start RPC server
+	rpcAddr := fmt.Sprintf("%s:%d", ln.nodeConfig.RPC.Address, ln.nodeConfig.RPC.Port)
+	handler, err := rpcserver.NewStoreServiceHandler(ln.Store)
+	if err != nil {
+		return fmt.Errorf("error creating RPC handler: %w", err)
+	}
+
+	ln.rpcServer = &http.Server{
+		Addr:         rpcAddr,
+		Handler:      handler,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	go func() {
+		if err := ln.rpcServer.ListenAndServe(); err != http.ErrServerClosed {
+			ln.Logger.Error("RPC server error", "err", err)
+		}
+	}()
+
+	ln.Logger.Info("Started RPC server", "addr", rpcAddr)
+
+	if err := ln.P2P.Start(ctx); err != nil {
 		return err
 	}
 
-	if err := ln.hSyncService.Start(ln.ctx); err != nil {
+	if err := ln.hSyncService.Start(ctx); err != nil {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
@@ -128,17 +115,20 @@ func (ln *LightNode) OnStart() error {
 }
 
 // OnStop stops the light node
-func (ln *LightNode) OnStop() {
+func (ln *LightNode) OnStop(ctx context.Context) {
 	ln.Logger.Info("halting light node...")
-	ln.cancel()
-	err := ln.P2P.Close()
-	err = errors.Join(err, ln.hSyncService.Stop(ln.ctx))
-	ln.Logger.Error("errors while stopping node:", "errors", err)
-}
 
-// Dummy validator that always returns a callback function with boolean `false`
-func (ln *LightNode) falseValidator() p2p.GossipValidator {
-	return func(*p2p.GossipMessage) bool {
-		return false
+	// Use a timeout context to ensure shutdown doesn't hang
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := ln.P2P.Close()
+	err = errors.Join(err, ln.hSyncService.Stop(shutdownCtx))
+
+	if ln.rpcServer != nil {
+		err = errors.Join(err, ln.rpcServer.Shutdown(shutdownCtx))
 	}
+
+	err = errors.Join(err, ln.Store.Close())
+	ln.Logger.Error("errors while stopping node:", "errors", err)
 }

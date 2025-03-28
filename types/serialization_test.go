@@ -5,16 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
-	cmtypes "github.com/cometbft/cometbft/types"
-
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 func TestBlockSerializationRoundTrip(t *testing.T) {
@@ -50,8 +46,10 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		ProposerAddress: []byte{4, 3, 2, 1},
 	}
 
-	pubKey1 := ed25519.GenPrivKey().PubKey()
-	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1, VotingPower: 1}
+	pubKey1, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	require.NoError(err)
+	signer1, err := NewSigner(pubKey1.GetPublic())
+	require.NoError(err)
 
 	cases := []struct {
 		name   string
@@ -62,17 +60,10 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		{"full", &SignedHeader{
 			Header:    h1,
 			Signature: Signature([]byte{1, 1, 1}),
-			Validators: cmtypes.NewValidatorSet(
-				[]*cmtypes.Validator{
-					validator1,
-				}),
+			Signer:    signer1,
 		}, &Data{
 			Metadata: &Metadata{},
 			Txs:      nil,
-			//IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},
-			// TODO(tzdybal): update when we have actual evidence types
-			// Note: Temporarily remove Evidence #896
-			// Evidence: EvidenceData{Evidence: nil},
 		},
 		},
 	}
@@ -102,7 +93,6 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 func TestStateRoundTrip(t *testing.T) {
 	t.Parallel()
-	valSet := GetRandomValidatorSet()
 
 	cases := []struct {
 		name  string
@@ -110,63 +100,22 @@ func TestStateRoundTrip(t *testing.T) {
 	}{
 		{
 			"with max bytes",
-			State{
-				LastValidators: valSet,
-				Validators:     valSet,
-				NextValidators: valSet,
-				ConsensusParams: cmproto.ConsensusParams{
-					Block: &cmproto.BlockParams{
-						MaxBytes: 123,
-						MaxGas:   456,
-					},
-				},
-			},
+			State{},
 		},
 		{
 			name: "with all fields set",
 			state: State{
-				LastValidators: valSet,
-				Validators:     valSet,
-				NextValidators: valSet,
-				Version: cmstate.Version{
-					Consensus: cmversion.Consensus{
-						Block: 123,
-						App:   456,
-					},
-					Software: "rollkit",
+				Version: Version{
+					Block: 123,
+					App:   456,
 				},
 				ChainID:         "testchain",
 				InitialHeight:   987,
 				LastBlockHeight: 987654321,
-				LastBlockID: cmtypes.BlockID{
-					Hash: nil,
-					PartSetHeader: cmtypes.PartSetHeader{
-						Total: 0,
-						Hash:  nil,
-					},
-				},
-				LastBlockTime: time.Date(2022, 6, 6, 12, 12, 33, 44, time.UTC),
-				DAHeight:      3344,
-				ConsensusParams: cmproto.ConsensusParams{
-					Block: &cmproto.BlockParams{
-						MaxBytes: 12345,
-						MaxGas:   6543234,
-					},
-					Evidence: &cmproto.EvidenceParams{
-						MaxAgeNumBlocks: 100,
-						MaxAgeDuration:  200,
-						MaxBytes:        300,
-					},
-					Validator: &cmproto.ValidatorParams{
-						PubKeyTypes: []string{"secure", "more secure"},
-					},
-					Version: &cmproto.VersionParams{
-						App: 42,
-					},
-				},
-				LastHeightConsensusParamsChanged: 12345,
-				LastResultsHash:                  Hash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2},
-				AppHash:                          Hash{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
+				LastBlockTime:   time.Date(2022, 6, 6, 12, 12, 33, 44, time.UTC),
+				DAHeight:        3344,
+				LastResultsHash: Hash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2},
+				AppHash:         Hash{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
 			},
 		},
 	}
@@ -179,13 +128,13 @@ func TestStateRoundTrip(t *testing.T) {
 			require.NoError(err)
 			require.NotNil(pState)
 
-			bytes, err := pState.Marshal()
+			bytes, err := proto.Marshal(pState)
 			require.NoError(err)
 			require.NotEmpty(bytes)
 
 			var newProtoState pb.State
 			var newState State
-			err = newProtoState.Unmarshal(bytes)
+			err = proto.Unmarshal(bytes, &newProtoState)
 			require.NoError(err)
 
 			err = newState.FromProto(&newProtoState)
@@ -218,29 +167,4 @@ func TestTxsRoundtrip(t *testing.T) {
 	for i := range txs {
 		assert.Equal(t, txs[i], newTxs[i])
 	}
-}
-
-func TestConsensusParamsFromProto(t *testing.T) {
-	// Prepare test case
-	pbParams := cmproto.ConsensusParams{
-		Block: &cmproto.BlockParams{
-			MaxBytes: 12345,
-			MaxGas:   67890,
-		},
-		Validator: &cmproto.ValidatorParams{
-			PubKeyTypes: []string{cmtypes.ABCIPubKeyTypeEd25519},
-		},
-		Version: &cmproto.VersionParams{
-			App: 42,
-		},
-	}
-
-	// Call the function to be tested
-	params := ConsensusParamsFromProto(pbParams)
-
-	// Check the results
-	assert.Equal(t, int64(12345), params.Block.MaxBytes)
-	assert.Equal(t, int64(67890), params.Block.MaxGas)
-	assert.Equal(t, uint64(42), params.Version.App)
-	assert.Equal(t, []string{cmtypes.ABCIPubKeyTypeEd25519}, params.Validator.PubKeyTypes)
 }

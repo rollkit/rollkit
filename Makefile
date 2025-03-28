@@ -19,11 +19,11 @@ help: Makefile
 	@sed -n 's/^##//p' $< | column -t -s ':' | sort | sed -e 's/^/ /'
 .PHONY: help
 
-## clean: clean testcache
-clean:
+## clean-testcache: clean testcache
+clean-testcache:
 	@echo "--> Clearing testcache"
 	@go clean --testcache
-.PHONY: clean
+.PHONY: clean-testcache
 
 ## cover: generate to code coverage report.
 cover:
@@ -36,16 +36,20 @@ cover:
 deps:
 	@echo "--> Installing dependencies"
 	@go mod download
-	@make proto-gen
 	@go mod tidy
+	@go run scripts/go-mod-tidy-all.go
 .PHONY: deps
+
+tidy-all:
+	@go run scripts/go-mod-tidy-all.go
+.PHONY: tidy-all
 
 ## lint: Run linters golangci-lint and markdownlint.
 lint: vet
 	@echo "--> Running golangci-lint"
 	@golangci-lint run
 	@echo "--> Running markdownlint"
-	@markdownlint --config .markdownlint.yaml --ignore './cmd/rollkit/docs/*.md' '**/*.md'
+	@markdownlint --config .markdownlint.yaml --ignore './specs/src/specs/**.md' --ignore './cmd/rollkit/docs/*.md' '**/*.md'
 	@echo "--> Running hadolint"
 	@hadolint test/docker/mockserv.Dockerfile
 	@echo "--> Running yamllint"
@@ -58,11 +62,11 @@ lint: vet
 .PHONY: lint
 
 ## fmt: Run fixes for linters.
-fmt:
-	@echo "--> Formatting markdownlint"
-	@markdownlint --config .markdownlint.yaml --ignore './cmd/rollkit/docs/*.md' '**/*.md' -f
+lint-fix:
 	@echo "--> Formatting go"
 	@golangci-lint run --fix
+	@echo "--> Formatting markdownlint"
+	@markdownlint --config .markdownlint.yaml --ignore './specs/src/specs/**.md' --ignore './cmd/rollkit/docs/*.md' '**/*.md' -f
 .PHONY: fmt
 
 ## vet: Run go vet
@@ -74,7 +78,7 @@ vet:
 ## test: Running unit tests
 test: vet
 	@echo "--> Running unit tests"
-	@go test -v -race -covermode=atomic -coverprofile=coverage.txt $(pkgs) -run $(run) -count=$(count)
+	@go test -race -covermode=atomic -coverprofile=coverage.txt $(pkgs) -run $(run) -count=$(count)
 .PHONY: test
 
 ## test-e2e: Running e2e tests
@@ -86,16 +90,14 @@ test-e2e: build
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:
 	@echo "--> Generating Protobuf files"
-	./proto/get_deps.sh
-	./proto/gen.sh
+	buf generate --path="./proto/rollkit" --template="buf.gen.yaml" --config="buf.yaml"
 .PHONY: proto-gen
 
 ## mock-gen: generate mocks of external (commetbft) types
 mock-gen:
 	@echo "-> Generating mocks"
-	mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/rpc/client --name Client
-	mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/abci/types --name Application
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/store --name Store
+	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/store --name Store
+	mockery --output da/mocks --srcpkg github.com/rollkit/rollkit/core/da --name DA
 .PHONY: mock-gen
 
 
@@ -112,22 +114,32 @@ LDFLAGS := \
 	-X github.com/rollkit/rollkit/cmd/rollkit/commands.Version=$(VERSION) \
 	-X github.com/rollkit/rollkit/cmd/rollkit/commands.GitSHA=$(GITSHA)
 
-## build: create rollkit CLI binary
-build:
-	@echo "--> Building Rollkit CLI"
-	@mkdir -p ./build
-	@go build -ldflags "$(LDFLAGS)" -o ./build ./cmd/rollkit
-	@echo "--> Rollkit CLI built!"
-.PHONY: build
 
 ## install: Install rollkit CLI
 install:
-	@echo "--> Installing Rollkit CLI"
-	@go install -ldflags "$(LDFLAGS)" ./cmd/rollkit
-	@echo "--> Rollkit CLI Installed!"
-	@echo "    Check the version with: rollkit version"
-	@echo "    Check the binary with: which rollkit"
+	@echo "--> Installing Testapp CLI"
+	@go install -ldflags "$(LDFLAGS)" ./rollups/testapp
+	@echo "--> Testapp CLI Installed!"
+	@echo "    Check the version with: testapp version"
+	@echo "    Check the binary with: which testapp"
 .PHONY: install
+
+## build: build rollkit CLI
+build:
+	@echo "--> Building Testapp CLI"
+	@mkdir -p $(CURDIR)/build
+	@go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp ./rollups/testapp
+	@echo "--> Testapp CLI Built!"
+	@echo "    Check the version with: rollups/testapp version"
+	@echo "    Check the binary with: $(CURDIR)/rollups/testapp"
+.PHONY: build
+
+## clean: clean and build
+clean: 
+	@echo "--> Cleaning Testapp CLI"
+	@rm -rf $(CURDIR)/build/testapp
+	@echo "--> Testapp CLI Cleaned!"
+.PHONY: clean
 
 ## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 prebuilt-binary:

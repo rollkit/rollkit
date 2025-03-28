@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 
-	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/third_party/log"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -30,8 +30,8 @@ const LastSubmittedHeightKey = "last submitted"
 // rollkit is able to skip duplicate headers so this shouldn't affect full nodes.
 // TODO(tzdybal): we shouldn't try to push all pending headers at once; this should depend on max blob size
 type PendingHeaders struct {
-	store  store.Store
 	logger log.Logger
+	store  store.Store
 
 	// lastSubmittedHeight holds information about last header successfully submitted to DA
 	lastSubmittedHeight atomic.Uint64
@@ -47,6 +47,16 @@ func NewPendingHeaders(store store.Store, logger log.Logger) (*PendingHeaders, e
 		return nil, err
 	}
 	return pb, nil
+}
+
+// GetPendingHeaders returns a sorted slice of pending headers.
+func (pb *PendingHeaders) GetPendingHeaders() ([]*types.SignedHeader, error) {
+	return pb.getPendingHeaders(context.Background())
+}
+
+// GetLastSubmittedHeight returns the height of the last successfully submitted header.
+func (pb *PendingHeaders) GetLastSubmittedHeight() uint64 {
+	return pb.lastSubmittedHeight.Load()
 }
 
 // getPendingHeaders returns a sorted slice of pending headers

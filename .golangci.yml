@@ -7,7 +7,7 @@ linters:
     - errorlint
     - errcheck
     - gofmt
-    - goimports
+    - gci
     - gosec
     - gosimple
     - govet
@@ -18,18 +18,6 @@ linters:
     - typecheck
     - unconvert
     - unused
-
-issues:
-  exclude-use-default: false
-  # mempool and indexer code is borrowed from Tendermint
-  exclude-dirs:
-    - mempool
-    - state/indexer
-    - state/txindex
-    - third_party
-  include:
-    - EXC0012 # EXC0012 revive: Annoying issue about not having a comment. The rare codebase has such comments
-    - EXC0014 # EXC0014 revive: Annoying issue about not having a comment. The rare codebase has such comments
 
 linters-settings:
   gosec:
@@ -44,6 +32,10 @@ linters-settings:
       - name: exported
         arguments:
           - disableStutteringCheck
-
-  goimports:
-    local-prefixes: github.com/rollkit
+  gci:
+    custom-order: true
+    sections:
+      - standard # Standard section: captures all standard packages.
+      - default # Default section: contains all imports that could not be matched to another section type.
+      - prefix(github.com/rollkit)
+      - prefix(github.com/rollkit/rollkit)
