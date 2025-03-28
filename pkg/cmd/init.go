@@ -40,7 +40,7 @@ var InitCmd = &cobra.Command{
 		config.RootDir = homePath
 
 		// Make sure the home directory exists
-		if err := os.MkdirAll(homePath, rollconf.DefaultDirPerm); err != nil {
+		if err := os.MkdirAll(homePath, 0750); err != nil {
 			return fmt.Errorf("error creating directory %s: %w", homePath, err)
 		}
 

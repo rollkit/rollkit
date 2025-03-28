@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -74,7 +75,7 @@ func getNodeHeightFromBlock(node Node) (uint64, error) {
 
 func getNodeHeightFromStore(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
-		return fn.blockManager.GetStoreHeight(), nil
+		return fn.blockManager.GetStoreHeight(context.Background()), nil
 	}
 	return 0, errors.New("not a full node")
 }

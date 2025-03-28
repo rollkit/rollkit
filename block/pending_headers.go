@@ -63,7 +63,7 @@ func (pb *PendingHeaders) GetLastSubmittedHeight() uint64 {
 // that need to be published to DA layer in order of header height
 func (pb *PendingHeaders) getPendingHeaders(ctx context.Context) ([]*types.SignedHeader, error) {
 	lastSubmitted := pb.lastSubmittedHeight.Load()
-	height := pb.store.Height()
+	height := pb.store.Height(ctx)
 
 	if lastSubmitted == height {
 		return nil, nil
@@ -86,11 +86,11 @@ func (pb *PendingHeaders) getPendingHeaders(ctx context.Context) ([]*types.Signe
 }
 
 func (pb *PendingHeaders) isEmpty() bool {
-	return pb.store.Height() == pb.lastSubmittedHeight.Load()
+	return pb.store.Height(context.Background()) == pb.lastSubmittedHeight.Load()
 }
 
 func (pb *PendingHeaders) numPendingHeaders() uint64 {
-	return pb.store.Height() - pb.lastSubmittedHeight.Load()
+	return pb.store.Height(context.Background()) - pb.lastSubmittedHeight.Load()
 }
 
 func (pb *PendingHeaders) setLastSubmittedHeight(ctx context.Context, newLastSubmittedHeight uint64) {

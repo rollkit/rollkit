@@ -9,9 +9,6 @@ import (
 	"cosmossdk.io/log"
 	"github.com/stretchr/testify/require"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/types"
 )
@@ -45,10 +42,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	// Generate genesis and keys
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
 
-	dummyExec := coreexecutor.NewDummyExecutor()
-	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+	executor, sequencer, dac, p2pClient, ds := createTestComponents(t)
 
 	err := InitFiles(config.RootDir)
 	require.NoError(t, err)
@@ -56,11 +50,13 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	node, err := NewNode(
 		ctx,
 		config,
-		dummyExec,
-		dummySequencer,
-		dummyClient,
+		executor,
+		sequencer,
+		dac,
 		genesisValidatorKey,
+		p2pClient,
 		genesis,
+		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
 	)

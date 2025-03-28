@@ -241,7 +241,10 @@ func NewManager(
 		return nil, err
 	}
 	//set block height in store
-	store.SetHeight(ctx, s.LastBlockHeight)
+	err = store.SetHeight(ctx, s.LastBlockHeight)
+	if err != nil {
+		return nil, err
+	}
 
 	if s.DAHeight < config.DA.StartHeight {
 		s.DAHeight = config.DA.StartHeight
@@ -407,8 +410,8 @@ func (m *Manager) SetLastState(state types.State) {
 }
 
 // GetStoreHeight returns the manager's store height
-func (m *Manager) GetStoreHeight() uint64 {
-	return m.store.Height()
+func (m *Manager) GetStoreHeight(ctx context.Context) uint64 {
+	return m.store.Height(ctx)
 }
 
 // GetHeaderInCh returns the manager's blockInCh
@@ -522,7 +525,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
 	initialHeight := m.genesis.InitialHeight //nolint:gosec
-	height := m.store.Height()
+	height := m.store.Height(ctx)
 	var delay time.Duration
 
 	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
@@ -687,7 +690,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", headerHash,
 			)
-			if headerHeight <= m.store.Height() || m.headerCache.IsSeen(headerHash) {
+			if headerHeight <= m.store.Height(ctx) || m.headerCache.IsSeen(headerHash) {
 				m.logger.Debug("header already seen", "height", headerHeight, "block hash", headerHash)
 				continue
 			}
@@ -717,7 +720,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", dataHash,
 			)
-			if dataHeight <= m.store.Height() || m.dataCache.IsSeen(dataHash) {
+			if dataHeight <= m.store.Height(ctx) || m.dataCache.IsSeen(dataHash) {
 				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue
 			}
@@ -771,7 +774,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return ctx.Err()
 		default:
 		}
-		currentHeight := m.store.Height()
+		currentHeight := m.store.Height(ctx)
 		h := m.headerCache.GetItem(currentHeight + 1)
 		if h == nil {
 			m.logger.Debug("header not found in cache", "height", currentHeight+1)
@@ -807,7 +810,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 
 		// Height gets updated
-		m.store.SetHeight(ctx, hHeight)
+		err = m.store.SetHeight(ctx, hHeight)
+		if err != nil {
+			return err
+		}
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
@@ -1101,7 +1107,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastHeaderTime time.Time
 		err            error
 	)
-	height := m.store.Height()
+	height := m.store.Height(ctx)
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight <= m.genesis.InitialHeight {
@@ -1256,7 +1262,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	newState.AppHash = appHash
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
-	m.store.SetHeight(ctx, headerHeight)
+	err = m.store.SetHeight(ctx, headerHeight)
+	if err != nil {
+		return err
+	}
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock

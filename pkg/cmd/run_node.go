@@ -13,6 +13,7 @@ import (
 
 	"cosmossdk.io/log"
 	cometprivval "github.com/cometbft/cometbft/privval"
+	"github.com/ipfs/go-datastore"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
@@ -23,6 +24,7 @@ import (
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	rollos "github.com/rollkit/rollkit/pkg/os"
+	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/signer"
 )
 
@@ -34,11 +36,11 @@ var (
 	logger = log.NewLogger(os.Stdout)
 )
 
-func parseConfig(cmd *cobra.Command) error {
+func parseConfig(cmd *cobra.Command, home string) error {
 	// Load configuration with the correct order of precedence:
 	// DefaultNodeConfig -> Yaml -> Flags
 	var err error
-	nodeConfig, err = rollconf.LoadNodeConfig(cmd)
+	nodeConfig, err = rollconf.LoadNodeConfig(cmd, home)
 	if err != nil {
 		return fmt.Errorf("failed to load node config: %w", err)
 	}
@@ -101,6 +103,8 @@ func NewRunNodeCmd(
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
 	keyProvider signer.KeyProvider,
+	p2pClient *p2p.Client,
+	datastore datastore.Batching,
 ) *cobra.Command {
 	if executor == nil {
 		panic("executor cannot be nil")
@@ -121,7 +125,7 @@ func NewRunNodeCmd(
 		Short:   "Run the rollkit node",
 		// PersistentPreRunE is used to parse the config and initial the config files
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := parseConfig(cmd); err != nil {
+			if err := parseConfig(cmd, cmd.Flag(rollconf.FlagRootDir).Value.String()); err != nil {
 				return err
 			}
 
@@ -130,7 +134,7 @@ func NewRunNodeCmd(
 			return initConfigFiles()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return startNode(cmd, executor, sequencer, dac, keyProvider)
+			return startNode(cmd, executor, sequencer, dac, keyProvider, p2pClient, datastore)
 		},
 	}
 
@@ -146,11 +150,11 @@ func initConfigFiles() error {
 	configDir := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir)
 	dataDir := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath)
 
-	if err := os.MkdirAll(configDir, rollconf.DefaultDirPerm); err != nil {
+	if err := os.MkdirAll(configDir, 0750); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	if err := os.MkdirAll(dataDir, rollconf.DefaultDirPerm); err != nil {
+	if err := os.MkdirAll(dataDir, 0750); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
 
@@ -198,11 +202,19 @@ func initConfigFiles() error {
 }
 
 // startNode handles the node startup logic
-func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer coresequencer.Sequencer, dac coreda.Client, keyProvider signer.KeyProvider) error {
+func startNode(
+	cmd *cobra.Command,
+	executor coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
+	dac coreda.Client,
+	keyProvider signer.KeyProvider,
+	p2pClient *p2p.Client,
+	datastore datastore.Batching,
+) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
-	if err := parseConfig(cmd); err != nil {
+	if err := parseConfig(cmd, cmd.Flag(rollconf.FlagRootDir).Value.String()); err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)
 	}
 
@@ -231,7 +243,9 @@ func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer cor
 		sequencer,
 		dac,
 		signingKey,
+		p2pClient,
 		genesis,
+		datastore,
 		metrics,
 		logger,
 	)

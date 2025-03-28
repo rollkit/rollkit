@@ -252,7 +252,8 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 			err = m.store.SaveBlockData(ctx, header, data, &types.Signature{})
 			require.NoError(t, err)
-			m.store.SetHeight(ctx, 1)
+			err = m.store.SetHeight(ctx, 1)
+			require.NoError(t, err)
 
 			blobs = append(blobs, blob)
 			// Set up the mock to

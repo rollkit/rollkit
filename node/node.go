@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"cosmossdk.io/log"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	coreda "github.com/rollkit/rollkit/core/da"
@@ -11,6 +12,7 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
 )
 
@@ -29,19 +31,23 @@ func NewNode(
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
 	signingKey crypto.PrivKey,
+	p2pClient *p2p.Client,
 	genesis genesis.Genesis,
+	database ds.Batching,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
 	if conf.Node.Light {
-		return newLightNode(conf, genesis, metricsProvider, logger)
+		return newLightNode(conf, genesis, p2pClient, database, logger)
 	}
 
 	return newFullNode(
 		ctx,
 		conf,
 		signingKey,
+		p2pClient,
 		genesis,
+		database,
 		exec,
 		sequencer,
 		dac,

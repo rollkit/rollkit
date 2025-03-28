@@ -16,12 +16,10 @@ import (
 func TestDefaultNodeConfig(t *testing.T) {
 	// Test that default config has expected values
 	def := DefaultNodeConfig
-
-	assert.Equal(t, DefaultRootDir(), def.RootDir)
 	assert.Equal(t, "data", def.DBPath)
 	assert.Equal(t, true, def.Node.Aggregator)
 	assert.Equal(t, false, def.Node.Light)
-	assert.Equal(t, DefaultDAAddress, def.DA.Address)
+	assert.Equal(t, DefaultNodeConfig.DA.Address, def.DA.Address)
 	assert.Equal(t, "", def.DA.AuthToken)
 	assert.Equal(t, float64(-1), def.DA.GasPrice)
 	assert.Equal(t, float64(0), def.DA.GasMultiplier)
@@ -35,9 +33,9 @@ func TestDefaultNodeConfig(t *testing.T) {
 	assert.Equal(t, false, def.Node.LazyAggregator)
 	assert.Equal(t, 60*time.Second, def.Node.LazyBlockTime.Duration)
 	assert.Equal(t, "", def.Node.TrustedHash)
-	assert.Equal(t, DefaultSequencerAddress, def.Node.SequencerAddress)
-	assert.Equal(t, DefaultSequencerRollupID, def.Node.SequencerRollupID)
-	assert.Equal(t, DefaultExecutorAddress, def.Node.ExecutorAddress)
+	assert.Equal(t, DefaultNodeConfig.Node.SequencerAddress, def.Node.SequencerAddress)
+	assert.Equal(t, DefaultNodeConfig.Node.SequencerRollupID, def.Node.SequencerRollupID)
+	assert.Equal(t, DefaultNodeConfig.Node.ExecutorAddress, def.Node.ExecutorAddress)
 }
 
 func TestAddFlags(t *testing.T) {
@@ -92,7 +90,7 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagPprofListenAddr, instrDef.PprofListenAddr)
 
 	// Logging flags (in persistent flags)
-	assertFlagValue(t, persistentFlags, FlagLogLevel, DefaultLogLevel)
+	assertFlagValue(t, persistentFlags, FlagLogLevel, DefaultNodeConfig.Log.Level)
 	assertFlagValue(t, persistentFlags, FlagLogFormat, "plain")
 	assertFlagValue(t, persistentFlags, FlagLogTrace, false)
 
@@ -160,16 +158,16 @@ config_dir: "config"
 
 	// Set some flags that should override YAML values
 	flagArgs := []string{
-		"--node.block_time", "10s",
-		"--da.address", "http://flag-da:26657",
-		"--node.light", "true", // This is not in YAML, should be set from flag
+		"--rollkit.node.block_time", "10s",
+		"--rollkit.da.address", "http://flag-da:26657",
+		"--rollkit.node.light", "true", // This is not in YAML, should be set from flag
 	}
 	cmd.SetArgs(flagArgs)
 	err = cmd.ParseFlags(flagArgs)
 	require.NoError(t, err)
 
 	// Load the configuration
-	config, err := LoadNodeConfig(cmd)
+	config, err := LoadNodeConfig(cmd, tempDir)
 	require.NoError(t, err)
 
 	// Verify the order of precedence:

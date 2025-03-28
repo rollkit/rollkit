@@ -11,7 +11,11 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer"
+	"github.com/rollkit/rollkit/pkg/store"
 	commands "github.com/rollkit/rollkit/rollups/testapp/commands"
 	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
@@ -34,11 +38,30 @@ func main() {
 
 	// Create key provider
 	keyProvider := signer.NewFileKeyProvider("", "config", "data")
+	signingKey, err := keyProvider.GetSigningKey()
+	if err != nil {
+		panic(err)
+	}
+
+	nodeKey := &key.NodeKey{
+		PrivKey: signingKey,
+		PubKey:  signingKey.GetPublic(),
+	}
+
+	datastore, err := store.NewDefaultInMemoryKVStore()
+	if err != nil {
+		panic(err)
+	}
+
+	p2pClient, err := p2p.NewClient(config.DefaultNodeConfig, "testapp", nodeKey, datastore, logger, nil)
+	if err != nil {
+		panic(err)
+	}
 
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
 		rollcmd.NewDocsGenCmd(rootCmd, commands.AppName),
-		rollcmd.NewRunNodeCmd(executor, sequencer, dac, keyProvider),
+		rollcmd.NewRunNodeCmd(executor, sequencer, dac, keyProvider, p2pClient, datastore),
 		rollcmd.VersionCmd,
 		rollcmd.InitCmd,
 	)
