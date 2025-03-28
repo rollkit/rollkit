@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -79,11 +78,7 @@ func NewClient(conf config.Config, chainID string, nodeKey *key.NodeKey, ds data
 	}
 
 	if nodeKey == nil {
-		nodeKeyFile := filepath.Join(conf.RootDir, "config", "node_key.json")
-		nodeKey, err = key.LoadOrGenNodeKey(nodeKeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load or generate node key: %w", err)
-		}
+		return nil, fmt.Errorf("node key is required")
 	}
 
 	return &Client{

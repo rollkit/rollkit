@@ -15,7 +15,6 @@ import (
 
 	"cosmossdk.io/log"
 	cometprivval "github.com/cometbft/cometbft/privval"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,6 +23,7 @@ import (
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 
+	ds "github.com/ipfs/go-datastore"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
@@ -31,6 +31,9 @@ import (
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	rollos "github.com/rollkit/rollkit/pkg/os"
+	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	"github.com/rollkit/rollkit/pkg/store"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
 
@@ -52,7 +55,7 @@ func NewRunNodeCmd() *cobra.Command {
 		Short:   "Run the rollkit node",
 		// PersistentPreRunE is used to parse the config and initial the config files
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			err := parseConfig(cmd)
+			err := parseConfig(cmd, cmd.Flags().Lookup("home").Value.String())
 			if err != nil {
 				return err
 			}
@@ -66,14 +69,10 @@ func NewRunNodeCmd() *cobra.Command {
 
 			kvExecutor := createDirectKVExecutor(ctx)
 
-			// TODO: this should be moved elsewhere
-			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
-			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath, "priv_validator_state.json")
-			pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
-
-			signingKey, err := crypto.UnmarshalEd25519PrivateKey(pval.Key.PrivKey.Bytes())
+			nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
+			nodeKey, err := key.LoadOrGenNodeKey(nodeKeyFile)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to load or generate node key: %w", err)
 			}
 
 			// initialize the metrics
@@ -109,6 +108,28 @@ func NewRunNodeCmd() *cobra.Command {
 
 			dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.DA.SubmitOptions), logger)
+
+			_, p2pMetrics := metrics(genesis.ChainID)
+
+			var baseKV ds.Batching
+			if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" {
+				logger.Info("WARNING: working in in-memory mode")
+				baseKV, err = store.NewDefaultInMemoryKVStore()
+				if err != nil {
+					return fmt.Errorf("failed to create in-memory KV store: %w", err)
+				}
+			} else {
+				baseKV, err = store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
+				if err != nil {
+					return fmt.Errorf("failed to create KV store: %w", err)
+				}
+			}
+
+			p2pClient, err := p2p.NewClient(nodeConfig, genesis.ChainID, nodeKey, baseKV, logger.With("module", "p2p"), p2pMetrics)
+			if err != nil {
+				return fmt.Errorf("failed to create new p2p client: %w", err)
+			}
+
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,
@@ -117,8 +138,10 @@ func NewRunNodeCmd() *cobra.Command {
 				kvExecutor,
 				dummySequencer,
 				dummyDALC,
-				signingKey,
+				nodeKey.PrivKey,
+				p2pClient,
 				genesis,
+				baseKV,
 				metrics,
 				logger,
 			)
@@ -348,11 +371,11 @@ func initFiles() error {
 	return nil
 }
 
-func parseConfig(cmd *cobra.Command) error {
+func parseConfig(cmd *cobra.Command, home string) error {
 	// Load configuration with the correct order of precedence:
 	// DefaultNodeConfig -> Yaml -> Flags
 	var err error
-	nodeConfig, err = rollconf.LoadNodeConfig(cmd)
+	nodeConfig, err = rollconf.LoadNodeConfig(cmd, home)
 	if err != nil {
 		return err
 	}
