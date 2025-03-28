@@ -12,8 +12,8 @@ import (
 	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/signer"
-	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
-	commands "github.com/rollkit/rollkit/testapp/commands"
+	commands "github.com/rollkit/rollkit/rollups/testapp/commands"
+	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
 
 func main() {

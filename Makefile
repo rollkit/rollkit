@@ -19,11 +19,11 @@ help: Makefile
 	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
 .PHONY: help
 
-## clean: clean testcache
-clean:
+## clean-testcache: clean testcache
+clean-testcache:
 	@echo "--> Clearing testcache"
 	@go clean --testcache
-.PHONY: clean
+.PHONY: clean-testcache
 
 ## cover: generate to code coverage report.
 cover:
@@ -110,22 +110,29 @@ LDFLAGS := \
 
 ## install: Install rollkit CLI
 install:
-	@echo "--> Installing Rollkit CLI"
-	@go install -ldflags "$(LDFLAGS)" ./testapp
-	@echo "--> Rollkit CLI Installed!"
+	@echo "--> Installing Testapp CLI"
+	@go install -ldflags "$(LDFLAGS)" ./rollups/testapp
+	@echo "--> Testapp CLI Installed!"
 	@echo "    Check the version with: testapp version"
 	@echo "    Check the binary with: which testapp"
 .PHONY: install
 
 ## build: build rollkit CLI
 build:
-	@echo "--> Building Rollkit CLI"
+	@echo "--> Building Testapp CLI"
 	@mkdir -p $(CURDIR)/build
-	@go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/rollkit ./cmd/rollkit
-	@echo "--> Rollkit CLI Built!"
-	@echo "    Check the version with: rollkit version"
-	@echo "    Check the binary with: $(CURDIR)/build/rollkit"
+	@go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp ./rollups/testapp
+	@echo "--> Testapp CLI Built!"
+	@echo "    Check the version with: rollups/testapp version"
+	@echo "    Check the binary with: $(CURDIR)/rollups/testapp"
 .PHONY: build
+
+## clean: clean and build
+clean: 
+	@echo "--> Cleaning Testapp CLI"
+	@rm -rf $(CURDIR)/build/testapp
+	@echo "--> Testapp CLI Cleaned!"
+.PHONY: clean
 
 ## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 prebuilt-binary:
