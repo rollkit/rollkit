@@ -1,7 +1,8 @@
-package commands
+package cmd
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,40 +14,44 @@ import (
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 )
 
-var docsDirectory = "./cmd/rollkit/docs"
+var docsDirectory = "./docs/cmd"
 
-// DocsGenCmd is the command to generate documentation for rollkit CLI
-var DocsGenCmd = &cobra.Command{
-	Use:   "docs-gen",
-	Short: "Generate documentation for rollkit CLI",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Clear out the docs directory
-		err := os.RemoveAll(docsDirectory)
-		if err != nil {
-			return err
-		}
-		// Initiate the docs directory
-		err = os.MkdirAll(docsDirectory, rollconf.DefaultDirPerm)
-		if err != nil {
-			return err
-		}
-		err = doc.GenMarkdownTree(RootCmd, docsDirectory)
-		if err != nil {
-			return err
-		}
-		return docCleanUp()
-	},
+// NewDocsGenCmd creates a new docs-gen command that generates cli documentation for the provided root command
+func NewDocsGenCmd(rootCmd *cobra.Command, appName string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "docs-gen",
+		Short: "Generate documentation for rollkit CLI",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Clear out the docs directory
+			err := os.RemoveAll(docsDirectory)
+			if err != nil {
+				return err
+			}
+			// Initiate the docs directory
+			err = os.MkdirAll(docsDirectory, rollconf.DefaultDirPerm)
+			if err != nil {
+				return err
+			}
+			err = doc.GenMarkdownTree(rootCmd, docsDirectory)
+			if err != nil {
+				return err
+			}
+			return docCleanUp(appName)
+		},
+	}
+
+	return cmd
 }
 
 // docCleanUp is a helper function to clean up the generated documentation by
 // replacing the absolute path with $HOME/.rollkit and removing the auto
 // generated comment about the generation date.
-func docCleanUp() error {
+func docCleanUp(appName string) error {
 	var searchAndReplace = []struct {
 		search  string
 		replace string
 	}{
-		{`(\"\/(?:Users\/\w+|home\/\w+|[^\/]+)\/\.rollkit\")`, `"HOME/.rollkit"`},
+		{fmt.Sprintf(`(\"\/(?:Users\/\w+|home\/\w+|[^\/]+)\/\.%s\")`, appName), fmt.Sprintf(`"HOME/.%s"`, appName)},
 		{`(--moniker string\s+node name \(default ")[^"]+(")`, `${1}Your Computer Username${2}`},
 	}
 

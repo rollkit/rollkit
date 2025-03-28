@@ -67,7 +67,7 @@ jobs:
       - name: install rollkit cli
         run: make install
       - name: Generate Docs
-        run: rollkit docs-gen
+        run: testapp docs-gen
       - name: Verify no diff
         run: |
           DIFF=$(git diff)

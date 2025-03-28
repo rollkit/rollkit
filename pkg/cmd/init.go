@@ -1,4 +1,4 @@
-package commands
+package cmd
 
 import (
 	"fmt"
@@ -21,12 +21,8 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error reading home flag: %w", err)
 		}
 
-		// If home is not specified, use the current directory
 		if homePath == "" {
-			homePath, err = os.Getwd()
-			if err != nil {
-				return fmt.Errorf("error getting current directory: %w", err)
-			}
+			return fmt.Errorf("home path is required")
 		}
 
 		configFilePath := filepath.Join(homePath, rollconf.RollkitConfigYaml)
@@ -34,28 +30,11 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("%s file already exists in the specified directory", rollconf.RollkitConfigYaml)
 		}
 
-		// try find main.go file under the current directory
-		dirName, entrypoint := rollconf.FindEntrypoint()
-		if entrypoint == "" {
-			fmt.Println("Could not find a rollup main.go entrypoint under the current directory. Please put an entrypoint in the rollkit.yaml file manually.")
-		} else {
-			fmt.Printf("Found rollup entrypoint: %s, adding to rollkit.yaml\n", entrypoint)
-		}
-
-		// checking for default cosmos chain config directory
-		chainConfigDir, ok := rollconf.FindConfigDir(dirName)
-		if !ok {
-			fmt.Printf("Could not find rollup config under %s. Please put the chain.config_dir in the rollkit.yaml file manually.\n", chainConfigDir)
-		} else {
-			fmt.Printf("Found rollup configuration under %s, adding to rollkit.yaml\n", chainConfigDir)
-		}
-
 		// Create a config with default values
 		config := rollconf.DefaultNodeConfig
 
 		// Update with the values we found
-		config.Entrypoint = entrypoint
-		config.ConfigDir = chainConfigDir
+		config.ConfigDir = homePath
 
 		// Set the root directory to the specified home path
 		config.RootDir = homePath

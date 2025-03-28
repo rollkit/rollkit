@@ -1,4 +1,4 @@
-package commands
+package cmd
 
 import (
 	"os"
@@ -40,7 +40,7 @@ func TestInitCommand(t *testing.T) {
 	cmd.AddCommand(&initCmd)
 
 	// Register all persistent flags from root command
-	registerFlagsRootCmd(cmd)
+	rollconf.AddBasicFlags(cmd, "testapp")
 
 	// Set home flag to the test directory
 	cmd.SetArgs([]string{"init", "--home", dir})

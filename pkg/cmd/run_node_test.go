@@ -1,23 +1,34 @@
-package commands
+package cmd
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/binary"
-	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/spf13/viper"
+	"cosmossdk.io/log"
 	"github.com/stretchr/testify/assert"
 
+	coreda "github.com/rollkit/rollkit/core/da"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/da"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/signer"
+	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
+
+func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.KeyProvider) {
+	executor := testExecutor.CreateDirectKVExecutor(ctx)
+	sequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
+	logger := log.NewLogger(os.Stdout)
+	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
+	keyProvider := signer.NewFileKeyProvider("", "config", "data")
+	return executor, sequencer, dac, keyProvider
+}
 
 func TestParseFlags(t *testing.T) {
 	// Initialize nodeConfig with default values to avoid issues with instrument
@@ -62,10 +73,12 @@ func TestParseFlags(t *testing.T) {
 
 	args := append([]string{"start"}, flags...)
 
-	newRunNodeCmd := NewRunNodeCmd()
+	executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
+
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
 
 	// Register root flags to be able to use --home flag
-	registerFlagsRootCmd(newRunNodeCmd)
+	rollconf.AddBasicFlags(newRunNodeCmd, "testapp")
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error: %v", err)
@@ -138,7 +151,9 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	for i, flags := range flagVariants {
 		args := append([]string{"start"}, flags...)
 
-		newRunNodeCmd := NewRunNodeCmd()
+		executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
+
+		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
@@ -162,7 +177,9 @@ func TestDefaultAggregatorValue(t *testing.T) {
 
 	// Create a new command without specifying any flags
 	args := []string{"start"}
-	newRunNodeCmd := NewRunNodeCmd()
+	executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
+
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
@@ -186,7 +203,9 @@ func TestCentralizedAddresses(t *testing.T) {
 		"--node.sequencer_rollup_id=centralrollup",
 	}
 
-	cmd := NewRunNodeCmd()
+	executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
+
+	cmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
@@ -205,98 +224,6 @@ func TestCentralizedAddresses(t *testing.T) {
 	// Also confirm that the sequencer rollup id flag is marked as changed
 	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
 		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
-	}
-}
-
-func TestStartMockSequencerServer(t *testing.T) {
-	// Use a random base port to avoid conflicts
-	var randomBytes [2]byte
-	if _, err := rand.Read(randomBytes[:]); err != nil {
-		t.Fatalf("Failed to generate random port: %v", err)
-	}
-	basePort := 60000 + int(binary.LittleEndian.Uint16(randomBytes[:]))%5000
-
-	tests := []struct {
-		name        string
-		seqAddress  string
-		expectedErr error
-		setup       func() (*net.Listener, error)
-		teardown    func(*net.Listener)
-	}{
-		{
-			name:        "Success",
-			seqAddress:  fmt.Sprintf("localhost:%d", basePort),
-			expectedErr: nil,
-		},
-		{
-			name:        "Invalid URL",
-			seqAddress:  "://invalid",
-			expectedErr: &net.OpError{},
-		},
-		{
-			name:        "Server Already Running",
-			seqAddress:  fmt.Sprintf("localhost:%d", basePort+1),
-			expectedErr: errSequencerAlreadyRunning,
-			setup: func() (*net.Listener, error) {
-				// Start a TCP listener to simulate a running server
-				l, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", basePort+1))
-				if err != nil {
-					return nil, err
-				}
-				// Keep the connection open
-				go func() {
-					for {
-						conn, err := l.Accept()
-						if err != nil {
-							return
-						}
-						if err := conn.Close(); err != nil {
-							t.Errorf("Failed to close connection: %v", err)
-							return
-						}
-					}
-				}()
-				return &l, nil
-			},
-			teardown: func(l *net.Listener) {
-				if l != nil {
-					if err := (*l).Close(); err != nil {
-						t.Errorf("Failed to close listener: %v", err)
-					}
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var listener *net.Listener
-			if tt.setup != nil {
-				var err error
-				listener, err = tt.setup()
-				if err != nil {
-					t.Fatal(err)
-				}
-			}
-
-			if tt.teardown != nil && listener != nil {
-				defer tt.teardown(listener)
-			}
-
-			srv, err := tryStartMockSequencerServerGRPC(tt.seqAddress, "test-rollup-id")
-			if srv != nil {
-				srv.Stop()
-			}
-
-			if tt.expectedErr != nil {
-				assert.Error(t, err)
-				assert.IsType(t, tt.expectedErr, err)
-				assert.Nil(t, srv)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, srv)
-			}
-		})
 	}
 }
 
@@ -333,7 +260,7 @@ func TestInitFiles(t *testing.T) {
 	}()
 
 	// Call initFiles
-	err = initFiles()
+	err = initConfigFiles()
 	assert.NoError(t, err)
 
 	// Verify that the expected files were created
@@ -345,74 +272,5 @@ func TestInitFiles(t *testing.T) {
 
 	for _, file := range files {
 		assert.FileExists(t, file)
-	}
-}
-
-// TestKVExecutorHTTPServerShutdown tests that the KVExecutor HTTP server properly
-// shuts down when the context is cancelled
-func TestKVExecutorHTTPServerShutdown(t *testing.T) {
-	// Create a temporary directory for test
-	tempDir, err := os.MkdirTemp("", "kvexecutor-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() {
-		if err := os.RemoveAll(tempDir); err != nil {
-			t.Logf("Failed to remove temp dir: %v", err)
-		}
-	}()
-
-	// Find an available port
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("Failed to find available port: %v", err)
-	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	if err := listener.Close(); err != nil {
-		t.Fatalf("Failed to close listener: %v", err)
-	}
-
-	// Set up the KV executor HTTP address
-	httpAddr := fmt.Sprintf("127.0.0.1:%d", port)
-	viper.Set("kv-executor-http", httpAddr)
-	defer viper.Set("kv-executor-http", "") // Reset after test
-
-	// Create a context with cancel function
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Create the KV executor with the context
-	kvExecutor := createDirectKVExecutor(ctx)
-	if kvExecutor == nil {
-		t.Fatal("Failed to create KV executor")
-	}
-
-	// Wait a moment for the server to start
-	time.Sleep(300 * time.Millisecond)
-
-	// Send a request to confirm it's running
-	client := &http.Client{Timeout: 1 * time.Second}
-	resp, err := client.Get(fmt.Sprintf("http://%s/store", httpAddr))
-	if err != nil {
-		t.Fatalf("Failed to connect to server: %v", err)
-	}
-	if err := resp.Body.Close(); err != nil {
-		t.Logf("Failed to close response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
-	}
-
-	// Cancel the context to shut down the server
-	cancel()
-
-	// Wait for shutdown to complete
-	time.Sleep(300 * time.Millisecond)
-
-	// Verify server is actually shutdown by attempting a new connection
-	_, err = client.Get(fmt.Sprintf("http://%s/store", httpAddr))
-	if err == nil {
-		t.Fatal("Expected connection error after shutdown, but got none")
 	}
 }

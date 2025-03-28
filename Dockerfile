@@ -29,8 +29,8 @@ RUN go mod download && \
 #
 FROM base
 
-COPY --from=builder /go/bin/rollkit /usr/bin
+COPY --from=builder /go/bin/testapp /usr/bin
 
 WORKDIR /apps
 
-ENTRYPOINT ["rollkit"]
+ENTRYPOINT ["testapp"]

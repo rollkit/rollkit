@@ -105,4 +105,4 @@ Proposed
 
 - [Connect-RPC Documentation](https://connectrpc.com/docs/go/getting-started/)
 - [Protocol Buffers Documentation](https://protobuf.dev)
-- [Store Interface Documentation](pkg/store/types.go)
+- [Store Interface Documentation](../../pkg/store/types.go)

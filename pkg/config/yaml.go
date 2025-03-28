@@ -201,57 +201,6 @@ func WriteYamlConfig(config Config) error {
 	return nil
 }
 
-// FindEntrypoint searches for a main.go file in the given directory and its subdirectories.
-// Returns the directory containing main.go and the relative path to main.go.
-func FindEntrypoint() (string, string) {
-	// Start from current directory
-	startDir, err := os.Getwd()
-	if err != nil {
-		return "", ""
-	}
-
-	var mainPath string
-	err = filepath.Walk(startDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if !info.IsDir() && info.Name() == "main.go" {
-			mainPath = path
-			return filepath.SkipAll
-		}
-		return nil
-	})
-
-	if err != nil || mainPath == "" {
-		return "", ""
-	}
-
-	// Convert to relative path
-	relPath, err := filepath.Rel(startDir, mainPath)
-	if err != nil {
-		return "", ""
-	}
-
-	return filepath.Dir(mainPath), "./" + relPath
-}
-
-// FindConfigDir looks for a config directory in the given path.
-// Returns the config directory path and true if found, empty string and false otherwise.
-func FindConfigDir(dirPath string) (string, bool) {
-	// Common config directory names in Cosmos chains
-	configDirs := []string{"config", "conf", "configs"}
-
-	// First check if the default config directory exists
-	for _, configDir := range configDirs {
-		path := filepath.Join(dirPath, configDir)
-		if info, err := os.Stat(path); err == nil && info.IsDir() {
-			return configDir, true
-		}
-	}
-
-	return DefaultConfigDir, false
-}
-
 // EnsureRoot ensures that the root directory exists.
 func EnsureRoot(rootDir string) error {
 	if rootDir == "" {
