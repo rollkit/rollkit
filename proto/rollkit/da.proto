@@ -1,0 +1,148 @@
+syntax = "proto3";
+package da;
+
+import "google/protobuf/timestamp.proto";
+
+// DAService is the protobuf service definition for interaction with Data Availability layers.
+service DAService {
+    // MaxBlobSize returns the maximum blob size
+    rpc MaxBlobSize(MaxBlobSizeRequest) returns (MaxBlobSizeResponse) {}
+
+	// Get returns Blob for each given ID, or an error.
+	rpc Get(GetRequest) returns (GetResponse) {}
+
+	// GetIds returns IDs of all Blobs located in DA at given height.
+	rpc GetIds(GetIdsRequest) returns (GetIdsResponse) {}
+
+	// GetProofs returns inclusion Proofs for all Blobs located in DA at given height.
+    rpc GetProofs(GetProofsRequest) returns (GetProofsResponse) {}
+
+	// Commit creates a Commitment for each given Blob.
+	rpc Commit(CommitRequest) returns (CommitResponse) {}
+
+	// Submit submits the given Blobs to Data Availability layer.
+	rpc Submit(SubmitRequest) returns (SubmitResponse) {}
+
+	// Validate validates Commitments against corresponding Proofs. This should be possible without retrieving Blob.
+	rpc Validate(ValidateRequest) returns (ValidateResponse) {}
+}
+
+// Namespace is the location for the blob to be submitted to, if supported by the DA layer.
+message Namespace {
+	bytes value = 1;
+}
+
+// Blob is the data submitted/received from DA interface.
+message Blob {
+	bytes value = 1;
+}
+
+// ID should contain serialized data required by the implementation to find blob in Data Availability layer.
+message ID {
+	bytes value = 1;
+}
+
+// Commitment should contain serialized cryptographic commitment to Blob value.
+message Commitment {
+	bytes value = 1;
+}
+
+// Proof should contain serialized proof of inclusion (publication) of Blob in Data Availability layer.
+message Proof {
+	bytes value = 1;
+}
+
+// MaxBlobSizeRequest is the request type for the MaxBlobSize rpc method.
+message MaxBlobSizeRequest {
+}
+
+// MaxBlobSizeResponse is the response type for the MaxBlobSize rpc method.
+message MaxBlobSizeResponse {
+    uint64 max_blob_size = 1;
+}
+
+// GetRequest is the request type for the Get rpc method.
+message GetRequest {
+	repeated ID ids = 1;
+	Namespace namespace = 2;
+}
+
+// GetResponse is the response type for the Get rpc method.
+message GetResponse {
+	repeated Blob blobs = 1;
+}
+
+// GetIdsRequest is the request type for the GetIds rpc method.
+message GetIdsRequest {
+	uint64 height = 1;
+	Namespace namespace = 2;
+}
+
+// GetIdsResponse is the response type for the GetIds rpc method.
+message GetIdsResponse {
+	repeated ID ids = 1;
+  google.protobuf.Timestamp timestamp = 2;
+}
+
+// GetProofsRequest is the request type for the GetProofs rpc method.
+message GetProofsRequest {
+	repeated ID ids = 1;
+	Namespace namespace = 2;
+}
+
+// GetProofsResponse is the response type for the GetProofs rpc method.
+message GetProofsResponse {
+    repeated Proof proofs = 1;
+}
+
+// CommitRequest is the request type for the Commit rpc method.
+message CommitRequest {
+	repeated Blob blobs = 1;
+	Namespace namespace = 2;
+}
+
+// CommitResponse is the response type for the Commit rpc method.
+message CommitResponse {
+	repeated Commitment commitments = 1;
+}
+
+// SubmitRequest is the request type for the Submit rpc method.
+message SubmitRequest {
+	repeated Blob blobs = 1;
+	double gas_price = 2;
+	Namespace namespace = 3;
+	bytes options = 4;
+}
+
+// SubmitResponse is the response type for the Submit rpc method.
+message SubmitResponse {
+	repeated ID ids = 1;
+}
+
+// ValidateRequest is the request type for the Validate rpc method.
+message ValidateRequest {
+	repeated ID ids = 1;
+	repeated Proof proofs = 2;
+	Namespace namespace = 3;
+}
+
+// ValidateResponse is the response type for the Validate rpc method.
+message ValidateResponse {
+	repeated bool results = 1;
+}
+
+enum ErrorCode {
+	ERROR_CODE_UNSPECIFIED = 0;
+	ERROR_CODE_BLOB_NOT_FOUND = 32001;
+	ERROR_CODE_BLOB_SIZE_OVER_LIMIT = 32002;
+	ERROR_CODE_TX_TIMED_OUT = 32003;
+	ERROR_CODE_TX_ALREADY_IN_MEMPOOL = 32004;
+	ERROR_CODE_TX_INCORRECT_ACCOUNT_SEQUENCE = 32005;
+	ERROR_CODE_TX_TOO_LARGE = 32006;
+	ERROR_CODE_CONTEXT_DEADLINE = 32007;
+	ERROR_CODE_FUTURE_HEIGHT = 32008;
+}
+
+message ErrorDetails {
+	ErrorCode code = 1;
+}
