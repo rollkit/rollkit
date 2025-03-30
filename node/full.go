@@ -26,7 +26,7 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
-	proxyda "github.com/rollkit/go-da/proxy"
+	proxyda "github.com/rollkit/rollkit/da/proxy"
 
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/block"

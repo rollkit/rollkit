@@ -24,11 +24,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	goDA "github.com/rollkit/go-da"
-	damock "github.com/rollkit/go-da/mocks"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
+	goDA "github.com/rollkit/rollkit/da"
+	damock "github.com/rollkit/rollkit/da/mocks"
 	"github.com/rollkit/rollkit/mempool"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"

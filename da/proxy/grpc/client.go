@@ -6,8 +6,8 @@ import (
 	"github.com/cosmos/gogoproto/types"
 	"google.golang.org/grpc"
 
-	"github.com/rollkit/go-da"
-	pbda "github.com/rollkit/go-da/types/pb/da"
+	"github.com/rollkit/rollkit/da"
+	pbda "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // Client is a gRPC proxy client for DA interface.

@@ -7,7 +7,7 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc"
 
-	"github.com/rollkit/go-da"
+	"github.com/rollkit/rollkit/da"
 )
 
 // Module wraps the DA interface

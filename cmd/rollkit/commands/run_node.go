@@ -26,11 +26,11 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"google.golang.org/grpc"
 
-	"github.com/rollkit/go-da"
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
-	goDATest "github.com/rollkit/go-da/test"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+	"github.com/rollkit/rollkit/da"
+	proxy "github.com/rollkit/rollkit/da/proxy/jsonrpc"
+	goDATest "github.com/rollkit/rollkit/da/test"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

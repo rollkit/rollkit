@@ -22,10 +22,10 @@ import (
 
 	"google.golang.org/grpc/credentials/insecure"
 
-	goDAproxy "github.com/rollkit/go-da/proxy/grpc"
-	goDATest "github.com/rollkit/go-da/test"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+	goDAproxy "github.com/rollkit/rollkit/da/proxy/grpc"
+	goDATest "github.com/rollkit/rollkit/da/test"
 )
 
 const (

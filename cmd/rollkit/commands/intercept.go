@@ -10,8 +10,8 @@ import (
 	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
 
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	rollconf "github.com/rollkit/rollkit/config"
+	proxy "github.com/rollkit/rollkit/da/proxy/jsonrpc"
 )
 
 const rollupBinEntrypoint = "entrypoint"

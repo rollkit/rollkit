@@ -4,7 +4,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pbda "github.com/rollkit/go-da/types/pb/da"
+	pbda "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // Code defines error codes for JSON-RPC.

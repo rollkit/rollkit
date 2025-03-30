@@ -8,8 +8,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	proxy "github.com/rollkit/go-da/proxy/grpc"
-	"github.com/rollkit/go-da/test"
+	proxy "github.com/rollkit/rollkit/da/proxy/grpc"
+	"github.com/rollkit/rollkit/da/test"
 )
 
 func TestProxy(t *testing.T) {

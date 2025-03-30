@@ -8,9 +8,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/rollkit/go-da"
-	proxygrpc "github.com/rollkit/go-da/proxy/grpc"
-	proxyjsonrpc "github.com/rollkit/go-da/proxy/jsonrpc"
+	"github.com/rollkit/rollkit/da"
+	proxygrpc "github.com/rollkit/rollkit/da/proxy/grpc"
+	proxyjsonrpc "github.com/rollkit/rollkit/da/proxy/jsonrpc"
 )
 
 // NewClient returns a DA backend based on the uri

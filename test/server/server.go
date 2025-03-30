@@ -8,11 +8,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	grpc2 "github.com/rollkit/go-da/proxy/grpc"
-	"github.com/rollkit/go-da/proxy/jsonrpc"
-	"github.com/rollkit/go-da/test"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+	grpc2 "github.com/rollkit/rollkit/da/proxy/grpc"
+	"github.com/rollkit/rollkit/da/proxy/jsonrpc"
+	"github.com/rollkit/rollkit/da/test"
 )
 
 // StartMockDAServGRPC starts a mock gRPC server with the given listenAddress.

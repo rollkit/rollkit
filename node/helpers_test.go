@@ -12,8 +12,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
-	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da"
+	goDATest "github.com/rollkit/rollkit/da/test"
 )
 
 func getMockDA(t *testing.T) *da.DAClient {

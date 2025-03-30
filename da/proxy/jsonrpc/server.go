@@ -10,7 +10,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/rollkit/go-da"
+	"github.com/rollkit/rollkit/da"
 )
 
 var log = logging.Logger("jsonrpc")

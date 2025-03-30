@@ -12,8 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rollkit/go-da"
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
+	"github.com/rollkit/rollkit/da"
+	proxy "github.com/rollkit/rollkit/da/proxy/jsonrpc"
 )
 
 func TestParseFlags(t *testing.T) {

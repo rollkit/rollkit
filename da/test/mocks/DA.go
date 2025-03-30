@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	da "github.com/rollkit/go-da"
+	da "github.com/rollkit/rollkit/da"
 	mock "github.com/stretchr/testify/mock"
 )
 

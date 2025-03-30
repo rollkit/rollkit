@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
-	"github.com/rollkit/go-da/test"
+	proxy "github.com/rollkit/rollkit/da/proxy/jsonrpc"
+	"github.com/rollkit/rollkit/da/test"
 )
 
 const (

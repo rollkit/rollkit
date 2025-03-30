@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rollkit/go-da"
+	"github.com/rollkit/rollkit/da"
 )
 
 var testNamespace = da.Namespace([]byte("test"))

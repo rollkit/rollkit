@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rollkit/go-da"
+	"github.com/rollkit/rollkit/da"
 )
 
 // DefaultMaxBlobSize is the default max blob size

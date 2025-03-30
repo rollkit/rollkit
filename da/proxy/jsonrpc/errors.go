@@ -3,7 +3,7 @@ package jsonrpc
 import (
 	"github.com/filecoin-project/go-jsonrpc"
 
-	"github.com/rollkit/go-da"
+	"github.com/rollkit/rollkit/da"
 )
 
 // getKnownErrorsMapping returns a mapping of known error codes to their corresponding error types.

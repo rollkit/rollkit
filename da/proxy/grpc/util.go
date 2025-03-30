@@ -1,8 +1,8 @@
 package grpc
 
 import (
-	"github.com/rollkit/go-da"
-	pbda "github.com/rollkit/go-da/types/pb/da"
+	"github.com/rollkit/rollkit/da"
+	pbda "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 func blobsDA2PB(blobs []da.Blob) []*pbda.Blob {
