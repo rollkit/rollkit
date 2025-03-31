@@ -55,7 +55,8 @@ func TestReadYaml(t *testing.T) {
 			name: "sets RootDir even if empty yaml",
 			setup: func(t *testing.T, dir string) error {
 				// Create empty YAML file
-				return os.WriteFile(filepath.Join(dir, RollkitConfigYaml), []byte(""), 0600)
+				os.MkdirAll(filepath.Join(dir, "config"), 0755)
+				return os.WriteFile(filepath.Join(dir, "config", RollkitConfigYaml), []byte(""), 0600)
 			},
 			validate: func(t *testing.T, cfg Config, err error) {
 				require.NoError(t, err)
@@ -66,7 +67,8 @@ func TestReadYaml(t *testing.T) {
 			name: "returns error if config file cannot be decoded",
 			setup: func(t *testing.T, dir string) error {
 				// Create invalid YAML file
-				return os.WriteFile(filepath.Join(dir, RollkitConfigYaml), []byte("invalid: yaml: content"), 0600)
+				os.MkdirAll(filepath.Join(dir, "config"), 0755)
+				return os.WriteFile(filepath.Join(dir, "config", RollkitConfigYaml), []byte("invalid: yaml: content"), 0600)
 			},
 			validate: func(t *testing.T, cfg Config, err error) {
 				require.Error(t, err)
@@ -85,7 +87,7 @@ func TestReadYaml(t *testing.T) {
 			require.NoError(t, err)
 
 			// Read the config
-			cfg, err := ReadYaml(tempDir)
+			cfg, err := ReadYaml(filepath.Join(tempDir, "config"))
 
 			// Validate the result
 			tc.validate(t, cfg, err)
@@ -143,16 +145,18 @@ func TestYamlConfigOperations(t *testing.T) {
 			// Create a temporary directory for each test case
 			tempDir := t.TempDir()
 
+			path := filepath.Join(tempDir, "config")
+
 			// Setup the test case and write the initial config
 			tc.setup(t, tempDir)
 
 			// Verify the config file exists
-			configPath := filepath.Join(tempDir, RollkitConfigYaml)
+			configPath := filepath.Join(path, RollkitConfigYaml)
 			_, err := os.Stat(configPath)
 			require.NoError(t, err, "Config file should exist")
 
 			// Read the config back
-			cfg, err := ReadYaml(tempDir)
+			cfg, err := ReadYaml(path)
 			require.NoError(t, err)
 
 			// Validate the config

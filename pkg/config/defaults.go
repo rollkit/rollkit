@@ -35,7 +35,7 @@ const (
 
 // DefaultRootDir returns the default root directory for rollkit
 func DefaultRootDir() string {
-	return DefaultRootDirWithName("rollkit")
+	return DefaultRootDirWithName(".rollkit")
 }
 
 // DefaultRootDirWithName returns the default root directory for an application,

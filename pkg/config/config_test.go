@@ -19,7 +19,7 @@ func TestDefaultNodeConfig(t *testing.T) {
 
 	assert.Equal(t, DefaultRootDir(), def.RootDir)
 	assert.Equal(t, "data", def.DBPath)
-	assert.Equal(t, true, def.Node.Aggregator)
+	assert.Equal(t, false, def.Node.Aggregator)
 	assert.Equal(t, false, def.Node.Light)
 	assert.Equal(t, DefaultDAAddress, def.DA.Address)
 	assert.Equal(t, "", def.DA.AuthToken)
@@ -97,7 +97,7 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, persistentFlags, FlagLogTrace, false)
 
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 41 // Update this number if you add more flag checks above
+	expectedFlagCount := 44 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags (both regular and persistent)
 	actualFlagCount := 0

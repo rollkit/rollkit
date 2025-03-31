@@ -191,7 +191,7 @@ func TestDefaultAggregatorValue(t *testing.T) {
 	}
 
 	// Verify that Aggregator is true by default
-	assert.True(t, nodeConfig.Node.Aggregator, "Expected Aggregator to be true by default")
+	assert.False(t, nodeConfig.Node.Aggregator, "Expected Aggregator to be false by default")
 }
 
 // TestCentralizedAddresses verifies that when centralized service flags are provided,
