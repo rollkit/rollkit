@@ -40,9 +40,9 @@ func TestMockDAErrors(t *testing.T) {
 		// Set up the mock to throw context deadline exceeded
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
-			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil)).
+			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
 			After(submitTimeout).
-			Return(nil, uint64(0), ErrContextDeadline)
+			Return(nil, ErrContextDeadline)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
@@ -76,8 +76,8 @@ func TestMockDAErrors(t *testing.T) {
 		// Set up the mock to throw tx too large
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
-			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil), []byte{}).
-			Return([]coreda.ID{}, uint64(0), ErrTxTooLarge)
+			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
+			Return([]coreda.ID{}, ErrTxTooLarge)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -93,7 +93,6 @@ func TestMockDAErrors(t *testing.T) {
 }
 
 func TestSubmitRetrieve(t *testing.T) {
-	// t.Skip("skipping tests") //TODO: fix these tests
 	dummyClient := NewDAClient(coreda.NewDummyDA(100_000, 0, 0), -1, -1, nil, nil, log.NewTestLogger(t))
 	tests := []struct {
 		name string
