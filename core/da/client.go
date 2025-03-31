@@ -57,6 +57,8 @@ const (
 	StatusTooBig
 	StatusContextDeadline
 	StatusError
+	StatusFutureHeight
+	StatusIncorrectAccountSequence
 )
 
 // BaseResult contains basic information returned by DA layer.

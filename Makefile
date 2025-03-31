@@ -96,8 +96,8 @@ proto-gen:
 ## mock-gen: generate mocks of external (commetbft) types
 mock-gen:
 	@echo "-> Generating mocks"
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/store --name Store
 	mockery --output da/mocks --srcpkg github.com/rollkit/rollkit/core/da --name DA
+	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/store --name Store
 .PHONY: mock-gen
 
 
