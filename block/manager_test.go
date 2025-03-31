@@ -237,7 +237,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := &damocks.DA{}
+			mockDA := &damocks.MockDA{}
 			m := getManager(t, mockDA, tc.gasPrice, tc.gasMultiplier)
 			m.config.DA.BlockTime.Duration = time.Millisecond
 			m.config.DA.MempoolTTL = 1

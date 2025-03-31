@@ -57,7 +57,6 @@ const (
 	StatusTooBig
 	StatusContextDeadline
 	StatusError
-	StatusFutureHeight
 	StatusIncorrectAccountSequence
 )
 
