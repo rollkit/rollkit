@@ -76,7 +76,7 @@ func (s *SystemUnderTest) AwaitNodeUp(t *testing.T, rpcAddr string, timeout time
 	go func() { // query for a non empty block on status page
 		t.Logf("Checking node status: %s\n", rpcAddr)
 		for {
-			con, err := rpchttp.New(rpcAddr, "/websocket")
+			con, err := rpchttp.New(rpcAddr)
 			if err != nil || con.Start() != nil {
 				time.Sleep(100 * time.Millisecond)
 				continue
