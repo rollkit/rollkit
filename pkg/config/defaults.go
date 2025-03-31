@@ -35,11 +35,17 @@ const (
 
 // DefaultRootDir returns the default root directory for rollkit
 func DefaultRootDir() string {
+	return DefaultRootDirWithName("rollkit")
+}
+
+// DefaultRootDirWithName returns the default root directory for an application,
+// based on the app name and the user's home directory
+func DefaultRootDirWithName(appName string) string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".rollkit")
+	return filepath.Join(home, "."+appName)
 }
 
 // DefaultNodeConfig keeps default values of NodeConfig
@@ -69,7 +75,6 @@ var DefaultNodeConfig = Config{
 		GasMultiplier: 0,
 	},
 	Instrumentation: DefaultInstrumentationConfig(),
-	Entrypoint:      "",
 	Log: LogConfig{
 		Level:  DefaultLogLevel,
 		Format: "",

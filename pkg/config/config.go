@@ -19,8 +19,6 @@ const (
 	FlagRootDir = "home"
 	// FlagDBPath is a flag for specifying the database path
 	FlagDBPath = "db_path"
-	// FlagEntrypoint is a flag for specifying the entrypoint
-	FlagEntrypoint = "entrypoint"
 	// FlagChainConfigDir is a flag for specifying the chain config directory
 	FlagChainConfigDir = "config_dir"
 
@@ -141,10 +139,9 @@ func (d *DurationWrapper) UnmarshalText(text []byte) error {
 // Config stores Rollkit configuration.
 type Config struct {
 	// Base configuration
-	RootDir    string `mapstructure:"home" yaml:"home" comment:"Root directory where rollkit files are located"`
-	DBPath     string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
-	Entrypoint string `mapstructure:"entrypoint" yaml:"entrypoint" comment:"Path to the rollup application's main.go file. Rollkit will build and execute this file when processing commands. This allows Rollkit to act as a wrapper around your rollup application."`
-	ConfigDir  string `mapstructure:"config_dir" yaml:"config_dir" comment:"Directory containing the rollup chain configuration"`
+	RootDir   string `mapstructure:"home" yaml:"home" comment:"Root directory where rollkit files are located"`
+	DBPath    string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
+	ConfigDir string `mapstructure:"config_dir" yaml:"config_dir" comment:"Directory containing the rollup chain configuration"`
 
 	// P2P configuration
 	P2P P2PConfig `mapstructure:"p2p" yaml:"p2p"`
@@ -223,6 +220,15 @@ type SignerConfig struct {
 	SignerPath string `mapstructure:"signer_path" yaml:"signer_path" comment:"Path to the signer file or address"`
 }
 
+// AddBasicFlags registers the basic configuration flags that are common across applications
+// This includes logging configuration and root directory settings
+func AddBasicFlags(cmd *cobra.Command, appName string) {
+	cmd.PersistentFlags().String(FlagLogLevel, DefaultLogLevel, "Set the log level (debug, info, warn, error)")
+	cmd.PersistentFlags().String(FlagLogFormat, "plain", "Set the log format (text, json)")
+	cmd.PersistentFlags().Bool(FlagLogTrace, false, "Enable stack traces in error logs")
+	cmd.PersistentFlags().String(FlagRootDir, DefaultRootDirWithName(appName), "Root directory for application data")
+}
+
 // RPCConfig contains all RPC server configuration parameters
 type RPCConfig struct {
 	Address string `mapstructure:"address" yaml:"address" comment:"Address to bind the RPC server to (host). Default: tcp://0.0.0.0"`
@@ -230,15 +236,16 @@ type RPCConfig struct {
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
-//
-// This function is called in cosmos-sdk.
 func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 
-	// Base configuration flags
-	cmd.Flags().String(FlagDBPath, def.DBPath, "database path relative to root directory")
-	cmd.Flags().String(FlagEntrypoint, def.Entrypoint, "entrypoint for the application")
-	cmd.Flags().String(FlagChainConfigDir, def.ConfigDir, "chain configuration directory")
+	// Add CI flag for testing
+	cmd.Flags().Bool("ci", false, "run node for ci testing")
+
+	// Add base flags
+	cmd.Flags().String(FlagRootDir, DefaultNodeConfig.RootDir, "root directory for config and data")
+	cmd.Flags().String(FlagDBPath, DefaultNodeConfig.DBPath, "path for the node database")
+	cmd.Flags().String(FlagChainConfigDir, DefaultNodeConfig.ConfigDir, "directory containing chain configuration files")
 
 	// Node configuration flags
 	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
@@ -367,7 +374,6 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 	// Base configuration defaults
 	v.SetDefault(FlagRootDir, config.RootDir)
 	v.SetDefault(FlagDBPath, config.DBPath)
-	v.SetDefault(FlagEntrypoint, config.Entrypoint)
 	v.SetDefault(FlagChainConfigDir, config.ConfigDir)
 
 	// Node configuration defaults

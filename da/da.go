@@ -55,7 +55,7 @@ func (dac *DAClient) GasMultiplier(ctx context.Context) (float64, error) {
 // SubmitHeaders submits block headers to DA.
 func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) coreda.ResultSubmit {
 	var (
-		blobs    [][]byte
+		blobs    [][]byte = make([][]byte, 0, len(data))
 		blobSize uint64
 		message  string
 	)
@@ -153,13 +153,6 @@ func (dac *DAClient) Retrieve(ctx context.Context, dataLayerHeight uint64) cored
 				Height:  dataLayerHeight,
 			},
 		}
-	}
-
-	headers := make([][]byte, len(blobs))
-	for i, blob := range blobs {
-		headers[i] = blob
-		dac.Logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
-		continue
 	}
 
 	return coreda.ResultRetrieve{

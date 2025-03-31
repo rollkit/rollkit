@@ -18,7 +18,8 @@ import (
 )
 
 func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
-	startPort := 10000
+	// Use a higher base port to reduce chances of conflicts with system services
+	startPort := 40000 + n*100 // Spread port ranges further apart
 	return rollkitconfig.Config{
 		RootDir: t.TempDir(),
 		Node: rollkitconfig.NodeConfig{

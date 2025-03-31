@@ -2,24 +2,6 @@
 
 This is a simple key-value store executor implementation for testing Rollkit nodes.
 
-## HTTP Server
-
-The KV executor includes an HTTP server that allows submitting transactions and interacting with the key-value store directly. The server is started automatically when using the KV executor with the Rollkit node.
-
-### Configuration
-
-The HTTP server address can be configured using the `--kv-executor-http` flag when starting the Rollkit node. For example:
-
-```bash
-./rollkit run --kv-executor-http=:40042
-```
-
-To disable the HTTP server, set the flag to an empty string:
-
-```bash
-./rollkit run --kv-executor-http=
-```
-
 ### Server Lifecycle
 
 The HTTP server starts when the Rollkit node starts and is automatically shut down when the node stops (including when receiving CTRL+C or other termination signals). The server is context-aware, meaning:

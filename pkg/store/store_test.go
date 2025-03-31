@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	ds "github.com/ipfs/go-datastore"
@@ -80,14 +79,7 @@ func TestStoreLoad(t *testing.T) {
 		//}},
 	}
 
-	tmpDir, err := os.MkdirTemp("", "rollkit_test")
-	require.NoError(t, err)
-	defer func() {
-		err := os.RemoveAll(tmpDir)
-		if err != nil {
-			t.Log("failed to remove temporary directory", err)
-		}
-	}()
+	tmpDir := t.TempDir()
 
 	mKV, _ := NewDefaultInMemoryKVStore()
 	dKV, _ := NewDefaultKVStore(tmpDir, "db", "test")
@@ -135,11 +127,7 @@ func TestRestart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	tmpDir, err := os.MkdirTemp("", t.Name())
-	require.NoError(err)
-	defer func() {
-		_ = os.RemoveAll(tmpDir)
-	}()
+	tmpDir := t.TempDir()
 
 	kv, err := NewDefaultKVStore(tmpDir, "test", "test")
 	require.NoError(err)

@@ -155,29 +155,29 @@ The pruning system is designed to work with various types of storage volumes and
      - High-performance SAN volumes
      - Used for recent blocks and frequently accessed data
    - **Warm Storage** (Medium Latency):
-     - Local HDDs
-     - NFS mounts
-     - Network block storage
-     - Used for moderately old or occasionally accessed data
+      - Local HDDs
+      - NFS mounts
+      - Network block storage
+      - Used for moderately old or occasionally accessed data
    - **Cold Storage** (High Latency):
-     - Object storage
-     - Archive storage
-     - Used for historical data with infrequent access
+      - Object storage
+      - Archive storage
+      - Used for historical data with infrequent access
 
 5. **Implementation Considerations**:
    - **Local Volumes**:
-     - Direct filesystem access
-     - Native OS-level caching
-     - Immediate consistency
+      - Direct filesystem access
+      - Native OS-level caching
+      - Immediate consistency
    - **Network Volumes**:
-     - Connection management
-     - Caching strategies
-     - Network latency handling
+      - Connection management
+      - Caching strategies
+      - Network latency handling
    - **Cloud Storage**:
-     - API-based access
-     - Eventual consistency
-     - Bandwidth costs
-     - Lifecycle management
+      - API-based access
+      - Eventual consistency
+      - Bandwidth costs
+      - Lifecycle management
 
 6. **Volume Interface Requirements**:
    Each volume type must implement:
@@ -355,10 +355,10 @@ The volume management system is designed to work in harmony with node operators'
    - Performance tiers (e.g., "fast" for SSD, "standard" for HDD, "cold" for archival storage)
    - Query statistics are built over time to optimize data placement and retrieval
    - System automatically routes queries to the most appropriate volume based on:
-     - Query patterns
-     - Data access frequency
-     - Volume performance characteristics
-     - Historical latency measurements
+      - Query patterns
+      - Data access frequency
+      - Volume performance characteristics
+      - Historical latency measurements
 
 3. **Node Operator Responsibilities**:
    - Create the base volume directory structure
@@ -866,14 +866,14 @@ type MonitoringConfig struct {
    rollkit migrate-storage rollback --data-dir=/path/to/node --backup-dir=/path/to/backup
    ```
 
-This CLI-based approach provides a structured and safe way to migrate existing nodes while addressing key challenges:
+   This CLI-based approach provides a structured and safe way to migrate existing nodes while addressing key challenges:
 
-- Data integrity through validation
-- Rollback capability via backups
-- Resumable operations for large datasets
-- Progress monitoring and tracking
-- Pre-migration configuration validation
-- Parallel processing for performance
+   - Data integrity through validation
+   - Rollback capability via backups
+   - Resumable operations for large datasets
+   - Progress monitoring and tracking
+   - Pre-migration configuration validation
+   - Parallel processing for performance
 
 ## Status
 

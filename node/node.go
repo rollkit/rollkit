@@ -17,6 +17,8 @@ import (
 // Node is the interface for a rollup node
 type Node interface {
 	service.Service
+
+	IsRunning() bool
 }
 
 // NewNode returns a new Full or Light Node based on the config

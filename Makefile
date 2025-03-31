@@ -16,14 +16,14 @@ count := 1
 ## help: Show this help message
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
-	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
+	@sed -n 's/^##//p' $< | column -t -s ':' | sort | sed -e 's/^/ /'
 .PHONY: help
 
-## clean: clean testcache
-clean:
+## clean-testcache: clean testcache
+clean-testcache:
 	@echo "--> Clearing testcache"
 	@go clean --testcache
-.PHONY: clean
+.PHONY: clean-testcache
 
 ## cover: generate to code coverage report.
 cover:
@@ -37,11 +37,11 @@ deps:
 	@echo "--> Installing dependencies"
 	@go mod download
 	@go mod tidy
-	@./scripts/go-mod-tidy-all.sh
+	@go run scripts/go-mod-tidy-all.go
 .PHONY: deps
 
 tidy-all:
-	@sh ./scripts/go-mod-tidy-all.sh
+	@go run scripts/go-mod-tidy-all.go
 .PHONY: tidy-all
 
 ## lint: Run linters golangci-lint and markdownlint.
@@ -67,7 +67,7 @@ lint-fix:
 	@golangci-lint run --fix
 	@echo "--> Formatting markdownlint"
 	@markdownlint --config .markdownlint.yaml --ignore './specs/src/specs/**.md' --ignore './cmd/rollkit/docs/*.md' '**/*.md' -f
-.PHONY: fmt
+.PHONY: lint-fix
 
 ## vet: Run go vet
 vet: 
@@ -80,6 +80,12 @@ test: vet
 	@echo "--> Running unit tests"
 	@go test -race -covermode=atomic -coverprofile=coverage.txt $(pkgs) -run $(run) -count=$(count)
 .PHONY: test
+
+## test-e2e: Running e2e tests
+test-e2e: build
+	@echo "--> Running e2e tests"
+	@go test -mod=readonly -failfast -timeout=15m -tags='e2e' ./test/e2e/... --binary=$(CURDIR)/build/rollkit
+.PHONY: test-e2e
 
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:
@@ -108,24 +114,32 @@ LDFLAGS := \
 	-X github.com/rollkit/rollkit/cmd/rollkit/commands.Version=$(VERSION) \
 	-X github.com/rollkit/rollkit/cmd/rollkit/commands.GitSHA=$(GITSHA)
 
+
 ## install: Install rollkit CLI
 install:
-	@echo "--> Installing Rollkit CLI"
-	@go install -ldflags "$(LDFLAGS)" ./cmd/rollkit
-	@echo "--> Rollkit CLI Installed!"
-	@echo "    Check the version with: rollkit version"
-	@echo "    Check the binary with: which rollkit"
+	@echo "--> Installing Testapp CLI"
+	@go install -ldflags "$(LDFLAGS)" ./rollups/testapp
+	@echo "--> Testapp CLI Installed!"
+	@echo "    Check the version with: testapp version"
+	@echo "    Check the binary with: which testapp"
 .PHONY: install
 
 ## build: build rollkit CLI
 build:
-	@echo "--> Building Rollkit CLI"
+	@echo "--> Building Testapp CLI"
 	@mkdir -p $(CURDIR)/build
-	@go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/rollkit ./cmd/rollkit
-	@echo "--> Rollkit CLI Built!"
-	@echo "    Check the version with: rollkit version"
-	@echo "    Check the binary with: $(CURDIR)/build/rollkit"
+	@go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp ./rollups/testapp
+	@echo "--> Testapp CLI Built!"
+	@echo "    Check the version with: rollups/testapp version"
+	@echo "    Check the binary with: $(CURDIR)/rollups/testapp"
 .PHONY: build
+
+## clean: clean and build
+clean: 
+	@echo "--> Cleaning Testapp CLI"
+	@rm -rf $(CURDIR)/build/testapp
+	@echo "--> Testapp CLI Cleaned!"
+.PHONY: clean
 
 ## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 prebuilt-binary:
