@@ -32,7 +32,7 @@ func TestBasic(t *testing.T) {
 	sut := NewSystemUnderTest(t)
 	aggregatorPass := "12345678"
 	// init aggregator
-	sut.StartNode(binaryPath,
+	sut.RunCmd(binaryPath,
 		"init",
 		"--home="+node1Home,
 		"--node.sequencer_rollup_id=testing",
@@ -42,6 +42,7 @@ func TestBasic(t *testing.T) {
 		"--node.aggrgator",
 		"--signer.passphrase="+aggregatorPass,
 	)
+
 	// start aggregator
 	sut.StartNode(binaryPath,
 		"start",

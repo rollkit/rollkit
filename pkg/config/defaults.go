@@ -16,6 +16,9 @@ const (
 	// DefaultDataDir is the default directory for data files (e.g. database).
 	DefaultDataDir = "data"
 
+	// DefaultSignerPath is the default path for the signer file
+	DefaultSignerPath = "signer"
+
 	// DefaultListenAddress is a default listen address for P2P client.
 	DefaultListenAddress = "/ip4/0.0.0.0/tcp/7676"
 	// Version is the current rollkit version
@@ -53,6 +56,7 @@ var DefaultNodeConfig = Config{
 	RootDir:   DefaultRootDir(),
 	DBPath:    DefaultDataDir,
 	ConfigDir: DefaultConfigDir,
+	ChainID:   "rollkit-test",
 	P2P: P2PConfig{
 		ListenAddress: DefaultListenAddress,
 		Seeds:         "",
@@ -82,7 +86,7 @@ var DefaultNodeConfig = Config{
 	},
 	Signer: SignerConfig{
 		SignerType: "file",
-		SignerPath: "",
+		SignerPath: DefaultSignerPath,
 	},
 	RPC: RPCConfig{
 		Address: "127.0.0.1",

@@ -49,6 +49,16 @@ func NewSystemUnderTest(t *testing.T) *SystemUnderTest {
 	return r
 }
 
+// RunCmd runs a command and returns the output
+func (s *SystemUnderTest) RunCmd(cmd string, args ...string) (string, error) {
+	c := exec.Command( //nolint:gosec // used by tests only
+		locateExecutable(cmd),
+		args...,
+	)
+	out, err := c.Output()
+	return string(out), err
+}
+
 // StartNode starts a process for the given command and manages it cleanup on test end.
 func (s *SystemUnderTest) StartNode(cmd string, args ...string) {
 	c := exec.Command( //nolint:gosec // used by tests only

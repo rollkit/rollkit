@@ -21,6 +21,8 @@ const (
 	FlagDBPath = "db_path"
 	// FlagChainConfigDir is a flag for specifying the chain config directory
 	FlagChainConfigDir = "config_dir"
+	// FlagChainID is a flag for specifying the chain ID
+	FlagChainID = "chain_id"
 
 	// Node configuration flags
 
@@ -142,7 +144,7 @@ type Config struct {
 	RootDir   string `mapstructure:"home" yaml:"home" comment:"Root directory where rollkit files are located"`
 	DBPath    string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
 	ConfigDir string `mapstructure:"config_dir" yaml:"config_dir" comment:"Directory containing the rollup chain configuration"`
-
+	ChainID   string `mapstructure:"chain_id" yaml:"chain_id" comment:"Chain ID for the rollup"`
 	// P2P configuration
 	P2P P2PConfig `mapstructure:"p2p" yaml:"p2p"`
 
@@ -246,7 +248,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagRootDir, DefaultNodeConfig.RootDir, "root directory for config and data")
 	cmd.Flags().String(FlagDBPath, DefaultNodeConfig.DBPath, "path for the node database")
 	cmd.Flags().String(FlagChainConfigDir, DefaultNodeConfig.ConfigDir, "directory containing chain configuration files")
-
+	cmd.Flags().String(FlagChainID, DefaultNodeConfig.ChainID, "chain ID")
 	// Node configuration flags
 	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLight, def.Node.Light, "run light client")
@@ -296,7 +298,7 @@ func AddFlags(cmd *cobra.Command) {
 	// Signer configuration flags
 	cmd.Flags().String(FlagSignerType, def.Signer.SignerType, "type of signer to use (file, grpc)")
 	cmd.Flags().String(FlagSignerPath, def.Signer.SignerPath, "path to the signer file or address")
-	cmd.Flags().String(FlagSignerPassphrase, "", "passphrase for the signer")
+	cmd.Flags().String(FlagSignerPassphrase, "", "passphrase for the signer (required for file signer and if aggregator is enabled)")
 }
 
 // LoadNodeConfig loads the node configuration in the following order of precedence:
@@ -422,4 +424,8 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 	v.SetDefault(FlagLogLevel, "info")
 	v.SetDefault(FlagLogFormat, "")
 	v.SetDefault(FlagLogTrace, false)
+
+	// Signer configuration defaults
+	v.SetDefault(FlagSignerType, config.Signer.SignerType)
+	v.SetDefault(FlagSignerPath, config.Signer.SignerPath)
 }

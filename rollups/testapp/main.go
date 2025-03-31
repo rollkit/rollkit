@@ -11,7 +11,7 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	commands "github.com/rollkit/rollkit/rollups/testapp/commands"
+	commands "github.com/rollkit/rollkit/rollups/testapp/cmd"
 	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
 
