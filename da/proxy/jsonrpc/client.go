@@ -26,7 +26,7 @@ type API struct {
 		GetProofs     func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Proof, error)          `perm:"read"`
 		Commit        func(ctx context.Context, blobs []da.Blob, ns []byte) ([]da.Commitment, error) `perm:"read"`
 		Validate      func(context.Context, []da.ID, []da.Proof, []byte) ([]bool, error)             `perm:"read"`
-		Submit        func(context.Context, []da.Blob, float64, []byte) ([]da.ID, error)             `perm:"write"`
+		Submit        func(context.Context, []da.Blob, float64, []byte, []byte) ([]da.ID, error)     `perm:"write"`
 		GasMultiplier func(context.Context) (float64, error)                                         `perm:"read"`
 		GasPrice      func(context.Context) (float64, error)                                         `perm:"read"`
 	}
@@ -64,7 +64,7 @@ func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, ns
 
 // Submit submits the Blobs to Data Availability layer.
 func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
-	return api.Internal.Submit(ctx, blobs, gasPrice, ns)
+	return api.Internal.Submit(ctx, blobs, gasPrice, ns, options)
 }
 
 func (api *API) GasMultiplier(ctx context.Context) (float64, error) {

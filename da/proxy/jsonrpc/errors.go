@@ -17,6 +17,5 @@ func getKnownErrorsMapping() jsonrpc.Errors {
 	errs.Register(jsonrpc.ErrorCode(coreda.StatusIncorrectAccountSequence), &da.ErrTxIncorrectAccountSequence)
 	errs.Register(jsonrpc.ErrorCode(coreda.StatusTooBig), &da.ErrTxTooLarge)
 	errs.Register(jsonrpc.ErrorCode(coreda.StatusContextDeadline), &da.ErrContextDeadline)
-	errs.Register(jsonrpc.ErrorCode(coreda.StatusFutureHeight), &da.ErrFutureHeight)
 	return errs
 }

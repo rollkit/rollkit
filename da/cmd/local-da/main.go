@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	coreda "github.com/rollkit/rollkit/core/da"
 	proxy "github.com/rollkit/rollkit/da/proxy/jsonrpc"
-	goDATest "github.com/rollkit/rollkit/da/test"
 )
 
 const (
@@ -33,7 +33,7 @@ func main() {
 		host = "0.0.0.0"
 	}
 
-	srv := proxy.NewServer(host, port, goDATest.NewDummyDA())
+	srv := proxy.NewServer(host, port, coreda.NewDummyDA(100_000, 0, 0))
 	log.Printf("Listening on: %s:%s", host, port)
 	if err := srv.Start(context.Background()); err != nil {
 		log.Fatal("error while serving:", err)

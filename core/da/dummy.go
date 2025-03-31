@@ -59,7 +59,7 @@ func (d *DummyDA) Get(ctx context.Context, ids []ID, namespace []byte) ([]Blob, 
 	for _, id := range ids {
 		blob, exists := d.blobs[string(id)]
 		if !exists {
-			return nil, errors.New("blob not found")
+			return nil, errors.New("blob: not found")
 		}
 		blobs = append(blobs, blob)
 	}

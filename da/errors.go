@@ -12,5 +12,4 @@ var (
 	ErrTxIncorrectAccountSequence = errors.New("incorrect account sequence")
 	ErrTxTooLarge                 = errors.New("tx too large")
 	ErrContextDeadline            = errors.New("context deadline")
-	ErrFutureHeight               = errors.New("future height")
 )
