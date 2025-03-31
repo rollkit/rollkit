@@ -46,16 +46,18 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error creating directory %s: %w", homePath, err)
 		}
 
+		// we check if the aggregator flag is set
 		aggregator, err := cmd.Flags().GetBool(rollconf.FlagAggregator)
 		if err != nil {
 			return fmt.Errorf("error reading aggregator flag: %w", err)
 		}
 
+		// if the aggregator flag is set, we set the aggregator to true
 		if aggregator {
 			config.Node.Aggregator = true
 		}
 
-		// If using local file signer, initialize the key
+		// If using local file signer and aggregator is enabled, initialize the key
 		if config.Signer.SignerType == "file" && aggregator {
 			// Get passphrase if local signing is enabled
 			passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
