@@ -30,7 +30,7 @@ func createTestComponents(ctx context.Context) (coreexecutor.Executor, coreseque
 
 func TestParseFlags(t *testing.T) {
 	// Initialize nodeConfig with default values to avoid issues with instrument
-	nodeConfig = rollconf.DefaultNodeConfig
+	nodeConfig := rollconf.DefaultNodeConfig
 
 	flags := []string{
 		"--home", "custom/root/dir",
@@ -82,7 +82,8 @@ func TestParseFlags(t *testing.T) {
 		t.Errorf("Error: %v", err)
 	}
 
-	if err := parseConfig(newRunNodeCmd); err != nil {
+	nodeConfig, err := parseConfig(newRunNodeCmd)
+	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
 
@@ -157,7 +158,8 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 			t.Errorf("Error: %v", err)
 		}
 
-		if err := parseConfig(newRunNodeCmd); err != nil {
+		nodeConfig, err := parseConfig(newRunNodeCmd)
+		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
@@ -171,7 +173,7 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 // when no flag is specified
 func TestDefaultAggregatorValue(t *testing.T) {
 	// Reset nodeConfig to default values
-	nodeConfig = rollconf.DefaultNodeConfig
+	nodeConfig := rollconf.DefaultNodeConfig
 
 	// Create a new command without specifying any flags
 	args := []string{"start"}
@@ -183,7 +185,8 @@ func TestDefaultAggregatorValue(t *testing.T) {
 		t.Errorf("Error parsing flags: %v", err)
 	}
 
-	if err := parseConfig(newRunNodeCmd); err != nil {
+	nodeConfig, err := parseConfig(newRunNodeCmd)
+	if err != nil {
 		t.Errorf("Error parsing config: %v", err)
 	}
 
@@ -207,7 +210,8 @@ func TestCentralizedAddresses(t *testing.T) {
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
-	if err := parseConfig(cmd); err != nil {
+	nodeConfig, err := parseConfig(cmd)
+	if err != nil {
 		t.Fatalf("parseConfig error: %v", err)
 	}
 

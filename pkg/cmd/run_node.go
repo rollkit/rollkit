@@ -26,38 +26,35 @@ import (
 )
 
 var (
-	// initialize the rollkit node configuration
-	nodeConfig = rollconf.DefaultNodeConfig
+// initialize the rollkit node configuration
 
-	// initialize the logger with the cometBFT defaults
-	logger = log.NewLogger(os.Stdout)
 )
 
-func parseConfig(cmd *cobra.Command) error {
+func parseConfig(cmd *cobra.Command) (rollconf.Config, error) {
 	// Load configuration with the correct order of precedence:
 	// DefaultNodeConfig -> Yaml -> Flags
 	var err error
-	nodeConfig, err = rollconf.LoadNodeConfig(cmd)
+	nodeConfig, err := rollconf.LoadNodeConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load node config: %w", err)
+		return rollconf.Config{}, fmt.Errorf("failed to load node config: %w", err)
 	}
 
 	// Validate the root directory
 	if err := rollconf.EnsureRoot(nodeConfig.RootDir); err != nil {
-		return fmt.Errorf("failed to ensure root directory: %w", err)
+		return rollconf.Config{}, fmt.Errorf("failed to ensure root directory: %w", err)
 	}
 
-	return nil
+	return nodeConfig, nil
 }
 
-// setupLogger configures and returns a logger based on the provided configuration.
+// SetupLogger configures and returns a logger based on the provided configuration.
 // It applies the following settings from the config:
 //   - Log format (text or JSON)
 //   - Log level (debug, info, warn, error)
 //   - Stack traces for error logs
 //
 // The returned logger is already configured with the "module" field set to "main".
-func setupLogger(config rollconf.LogConfig) log.Logger {
+func SetupLogger(config rollconf.LogConfig) log.Logger {
 	var logOptions []log.Option
 
 	// Configure logger format
@@ -130,9 +127,11 @@ func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer cor
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
-	if err := parseConfig(cmd); err != nil {
+	nodeConfig, err := parseConfig(cmd)
+	if err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)
 	}
+	logger := SetupLogger(nodeConfig.Log)
 
 	//create a new remote signer
 	var signer signer.Signer
