@@ -23,6 +23,7 @@ func main() {
 	ctx := context.Background()
 
 	// Create test implementations
+	// TODO: we need to start the executor http server
 	executor := testExecutor.CreateDirectKVExecutor(ctx)
 	sequencer := coresequencer.NewDummySequencer()
 
