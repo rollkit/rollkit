@@ -19,7 +19,7 @@ import (
 )
 
 // setupTestServer creates a test server with a mock store
-func setupTestServer(t *testing.T, mockStore *mocks.Store) (*httptest.Server, *StoreClient) {
+func setupTestServer(t *testing.T, mockStore *mocks.Store) (*httptest.Server, *Client) {
 	// Create a new HTTP test server
 	mux := http.NewServeMux()
 
@@ -34,7 +34,7 @@ func setupTestServer(t *testing.T, mockStore *mocks.Store) (*httptest.Server, *S
 	testServer := httptest.NewServer(h2c.NewHandler(mux, &http2.Server{}))
 
 	// Create a client that connects to the test server
-	client := NewStoreClient(testServer.URL)
+	client := NewClient(testServer.URL)
 
 	return testServer, client
 }

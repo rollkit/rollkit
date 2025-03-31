@@ -16,10 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/p2p"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	"github.com/rollkit/rollkit/pkg/rpc/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,19 +75,17 @@ func (s *SystemUnderTest) AwaitNodeUp(t *testing.T, rpcAddr string, timeout time
 	go func() { // query for a non empty block on status page
 		t.Logf("Checking node status: %s\n", rpcAddr)
 		for {
-			con, err := rpchttp.New(rpcAddr)
-			if err != nil || con.Start() != nil {
+			con := client.NewClient(rpcAddr)
+			if con == nil {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
-			result, err := con.Status(ctx)
-			if err != nil || result.SyncInfo.LatestBlockHeight < 1 {
-				_ = con.Stop()
+			result, err := con.GetState(ctx)
+			if err != nil || result.LastBlockHeight < 1 {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
-			t.Logf("Node started. Current block: %d\n", result.SyncInfo.LatestBlockHeight)
-			_ = con.Stop()
+			t.Logf("Node started. Current block: %d\n", result.LastBlockHeight)
 			started <- struct{}{}
 			return
 		}
@@ -256,11 +253,9 @@ func MustCopyFile(t *testing.T, src, dest string) *os.File {
 // NodeID generates and returns the peer ID from the node's private key.
 func NodeID(t *testing.T, nodeDir string) peer.ID {
 	t.Helper()
-	node1Key, err := p2p.LoadOrGenNodeKey(filepath.Join(nodeDir, "config", "node_key.json"))
+	node1Key, err := key.LoadOrGenNodeKey(filepath.Join(nodeDir, "config", "node_key.json"))
 	require.NoError(t, err)
-	p2pKey, err := crypto.UnmarshalEd25519PrivateKey(node1Key.PrivKey.Bytes())
-	require.NoError(t, err)
-	node1ID, err := peer.IDFromPrivateKey(p2pKey)
+	node1ID, err := peer.IDFromPrivateKey(node1Key.PrivKey)
 	require.NoError(t, err)
 	return node1ID
 }
