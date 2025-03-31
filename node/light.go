@@ -132,3 +132,8 @@ func (ln *LightNode) OnStop(ctx context.Context) {
 	err = errors.Join(err, ln.Store.Close())
 	ln.Logger.Error("errors while stopping node:", "errors", err)
 }
+
+// IsRunning returns true if the node is running.
+func (ln *LightNode) IsRunning() bool {
+	return ln.P2P != nil && ln.hSyncService != nil
+}

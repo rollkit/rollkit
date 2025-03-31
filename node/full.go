@@ -475,6 +475,11 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 	return n.genChunks, nil
 }
 
+// IsRunning returns true if the node is running.
+func (n *FullNode) IsRunning() bool {
+	return n.blockManager != nil
+}
+
 // SetLogger sets the logger used by node.
 func (n *FullNode) SetLogger(logger log.Logger) {
 	n.Logger = logger

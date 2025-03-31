@@ -67,7 +67,7 @@ lint-fix:
 	@golangci-lint run --fix
 	@echo "--> Formatting markdownlint"
 	@markdownlint --config .markdownlint.yaml --ignore './specs/src/specs/**.md' --ignore './cmd/rollkit/docs/*.md' '**/*.md' -f
-.PHONY: fmt
+.PHONY: lint-fix
 
 ## vet: Run go vet
 vet: 
