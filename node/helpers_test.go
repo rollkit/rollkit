@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -45,13 +48,18 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 
 	// Generate genesis and keys
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(t, err)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
-	err := InitFiles(config.RootDir)
+	err = InitFiles(config.RootDir)
+	require.NoError(t, err)
+
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "node_key.json"))
 	require.NoError(t, err)
 
 	node, err := NewNode(
@@ -60,7 +68,8 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		genesisValidatorKey,
+		remoteSigner,
+		*nodeKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),

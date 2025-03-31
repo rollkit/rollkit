@@ -21,12 +21,6 @@ func TestGenesis_Validate(t *testing.T) {
 				InitialHeight:        1,
 				ExtraData: GenesisExtraData{
 					ProposerAddress: []byte("proposer"),
-					Validators: []ValidatorInfo{
-						{
-							Address:   []byte("validator"),
-							PublicKey: []byte("pubkey"),
-						},
-					},
 				},
 				AppState: json.RawMessage(`{}`),
 			},

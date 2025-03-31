@@ -715,12 +715,12 @@ rollkit migrate-storage [subcommand] [flags]
 
 5. **rollback**: Reverts migration
 
-```bash
-rollkit migrate-storage rollback [--data-dir=<path>] [--backup-dir=<path>]
-```
+   ```bash
+   rollkit migrate-storage rollback [--data-dir=<path>] [--backup-dir=<path>]
+   ```
 
-- Restores from backup
-- Validates restoration
+   - Restores from backup
+   - Validates restoration
 
 #### Migration Configuration
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -18,6 +19,8 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -44,6 +47,8 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	config.Node.MaxPendingBlocks = 100                                                      // Allow more pending blocks
 
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(s.T(), err)
 
 	s.seqSrv = startMockSequencerServerGRPC(MockSequencerAddress)
 	require.NotNil(s.T(), s.seqSrv)
@@ -53,7 +58,10 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
-	err := InitFiles(config.RootDir)
+	err = InitFiles(config.RootDir)
+	require.NoError(s.T(), err)
+
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
 	require.NoError(s.T(), err)
 
 	node, err := NewNode(
@@ -62,7 +70,8 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		genesisValidatorKey,
+		remoteSigner,
+		*nodeKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,7 +11,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cometprivval "github.com/cometbft/cometbft/privval"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
@@ -22,43 +20,41 @@ import (
 	"github.com/rollkit/rollkit/node"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
-	rollos "github.com/rollkit/rollkit/pkg/os"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer"
+	"github.com/rollkit/rollkit/pkg/signer/file"
 )
 
 var (
-	// initialize the rollkit node configuration
-	nodeConfig = rollconf.DefaultNodeConfig
+// initialize the rollkit node configuration
 
-	// initialize the logger with the cometBFT defaults
-	logger = log.NewLogger(os.Stdout)
 )
 
-func parseConfig(cmd *cobra.Command) error {
+func parseConfig(cmd *cobra.Command) (rollconf.Config, error) {
 	// Load configuration with the correct order of precedence:
 	// DefaultNodeConfig -> Yaml -> Flags
 	var err error
-	nodeConfig, err = rollconf.LoadNodeConfig(cmd)
+	nodeConfig, err := rollconf.LoadNodeConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load node config: %w", err)
+		return rollconf.Config{}, fmt.Errorf("failed to load node config: %w", err)
 	}
 
 	// Validate the root directory
 	if err := rollconf.EnsureRoot(nodeConfig.RootDir); err != nil {
-		return fmt.Errorf("failed to ensure root directory: %w", err)
+		return rollconf.Config{}, fmt.Errorf("failed to ensure root directory: %w", err)
 	}
 
-	return nil
+	return nodeConfig, nil
 }
 
-// setupLogger configures and returns a logger based on the provided configuration.
+// SetupLogger configures and returns a logger based on the provided configuration.
 // It applies the following settings from the config:
 //   - Log format (text or JSON)
 //   - Log level (debug, info, warn, error)
 //   - Stack traces for error logs
 //
 // The returned logger is already configured with the "module" field set to "main".
-func setupLogger(config rollconf.LogConfig) log.Logger {
+func SetupLogger(config rollconf.LogConfig) log.Logger {
 	var logOptions []log.Option
 
 	// Configure logger format
@@ -100,7 +96,6 @@ func NewRunNodeCmd(
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
-	keyProvider signer.KeyProvider,
 ) *cobra.Command {
 	if executor == nil {
 		panic("executor cannot be nil")
@@ -111,26 +106,13 @@ func NewRunNodeCmd(
 	if dac == nil {
 		panic("da client cannot be nil")
 	}
-	if keyProvider == nil {
-		panic("key provider cannot be nil")
-	}
 
 	cmd := &cobra.Command{
 		Use:     "start",
 		Aliases: []string{"node", "run"},
 		Short:   "Run the rollkit node",
-		// PersistentPreRunE is used to parse the config and initial the config files
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := parseConfig(cmd); err != nil {
-				return err
-			}
-
-			logger = setupLogger(nodeConfig.Log)
-
-			return initConfigFiles()
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return startNode(cmd, executor, sequencer, dac, keyProvider)
+			return startNode(cmd, executor, sequencer, dac)
 		},
 	}
 
@@ -140,79 +122,39 @@ func NewRunNodeCmd(
 	return cmd
 }
 
-// initConfigFiles initializes the config and data directories
-func initConfigFiles() error {
-	// Create config and data directories using nodeConfig values
-	configDir := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir)
-	dataDir := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath)
-
-	if err := os.MkdirAll(configDir, rollconf.DefaultDirPerm); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	if err := os.MkdirAll(dataDir, rollconf.DefaultDirPerm); err != nil {
-		return fmt.Errorf("failed to create data directory: %w", err)
-	}
-
-	// Generate the private validator config files
-	cometprivvalKeyFile := filepath.Join(configDir, "priv_validator_key.json")
-	cometprivvalStateFile := filepath.Join(dataDir, "priv_validator_state.json")
-	if rollos.FileExists(cometprivvalKeyFile) {
-		logger.Info("Found private validator", "keyFile", cometprivvalKeyFile,
-			"stateFile", cometprivvalStateFile)
-	} else {
-		pv := cometprivval.GenFilePV(cometprivvalKeyFile, cometprivvalStateFile)
-		pv.Save()
-		logger.Info("Generated private validator", "keyFile", cometprivvalKeyFile,
-			"stateFile", cometprivvalStateFile)
-	}
-
-	// Generate the genesis file
-	genFile := filepath.Join(configDir, "genesis.json")
-	if rollos.FileExists(genFile) {
-		logger.Info("Found genesis file", "path", genFile)
-	} else {
-		// Create a default genesis
-		genesis := genesispkg.NewGenesis(
-			"test-chain",
-			uint64(1),
-			time.Now(),
-			genesispkg.GenesisExtraData{}, // No proposer address for now
-			nil,                           // No raw bytes for now
-		)
-
-		// Marshal the genesis struct directly
-		genesisBytes, err := json.MarshalIndent(genesis, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal genesis: %w", err)
-		}
-
-		// Write genesis bytes directly to file
-		if err := os.WriteFile(genFile, genesisBytes, 0600); err != nil {
-			return fmt.Errorf("failed to write genesis file: %w", err)
-		}
-		logger.Info("Generated genesis file", "path", genFile)
-	}
-
-	return nil
-}
-
 // startNode handles the node startup logic
-func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer coresequencer.Sequencer, dac coreda.Client, keyProvider signer.KeyProvider) error {
+func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer coresequencer.Sequencer, dac coreda.Client) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
-	if err := parseConfig(cmd); err != nil {
+	nodeConfig, err := parseConfig(cmd)
+	if err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)
 	}
+	logger := SetupLogger(nodeConfig.Log)
 
-	if err := initConfigFiles(); err != nil {
-		return fmt.Errorf("failed to initialize files: %w", err)
+	//create a new remote signer
+	var signer signer.Signer
+	if nodeConfig.Signer.SignerType == "file" {
+		passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
+		if err != nil {
+			return err
+		}
+
+		signer, err = file.NewFileSystemSigner(nodeConfig.Signer.SignerPath, []byte(passphrase))
+		if err != nil {
+			return err
+		}
+	} else if nodeConfig.Signer.SignerType == "grpc" {
+		panic("grpc remote signer not implemented")
+	} else {
+		return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 	}
 
-	signingKey, err := keyProvider.GetSigningKey()
+	nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
+	nodeKey, err := key.LoadOrGenNodeKey(nodeKeyFile)
 	if err != nil {
-		return fmt.Errorf("failed to get signing key: %w", err)
+		return fmt.Errorf("failed to load node key: %w", err)
 	}
 
 	metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
@@ -230,7 +172,8 @@ func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer cor
 		executor,
 		sequencer,
 		dac,
-		signingKey,
+		signer,
+		*nodeKey,
 		genesis,
 		metrics,
 		logger,

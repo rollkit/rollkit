@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -16,23 +15,22 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/signer"
 	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
 
-func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.KeyProvider) {
+func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client) {
 	executor := testExecutor.CreateDirectKVExecutor(ctx)
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	logger := log.NewLogger(os.Stdout)
 	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
-	keyProvider := signer.NewFileKeyProvider("", "config", "data")
-	return executor, sequencer, dac, keyProvider
+
+	return executor, sequencer, dac
 }
 
 func TestParseFlags(t *testing.T) {
 	// Initialize nodeConfig with default values to avoid issues with instrument
-	nodeConfig = rollconf.DefaultNodeConfig
+	nodeConfig := rollconf.DefaultNodeConfig
 
 	flags := []string{
 		"--home", "custom/root/dir",
@@ -73,9 +71,9 @@ func TestParseFlags(t *testing.T) {
 
 	args := append([]string{"start"}, flags...)
 
-	executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
+	executor, sequencer, dac := createTestComponents(context.Background())
 
-	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac)
 
 	// Register root flags to be able to use --home flag
 	rollconf.AddBasicFlags(newRunNodeCmd, "testapp")
@@ -84,7 +82,8 @@ func TestParseFlags(t *testing.T) {
 		t.Errorf("Error: %v", err)
 	}
 
-	if err := parseConfig(newRunNodeCmd); err != nil {
+	nodeConfig, err := parseConfig(newRunNodeCmd)
+	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
 
@@ -151,15 +150,16 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	for i, flags := range flagVariants {
 		args := append([]string{"start"}, flags...)
 
-		executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
+		executor, sequencer, dac := createTestComponents(context.Background())
 
-		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
+		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
-		if err := parseConfig(newRunNodeCmd); err != nil {
+		nodeConfig, err := parseConfig(newRunNodeCmd)
+		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
@@ -173,24 +173,25 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 // when no flag is specified
 func TestDefaultAggregatorValue(t *testing.T) {
 	// Reset nodeConfig to default values
-	nodeConfig = rollconf.DefaultNodeConfig
+	nodeConfig := rollconf.DefaultNodeConfig
 
 	// Create a new command without specifying any flags
 	args := []string{"start"}
-	executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
+	executor, sequencer, dac := createTestComponents(context.Background())
 
-	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
 	}
 
-	if err := parseConfig(newRunNodeCmd); err != nil {
+	nodeConfig, err := parseConfig(newRunNodeCmd)
+	if err != nil {
 		t.Errorf("Error parsing config: %v", err)
 	}
 
 	// Verify that Aggregator is true by default
-	assert.True(t, nodeConfig.Node.Aggregator, "Expected Aggregator to be true by default")
+	assert.False(t, nodeConfig.Node.Aggregator, "Expected Aggregator to be false by default")
 }
 
 // TestCentralizedAddresses verifies that when centralized service flags are provided,
@@ -203,13 +204,14 @@ func TestCentralizedAddresses(t *testing.T) {
 		"--node.sequencer_rollup_id=centralrollup",
 	}
 
-	executor, sequencer, dac, keyProvider := createTestComponents(context.Background())
+	executor, sequencer, dac := createTestComponents(context.Background())
 
-	cmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider)
+	cmd := NewRunNodeCmd(executor, sequencer, dac)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
-	if err := parseConfig(cmd); err != nil {
+	nodeConfig, err := parseConfig(cmd)
+	if err != nil {
 		t.Fatalf("parseConfig error: %v", err)
 	}
 
@@ -224,53 +226,5 @@ func TestCentralizedAddresses(t *testing.T) {
 	// Also confirm that the sequencer rollup id flag is marked as changed
 	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
 		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
-	}
-}
-
-func TestInitFiles(t *testing.T) {
-	// Save the original nodeConfig
-	origNodeConfig := nodeConfig
-
-	// Create a temporary directory for the test
-	tempDir, err := os.MkdirTemp("", "rollkit-test")
-	assert.NoError(t, err)
-	defer func() {
-		err := os.RemoveAll(tempDir)
-		assert.NoError(t, err)
-	}()
-
-	// Create the necessary subdirectories
-	configDir := filepath.Join(tempDir, "config")
-	dataDir := filepath.Join(tempDir, "data")
-	err = os.MkdirAll(configDir, rollconf.DefaultDirPerm)
-	assert.NoError(t, err)
-	err = os.MkdirAll(dataDir, rollconf.DefaultDirPerm)
-	assert.NoError(t, err)
-
-	// Set the nodeConfig to use the temporary directory
-	nodeConfig = rollconf.Config{
-		RootDir:   tempDir,
-		ConfigDir: "config",
-		DBPath:    "data",
-	}
-
-	// Restore the original nodeConfig when the test completes
-	defer func() {
-		nodeConfig = origNodeConfig
-	}()
-
-	// Call initFiles
-	err = initConfigFiles()
-	assert.NoError(t, err)
-
-	// Verify that the expected files were created
-	files := []string{
-		filepath.Join(tempDir, "config", "priv_validator_key.json"),
-		filepath.Join(tempDir, "data", "priv_validator_state.json"),
-		filepath.Join(tempDir, "config", "genesis.json"),
-	}
-
-	for _, file := range files {
-		assert.FileExists(t, file)
 	}
 }

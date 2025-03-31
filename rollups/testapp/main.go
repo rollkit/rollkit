@@ -11,8 +11,7 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	"github.com/rollkit/rollkit/pkg/signer"
-	commands "github.com/rollkit/rollkit/rollups/testapp/commands"
+	commands "github.com/rollkit/rollkit/rollups/testapp/cmd"
 	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
 
@@ -24,6 +23,7 @@ func main() {
 	ctx := context.Background()
 
 	// Create test implementations
+	// TODO: we need to start the executor http server
 	executor := testExecutor.CreateDirectKVExecutor(ctx)
 	sequencer := coresequencer.NewDummySequencer()
 
@@ -32,13 +32,10 @@ func main() {
 	logger := log.NewLogger(os.Stdout)
 	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
 
-	// Create key provider
-	keyProvider := signer.NewFileKeyProvider("", "config", "data")
-
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
 		rollcmd.NewDocsGenCmd(rootCmd, commands.AppName),
-		rollcmd.NewRunNodeCmd(executor, sequencer, dac, keyProvider),
+		rollcmd.NewRunNodeCmd(executor, sequencer, dac),
 		rollcmd.VersionCmd,
 		rollcmd.InitCmd,
 	)

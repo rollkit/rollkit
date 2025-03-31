@@ -7,7 +7,6 @@
 package v1
 
 import (
-	_ "github.com/gogo/protobuf/gogoproto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -559,7 +558,7 @@ var File_rollkit_v1_rollkit_proto protoreflect.FileDescriptor
 const file_rollkit_v1_rollkit_proto_rawDesc = "" +
 	"\n" +
 	"\x18rollkit/v1/rollkit.proto\x12\n" +
-	"rollkit.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x14gogoproto/gogo.proto\"1\n" +
+	"rollkit.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"1\n" +
 	"\aVersion\x12\x14\n" +
 	"\x05block\x18\x01 \x01(\x04R\x05block\x12\x10\n" +
 	"\x03app\x18\x02 \x01(\x04R\x03app\"\xaf\x03\n" +
@@ -591,11 +590,11 @@ const file_rollkit_v1_rollkit_proto_rawDesc = "" +
 	"\x0elast_data_hash\x18\x04 \x01(\fR\flastDataHash\"J\n" +
 	"\x04Data\x120\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x14.rollkit.v1.MetadataR\bmetadata\x12\x10\n" +
-	"\x03txs\x18\x02 \x03(\fR\x03txs\"\xce\x01\n" +
+	"\x03txs\x18\x02 \x03(\fR\x03txs\"\xc4\x01\n" +
 	"\x04Vote\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\tR\achainId\x12\x16\n" +
-	"\x06height\x18\x02 \x01(\x04R\x06height\x12B\n" +
-	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\b\xc8\xde\x1f\x00\x90\xdf\x1f\x01R\ttimestamp\x12\"\n" +
+	"\x06height\x18\x02 \x01(\x04R\x06height\x128\n" +
+	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\"\n" +
 	"\rblock_id_hash\x18\x04 \x01(\fR\vblockIdHash\x12+\n" +
 	"\x11validator_address\x18\x05 \x01(\fR\x10validatorAddressB0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
 
