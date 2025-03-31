@@ -22,6 +22,39 @@ A fully decentralized sequencer could solve the liveness issue by distributing s
 
 Another approach would be to implement an automatic failover mechanism where backup sequencers take over when the primary sequencer fails. While simpler than a fully decentralized solution, this approach still requires managing multiple sequencers and introduces complexity in coordination and state transfer between them.
 
+### Block-Based Inclusion Delay
+
+A simpler alternative would be to track inclusion delay purely in terms of rollup block heights, rather than using DA layer references. This approach would:
+
+1. Remove the need for DA height references in block headers
+2. Track when transactions are first seen in terms of rollup block height
+3. Enforce inclusion within a fixed number of rollup blocks
+
+```go
+type ForcedInclusionConfig struct {
+    MaxInclusionDelay uint64    // Max number of rollup blocks for inclusion
+}
+
+type DirectTransaction struct {
+    TxHash          common.Hash
+    FirstSeenBlock  uint64    // Rollup block height where tx was first seen
+}
+```
+
+**Advantages:**
+- Simpler implementation without DA height tracking
+- More predictable deadlines in terms of rollup blocks
+- Easier to reason about for users and developers
+- No complexity from DA layer relationship
+- Purely deterministic based on block heights
+
+**Disadvantages:**
+- Less direct connection to DA layer timing
+- May need careful tuning of block delay parameter
+- Could be affected by variations in block production rate
+
+This approach would make the forced inclusion mechanism more straightforward to implement and verify, while still maintaining the core requirement of ensuring transaction inclusion within a bounded time window.
+
 ## Decision
 
 We will implement a forced inclusion mechanism for the Rollkit single sequencer architecture that:
