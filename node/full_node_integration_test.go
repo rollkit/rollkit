@@ -76,7 +76,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 	err = InitFiles(config.RootDir)
 	require.NoError(s.T(), err)
 
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "node_key.json"))
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
 	require.NoError(s.T(), err)
 
 	node, err := NewNode(
