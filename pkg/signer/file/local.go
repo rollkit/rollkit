@@ -90,8 +90,8 @@ func generateAndSaveKeys(keyPath string, passphrase []byte) (*FileSystemSigner, 
 
 // saveKeys encrypts and saves the private key to disk
 func (s *FileSystemSigner) saveKeys(passphrase []byte) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.privateKey == nil || s.publicKey == nil {
 		return fmt.Errorf("keys not initialized")
