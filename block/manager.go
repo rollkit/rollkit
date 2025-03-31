@@ -1464,6 +1464,10 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	data := batchData.Data
 	batchdata := convertBatchDataToBytes(data)
+	key, err := m.proposerKey.GetPublic()
+	if err != nil {
+		return nil, nil, err
+	}
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
@@ -1483,7 +1487,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		},
 		Signature: *lastSignature,
 		Signer: types.Signer{
-			PubKey:  m.proposerKey.GetPublic(),
+			PubKey:  key,
 			Address: m.genesis.ProposerAddress(),
 		},
 	}
