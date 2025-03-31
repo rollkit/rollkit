@@ -30,12 +30,25 @@ func TestBasic(t *testing.T) {
 	// Define and parse the binary flag locally in the test function.
 
 	sut := NewSystemUnderTest(t)
+	aggregatorPass := "12345678"
+	// init aggregator
+	sut.StartNode(binaryPath,
+		"init",
+		"--home="+node1Home,
+		"--node.sequencer_rollup_id=testing",
+		"--node.aggregator",
+		"--node.block_time=5ms",
+		"--da.block_time=15ms",
+		"--node.aggrgator",
+		"--signer.passphrase="+aggregatorPass,
+	)
 	// start aggregator
 	sut.StartNode(binaryPath,
 		"start",
 		"--home="+node1Home,
 		"--node.sequencer_rollup_id=testing",
 		"--node.aggregator",
+		"--signer.passphrase="+aggregatorPass,
 		"--node.block_time=5ms",
 		"--da.block_time=15ms",
 	)
