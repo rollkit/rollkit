@@ -24,7 +24,7 @@ type Node interface {
 
 // NewNode returns a new Full or Light Node based on the config
 // This is the entry point for composing a node, when compiling a node, you need to provide an executor
-// Example executors can be found: TODO: add link
+// Example executors can be found in rollups/
 func NewNode(
 	ctx context.Context,
 	conf config.Config,
