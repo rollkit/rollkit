@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -21,7 +20,7 @@ import (
 	"github.com/rollkit/rollkit/node"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
-	rollos "github.com/rollkit/rollkit/pkg/os"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
@@ -115,16 +114,6 @@ func NewRunNodeCmd(
 		Use:     "start",
 		Aliases: []string{"node", "run"},
 		Short:   "Run the rollkit node",
-		// PersistentPreRunE is used to parse the config and initial the config files
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := parseConfig(cmd); err != nil {
-				return err
-			}
-
-			logger = setupLogger(nodeConfig.Log)
-
-			return initConfigFiles()
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return startNode(cmd, executor, sequencer, dac)
 		},
@@ -136,52 +125,6 @@ func NewRunNodeCmd(
 	return cmd
 }
 
-// initConfigFiles initializes the config and data directories
-func initConfigFiles() error {
-	// Create config and data directories using nodeConfig values
-	configDir := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir)
-	dataDir := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath)
-
-	if err := os.MkdirAll(configDir, rollconf.DefaultDirPerm); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	if err := os.MkdirAll(dataDir, rollconf.DefaultDirPerm); err != nil {
-		return fmt.Errorf("failed to create data directory: %w", err)
-	}
-
-	//todo: generate keys
-
-	// Generate the genesis file
-	genFile := filepath.Join(configDir, "genesis.json")
-	if rollos.FileExists(genFile) {
-		logger.Info("Found genesis file", "path", genFile)
-	} else {
-		// Create a default genesis
-		genesis := genesispkg.NewGenesis(
-			"test-chain",
-			uint64(1),
-			time.Now(),
-			genesispkg.GenesisExtraData{}, // No proposer address for now
-			nil,                           // No raw bytes for now
-		)
-
-		// Marshal the genesis struct directly
-		genesisBytes, err := json.MarshalIndent(genesis, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal genesis: %w", err)
-		}
-
-		// Write genesis bytes directly to file
-		if err := os.WriteFile(genFile, genesisBytes, 0600); err != nil {
-			return fmt.Errorf("failed to write genesis file: %w", err)
-		}
-		logger.Info("Generated genesis file", "path", genFile)
-	}
-
-	return nil
-}
-
 // startNode handles the node startup logic
 func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer coresequencer.Sequencer, dac coreda.Client) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
@@ -189,10 +132,6 @@ func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer cor
 
 	if err := parseConfig(cmd); err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)
-	}
-
-	if err := initConfigFiles(); err != nil {
-		return fmt.Errorf("failed to initialize files: %w", err)
 	}
 
 	//create a new remote signer
@@ -213,6 +152,12 @@ func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer cor
 		return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 	}
 
+	nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
+	nodeKey, err := key.LoadOrGenNodeKey(nodeKeyFile)
+	if err != nil {
+		return fmt.Errorf("failed to load node key: %w", err)
+	}
+
 	metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
 	genesisPath := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "genesis.json")
@@ -229,6 +174,7 @@ func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer cor
 		sequencer,
 		dac,
 		signer,
+		*nodeKey,
 		genesis,
 		metrics,
 		logger,

@@ -13,6 +13,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/store"
@@ -37,6 +38,7 @@ func newLightNode(
 	conf config.Config,
 	genesis genesis.Genesis,
 	metricsProvider MetricsProvider,
+	nodeKey key.NodeKey,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
 
@@ -46,7 +48,7 @@ func newLightNode(
 	if err != nil {
 		return nil, err
 	}
-	client, err := p2p.NewClient(conf, genesis.ChainID, datastore, logger.With("module", "p2p"), p2pMetrics)
+	client, err := p2p.NewClient(conf, genesis.ChainID, datastore, logger.With("module", "p2p"), p2pMetrics, nodeKey)
 	if err != nil {
 		return nil, err
 	}

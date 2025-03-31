@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 )
 
 func TestClientStartup(t *testing.T) {
@@ -57,8 +58,11 @@ func TestClientStartup(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
+			nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(testCase.conf.RootDir, "config", "node_key.json"))
+			require.NoError(t, err)
+
 			client, err := NewClient(testCase.conf, "TestChain",
-				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLogger(t), NopMetrics())
+				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLogger(t), NopMetrics(), *nodeKey)
 			assert.NoError(err)
 			assert.NotNil(client)
 
@@ -157,12 +161,16 @@ func TestSeedStringParsing(t *testing.T) {
 			tempDir := t.TempDir()
 			ClientInitFiles(t, tempDir)
 
+			nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tempDir, "config", "node_key.json"))
+			require.NoError(err)
+
 			client, err := NewClient(
 				config.Config{RootDir: tempDir},
 				"TestNetwork",
 				dssync.MutexWrap(datastore.NewMapDatastore()),
 				logger,
 				NopMetrics(),
+				*nodeKey,
 			)
 			require.NoError(err)
 			require.NotNil(client)

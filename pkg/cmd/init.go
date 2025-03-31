@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	rollconf "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
 
@@ -45,8 +46,17 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error creating directory %s: %w", homePath, err)
 		}
 
+		aggregator, err := cmd.Flags().GetBool(rollconf.FlagAggregator)
+		if err != nil {
+			return fmt.Errorf("error reading aggregator flag: %w", err)
+		}
+
+		if aggregator {
+			config.Node.Aggregator = true
+		}
+
 		// If using local file signer, initialize the key
-		if config.Signer.SignerType == "file" && config.Node.Aggregator {
+		if config.Signer.SignerType == "file" && aggregator {
 			// Get passphrase if local signing is enabled
 			passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
 			if err != nil {
@@ -64,7 +74,7 @@ var InitCmd = &cobra.Command{
 			}
 
 			// Set signer path
-			config.Signer.SignerPath = filepath.Join(signerDir, "key.json")
+			config.Signer.SignerPath = filepath.Join(signerDir, "priv_key.json")
 
 			// Initialize the signer
 			_, err = file.NewFileSystemSigner(config.Signer.SignerPath, []byte(passphrase))
@@ -78,6 +88,12 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error writing rollkit.yaml file: %w", err)
 		}
 
+		nodeKeyFile := filepath.Join(homePath, "config", "node_key.json")
+		_, err = key.LoadOrGenNodeKey(nodeKeyFile)
+		if err != nil {
+			return fmt.Errorf("failed to create node key: %w", err)
+		}
+
 		fmt.Printf("Initialized %s file in %s\n", rollconf.RollkitConfigYaml, homePath)
 		return nil
 	},
@@ -86,4 +102,5 @@ var InitCmd = &cobra.Command{
 func init() {
 	// Add passphrase flag
 	InitCmd.Flags().String(rollconf.FlagSignerPassphrase, "", "Passphrase for encrypting the local signer key (required when using local file signer)")
+	InitCmd.Flags().Bool(rollconf.FlagAggregator, false, "Run node in aggregator mode")
 }

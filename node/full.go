@@ -23,6 +23,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/signer"
@@ -69,6 +70,7 @@ func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,
 	signer signer.Signer,
+	nodeKey key.NodeKey,
 	genesis genesispkg.Genesis,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
@@ -83,7 +85,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	p2pClient, err := p2p.NewClient(nodeConfig, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
+	p2pClient, err := p2p.NewClient(nodeConfig, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics, nodeKey)
 	if err != nil {
 		return nil, err
 	}

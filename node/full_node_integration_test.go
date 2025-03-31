@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
@@ -74,6 +76,9 @@ func (s *FullNodeTestSuite) SetupTest() {
 	err = InitFiles(config.RootDir)
 	require.NoError(s.T(), err)
 
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "node_key.json"))
+	require.NoError(s.T(), err)
+
 	node, err := NewNode(
 		s.ctx,
 		config,
@@ -81,6 +86,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		dummySequencer,
 		dummyClient,
 		remoteSigner,
+		*nodeKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -320,6 +326,9 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
 	require.NoError(err)
 
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	require.NoError(err)
+
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
@@ -335,6 +344,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		dummySequencer,
 		dummyClient,
 		remoteSigner,
+		*nodeKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -411,6 +421,9 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	require.NoError(err)
+
 	node, err := NewNode(
 		s.ctx,
 		config,
@@ -418,6 +431,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 		dummySequencer,
 		dummyClient,
 		remoteSigner,
+		*nodeKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),

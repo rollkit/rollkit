@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
@@ -57,6 +59,9 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	err = InitFiles(config.RootDir)
 	require.NoError(t, err)
 
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "node_key.json"))
+	require.NoError(t, err)
+
 	node, err := NewNode(
 		ctx,
 		config,
@@ -64,6 +69,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		dummySequencer,
 		dummyClient,
 		remoteSigner,
+		*nodeKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),

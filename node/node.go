@@ -10,6 +10,7 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/signer"
 )
@@ -31,18 +32,20 @@ func NewNode(
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
 	signer signer.Signer,
+	nodeKey key.NodeKey,
 	genesis genesis.Genesis,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
 	if conf.Node.Light {
-		return newLightNode(conf, genesis, metricsProvider, logger)
+		return newLightNode(conf, genesis, metricsProvider, nodeKey, logger)
 	}
 
 	return newFullNode(
 		ctx,
 		conf,
 		signer,
+		nodeKey,
 		genesis,
 		exec,
 		sequencer,

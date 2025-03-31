@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -223,53 +222,5 @@ func TestCentralizedAddresses(t *testing.T) {
 	// Also confirm that the sequencer rollup id flag is marked as changed
 	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
 		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
-	}
-}
-
-func TestInitFiles(t *testing.T) {
-	// Save the original nodeConfig
-	origNodeConfig := nodeConfig
-
-	// Create a temporary directory for the test
-	tempDir, err := os.MkdirTemp("", "rollkit-test")
-	assert.NoError(t, err)
-	defer func() {
-		err := os.RemoveAll(tempDir)
-		assert.NoError(t, err)
-	}()
-
-	// Create the necessary subdirectories
-	configDir := filepath.Join(tempDir, "config")
-	dataDir := filepath.Join(tempDir, "data")
-	err = os.MkdirAll(configDir, rollconf.DefaultDirPerm)
-	assert.NoError(t, err)
-	err = os.MkdirAll(dataDir, rollconf.DefaultDirPerm)
-	assert.NoError(t, err)
-
-	// Set the nodeConfig to use the temporary directory
-	nodeConfig = rollconf.Config{
-		RootDir:   tempDir,
-		ConfigDir: "config",
-		DBPath:    "data",
-	}
-
-	// Restore the original nodeConfig when the test completes
-	defer func() {
-		nodeConfig = origNodeConfig
-	}()
-
-	// Call initFiles
-	err = initConfigFiles()
-	assert.NoError(t, err)
-
-	// Verify that the expected files were created
-	files := []string{
-		filepath.Join(tempDir, "config", "priv_validator_key.json"),
-		filepath.Join(tempDir, "data", "priv_validator_state.json"),
-		filepath.Join(tempDir, "config", "genesis.json"),
-	}
-
-	for _, file := range files {
-		assert.FileExists(t, file)
 	}
 }
