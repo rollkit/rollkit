@@ -55,7 +55,8 @@ func TestReadYaml(t *testing.T) {
 			name: "sets RootDir even if empty yaml",
 			setup: func(t *testing.T, dir string) error {
 				// Create empty YAML file
-				os.MkdirAll(filepath.Join(dir, "config"), 0755)
+				err := os.MkdirAll(filepath.Join(dir, "config"), 0755)
+				require.NoError(t, err)
 				return os.WriteFile(filepath.Join(dir, "config", RollkitConfigYaml), []byte(""), 0600)
 			},
 			validate: func(t *testing.T, cfg Config, err error) {
@@ -67,7 +68,8 @@ func TestReadYaml(t *testing.T) {
 			name: "returns error if config file cannot be decoded",
 			setup: func(t *testing.T, dir string) error {
 				// Create invalid YAML file
-				os.MkdirAll(filepath.Join(dir, "config"), 0755)
+				err := os.MkdirAll(filepath.Join(dir, "config"), 0755)
+				require.NoError(t, err)
 				return os.WriteFile(filepath.Join(dir, "config", RollkitConfigYaml), []byte("invalid: yaml: content"), 0600)
 			},
 			validate: func(t *testing.T, cfg Config, err error) {
