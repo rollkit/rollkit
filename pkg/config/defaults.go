@@ -16,9 +16,6 @@ const (
 	// DefaultDataDir is the default directory for data files (e.g. database).
 	DefaultDataDir = "data"
 
-	// DefaultSignerPath is the default path for the signer file
-	DefaultSignerPath = "signer"
-
 	// DefaultListenAddress is a default listen address for P2P client.
 	DefaultListenAddress = "/ip4/0.0.0.0/tcp/7676"
 	// Version is the current rollkit version
@@ -38,7 +35,7 @@ const (
 
 // DefaultRootDir returns the default root directory for rollkit
 func DefaultRootDir() string {
-	return DefaultRootDirWithName(".rollkit")
+	return DefaultRootDirWithName("rollkit")
 }
 
 // DefaultRootDirWithName returns the default root directory for an application,
@@ -86,7 +83,7 @@ var DefaultNodeConfig = Config{
 	},
 	Signer: SignerConfig{
 		SignerType: "file",
-		SignerPath: DefaultSignerPath,
+		SignerPath: DefaultConfigDir,
 	},
 	RPC: RPCConfig{
 		Address: "127.0.0.1",
