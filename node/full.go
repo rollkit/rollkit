@@ -13,7 +13,6 @@ import (
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -24,8 +23,10 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/service"
+	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/pkg/sync"
 )
@@ -68,8 +69,9 @@ type FullNode struct {
 func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,
-	signingKey crypto.PrivKey,
 	p2pClient *p2p.Client,
+	signer signer.Signer,
+	nodeKey key.NodeKey,
 	genesis genesispkg.Genesis,
 	database ds.Batching,
 	exec coreexecutor.Executor,
@@ -95,7 +97,7 @@ func newFullNode(
 
 	blockManager, err := initBlockManager(
 		ctx,
-		signingKey,
+		signer,
 		exec,
 		nodeConfig,
 		genesis,
@@ -168,7 +170,7 @@ func initDataSyncService(
 
 func initBlockManager(
 	ctx context.Context,
-	signingKey crypto.PrivKey,
+	signer signer.Signer,
 	exec coreexecutor.Executor,
 	nodeConfig config.Config,
 	genesis genesispkg.Genesis,
@@ -195,7 +197,7 @@ func initBlockManager(
 
 	blockManager, err := block.NewManager(
 		ctx,
-		signingKey,
+		signer,
 		nodeConfig,
 		rollGen,
 		store,
@@ -456,6 +458,11 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 		return nil, err
 	}
 	return n.genChunks, nil
+}
+
+// IsRunning returns true if the node is running.
+func (n *FullNode) IsRunning() bool {
+	return n.blockManager != nil
 }
 
 // SetLogger sets the logger used by node.

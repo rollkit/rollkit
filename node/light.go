@@ -13,6 +13,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/store"
@@ -37,6 +38,7 @@ func newLightNode(
 	conf config.Config,
 	genesis genesis.Genesis,
 	p2pClient *p2p.Client,
+	nodeKey key.NodeKey,
 	database ds.Batching,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
@@ -112,4 +114,9 @@ func (ln *LightNode) OnStop(ctx context.Context) {
 
 	err = errors.Join(err, ln.Store.Close())
 	ln.Logger.Error("errors while stopping node:", "errors", err)
+}
+
+// IsRunning returns true if the node is running.
+func (ln *LightNode) IsRunning() bool {
+	return ln.P2P != nil && ln.hSyncService != nil
 }

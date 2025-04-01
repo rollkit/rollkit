@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -19,18 +17,22 @@ import (
 	"github.com/rollkit/rollkit/da"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer"
+	filesigner "github.com/rollkit/rollkit/pkg/signer/file"
 	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
 
-func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.KeyProvider, *p2p.Client, datastore.Batching) {
+func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.Signer, *p2p.Client, datastore.Batching) {
 	executor := testExecutor.CreateDirectKVExecutor(ctx)
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	logger := log.NewLogger(os.Stdout)
-	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
-	keyProvider := signer.NewFileKeyProvider("", "config", "data")
-
+	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte{}, logger)
+	keyProvider, err := filesigner.NewFileSystemSigner("config/data", []byte{})
+	if err != nil {
+		panic(err)
+	}
 	// Create a dummy P2P client and datastore for testing
 	p2pClient := &p2p.Client{}
 	ds := datastore.NewMapDatastore()
@@ -39,9 +41,6 @@ func createTestComponents(ctx context.Context) (coreexecutor.Executor, coreseque
 }
 
 func TestParseFlags(t *testing.T) {
-	// Initialize nodeConfig with default values to avoid issues with instrument
-	nodeConfig = rollconf.DefaultNodeConfig
-
 	flags := []string{
 		"--home", "custom/root/dir",
 		"--rollkit.db_path", "custom/db/path",
@@ -82,8 +81,12 @@ func TestParseFlags(t *testing.T) {
 	args := append([]string{"start"}, flags...)
 
 	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
+	nodeKey, err := key.LoadOrGenNodeKey("config/data/node_key.json")
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
 
-	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, p2pClient, ds)
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 
 	// Register root flags to be able to use --home flag
 	rollconf.AddBasicFlags(newRunNodeCmd, "testapp")
@@ -92,7 +95,8 @@ func TestParseFlags(t *testing.T) {
 		t.Errorf("Error: %v", err)
 	}
 
-	if err := parseConfig(newRunNodeCmd, "custom/root/dir"); err != nil {
+	nodeConfig, err := parseConfig(newRunNodeCmd, "custom/root/dir")
+	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
 
@@ -161,13 +165,19 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 
 		executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
 
-		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, p2pClient, ds)
+		nodeKey, err := key.LoadOrGenNodeKey("config/data/node_key.json")
+		if err != nil {
+			t.Fatalf("Error: %v", err)
+		}
+
+		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
-		if err := parseConfig(newRunNodeCmd, "custom/root/dir"); err != nil {
+		nodeConfig, err := parseConfig(newRunNodeCmd, "custom/root/dir")
+		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
@@ -180,30 +190,35 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 // TestDefaultAggregatorValue verifies that the default value of Aggregator is true
 // when no flag is specified
 func TestDefaultAggregatorValue(t *testing.T) {
-	// Reset nodeConfig to default values
-	nodeConfig = rollconf.DefaultNodeConfig
-
 	// Create a new command without specifying any flags
 	args := []string{"start"}
 	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
 
-	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, p2pClient, ds)
+	nodeKey, err := key.LoadOrGenNodeKey("config/data/node_key.json")
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
+
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
 	}
 
-	if err := parseConfig(newRunNodeCmd, "custom/root/dir"); err != nil {
+	nodeConfig, err := parseConfig(newRunNodeCmd, "custom/root/dir")
+	if err != nil {
 		t.Errorf("Error parsing config: %v", err)
 	}
 
 	// Verify that Aggregator is true by default
-	assert.True(t, nodeConfig.Node.Aggregator, "Expected Aggregator to be true by default")
+	assert.False(t, nodeConfig.Node.Aggregator, "Expected Aggregator to be false by default")
 }
 
 // TestCentralizedAddresses verifies that when centralized service flags are provided,
 // the configuration fields in nodeConfig are updated accordingly, ensuring that mocks are skipped.
 func TestCentralizedAddresses(t *testing.T) {
+	nodeConfig := rollconf.DefaultNodeConfig
+
 	args := []string{
 		"start",
 		"--rollkit.da.address=http://central-da:26657",
@@ -213,11 +228,18 @@ func TestCentralizedAddresses(t *testing.T) {
 
 	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
 
-	cmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, p2pClient, ds)
+	nodeKey, err := key.LoadOrGenNodeKey("config/data/node_key.json")
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
+
+	cmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
-	if err := parseConfig(cmd, "custom/root/dir"); err != nil {
+
+	nodeConfig, err = parseConfig(cmd, "custom/root/dir")
+	if err != nil {
 		t.Fatalf("parseConfig error: %v", err)
 	}
 
@@ -233,47 +255,4 @@ func TestCentralizedAddresses(t *testing.T) {
 	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
 		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
 	}
-}
-
-func TestInitFiles(t *testing.T) {
-	// Save the original nodeConfig
-	origNodeConfig := nodeConfig
-
-	// Create a temporary directory for the test
-	tempDir, err := os.MkdirTemp("", "rollkit-test")
-	assert.NoError(t, err)
-	defer func() {
-		err := os.RemoveAll(tempDir)
-		assert.NoError(t, err)
-	}()
-
-	// Create the necessary subdirectories
-	configDir := filepath.Join(tempDir, "config")
-	dataDir := filepath.Join(tempDir, "data")
-	err = os.MkdirAll(configDir, 0750)
-	require.NoError(t, err)
-	err = os.MkdirAll(dataDir, 0750)
-	assert.NoError(t, err)
-
-	// Set up test configuration
-	nodeConfig = rollconf.DefaultNodeConfig
-	nodeConfig.RootDir = tempDir
-	nodeConfig.ConfigDir = "config"
-	nodeConfig.DBPath = "data"
-
-	// Test initialization
-	err = initConfigFiles()
-	assert.NoError(t, err)
-
-	// Verify that the necessary files were created
-	privValKeyFile := filepath.Join(configDir, "priv_validator_key.json")
-	privValStateFile := filepath.Join(dataDir, "priv_validator_state.json")
-	genFile := filepath.Join(configDir, "genesis.json")
-
-	assert.FileExists(t, privValKeyFile, "Private validator key file should exist")
-	assert.FileExists(t, privValStateFile, "Private validator state file should exist")
-	assert.FileExists(t, genFile, "Genesis file should exist")
-
-	// Restore original configuration
-	nodeConfig = origNodeConfig
 }

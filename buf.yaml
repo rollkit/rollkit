@@ -1,9 +1,7 @@
-version: v1beta1
+version: v2
 
-build:
-  roots:
-    - proto
-    - third_party/proto
+modules:
+  - path: proto
 lint:
   use:
     - COMMENTS

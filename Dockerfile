@@ -1,6 +1,6 @@
 ## prep the base image.
 #
-FROM golang AS base
+FROM golang:1.24 AS base
 
 RUN apt-get update && \
 	apt-get install -y --no-install-recommends \
@@ -23,7 +23,7 @@ COPY . .
 
 # Now download dependencies and build
 RUN go mod download && \
-    make install
+	make install
 
 ## prep the final image.
 #

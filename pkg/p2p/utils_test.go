@@ -111,6 +111,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 		ClientInitFiles(t, tempDir)
 		nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tempDir, "config", "node_key.json"))
 		require.NoError(err)
+
 		client, err := NewClient(
 			config.Config{
 				RootDir: tempDir,

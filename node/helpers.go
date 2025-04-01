@@ -131,7 +131,7 @@ func Retry(tries int, durationBetweenAttempts time.Duration, fn func() error) (e
 func InitFiles(dir string) error {
 	// Create config directory
 	configDir := filepath.Join(dir, "config")
-	err := os.MkdirAll(configDir, 0755) //nolint:gosec
+	err := os.MkdirAll(configDir, 0700) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}

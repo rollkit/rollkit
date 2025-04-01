@@ -14,9 +14,9 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
-	"github.com/rollkit/rollkit/pkg/signer"
+	filesigner "github.com/rollkit/rollkit/pkg/signer/file"
 	"github.com/rollkit/rollkit/pkg/store"
-	commands "github.com/rollkit/rollkit/rollups/testapp/commands"
+	commands "github.com/rollkit/rollkit/rollups/testapp/cmd"
 	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
 
@@ -28,6 +28,7 @@ func main() {
 	ctx := context.Background()
 
 	// Create test implementations
+	// TODO: we need to start the executor http server
 	executor := testExecutor.CreateDirectKVExecutor(ctx)
 	sequencer := coresequencer.NewDummySequencer()
 
@@ -37,15 +38,14 @@ func main() {
 	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
 
 	// Create key provider
-	keyProvider := signer.NewFileKeyProvider("", "config", "data")
-	signingKey, err := keyProvider.GetSigningKey()
+	keyProvider, err := filesigner.NewFileSystemSigner("config/data/node_key.json", []byte{})
 	if err != nil {
 		panic(err)
 	}
 
-	nodeKey := &key.NodeKey{
-		PrivKey: signingKey,
-		PubKey:  signingKey.GetPublic(),
+	nodeKey, err := key.LoadOrGenNodeKey("config/data/node_key.json")
+	if err != nil {
+		panic(err)
 	}
 
 	datastore, err := store.NewDefaultInMemoryKVStore()
@@ -61,7 +61,7 @@ func main() {
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
 		rollcmd.NewDocsGenCmd(rootCmd, commands.AppName),
-		rollcmd.NewRunNodeCmd(executor, sequencer, dac, keyProvider, p2pClient, datastore),
+		rollcmd.NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, datastore),
 		rollcmd.VersionCmd,
 		rollcmd.InitCmd,
 	)

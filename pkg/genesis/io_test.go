@@ -35,12 +35,6 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 				GenesisDAStartHeight: validTime,
 				ExtraData: GenesisExtraData{
 					ProposerAddress: []byte("proposer-address"),
-					Validators: []ValidatorInfo{
-						{
-							Address:   []byte("validator-1"),
-							PublicKey: []byte("pubkey-1"),
-						},
-					},
 				},
 				AppState: json.RawMessage(`{"key": "value"}`),
 			},

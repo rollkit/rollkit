@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
+	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -67,6 +69,8 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	// Create genesis with current time
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(err)
 
 	// Create node key for P2P client
 	nodeKey := &key.NodeKey{
@@ -90,7 +94,8 @@ func (s *FullNodeTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		genesisValidatorKey,
+		remoteSigner,
+		*nodeKey,
 		p2pClient,
 		genesis,
 		dssync.MutexWrap(ds.NewMapDatastore()),
@@ -130,19 +135,22 @@ func (s *FullNodeTestSuite) SetupTest() {
 	time.Sleep(500 * time.Millisecond)
 
 	// Additional debug info after node start
-	initialHeight := s.node.Store.Height(s.ctx)
+	initialHeight, err := s.node.Store.Height(s.ctx)
+	require.NoError(err)
 	s.T().Logf("Node started - Initial block height: %d", initialHeight)
 	s.T().Logf("DA client initialized: %v", s.node.blockManager.DALCInitialized())
 
 	// Wait longer for height to stabilize and log intermediate values
 	for i := 0; i < 5; i++ {
 		time.Sleep(200 * time.Millisecond)
-		currentHeight := s.node.Store.Height(s.ctx)
+		currentHeight, err := s.node.Store.Height(s.ctx)
+		require.NoError(err)
 		s.T().Logf("Current height during stabilization: %d", currentHeight)
 	}
 
 	// Get final height after stabilization period
-	finalHeight := s.node.Store.Height(s.ctx)
+	finalHeight, err := s.node.Store.Height(s.ctx)
+	require.NoError(err)
 	s.T().Logf("Final setup height: %d", finalHeight)
 
 	// Store the stable height for test use
@@ -206,7 +214,8 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 
 	// Get initial state
 	initialDAHeight := s.node.blockManager.GetDAIncludedHeight()
-	initialHeight := s.node.Store.Height(s.ctx)
+	initialHeight, err := getNodeHeight(s.node, Header)
+	require.NoError(err)
 
 	// Check if block manager is properly initialized
 	s.T().Log("=== Block Manager State ===")
@@ -224,7 +233,8 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	for i := 0; i < 5; i++ {
 		time.Sleep(200 * time.Millisecond)
 		// We can't directly check batch queue size, but we can monitor block production
-		currentHeight := s.node.Store.Height(s.ctx)
+		currentHeight, err := s.node.Store.Height(s.ctx)
+		require.NoError(err)
 		s.T().Logf("Current height after batch check %d: %d", i, currentHeight)
 	}
 
@@ -238,7 +248,8 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	// Monitor after trigger
 	for i := 0; i < 5; i++ {
 		time.Sleep(200 * time.Millisecond)
-		currentHeight := s.node.Store.Height(s.ctx)
+		currentHeight, err := s.node.Store.Height(s.ctx)
+		require.NoError(err)
 		currentDAHeight := s.node.blockManager.GetDAIncludedHeight()
 		pendingHeaders, _ := s.node.blockManager.PendingHeaders().GetPendingHeaders()
 		s.T().Logf("Post-trigger check %d - Height: %d, DA Height: %d, Pending: %d",
@@ -247,7 +258,8 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 
 	// Final assertions with more detailed error messages
 	finalDAHeight := s.node.blockManager.GetDAIncludedHeight()
-	finalHeight := s.node.Store.Height(s.ctx)
+	finalHeight, err := s.node.Store.Height(s.ctx)
+	require.NoError(err)
 
 	require.Greater(finalHeight, initialHeight, "Block height should have increased")
 	require.Greater(finalDAHeight, initialDAHeight, "DA height should have increased")
@@ -271,7 +283,8 @@ func (s *FullNodeTestSuite) TestDAInclusion() {
 	s.T().Log("=== Monitoring State Changes ===")
 	for i := 0; i < 10; i++ {
 		time.Sleep(200 * time.Millisecond)
-		currentHeight := s.node.Store.Height(s.ctx)
+		currentHeight, err := s.node.Store.Height(s.ctx)
+		require.NoError(err)
 		currentDAHeight := s.node.blockManager.GetDAIncludedHeight()
 		pendingHeaders, _ := s.node.blockManager.PendingHeaders().GetPendingHeaders()
 		lastSubmittedHeight := s.node.blockManager.PendingHeaders().GetLastSubmittedHeight()
@@ -288,7 +301,8 @@ func (s *FullNodeTestSuite) TestDAInclusion() {
 	var finalDAHeight uint64
 	err = testutils.Retry(30, 200*time.Millisecond, func() error {
 		currentDAHeight := s.node.blockManager.GetDAIncludedHeight()
-		currentHeight := s.node.Store.Height(s.ctx)
+		currentHeight, err := s.node.Store.Height(s.ctx)
+		require.NoError(err)
 		pendingHeaders, _ := s.node.blockManager.PendingHeaders().GetPendingHeaders()
 
 		s.T().Logf("Retry check - DA Height: %d, Block Height: %d, Pending: %d",
@@ -304,7 +318,8 @@ func (s *FullNodeTestSuite) TestDAInclusion() {
 
 	// Final state logging
 	s.T().Log("=== Final State ===")
-	finalHeight := s.node.Store.Height(s.ctx)
+	finalHeight, err := s.node.Store.Height(s.ctx)
+	require.NoError(err)
 	pendingHeaders, _ := s.node.blockManager.PendingHeaders().GetPendingHeaders()
 	s.T().Logf("Final Height: %d", finalHeight)
 	s.T().Logf("Final DA Height: %d", finalDAHeight)
@@ -333,10 +348,15 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	config.Node.MaxPendingBlocks = 2
 
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(err)
+
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	require.NoError(err)
 
 	executor, sequencer, dac, p2pClient, ds := createTestComponents(s.T())
 
-	err := InitFiles(config.RootDir)
+	err = InitFiles(config.RootDir)
 	require.NoError(err)
 
 	node, err := NewNode(
@@ -345,7 +365,8 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		executor,
 		sequencer,
 		dac,
-		genesisValidatorKey,
+		remoteSigner,
+		*nodeKey,
 		p2pClient,
 		genesis,
 		ds,
@@ -416,6 +437,8 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	// Create a NEW node instance instead of reusing the old one
 	config := getTestConfig(s.T(), 1)
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(err)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
@@ -424,13 +447,17 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	p2pClient, err := p2p.NewClient(config, genesis.ChainID, nil, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
 	require.NoError(err)
 
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	require.NoError(err)
+
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		genesisValidatorKey,
+		remoteSigner,
+		*nodeKey,
 		p2pClient,
 		genesis,
 		dssync.MutexWrap(ds.NewMapDatastore()),

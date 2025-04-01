@@ -124,7 +124,7 @@ func findConfigFile(startDir string) (string, error) {
 // It ensures the directory exists and writes the configuration with proper permissions.
 func WriteYamlConfig(config Config) error {
 	// Configure the output file
-	configPath := filepath.Join(config.RootDir, RollkitConfigYaml)
+	configPath := filepath.Join(config.RootDir, "config", RollkitConfigYaml)
 
 	// Ensure the directory exists
 	if err := os.MkdirAll(filepath.Dir(configPath), 0750); err != nil {

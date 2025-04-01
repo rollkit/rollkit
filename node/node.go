@@ -5,7 +5,6 @@ import (
 
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p/core/crypto"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -13,24 +12,29 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/service"
+	"github.com/rollkit/rollkit/pkg/signer"
 )
 
 // Node is the interface for a rollup node
 type Node interface {
 	service.Service
+
+	IsRunning() bool
 }
 
 // NewNode returns a new Full or Light Node based on the config
 // This is the entry point for composing a node, when compiling a node, you need to provide an executor
-// Example executors can be found: TODO: add link
+// Example executors can be found in rollups/
 func NewNode(
 	ctx context.Context,
 	conf config.Config,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
-	signingKey crypto.PrivKey,
+	signer signer.Signer,
+	nodeKey key.NodeKey,
 	p2pClient *p2p.Client,
 	genesis genesis.Genesis,
 	database ds.Batching,
@@ -38,14 +42,15 @@ func NewNode(
 	logger log.Logger,
 ) (Node, error) {
 	if conf.Node.Light {
-		return newLightNode(conf, genesis, p2pClient, database, logger)
+		return newLightNode(conf, genesis, p2pClient, nodeKey, database, logger)
 	}
 
 	return newFullNode(
 		ctx,
 		conf,
-		signingKey,
 		p2pClient,
+		signer,
+		nodeKey,
 		genesis,
 		database,
 		exec,

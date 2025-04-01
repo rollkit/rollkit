@@ -63,7 +63,14 @@ type Client struct {
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-func NewClient(conf config.Config, chainID string, nodeKey *key.NodeKey, ds datastore.Datastore, logger log.Logger, metrics *Metrics) (*Client, error) {
+func NewClient(
+	conf config.Config,
+	chainID string,
+	nodeKey *key.NodeKey,
+	ds datastore.Datastore,
+	logger log.Logger,
+	metrics *Metrics,
+) (*Client, error) {
 	if conf.RootDir == "" {
 		return nil, fmt.Errorf("rootDir is required")
 	}

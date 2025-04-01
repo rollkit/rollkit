@@ -14,7 +14,6 @@ import (
 	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/rollkit/go-sequencing"
@@ -26,6 +25,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/queue"
+	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
@@ -107,7 +107,7 @@ type Manager struct {
 	config  config.Config
 	genesis genesis.Genesis
 
-	proposerKey crypto.PrivKey
+	proposerKey signer.Signer
 
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
@@ -221,7 +221,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, store store.S
 // NewManager creates new block Manager.
 func NewManager(
 	ctx context.Context,
-	proposerKey crypto.PrivKey,
+	proposerKey signer.Signer,
 	config config.Config,
 	genesis genesis.Genesis,
 	store store.Store,
@@ -398,7 +398,7 @@ func (m *Manager) SetDALC(dalc coreda.Client) {
 }
 
 // isProposer returns whether or not the manager is a proposer
-func isProposer(_ crypto.PrivKey, _ types.State) (bool, error) {
+func isProposer(_ signer.Signer, _ types.State) (bool, error) {
 	return true, nil
 }
 
@@ -527,9 +527,8 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	initialHeight := m.genesis.InitialHeight //nolint:gosec
 	height, err := m.store.Height(ctx)
 	if err != nil {
-		m.logger.Error("failed to get store height", "error", err)
-		// Use initialHeight as fallback
-		height = initialHeight
+		m.logger.Error("error while getting store height", "error", err)
+		return
 	}
 	var delay time.Duration
 
@@ -695,11 +694,12 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", headerHash,
 			)
-			storeHeight, err := m.store.Height(ctx)
+			height, err := m.store.Height(ctx)
 			if err != nil {
+				m.logger.Error("error while getting store height", "error", err)
 				continue
 			}
-			if storeHeight >= headerHeight || m.headerCache.IsSeen(headerHash) {
+			if headerHeight <= height || m.headerCache.IsSeen(headerHash) {
 				m.logger.Debug("header already seen", "height", headerHeight, "block hash", headerHash)
 				continue
 			}
@@ -729,11 +729,12 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", dataHash,
 			)
-			storeHeight, storeErr := m.store.Height(ctx)
-			if storeErr != nil {
+			height, err := m.store.Height(ctx)
+			if err != nil {
+				m.logger.Error("error while getting store height", "error", err)
 				continue
 			}
-			if storeHeight >= dataHeight || m.dataCache.IsSeen(dataHash) {
+			if dataHeight <= height || m.dataCache.IsSeen(dataHash) {
 				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue
 			}
@@ -741,7 +742,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 
 			m.sendNonBlockingSignalToDataStoreCh()
 
-			err := m.trySyncNextBlock(ctx, daHeight)
+			err = m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 				continue
@@ -1125,7 +1126,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	)
 	height, err := m.store.Height(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get store height: %w", err)
+		return fmt.Errorf("error while getting store height: %w", err)
 	}
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit

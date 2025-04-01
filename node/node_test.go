@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ import (
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
+	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -204,10 +206,15 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	}
 
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey(chainID)
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(t, err)
 
 	executor, sequencer, dac, p2pClient, ds := createTestComponents(t)
 
-	err := InitFiles(config.RootDir)
+	err = InitFiles(config.RootDir)
+	require.NoError(t, err)
+
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
 	require.NoError(t, err)
 
 	logger := log.NewTestLogger(t)
@@ -218,7 +225,8 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		executor,
 		sequencer,
 		dac,
-		genesisValidatorKey,
+		remoteSigner,
+		*nodeKey,
 		p2pClient,
 		genesis,
 		ds,

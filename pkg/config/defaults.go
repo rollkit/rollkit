@@ -12,7 +12,7 @@ const Version = "0.38.5"
 
 // DefaultRootDir returns the default root directory for rollkit
 func DefaultRootDir() string {
-	return DefaultRootDirWithName("rollkit")
+	return DefaultRootDirWithName(".rollkit")
 }
 
 // DefaultRootDirWithName returns the default root directory for an application,
@@ -30,12 +30,13 @@ var DefaultNodeConfig = Config{
 	RootDir:   DefaultRootDir(),
 	DBPath:    "data",
 	ConfigDir: "config",
+	ChainID:   "rollkit-test",
 	P2P: P2PConfig{
 		ListenAddress: "/ip4/0.0.0.0/tcp/7676",
 		Seeds:         "",
 	},
 	Node: NodeConfig{
-		Aggregator:        true,
+		Aggregator:        false,
 		BlockTime:         DurationWrapper{1 * time.Second},
 		LazyAggregator:    false,
 		LazyBlockTime:     DurationWrapper{60 * time.Second},
@@ -56,6 +57,10 @@ var DefaultNodeConfig = Config{
 		Level:  "info",
 		Format: "",
 		Trace:  false,
+	},
+	Signer: SignerConfig{
+		SignerType: "file",
+		SignerPath: "signer",
 	},
 	RPC: RPCConfig{
 		Address: "127.0.0.1",

@@ -21,7 +21,8 @@ func TestBasicExecutionFlow(t *testing.T) {
 	defer cleanup()
 
 	// Wait for node initialization
-	waitForNodeInitialization()
+	err := waitForNodeInitialization(node)
+	require.NoError(err)
 
 	executor := getExecutorFromNode(t, node)
 	txs := getTransactions(t, executor, ctx)
@@ -37,8 +38,23 @@ func TestBasicExecutionFlow(t *testing.T) {
 	require.NotEmpty(newStateRoot)
 }
 
-func waitForNodeInitialization() {
-	time.Sleep(1 * time.Second)
+func waitForNodeInitialization(node *FullNode) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if node.IsRunning() && node.blockManager != nil {
+				return nil
+			}
+		case <-ctx.Done():
+			return errors.New("timeout waiting for node initialization")
+		}
+	}
 }
 
 func getExecutorFromNode(t *testing.T, node *FullNode) coreexecutor.Executor {
@@ -105,7 +121,8 @@ func TestExecutionWithDASync(t *testing.T) {
 		}()
 
 		// Give node time to initialize and submit blocks to DA
-		time.Sleep(2 * time.Second)
+		err := waitForNodeInitialization(node)
+		require.NoError(err)
 
 		// Check if node is running properly
 		select {
@@ -123,7 +140,7 @@ func TestExecutionWithDASync(t *testing.T) {
 		require.NotNil(executor)
 
 		// Wait for first block to be produced with a shorter timeout
-		err := waitForFirstBlock(node, Header)
+		err = waitForFirstBlock(node, Header)
 		require.NoError(err)
 
 		// Get height and verify it's greater than 0

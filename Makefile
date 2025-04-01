@@ -67,7 +67,7 @@ lint-fix:
 	@golangci-lint run --fix
 	@echo "--> Formatting markdownlint"
 	@markdownlint --config .markdownlint.yaml --ignore './specs/src/specs/**.md' --ignore './cmd/rollkit/docs/*.md' '**/*.md' -f
-.PHONY: fmt
+.PHONY: lint-fix
 
 ## vet: Run go vet
 vet: 
@@ -84,7 +84,7 @@ test: vet
 ## test-e2e: Running e2e tests
 test-e2e: build
 	@echo "--> Running e2e tests"
-	@go test -mod=readonly -failfast -timeout=15m -tags='e2e' ./test/e2e/... --binary=$(CURDIR)/build/rollkit
+	@go test -mod=readonly -failfast -timeout=15m -tags='e2e' ./test/e2e/... --binary=$(CURDIR)/build/testapp
 .PHONY: test-e2e
 
 ## proto-gen: Generate protobuf files. Requires docker.

@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -10,11 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
 
 func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
-	startPort := 10000
+	// Use a higher base port to reduce chances of conflicts with system services
+	startPort := 40000 + n*100 // Spread port ranges further apart
 	return rollkitconfig.Config{
 		RootDir: t.TempDir(),
 		Node: rollkitconfig.NodeConfig{
@@ -41,10 +45,15 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 
 	// Generate genesis and keys
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(t, err)
 
 	executor, sequencer, dac, p2pClient, ds := createTestComponents(t)
 
-	err := InitFiles(config.RootDir)
+	err = InitFiles(config.RootDir)
+	require.NoError(t, err)
+
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "node_key.json"))
 	require.NoError(t, err)
 
 	node, err := NewNode(
@@ -53,7 +62,8 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		executor,
 		sequencer,
 		dac,
-		genesisValidatorKey,
+		remoteSigner,
+		*nodeKey,
 		p2pClient,
 		genesis,
 		ds,

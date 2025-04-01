@@ -155,13 +155,6 @@ func (dac *DAClient) Retrieve(ctx context.Context, dataLayerHeight uint64) cored
 		}
 	}
 
-	headers := make([][]byte, len(blobs))
-	for i, blob := range blobs {
-		headers[i] = blob
-		dac.Logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
-		continue
-	}
-
 	return coreda.ResultRetrieve{
 		BaseResult: coreda.BaseResult{
 			Code:   coreda.StatusSuccess,

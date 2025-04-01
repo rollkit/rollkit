@@ -22,6 +22,7 @@ import (
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
+	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -48,6 +49,8 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	config.Node.MaxPendingBlocks = 100                                                      // Allow more pending blocks
 
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(s.T(), err)
 
 	s.seqSrv = startMockSequencerServerGRPC(MockSequencerAddress)
 	require.NotNil(s.T(), s.seqSrv)
@@ -72,7 +75,8 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		genesisValidatorKey,
+		remoteSigner,
+		*nodeKey,
 		p2pClient,
 		genesis,
 		dssync.MutexWrap(ds.NewMapDatastore()),
@@ -181,7 +185,8 @@ func (s *NodeIntegrationTestSuite) TestBlockProduction() {
 	s.NoError(err, "Failed to produce first block")
 
 	// Get the current height
-	height := s.node.(*FullNode).Store.Height(s.ctx)
+	height, err := s.node.(*FullNode).Store.Height(s.ctx)
+	require.NoError(s.T(), err)
 	s.GreaterOrEqual(height, uint64(1), "Expected block height >= 1")
 
 	// Get all blocks and log their contents
