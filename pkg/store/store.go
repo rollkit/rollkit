@@ -21,7 +21,7 @@ var (
 	signaturePrefix = "c"
 	statePrefix     = "s"
 	metaPrefix      = "m"
-	heightPrefix    = "0"
+	heightPrefix    = "t"
 )
 
 // DefaultStore is a default store implmementation.
@@ -45,7 +45,10 @@ func (s *DefaultStore) Close() error {
 
 // SetHeight sets the height saved in the Store if it is higher than the existing height
 func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) error {
-	currentHeight := s.Height(ctx)
+	currentHeight, err := s.Height(ctx)
+	if err != nil {
+		return err
+	}
 	if height <= currentHeight {
 		return nil
 	}
@@ -55,22 +58,22 @@ func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) error {
 }
 
 // Height returns height of the highest block saved in the Store.
-func (s *DefaultStore) Height(ctx context.Context) uint64 {
+func (s *DefaultStore) Height(ctx context.Context) (uint64, error) {
 	heightBytes, err := s.db.Get(ctx, ds.NewKey(getHeightKey()))
 	if errors.Is(err, ds.ErrNotFound) {
-		return 0
+		return 0, nil
 	}
 	if err != nil {
 		// Since we can't return an error due to interface constraints,
 		// we log by returning 0 when there's an error reading from disk
-		return 0
+		return 0, err
 	}
 
 	height, err := decodeHeight(heightBytes)
 	if err != nil {
-		return 0
+		return 0, err
 	}
-	return height
+	return height, nil
 }
 
 // SaveBlockData adds block header and data to the store along with corresponding signature.

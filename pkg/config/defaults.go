@@ -46,7 +46,7 @@ var DefaultNodeConfig = Config{
 		ExecutorAddress:   "localhost:40041",
 	},
 	DA: DAConfig{
-		Address:       "http://localhost:26658",
+		Address:       "http://localhost:7980",
 		BlockTime:     DurationWrapper{15 * time.Second},
 		GasPrice:      -1,
 		GasMultiplier: 0,

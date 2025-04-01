@@ -410,7 +410,7 @@ func (m *Manager) SetLastState(state types.State) {
 }
 
 // GetStoreHeight returns the manager's store height
-func (m *Manager) GetStoreHeight(ctx context.Context) uint64 {
+func (m *Manager) GetStoreHeight(ctx context.Context) (uint64, error) {
 	return m.store.Height(ctx)
 }
 
@@ -525,7 +525,12 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
 	initialHeight := m.genesis.InitialHeight //nolint:gosec
-	height := m.store.Height(ctx)
+	height, err := m.store.Height(ctx)
+	if err != nil {
+		m.logger.Error("failed to get store height", "error", err)
+		// Use initialHeight as fallback
+		height = initialHeight
+	}
 	var delay time.Duration
 
 	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
@@ -690,7 +695,11 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", headerHash,
 			)
-			if headerHeight <= m.store.Height(ctx) || m.headerCache.IsSeen(headerHash) {
+			storeHeight, err := m.store.Height(ctx)
+			if err != nil {
+				continue
+			}
+			if storeHeight >= headerHeight || m.headerCache.IsSeen(headerHash) {
 				m.logger.Debug("header already seen", "height", headerHeight, "block hash", headerHash)
 				continue
 			}
@@ -704,7 +713,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			// so that trySyncNextBlock can progress
 			m.handleEmptyDataHash(ctx, &header.Header)
 
-			err := m.trySyncNextBlock(ctx, daHeight)
+			err = m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 				continue
@@ -720,7 +729,11 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", dataHash,
 			)
-			if dataHeight <= m.store.Height(ctx) || m.dataCache.IsSeen(dataHash) {
+			storeHeight, storeErr := m.store.Height(ctx)
+			if storeErr != nil {
+				continue
+			}
+			if storeHeight >= dataHeight || m.dataCache.IsSeen(dataHash) {
 				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue
 			}
@@ -774,7 +787,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return ctx.Err()
 		default:
 		}
-		currentHeight := m.store.Height(ctx)
+		currentHeight, err := m.store.Height(ctx)
+		if err != nil {
+			return err
+		}
 		h := m.headerCache.GetItem(currentHeight + 1)
 		if h == nil {
 			m.logger.Debug("header not found in cache", "height", currentHeight+1)
@@ -1107,7 +1123,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastHeaderTime time.Time
 		err            error
 	)
-	height := m.store.Height(ctx)
+	height, err := m.store.Height(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get store height: %w", err)
+	}
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight <= m.genesis.InitialHeight {
