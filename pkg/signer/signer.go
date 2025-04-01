@@ -4,8 +4,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
-// KeyProvider is an interface that provides access to signing keys
-type KeyProvider interface {
-	// GetSigningKey returns the private key used for signing
-	GetSigningKey() (crypto.PrivKey, error)
+// Signer is an interface for signing and verifying messages.
+type Signer interface {
+	// Sign takes a message as bytes and returns its signature.
+	Sign(message []byte) ([]byte, error)
+
+	// GetPublic returns the public key paired with this private key.
+	GetPublic() (crypto.PubKey, error)
 }

@@ -8,9 +8,7 @@ import (
 
 // GenesisExtraData represents the flexible configuration data in genesis
 type GenesisExtraData struct {
-	ProposerAddress []byte            `json:"proposer_address,omitempty"`
-	Validators      []ValidatorInfo   `json:"validators,omitempty"`
-	ConsensusParams map[string]string `json:"consensus_params,omitempty"`
+	ProposerAddress []byte `json:"proposer_address,omitempty"`
 }
 
 // ValidatorInfo represents a validator's configuration in genesis

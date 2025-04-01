@@ -4,14 +4,15 @@ import (
 	"context"
 
 	"cosmossdk.io/log"
-	"github.com/libp2p/go-libp2p/core/crypto"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/service"
+	"github.com/rollkit/rollkit/pkg/signer"
 )
 
 // Node is the interface for a rollup node
@@ -23,26 +24,28 @@ type Node interface {
 
 // NewNode returns a new Full or Light Node based on the config
 // This is the entry point for composing a node, when compiling a node, you need to provide an executor
-// Example executors can be found: TODO: add link
+// Example executors can be found in rollups/
 func NewNode(
 	ctx context.Context,
 	conf config.Config,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
-	signingKey crypto.PrivKey,
+	signer signer.Signer,
+	nodeKey key.NodeKey,
 	genesis genesis.Genesis,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
 	if conf.Node.Light {
-		return newLightNode(conf, genesis, metricsProvider, logger)
+		return newLightNode(conf, genesis, metricsProvider, nodeKey, logger)
 	}
 
 	return newFullNode(
 		ctx,
 		conf,
-		signingKey,
+		signer,
+		nodeKey,
 		genesis,
 		exec,
 		sequencer,

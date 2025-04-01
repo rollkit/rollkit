@@ -14,7 +14,6 @@ import (
 	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/rollkit/go-sequencing"
@@ -26,6 +25,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/queue"
+	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
@@ -107,7 +107,7 @@ type Manager struct {
 	config  config.Config
 	genesis genesis.Genesis
 
-	proposerKey crypto.PrivKey
+	proposerKey signer.Signer
 
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
@@ -221,7 +221,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, store store.S
 // NewManager creates new block Manager.
 func NewManager(
 	ctx context.Context,
-	proposerKey crypto.PrivKey,
+	proposerKey signer.Signer,
 	config config.Config,
 	genesis genesis.Genesis,
 	store store.Store,
@@ -395,7 +395,7 @@ func (m *Manager) SetDALC(dalc coreda.Client) {
 }
 
 // isProposer returns whether or not the manager is a proposer
-func isProposer(_ crypto.PrivKey, _ types.State) (bool, error) {
+func isProposer(_ signer.Signer, _ types.State) (bool, error) {
 	return true, nil
 }
 
@@ -1464,6 +1464,10 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	data := batchData.Data
 	batchdata := convertBatchDataToBytes(data)
+	key, err := m.proposerKey.GetPublic()
+	if err != nil {
+		return nil, nil, err
+	}
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
@@ -1482,6 +1486,10 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			ProposerAddress: m.genesis.ProposerAddress(),
 		},
 		Signature: *lastSignature,
+		Signer: types.Signer{
+			PubKey:  key,
+			Address: m.genesis.ProposerAddress(),
+		},
 	}
 
 	blockData := &types.Data{

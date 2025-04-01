@@ -21,6 +21,8 @@ const (
 	FlagDBPath = "db_path"
 	// FlagChainConfigDir is a flag for specifying the chain config directory
 	FlagChainConfigDir = "config_dir"
+	// FlagChainID is a flag for specifying the chain ID
+	FlagChainID = "chain_id"
 
 	// Node configuration flags
 
@@ -99,6 +101,17 @@ const (
 	// FlagLogTrace is a flag for enabling stack traces in error logs
 	FlagLogTrace = "log.trace"
 
+	// Signer configuration flags
+
+	// FlagSignerType is a flag for specifying the signer type
+	FlagSignerType = "signer.type"
+	// FlagSignerPath is a flag for specifying the signer path
+	FlagSignerPath = "signer.path"
+
+	// FlagSignerPassphrase is a flag for specifying the signer passphrase
+	//nolint:gosec
+	FlagSignerPassphrase = "signer.passphrase"
+
 	// RPC configuration flags
 
 	// FlagRPCAddress is a flag for specifying the RPC server address
@@ -131,7 +144,7 @@ type Config struct {
 	RootDir   string `mapstructure:"home" yaml:"home" comment:"Root directory where rollkit files are located"`
 	DBPath    string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
 	ConfigDir string `mapstructure:"config_dir" yaml:"config_dir" comment:"Directory containing the rollup chain configuration"`
-
+	ChainID   string `mapstructure:"chain_id" yaml:"chain_id" comment:"Chain ID for the rollup"`
 	// P2P configuration
 	P2P P2PConfig `mapstructure:"p2p" yaml:"p2p"`
 
@@ -149,6 +162,9 @@ type Config struct {
 
 	// Logging configuration
 	Log LogConfig `mapstructure:"log" yaml:"log"`
+
+	// Remote signer configuration
+	Signer SignerConfig `mapstructure:"signer" yaml:"signer"`
 }
 
 // DAConfig contains all Data Availability configuration parameters
@@ -200,6 +216,12 @@ type P2PConfig struct {
 	AllowedPeers  string `mapstructure:"allowed_peers" yaml:"allowed_peers" comment:"Comma separated list of peer IDs to allow connections from"`
 }
 
+// SignerConfig contains all signer configuration parameters
+type SignerConfig struct {
+	SignerType string `mapstructure:"signer_type" yaml:"signer_type" comment:"Type of remote signer to use (file, grpc)"`
+	SignerPath string `mapstructure:"signer_path" yaml:"signer_path" comment:"Path to the signer file or address"`
+}
+
 // AddBasicFlags registers the basic configuration flags that are common across applications
 // This includes logging configuration and root directory settings
 func AddBasicFlags(cmd *cobra.Command, appName string) {
@@ -226,7 +248,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagRootDir, DefaultNodeConfig.RootDir, "root directory for config and data")
 	cmd.Flags().String(FlagDBPath, DefaultNodeConfig.DBPath, "path for the node database")
 	cmd.Flags().String(FlagChainConfigDir, DefaultNodeConfig.ConfigDir, "directory containing chain configuration files")
-
+	cmd.Flags().String(FlagChainID, DefaultNodeConfig.ChainID, "chain ID")
 	// Node configuration flags
 	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLight, def.Node.Light, "run light client")
@@ -267,6 +289,16 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Int(FlagMaxOpenConnections, instrDef.MaxOpenConnections, "maximum number of simultaneous connections for metrics")
 	cmd.Flags().Bool(FlagPprof, instrDef.Pprof, "enable pprof HTTP endpoint")
 	cmd.Flags().String(FlagPprofListenAddr, instrDef.PprofListenAddr, "pprof HTTP server listening address")
+
+	// Logging configuration flags
+	cmd.Flags().String(FlagLogLevel, "info", "log level (debug, info, warn, error)")
+	cmd.Flags().String(FlagLogFormat, "", "log format (text, json)")
+	cmd.Flags().Bool(FlagLogTrace, false, "enable stack traces in error logs")
+
+	// Signer configuration flags
+	cmd.Flags().String(FlagSignerType, def.Signer.SignerType, "type of signer to use (file, grpc)")
+	cmd.Flags().String(FlagSignerPath, def.Signer.SignerPath, "path to the signer file or address")
+	cmd.Flags().String(FlagSignerPassphrase, "", "passphrase for the signer (required for file signer and if aggregator is enabled)")
 }
 
 // LoadNodeConfig loads the node configuration in the following order of precedence:
@@ -392,4 +424,8 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 	v.SetDefault(FlagLogLevel, "info")
 	v.SetDefault(FlagLogFormat, "")
 	v.SetDefault(FlagLogTrace, false)
+
+	// Signer configuration defaults
+	v.SetDefault(FlagSignerType, config.Signer.SignerType)
+	v.SetDefault(FlagSignerPath, config.Signer.SignerPath)
 }

@@ -41,7 +41,7 @@ func StartStoreServer(s store.Store, address string) {
 // ExampleClient demonstrates how to use the Store RPC client
 func ExampleClient() {
 	// Create a new client
-	client := client.NewStoreClient("http://localhost:8080")
+	client := client.NewClient("http://localhost:8080")
 	ctx := context.Background()
 
 	// Get the current state
