@@ -9,7 +9,6 @@ replace github.com/rollkit/rollkit => ../
 require (
 	cosmossdk.io/log v1.5.0
 	github.com/filecoin-project/go-jsonrpc v0.7.1
-	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.10.0
 )
@@ -23,6 +22,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/ipfs/go-log/v2 v2.0.8 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect

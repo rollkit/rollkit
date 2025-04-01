@@ -4,16 +4,17 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"os"
 	"sync/atomic"
 	"time"
 
+	logger "cosmossdk.io/log"
 	"github.com/filecoin-project/go-jsonrpc"
-	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/rollkit/rollkit/core/da"
 )
 
-var log = logging.Logger("jsonrpc")
+var log = logger.NewLogger(os.Stdout)
 
 // Server is a jsonrpc service that can serve the DA interface
 type Server struct {
@@ -60,7 +61,7 @@ func (s *Server) Start(context.Context) error {
 		return err
 	}
 	s.listener = listener
-	log.Infow("server started", "listening on", s.srv.Addr)
+	log.Info("server started", "listening on", s.srv.Addr)
 	//nolint:errcheck
 	go s.srv.Serve(listener)
 	return nil
