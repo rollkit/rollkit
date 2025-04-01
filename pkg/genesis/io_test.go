@@ -33,10 +33,8 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 				ChainID:              "test-chain-1",
 				InitialHeight:        1,
 				GenesisDAStartHeight: validTime,
-				ExtraData: GenesisExtraData{
-					ProposerAddress: []byte("proposer-address"),
-				},
-				AppState: json.RawMessage(`{"key": "value"}`),
+				ProposerAddress:      []byte("proposer-address"),
+				AppState:             json.RawMessage(`{"key": "value"}`),
 			},
 			wantErr: false,
 		},
@@ -46,7 +44,7 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 				ChainID:              "test-chain-2",
 				InitialHeight:        1,
 				GenesisDAStartHeight: validTime,
-				ExtraData:            GenesisExtraData{},
+				ProposerAddress:      []byte("proposer-address"),
 				AppState:             json.RawMessage(`{}`),
 			},
 			wantErr: false,
@@ -57,7 +55,7 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 				ChainID:              "",
 				InitialHeight:        1,
 				GenesisDAStartHeight: validTime,
-				ExtraData:            GenesisExtraData{},
+				ProposerAddress:      []byte("proposer-address"),
 			},
 			wantErr: true,
 		},
@@ -67,7 +65,7 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 				ChainID:              "test-chain",
 				InitialHeight:        0,
 				GenesisDAStartHeight: validTime,
-				ExtraData:            GenesisExtraData{},
+				ProposerAddress:      []byte("proposer-address"),
 			},
 			wantErr: true,
 		},
@@ -139,7 +137,7 @@ func TestSaveGenesis_InvalidPath(t *testing.T) {
 		ChainID:              "test-chain",
 		InitialHeight:        1,
 		GenesisDAStartHeight: time.Now().UTC(),
-		ExtraData:            GenesisExtraData{},
+		ProposerAddress:      []byte("proposer-address"),
 	}
 	err := SaveGenesis(genesis, "/nonexistent/directory/genesis.json")
 	assert.Error(t, err)

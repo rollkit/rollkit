@@ -12,7 +12,9 @@ import (
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
+	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
+	"github.com/rollkit/rollkit/types"
 )
 
 // ValidateHomePath checks if the home path is valid and not already initialized
@@ -39,25 +41,26 @@ func InitializeConfig(homePath string, aggregator bool) rollconf.Config {
 }
 
 // InitializeSigner sets up the signer configuration and creates necessary files
-func InitializeSigner(config *rollconf.Config, homePath string, passphrase string) error {
+func InitializeSigner(config *rollconf.Config, homePath string, passphrase string) (signer.Signer, error) {
 	if config.Signer.SignerType == "file" && config.Node.Aggregator {
 		if passphrase == "" {
-			return fmt.Errorf("passphrase is required when using local file signer")
+			return nil, fmt.Errorf("passphrase is required when using local file signer")
 		}
 
 		signerDir := filepath.Join(homePath, "config")
 		if err := os.MkdirAll(signerDir, rollconf.DefaultDirPerm); err != nil {
-			return fmt.Errorf("failed to create signer directory: %w", err)
+			return nil, fmt.Errorf("failed to create signer directory: %w", err)
 		}
 
 		config.Signer.SignerPath = filepath.Join(signerDir, "priv_key.json")
 
-		_, err := file.NewFileSystemSigner(config.Signer.SignerPath, []byte(passphrase))
+		signer, err := file.NewFileSystemSigner(config.Signer.SignerPath, []byte(passphrase))
 		if err != nil {
-			return fmt.Errorf("failed to initialize signer: %w", err)
+			return nil, fmt.Errorf("failed to initialize signer: %w", err)
 		}
+		return signer, nil
 	}
-	return nil
+	return nil, nil
 }
 
 // InitializeNodeKey creates the node key file
@@ -71,13 +74,13 @@ func InitializeNodeKey(homePath string) error {
 }
 
 // InitializeGenesis creates and saves a genesis file with the given app state
-func InitializeGenesis(homePath string, chainID string, initialHeight uint64, appState []byte) error {
+func InitializeGenesis(homePath string, chainID string, initialHeight uint64, proposerAddress, appState []byte) error {
 	// Create an empty genesis file
 	genesisData := genesispkg.NewGenesis(
 		chainID,
 		initialHeight,
-		time.Now(), // Current time as genesis DA start height
-		genesispkg.GenesisExtraData{},
+		time.Now(),                // Current time as genesis DA start height
+		proposerAddress,           // Proposer address
 		json.RawMessage(appState), // App state from parameters
 	)
 
@@ -127,7 +130,8 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error reading passphrase flag: %w", err)
 		}
 
-		if err := InitializeSigner(&config, homePath, passphrase); err != nil {
+		signer, err := InitializeSigner(&config, homePath, passphrase)
+		if err != nil {
 			return err
 		}
 
@@ -148,8 +152,15 @@ var InitCmd = &cobra.Command{
 			chainID = "rollkit-test"
 		}
 
+		pubKey, err := signer.GetPublic()
+		if err != nil {
+			return fmt.Errorf("error getting public key: %w", err)
+		}
+
+		proposerAddress := types.KeyAddress(pubKey)
+
 		// Initialize genesis with empty app state
-		if err := InitializeGenesis(homePath, chainID, 1, []byte("{}")); err != nil {
+		if err := InitializeGenesis(homePath, chainID, 1, proposerAddress, []byte("{}")); err != nil {
 			return fmt.Errorf("error initializing genesis file: %w", err)
 		}
 
