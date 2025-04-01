@@ -34,7 +34,6 @@ func ValidateHomePath(homePath string) error {
 // InitializeConfig creates and initializes the configuration with default values
 func InitializeConfig(homePath string, aggregator bool) rollconf.Config {
 	config := rollconf.DefaultNodeConfig
-	config.ConfigDir = homePath
 	config.RootDir = homePath
 	config.Node.Aggregator = aggregator
 	return config
