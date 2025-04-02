@@ -5,11 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	rollhash "github.com/rollkit/rollkit/pkg/hash"
 	rollos "github.com/rollkit/rollkit/pkg/os"
+)
+
+const (
+	NodeKeyFileName = "node_key.json"
 )
 
 // NodeKey is the persistent peer key.
@@ -75,13 +80,13 @@ func (nodeKey *NodeKey) ID() string {
 }
 
 // SaveAs persists the NodeKey to filePath.
-func (nodeKey *NodeKey) SaveAs(filePath string) error {
-
+func (nodeKey *NodeKey) SaveAs(dirPath string) error {
+	fullPath := filepath.Join(dirPath, NodeKeyFileName)
 	jsonBytes, err := json.Marshal(nodeKey)
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(filePath, jsonBytes, 0600)
+	err = os.WriteFile(fullPath, jsonBytes, 0600)
 	if err != nil {
 		return err
 	}
@@ -102,17 +107,8 @@ func PubKeyToID(pubKey crypto.PubKey) string {
 	return hex.EncodeToString(rollhash.SumTruncated(raw))
 }
 
-// LoadOrGenNodeKey attempts to load the NodeKey from the given filePath. If
-// the file does not exist, it generates and saves a new NodeKey.
-func LoadOrGenNodeKey(filePath string) (*NodeKey, error) {
-	if rollos.FileExists(filePath) {
-		nodeKey, err := LoadNodeKey(filePath)
-		if err != nil {
-			return nil, err
-		}
-		return nodeKey, nil
-	}
-
+// GenerateNodeKey generates a new NodeKey
+func GenerateNodeKey() (*NodeKey, error) {
 	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	if err != nil {
 		return nil, err
@@ -121,24 +117,46 @@ func LoadOrGenNodeKey(filePath string) (*NodeKey, error) {
 		PrivKey: privKey,
 		PubKey:  pubKey,
 	}
+	return nodeKey, nil
+}
 
-	if err := nodeKey.SaveAs(filePath); err != nil {
-		return nil, err
+// LoadOrGenNodeKey attempts to load the NodeKey from the given directory path.
+// If the file node_key.json does not exist in that directory, it generates
+// and saves a new NodeKey there.
+func LoadOrGenNodeKey(dirPath string) (*NodeKey, error) {
+	fullPath := filepath.Join(dirPath, NodeKeyFileName)
+	if rollos.FileExists(fullPath) {
+		// Pass the directory path, LoadNodeKey will append the filename
+		nodeKey, err := LoadNodeKey(dirPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load node key from %s: %w", fullPath, err)
+		}
+		return nodeKey, nil
+	}
+	nodeKey, err := GenerateNodeKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate node key: %w", err)
+	}
+
+	// Save uses the constructed full path
+	if err := nodeKey.SaveAs(dirPath); err != nil {
+		return nil, fmt.Errorf("failed to save node key to %s: %w", fullPath, err)
 	}
 
 	return nodeKey, nil
 }
 
-// LoadNodeKey loads NodeKey located in filePath.
-func LoadNodeKey(filePath string) (*NodeKey, error) {
-	jsonBytes, err := os.ReadFile(filePath) //nolint:gosec
+// LoadNodeKey loads NodeKey located in dirPath/node_key.json.
+func LoadNodeKey(dirPath string) (*NodeKey, error) {
+	fullPath := filepath.Join(dirPath, NodeKeyFileName)
+	jsonBytes, err := os.ReadFile(fullPath) //nolint:gosec
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read node key file %s: %w", fullPath, err)
 	}
 	nodeKey := new(NodeKey)
 	err = json.Unmarshal(jsonBytes, nodeKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal node key from %s: %w", fullPath, err)
 	}
 	return nodeKey, nil
 }

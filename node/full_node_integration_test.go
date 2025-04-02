@@ -76,7 +76,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 	err = InitFiles(config.RootDir)
 	require.NoError(s.T(), err)
 
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config"))
 	require.NoError(s.T(), err)
 
 	node, err := NewNode(
@@ -326,7 +326,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
 	require.NoError(err)
 
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	nodeKey, err := key.GenerateNodeKey()
 	require.NoError(err)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
@@ -421,7 +421,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	nodeKey, err := key.GenerateNodeKey()
 	require.NoError(err)
 
 	node, err := NewNode(

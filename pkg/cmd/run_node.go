@@ -151,8 +151,7 @@ func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer cor
 		return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 	}
 
-	nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
-	nodeKey, err := key.LoadOrGenNodeKey(nodeKeyFile)
+	nodeKey, err := key.GenerateNodeKey()
 	if err != nil {
 		return fmt.Errorf("failed to load node key: %w", err)
 	}

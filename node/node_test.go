@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -193,7 +192,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	err = InitFiles(config.RootDir)
 	require.NoError(t, err)
 
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	nodeKey, err := key.GenerateNodeKey()
 	require.NoError(t, err)
 
 	logger := log.NewTestLogger(t)

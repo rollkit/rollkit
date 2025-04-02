@@ -53,5 +53,9 @@ func (g Genesis) Validate() error {
 		return fmt.Errorf("genesis_da_start_height cannot be zero time")
 	}
 
+	if g.ProposerAddress == nil {
+		return fmt.Errorf("proposer_address cannot be nil")
+	}
+
 	return nil
 }

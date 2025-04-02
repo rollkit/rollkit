@@ -58,7 +58,7 @@ func TestClientStartup(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(testCase.conf.RootDir, "config", "node_key.json"))
+			nodeKey, err := key.GenerateNodeKey()
 			require.NoError(t, err)
 
 			client, err := NewClient(testCase.conf, "TestChain",
@@ -161,7 +161,7 @@ func TestSeedStringParsing(t *testing.T) {
 			tempDir := t.TempDir()
 			ClientInitFiles(t, tempDir)
 
-			nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tempDir, "config", "node_key.json"))
+			nodeKey, err := key.GenerateNodeKey()
 			require.NoError(err)
 
 			client, err := NewClient(

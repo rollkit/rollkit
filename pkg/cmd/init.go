@@ -78,7 +78,7 @@ func InitializeSigner(config *rollconf.Config, homePath string, passphrase strin
 
 // InitializeNodeKey creates the node key file
 func InitializeNodeKey(homePath string) error {
-	nodeKeyFile := filepath.Join(homePath, "config", "node_key.json")
+	nodeKeyFile := filepath.Join(homePath, "config")
 	_, err := key.LoadOrGenNodeKey(nodeKeyFile)
 	if err != nil {
 		return fmt.Errorf("failed to create node key: %w", err)
