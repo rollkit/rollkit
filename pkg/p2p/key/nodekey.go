@@ -86,6 +86,12 @@ func (nodeKey *NodeKey) SaveAs(dirPath string) error {
 	if err != nil {
 		return err
 	}
+	// create directory if it doesn't exist
+	err = os.MkdirAll(filepath.Dir(fullPath), 0755)
+	if err != nil {
+		return err
+	}
+
 	err = os.WriteFile(fullPath, jsonBytes, 0600)
 	if err != nil {
 		return err

@@ -66,22 +66,26 @@ type Client struct {
 func NewClient(
 	conf config.Config,
 	chainID string,
+	nodeKey *key.NodeKey,
 	ds datastore.Datastore,
 	logger log.Logger,
 	metrics *Metrics,
-	nodeKey key.NodeKey,
 ) (*Client, error) {
 	if conf.RootDir == "" {
 		return nil, fmt.Errorf("rootDir is required")
 	}
 
 	if conf.P2P.ListenAddress == "" {
-		conf.P2P.ListenAddress = config.DefaultListenAddress
+		conf.P2P.ListenAddress = config.DefaultNodeConfig.P2P.ListenAddress
 	}
 
 	gater, err := conngater.NewBasicConnectionGater(ds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection gater: %w", err)
+	}
+
+	if nodeKey == nil {
+		return nil, fmt.Errorf("node key is required")
 	}
 
 	return &Client{

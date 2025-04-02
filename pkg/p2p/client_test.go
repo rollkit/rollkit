@@ -25,6 +25,9 @@ func TestClientStartup(t *testing.T) {
 	tempDir := t.TempDir()
 	ClientInitFiles(t, tempDir)
 
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tempDir, "config", "node_key.json"))
+	assert.NoError(err)
+
 	testCases := []struct {
 		desc string
 		conf config.Config
@@ -58,11 +61,8 @@ func TestClientStartup(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			nodeKey, err := key.GenerateNodeKey()
-			require.NoError(t, err)
-
-			client, err := NewClient(testCase.conf, "TestChain",
-				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLogger(t), NopMetrics(), *nodeKey)
+			client, err := NewClient(testCase.conf, "TestChain", nodeKey,
+				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLogger(t), NopMetrics())
 			assert.NoError(err)
 			assert.NotNil(client)
 
@@ -167,10 +167,10 @@ func TestSeedStringParsing(t *testing.T) {
 			client, err := NewClient(
 				config.Config{RootDir: tempDir},
 				"TestNetwork",
+				nodeKey,
 				dssync.MutexWrap(datastore.NewMapDatastore()),
 				logger,
 				NopMetrics(),
-				*nodeKey,
 			)
 			require.NoError(err)
 			require.NotNil(client)

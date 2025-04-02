@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -18,7 +21,7 @@ const (
 	// FlagRootDir is a flag for specifying the root directory
 	FlagRootDir = "home"
 	// FlagDBPath is a flag for specifying the database path
-	FlagDBPath = "db_path"
+	FlagDBPath = "rollkit.db_path"
 	// FlagChainConfigDir is a flag for specifying the chain config directory
 	FlagChainConfigDir = "config_dir"
 	// FlagChainID is a flag for specifying the chain ID
@@ -27,97 +30,97 @@ const (
 	// Node configuration flags
 
 	// FlagAggregator is a flag for running node in aggregator mode
-	FlagAggregator = "node.aggregator"
+	FlagAggregator = "rollkit.node.aggregator"
 	// FlagLight is a flag for running the node in light mode
-	FlagLight = "node.light"
+	FlagLight = "rollkit.node.light"
 	// FlagBlockTime is a flag for specifying the block time
-	FlagBlockTime = "node.block_time"
+	FlagBlockTime = "rollkit.node.block_time"
 	// FlagTrustedHash is a flag for specifying the trusted hash
-	FlagTrustedHash = "node.trusted_hash"
+	FlagTrustedHash = "rollkit.node.trusted_hash"
 	// FlagLazyAggregator is a flag for enabling lazy aggregation mode that only produces blocks when transactions are available
-	FlagLazyAggregator = "node.lazy_aggregator"
+	FlagLazyAggregator = "rollkit.node.lazy_aggregator"
 	// FlagMaxPendingBlocks is a flag to limit and pause block production when too many blocks are waiting for DA confirmation
-	FlagMaxPendingBlocks = "node.max_pending_blocks"
+	FlagMaxPendingBlocks = "rollkit.node.max_pending_blocks"
 	// FlagLazyBlockTime is a flag for specifying the maximum interval between blocks in lazy aggregation mode
-	FlagLazyBlockTime = "node.lazy_block_time"
+	FlagLazyBlockTime = "rollkit.node.lazy_block_time"
 	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
-	FlagSequencerAddress = "node.sequencer_address"
+	FlagSequencerAddress = "rollkit.node.sequencer_address"
 	// FlagSequencerRollupID is a flag for specifying the sequencer middleware rollup ID
-	FlagSequencerRollupID = "node.sequencer_rollup_id"
+	FlagSequencerRollupID = "rollkit.node.sequencer_rollup_id"
 	// FlagExecutorAddress is a flag for specifying the sequencer middleware address
-	FlagExecutorAddress = "node.executor_address"
+	FlagExecutorAddress = "rollkit.node.executor_address"
 
 	// Data Availability configuration flags
 
 	// FlagDAAddress is a flag for specifying the data availability layer address
-	FlagDAAddress = "da.address"
+	FlagDAAddress = "rollkit.da.address"
 	// FlagDAAuthToken is a flag for specifying the data availability layer auth token
-	FlagDAAuthToken = "da.auth_token" // #nosec G101
+	FlagDAAuthToken = "rollkit.da.auth_token" // #nosec G101
 	// FlagDABlockTime is a flag for specifying the data availability layer block time
-	FlagDABlockTime = "da.block_time"
+	FlagDABlockTime = "rollkit.da.block_time"
 	// FlagDAGasPrice is a flag for specifying the data availability layer gas price
-	FlagDAGasPrice = "da.gas_price"
+	FlagDAGasPrice = "rollkit.da.gas_price"
 	// FlagDAGasMultiplier is a flag for specifying the data availability layer gas price retry multiplier
-	FlagDAGasMultiplier = "da.gas_multiplier"
+	FlagDAGasMultiplier = "rollkit.da.gas_multiplier"
 	// FlagDAStartHeight is a flag for specifying the data availability layer start height
-	FlagDAStartHeight = "da.start_height"
+	FlagDAStartHeight = "rollkit.da.start_height"
 	// FlagDANamespace is a flag for specifying the DA namespace ID
-	FlagDANamespace = "da.namespace"
+	FlagDANamespace = "rollkit.da.namespace"
 	// FlagDASubmitOptions is a flag for data availability submit options
-	FlagDASubmitOptions = "da.submit_options"
+	FlagDASubmitOptions = "rollkit.da.submit_options"
 	// FlagDAMempoolTTL is a flag for specifying the DA mempool TTL
-	FlagDAMempoolTTL = "da.mempool_ttl"
+	FlagDAMempoolTTL = "rollkit.da.mempool_ttl"
 
 	// P2P configuration flags
 
 	// FlagP2PListenAddress is a flag for specifying the P2P listen address
-	FlagP2PListenAddress = "p2p.listen_address"
+	FlagP2PListenAddress = "rollkit.p2p.listen_address"
 	// FlagP2PSeeds is a flag for specifying the P2P seeds
-	FlagP2PSeeds = "p2p.seeds"
+	FlagP2PSeeds = "rollkit.p2p.seeds"
 	// FlagP2PBlockedPeers is a flag for specifying the P2P blocked peers
-	FlagP2PBlockedPeers = "p2p.blocked_peers"
+	FlagP2PBlockedPeers = "rollkit.p2p.blocked_peers"
 	// FlagP2PAllowedPeers is a flag for specifying the P2P allowed peers
-	FlagP2PAllowedPeers = "p2p.allowed_peers"
+	FlagP2PAllowedPeers = "rollkit.p2p.allowed_peers"
 
 	// Instrumentation configuration flags
 
 	// FlagPrometheus is a flag for enabling Prometheus metrics
-	FlagPrometheus = "instrumentation.prometheus"
+	FlagPrometheus = "rollkit.instrumentation.prometheus"
 	// FlagPrometheusListenAddr is a flag for specifying the Prometheus listen address
-	FlagPrometheusListenAddr = "instrumentation.prometheus_listen_addr"
+	FlagPrometheusListenAddr = "rollkit.instrumentation.prometheus_listen_addr"
 	// FlagMaxOpenConnections is a flag for specifying the maximum number of open connections
-	FlagMaxOpenConnections = "instrumentation.max_open_connections"
+	FlagMaxOpenConnections = "rollkit.instrumentation.max_open_connections"
 	// FlagPprof is a flag for enabling pprof profiling endpoints for runtime debugging
-	FlagPprof = "instrumentation.pprof"
+	FlagPprof = "rollkit.instrumentation.pprof"
 	// FlagPprofListenAddr is a flag for specifying the pprof listen address
-	FlagPprofListenAddr = "instrumentation.pprof_listen_addr"
+	FlagPprofListenAddr = "rollkit.instrumentation.pprof_listen_addr"
 
 	// Logging configuration flags
 
 	// FlagLogLevel is a flag for specifying the log level
-	FlagLogLevel = "log.level"
+	FlagLogLevel = "rollkit.log.level"
 	// FlagLogFormat is a flag for specifying the log format
-	FlagLogFormat = "log.format"
+	FlagLogFormat = "rollkit.log.format"
 	// FlagLogTrace is a flag for enabling stack traces in error logs
-	FlagLogTrace = "log.trace"
+	FlagLogTrace = "rollkit.log.trace"
 
 	// Signer configuration flags
 
 	// FlagSignerType is a flag for specifying the signer type
-	FlagSignerType = "signer.type"
+	FlagSignerType = "rollkit.signer.type"
 	// FlagSignerPath is a flag for specifying the signer path
-	FlagSignerPath = "signer.path"
+	FlagSignerPath = "rollkit.signer.path"
 
 	// FlagSignerPassphrase is a flag for specifying the signer passphrase
 	//nolint:gosec
-	FlagSignerPassphrase = "signer.passphrase"
+	FlagSignerPassphrase = "rollkit.signer.passphrase"
 
 	// RPC configuration flags
 
 	// FlagRPCAddress is a flag for specifying the RPC server address
-	FlagRPCAddress = "rpc.address"
+	FlagRPCAddress = "rollkit.rpc.address"
 	// FlagRPCPort is a flag for specifying the RPC server port
-	FlagRPCPort = "rpc.port"
+	FlagRPCPort = "rollkit.rpc.port"
 )
 
 // DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
@@ -141,7 +144,7 @@ func (d *DurationWrapper) UnmarshalText(text []byte) error {
 // Config stores Rollkit configuration.
 type Config struct {
 	// Base configuration
-	RootDir   string `mapstructure:"home" yaml:"home" comment:"Root directory where rollkit files are located"`
+	RootDir   string `mapstructure:"-" yaml:"-" comment:"Root directory where rollkit files are located"`
 	DBPath    string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
 	ConfigDir string `mapstructure:"config_dir" yaml:"config_dir" comment:"Directory containing the rollup chain configuration"`
 	ChainID   string `mapstructure:"chain_id" yaml:"chain_id" comment:"Chain ID for the rollup"`
@@ -225,9 +228,9 @@ type SignerConfig struct {
 // AddBasicFlags registers the basic configuration flags that are common across applications
 // This includes logging configuration and root directory settings
 func AddBasicFlags(cmd *cobra.Command, appName string) {
-	cmd.PersistentFlags().String(FlagLogLevel, DefaultLogLevel, "Set the log level (debug, info, warn, error)")
-	cmd.PersistentFlags().String(FlagLogFormat, "plain", "Set the log format (text, json)")
-	cmd.PersistentFlags().Bool(FlagLogTrace, false, "Enable stack traces in error logs")
+	cmd.PersistentFlags().String(FlagLogLevel, DefaultNodeConfig.Log.Level, "Set the log level (debug, info, warn, error)")
+	cmd.PersistentFlags().String(FlagLogFormat, DefaultNodeConfig.Log.Format, "Set the log format (text, json)")
+	cmd.PersistentFlags().Bool(FlagLogTrace, DefaultNodeConfig.Log.Trace, "Enable stack traces in error logs")
 	cmd.PersistentFlags().String(FlagRootDir, DefaultRootDirWithName(appName), "Root directory for application data")
 }
 
@@ -292,7 +295,7 @@ func AddFlags(cmd *cobra.Command) {
 
 	// Logging configuration flags
 	cmd.Flags().String(FlagLogLevel, "info", "log level (debug, info, warn, error)")
-	cmd.Flags().String(FlagLogFormat, "", "log format (text, json)")
+	cmd.Flags().String(FlagLogFormat, "text", "log format (text, json)")
 	cmd.Flags().Bool(FlagLogTrace, false, "enable stack traces in error logs")
 
 	// Signer configuration flags
@@ -305,7 +308,7 @@ func AddFlags(cmd *cobra.Command) {
 // 1. DefaultNodeConfig (lowest priority)
 // 2. YAML configuration file
 // 3. Command line flags (highest priority)
-func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
+func LoadNodeConfig(cmd *cobra.Command, home string) (Config, error) {
 	// Create a new Viper instance to avoid conflicts with any global Viper
 	v := viper.New()
 
@@ -334,7 +337,7 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 		// Search directly in the determined root directory first
 		v.AddConfigPath(config.RootDir)
 		// Then search in the default config subdirectory within that root directory
-		v.AddConfigPath(filepath.Join(config.RootDir, DefaultConfigDir)) // DefaultConfigDir is likely "config"
+		v.AddConfigPath(filepath.Join(config.RootDir, config.ConfigDir)) // DefaultConfigDir is likely "config"
 	}
 
 	// Try to read the config file
@@ -350,9 +353,17 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 		fmt.Printf("Using config file: %s\n", v.ConfigFileUsed())
 	}
 
-	// 3. Bind command line flags (this will properly handle RootDir precedence again if needed)
-	if err := v.BindPFlags(cmd.Flags()); err != nil {
-		return config, fmt.Errorf("unable to bind flags: %w", err)
+	// 3. Bind command line flags
+	var flagErrs error
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		// Always trim the rollkit prefix if it exists
+		flagName := strings.TrimPrefix(f.Name, "rollkit.")
+		if err := v.BindPFlag(flagName, f); err != nil {
+			flagErrs = multierror.Append(flagErrs, err)
+		}
+	})
+	if flagErrs != nil {
+		return config, fmt.Errorf("unable to bind flags: %w", flagErrs)
 	}
 
 	// 4. Unmarshal everything from Viper into the config struct
@@ -433,7 +444,7 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 
 	// Logging configuration defaults
 	v.SetDefault(FlagLogLevel, "info")
-	v.SetDefault(FlagLogFormat, "")
+	v.SetDefault(FlagLogFormat, "text")
 	v.SetDefault(FlagLogTrace, false)
 
 	// Signer configuration defaults

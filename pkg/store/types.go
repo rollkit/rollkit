@@ -9,10 +9,10 @@ import (
 // Store is minimal interface for storing and retrieving blocks, commits and state.
 type Store interface {
 	// Height returns height of the highest block in store.
-	Height() uint64
+	Height(ctx context.Context) (uint64, error)
 
 	// SetHeight sets the height saved in the Store if it is higher than the existing height.
-	SetHeight(ctx context.Context, height uint64)
+	SetHeight(ctx context.Context, height uint64) error
 
 	// SaveBlock saves block along with its seen signature (which will be included in the next block).
 	SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error

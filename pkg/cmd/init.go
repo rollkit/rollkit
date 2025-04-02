@@ -46,7 +46,7 @@ func InitializeSigner(config *rollconf.Config, homePath string, passphrase strin
 		}
 
 		signerDir := filepath.Join(homePath, "config")
-		if err := os.MkdirAll(signerDir, rollconf.DefaultDirPerm); err != nil {
+		if err := os.MkdirAll(signerDir, 0750); err != nil {
 			return nil, fmt.Errorf("failed to create signer directory: %w", err)
 		}
 
@@ -105,7 +105,7 @@ func InitializeGenesis(homePath string, chainID string, initialHeight uint64, pr
 	// If os.IsNotExist(err) is true, the file doesn't exist, so we proceed.
 
 	// Create the config directory if it doesn't exist (needed before saving genesis)
-	if err := os.MkdirAll(configDir, rollconf.DefaultDirPerm); err != nil {
+	if err := os.MkdirAll(configDir, 0750); err != nil {
 		return fmt.Errorf("error creating config directory: %w", err)
 	}
 
@@ -142,7 +142,17 @@ var InitCmd = &cobra.Command{
 			return err
 		}
 
-		if err := os.MkdirAll(homePath, rollconf.DefaultDirPerm); err != nil {
+		// Create a config with default values
+		config := rollconf.DefaultNodeConfig
+
+		// Update with the values we found
+		config.ConfigDir = homePath + "/config"
+
+		// Set the root directory to the specified home path
+		config.RootDir = homePath
+
+		// Make sure the home directory exists
+		if err := os.MkdirAll(homePath, 0750); err != nil {
 			return fmt.Errorf("error creating directory %s: %w", homePath, err)
 		}
 
@@ -151,7 +161,7 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error reading aggregator flag: %w", err)
 		}
 
-		config := InitializeConfig(homePath, aggregator)
+		config = InitializeConfig(homePath, aggregator)
 
 		passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
 		if err != nil {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	"github.com/ipfs/go-datastore"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/rollkit/rollkit/node"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
@@ -30,11 +32,11 @@ var (
 
 )
 
-func parseConfig(cmd *cobra.Command) (rollconf.Config, error) {
+func parseConfig(cmd *cobra.Command, home string) (rollconf.Config, error) {
 	// Load configuration with the correct order of precedence:
 	// DefaultNodeConfig -> Yaml -> Flags
 	var err error
-	nodeConfig, err := rollconf.LoadNodeConfig(cmd)
+	nodeConfig, err := rollconf.LoadNodeConfig(cmd, home)
 	if err != nil {
 		return rollconf.Config{}, fmt.Errorf("failed to load node config: %w", err)
 	}
@@ -96,6 +98,10 @@ func NewRunNodeCmd(
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
+	remoteSigner signer.Signer,
+	nodeKey *key.NodeKey,
+	p2pClient *p2p.Client,
+	datastore datastore.Batching,
 ) *cobra.Command {
 	if executor == nil {
 		panic("executor cannot be nil")
@@ -112,7 +118,7 @@ func NewRunNodeCmd(
 		Aliases: []string{"node", "run"},
 		Short:   "Run the rollkit node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return startNode(cmd, executor, sequencer, dac)
+			return startNode(cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore)
 		},
 	}
 
@@ -123,11 +129,19 @@ func NewRunNodeCmd(
 }
 
 // startNode handles the node startup logic
-func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer coresequencer.Sequencer, dac coreda.Client) error {
+func startNode(
+	cmd *cobra.Command,
+	executor coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
+	dac coreda.Client,
+	nodeKey *key.NodeKey,
+	p2pClient *p2p.Client,
+	datastore datastore.Batching,
+) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
-	nodeConfig, err := parseConfig(cmd)
+	nodeConfig, err := parseConfig(cmd, cmd.Flag(rollconf.FlagRootDir).Value.String())
 	if err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)
 	}
@@ -151,11 +165,6 @@ func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer cor
 		return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 	}
 
-	nodeKey, err := key.GenerateNodeKey()
-	if err != nil {
-		return fmt.Errorf("failed to load node key: %w", err)
-	}
-
 	metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
 	genesisPath := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "genesis.json")
@@ -173,7 +182,9 @@ func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer cor
 		dac,
 		signer,
 		*nodeKey,
+		p2pClient,
 		genesis,
+		datastore,
 		metrics,
 		logger,
 	)

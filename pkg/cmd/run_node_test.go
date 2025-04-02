@@ -3,11 +3,13 @@ package cmd
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
+	"github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/assert"
 
 	coreda "github.com/rollkit/rollkit/core/da"
@@ -15,65 +17,79 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	"github.com/rollkit/rollkit/pkg/signer"
+	filesigner "github.com/rollkit/rollkit/pkg/signer/file"
 	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
 
-func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client) {
+func createTestComponents(ctx context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.Signer, *p2p.Client, datastore.Batching) {
 	executor := testExecutor.CreateDirectKVExecutor(ctx)
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	logger := log.NewLogger(os.Stdout)
-	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
+	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte{}, logger)
+	tmpDir := t.TempDir()
+	keyProvider, err := filesigner.NewFileSystemSigner(filepath.Join(tmpDir, "config"), []byte{})
+	if err != nil {
+		panic(err)
+	}
+	// Create a dummy P2P client and datastore for testing
+	p2pClient := &p2p.Client{}
+	ds := datastore.NewMapDatastore()
 
-	return executor, sequencer, dac
+	return executor, sequencer, dac, keyProvider, p2pClient, ds
 }
 
 func TestParseFlags(t *testing.T) {
-	// Initialize nodeConfig with default values to avoid issues with instrument
-	nodeConfig := rollconf.DefaultNodeConfig
-
 	flags := []string{
 		"--home", "custom/root/dir",
-		"--db_path", "custom/db/path",
+		"--rollkit.db_path", "custom/db/path",
 
 		// P2P flags
-		"--p2p.listen_address", "tcp://127.0.0.1:27000",
-		"--p2p.seeds", "node1@127.0.0.1:27001,node2@127.0.0.1:27002",
-		"--p2p.blocked_peers", "node3@127.0.0.1:27003,node4@127.0.0.1:27004",
-		"--p2p.allowed_peers", "node5@127.0.0.1:27005,node6@127.0.0.1:27006",
+		"--rollkit.p2p.listen_address", "tcp://127.0.0.1:27000",
+		"--rollkit.p2p.seeds", "node1@127.0.0.1:27001,node2@127.0.0.1:27002",
+		"--rollkit.p2p.blocked_peers", "node3@127.0.0.1:27003,node4@127.0.0.1:27004",
+		"--rollkit.p2p.allowed_peers", "node5@127.0.0.1:27005,node6@127.0.0.1:27006",
 
 		// Node flags
-		"--node.aggregator=false",
-		"--node.block_time", "2s",
-		"--da.address", "http://127.0.0.1:27005",
-		"--da.auth_token", "token",
-		"--da.block_time", "20s",
-		"--da.gas_multiplier", "1.5",
-		"--da.gas_price", "1.5",
-		"--da.mempool_ttl", "10",
-		"--da.namespace", "namespace",
-		"--da.start_height", "100",
-		"--node.lazy_aggregator",
-		"--node.lazy_block_time", "2m",
-		"--node.light",
-		"--node.max_pending_blocks", "100",
-		"--node.trusted_hash", "abcdef1234567890",
-		"--node.sequencer_address", "seq@127.0.0.1:27007",
-		"--node.sequencer_rollup_id", "test-rollup",
-		"--node.executor_address", "exec@127.0.0.1:27008",
-		"--da.submit_options", "custom-options",
+		"--rollkit.node.aggregator=false",
+		"--rollkit.node.block_time", "2s",
+		"--rollkit.da.address", "http://127.0.0.1:27005",
+		"--rollkit.da.auth_token", "token",
+		"--rollkit.da.block_time", "20s",
+		"--rollkit.da.gas_multiplier", "1.5",
+		"--rollkit.da.gas_price", "1.5",
+		"--rollkit.da.mempool_ttl", "10",
+		"--rollkit.da.namespace", "namespace",
+		"--rollkit.da.start_height", "100",
+		"--rollkit.node.lazy_aggregator",
+		"--rollkit.node.lazy_block_time", "2m",
+		"--rollkit.node.light",
+		"--rollkit.node.max_pending_blocks", "100",
+		"--rollkit.node.trusted_hash", "abcdef1234567890",
+		"--rollkit.node.sequencer_address", "seq@127.0.0.1:27007",
+		"--rollkit.node.sequencer_rollup_id", "test-rollup",
+		"--rollkit.node.executor_address", "exec@127.0.0.1:27008",
+		"--rollkit.da.submit_options", "custom-options",
 
 		// Instrumentation flags
-		"--instrumentation.prometheus", "true",
-		"--instrumentation.prometheus_listen_addr", ":26665",
-		"--instrumentation.max_open_connections", "1",
+		"--rollkit.instrumentation.prometheus", "true",
+		"--rollkit.instrumentation.prometheus_listen_addr", ":26665",
+		"--rollkit.instrumentation.max_open_connections", "1",
 	}
 
 	args := append([]string{"start"}, flags...)
 
-	executor, sequencer, dac := createTestComponents(context.Background())
+	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
+	tmpDir := t.TempDir()
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
 
-	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac)
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 
 	// Register root flags to be able to use --home flag
 	rollconf.AddBasicFlags(newRunNodeCmd, "testapp")
@@ -82,7 +98,7 @@ func TestParseFlags(t *testing.T) {
 		t.Errorf("Error: %v", err)
 	}
 
-	nodeConfig, err := parseConfig(newRunNodeCmd)
+	nodeConfig, err := parseConfig(newRunNodeCmd, "custom/root/dir")
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
@@ -138,11 +154,11 @@ func TestParseFlags(t *testing.T) {
 
 func TestAggregatorFlagInvariants(t *testing.T) {
 	flagVariants := [][]string{{
-		"--node.aggregator=false",
+		"--rollkit.node.aggregator=false",
 	}, {
-		"--node.aggregator=true",
+		"--rollkit.node.aggregator=true",
 	}, {
-		"--node.aggregator",
+		"--rollkit.node.aggregator",
 	}}
 
 	validValues := []bool{false, true, true}
@@ -150,15 +166,21 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	for i, flags := range flagVariants {
 		args := append([]string{"start"}, flags...)
 
-		executor, sequencer, dac := createTestComponents(context.Background())
+		executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
 
-		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac)
+		tmpDir := t.TempDir()
+		nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
+		if err != nil {
+			t.Fatalf("Error: %v", err)
+		}
+
+		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
-		nodeConfig, err := parseConfig(newRunNodeCmd)
+		nodeConfig, err := parseConfig(newRunNodeCmd, "custom/root/dir")
 		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
@@ -172,20 +194,23 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 // TestDefaultAggregatorValue verifies that the default value of Aggregator is true
 // when no flag is specified
 func TestDefaultAggregatorValue(t *testing.T) {
-	// Reset nodeConfig to default values
-	nodeConfig := rollconf.DefaultNodeConfig
-
 	// Create a new command without specifying any flags
 	args := []string{"start"}
-	executor, sequencer, dac := createTestComponents(context.Background())
+	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
 
-	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac)
+	tmpDir := t.TempDir()
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
+
+	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
 	}
 
-	nodeConfig, err := parseConfig(newRunNodeCmd)
+	nodeConfig, err := parseConfig(newRunNodeCmd, "custom/root/dir")
 	if err != nil {
 		t.Errorf("Error parsing config: %v", err)
 	}
@@ -197,20 +222,29 @@ func TestDefaultAggregatorValue(t *testing.T) {
 // TestCentralizedAddresses verifies that when centralized service flags are provided,
 // the configuration fields in nodeConfig are updated accordingly, ensuring that mocks are skipped.
 func TestCentralizedAddresses(t *testing.T) {
+	nodeConfig := rollconf.DefaultNodeConfig
+
 	args := []string{
 		"start",
-		"--da.address=http://central-da:26657",
-		"--node.sequencer_address=central-seq:26659",
-		"--node.sequencer_rollup_id=centralrollup",
+		"--rollkit.da.address=http://central-da:26657",
+		"--rollkit.node.sequencer_address=central-seq:26659",
+		"--rollkit.node.sequencer_rollup_id=centralrollup",
 	}
 
-	executor, sequencer, dac := createTestComponents(context.Background())
+	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
 
-	cmd := NewRunNodeCmd(executor, sequencer, dac)
+	tmpDir := t.TempDir()
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
+
+	cmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
-	nodeConfig, err := parseConfig(cmd)
+
+	nodeConfig, err = parseConfig(cmd, "custom/root/dir")
 	if err != nil {
 		t.Fatalf("parseConfig error: %v", err)
 	}
