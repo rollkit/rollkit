@@ -202,13 +202,13 @@ func initBlockManager(
 	gasMultiplier float64,
 ) (*block.Manager, error) {
 
-	logger.Debug("Proposer address", "address", genesis.ProposerAddress())
+	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
 
 	rollGen := genesispkg.NewGenesis(
 		genesis.ChainID,
 		genesis.InitialHeight,
 		genesis.GenesisDAStartHeight,
-		genesis.ExtraData,
+		genesis.ProposerAddress,
 		nil,
 	)
 

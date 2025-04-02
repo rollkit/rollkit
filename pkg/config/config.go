@@ -313,18 +313,28 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 	config := DefaultNodeConfig
 	setDefaultsInViper(v, config)
 
+	// Get the RootDir from flags *first* to ensure correct search paths
+	// If the flag is not set, it will use the default value already in 'config'
+	rootDirFromFlag, _ := cmd.Flags().GetString(FlagRootDir) // Ignore error, default is fine if flag not present
+	if rootDirFromFlag != "" {
+		config.RootDir = rootDirFromFlag // Update our config struct temporarily for path setting
+	}
+
 	// 2. Try to load YAML configuration from various locations
 	// First try using the current directory
-	v.SetConfigName(ConfigBaseName)
-	v.SetConfigType(ConfigExtension)
+	v.SetConfigName(ConfigBaseName)  // e.g., "rollkit"
+	v.SetConfigType(ConfigExtension) // e.g., "yaml"
 
 	// Add search paths in order of precedence
 	// Current directory
 	v.AddConfigPath(".")
 
-	// Check if RootDir is set in the default config
+	// Check if RootDir is determined (either default or from flag)
 	if config.RootDir != "" {
-		v.AddConfigPath(filepath.Join(config.RootDir, DefaultConfigDir))
+		// Search directly in the determined root directory first
+		v.AddConfigPath(config.RootDir)
+		// Then search in the default config subdirectory within that root directory
+		v.AddConfigPath(filepath.Join(config.RootDir, DefaultConfigDir)) // DefaultConfigDir is likely "config"
 	}
 
 	// Try to read the config file
@@ -340,12 +350,13 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 		fmt.Printf("Using config file: %s\n", v.ConfigFileUsed())
 	}
 
-	// 3. Bind command line flags
+	// 3. Bind command line flags (this will properly handle RootDir precedence again if needed)
 	if err := v.BindPFlags(cmd.Flags()); err != nil {
 		return config, fmt.Errorf("unable to bind flags: %w", err)
 	}
 
 	// 4. Unmarshal everything from Viper into the config struct
+	// viper.Unmarshal will respect the precedence: defaults < yaml < flags
 	if err := v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
 		c.TagName = "mapstructure"
 		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -61,7 +60,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	err = InitFiles(config.RootDir)
 	require.NoError(s.T(), err)
 
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	nodeKey, err := key.GenerateNodeKey()
 	require.NoError(s.T(), err)
 
 	node, err := NewNode(
