@@ -10,6 +10,7 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	coreda "github.com/rollkit/rollkit/core/da"
@@ -25,7 +26,7 @@ import (
 )
 
 func createTestComponents(ctx context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.Signer, *p2p.Client, datastore.Batching) {
-	executor := testExecutor.CreateDirectKVExecutor(ctx)
+	executor := testExecutor.CreateDirectKVExecutor()
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	logger := log.NewLogger(os.Stdout)
@@ -89,7 +90,7 @@ func TestParseFlags(t *testing.T) {
 		t.Fatalf("Error: %v", err)
 	}
 
-	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
+	newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 
 	// Register root flags to be able to use --home flag
 	rollconf.AddBasicFlags(newRunNodeCmd, "testapp")
@@ -98,7 +99,7 @@ func TestParseFlags(t *testing.T) {
 		t.Errorf("Error: %v", err)
 	}
 
-	nodeConfig, err := parseConfig(newRunNodeCmd, "custom/root/dir")
+	nodeConfig, err := ParseConfig(newRunNodeCmd, "custom/root/dir")
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
@@ -174,13 +175,13 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 			t.Fatalf("Error: %v", err)
 		}
 
-		newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
+		newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
-		nodeConfig, err := parseConfig(newRunNodeCmd, "custom/root/dir")
+		nodeConfig, err := ParseConfig(newRunNodeCmd, "custom/root/dir")
 		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
@@ -204,13 +205,13 @@ func TestDefaultAggregatorValue(t *testing.T) {
 		t.Fatalf("Error: %v", err)
 	}
 
-	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
+	newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
 	}
 
-	nodeConfig, err := parseConfig(newRunNodeCmd, "custom/root/dir")
+	nodeConfig, err := ParseConfig(newRunNodeCmd, "custom/root/dir")
 	if err != nil {
 		t.Errorf("Error parsing config: %v", err)
 	}
@@ -239,12 +240,12 @@ func TestCentralizedAddresses(t *testing.T) {
 		t.Fatalf("Error: %v", err)
 	}
 
-	cmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
+	cmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
 
-	nodeConfig, err = parseConfig(cmd, "custom/root/dir")
+	nodeConfig, err = ParseConfig(cmd, "custom/root/dir")
 	if err != nil {
 		t.Fatalf("parseConfig error: %v", err)
 	}
@@ -261,4 +262,39 @@ func TestCentralizedAddresses(t *testing.T) {
 	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
 		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
 	}
+}
+
+// newRunNodeCmd returns the command that allows the CLI to start a node.
+func newRunNodeCmd(
+	executor coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
+	dac coreda.Client,
+	remoteSigner signer.Signer,
+	nodeKey *key.NodeKey,
+	p2pClient *p2p.Client,
+	datastore datastore.Batching,
+) *cobra.Command {
+	if executor == nil {
+		panic("executor cannot be nil")
+	}
+	if sequencer == nil {
+		panic("sequencer cannot be nil")
+	}
+	if dac == nil {
+		panic("da client cannot be nil")
+	}
+
+	cmd := &cobra.Command{
+		Use:     "start",
+		Aliases: []string{"node", "run"},
+		Short:   "Run the rollkit node",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return StartNode(cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore)
+		},
+	}
+
+	// Add Rollkit flags
+	rollconf.AddFlags(cmd)
+
+	return cmd
 }
