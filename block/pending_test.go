@@ -54,7 +54,9 @@ func TestPendingBlocks(t *testing.T) {
 			name: "mock successful DA submission of all blocks by setting last submitted height using store",
 			init: fillWithBlockData,
 			exec: func(ctx context.Context, t *testing.T, pb *PendingHeaders) {
-				pb.lastSubmittedHeight.Store(pb.store.Height())
+				height, err := pb.store.Height(ctx)
+				require.NoError(t, err)
+				pb.lastSubmittedHeight.Store(height)
 			},
 			expectedBlocksAfterInit: numBlocks,
 			expectedBlocksAfterExec: 0,
@@ -89,7 +91,8 @@ func fillWithBlockData(ctx context.Context, t *testing.T, pb *PendingHeaders, ch
 	for i := uint64(1); i <= numBlocks; i++ {
 		h, d := types.GetRandomBlock(i, 0, chainID)
 		require.NoError(t, pb.store.SaveBlockData(ctx, h, d, &types.Signature{}))
-		pb.store.SetHeight(ctx, i)
+		err := pb.store.SetHeight(ctx, i)
+		require.NoError(t, err)
 	}
 }
 

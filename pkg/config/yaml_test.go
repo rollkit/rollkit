@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +24,7 @@ func TestReadYaml(t *testing.T) {
 			},
 			validate: func(t *testing.T, cfg Config, err error) {
 				require.NoError(t, err)
-				require.Equal(t, DefaultListenAddress, cfg.P2P.ListenAddress)
+				require.Equal(t, DefaultNodeConfig.P2P.ListenAddress, cfg.P2P.ListenAddress)
 			},
 		},
 		{
@@ -108,7 +109,7 @@ func TestYamlConfigOperations(t *testing.T) {
 			setup: func(t *testing.T, dir string) *Config {
 				cfg := DefaultNodeConfig
 				cfg.RootDir = dir
-				cfg.P2P.ListenAddress = DefaultListenAddress
+				cfg.P2P.ListenAddress = DefaultNodeConfig.P2P.ListenAddress
 				cfg.P2P.Seeds = "seed1.example.com:26656,seed2.example.com:26656"
 
 				// Write the config file
@@ -118,7 +119,7 @@ func TestYamlConfigOperations(t *testing.T) {
 				return &cfg
 			},
 			validate: func(t *testing.T, cfg *Config) {
-				require.Equal(t, DefaultListenAddress, cfg.P2P.ListenAddress)
+				require.Equal(t, DefaultNodeConfig.P2P.ListenAddress, cfg.P2P.ListenAddress)
 				require.Equal(t, "seed1.example.com:26656,seed2.example.com:26656", cfg.P2P.Seeds)
 			},
 		},
@@ -135,9 +136,8 @@ func TestYamlConfigOperations(t *testing.T) {
 				return &cfg
 			},
 			validate: func(t *testing.T, cfg *Config) {
-				defaultCfg := DefaultNodeConfig
-				require.Equal(t, defaultCfg.P2P.ListenAddress, cfg.P2P.ListenAddress)
-				require.Equal(t, defaultCfg.P2P.Seeds, cfg.P2P.Seeds)
+				require.Equal(t, DefaultNodeConfig.P2P.ListenAddress, cfg.P2P.ListenAddress)
+				require.Equal(t, DefaultNodeConfig.P2P.Seeds, cfg.P2P.Seeds)
 			},
 		},
 	}
@@ -165,4 +165,46 @@ func TestYamlConfigOperations(t *testing.T) {
 			tc.validate(t, &cfg)
 		})
 	}
+}
+
+func TestCreateInitialConfig(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Test creating initial config with default values
+	err := CreateInitialConfig(tempDir)
+	require.NoError(t, err)
+
+	// Verify the config file exists
+	configPath := filepath.Join(tempDir, "config", RollkitConfigYaml)
+	_, err = os.Stat(configPath)
+	require.NoError(t, err)
+
+	// Read the config back
+	cfg, err := ReadYaml(filepath.Join(tempDir, "config"))
+	require.NoError(t, err)
+
+	// Verify root directory is set correctly
+	require.Equal(t, filepath.Join(tempDir, "config"), cfg.RootDir)
+
+	// Test creating config with customizations
+	tempDir2 := t.TempDir()
+	err = CreateInitialConfig(tempDir2, func(cfg *Config) {
+		cfg.Node.Aggregator = true
+		cfg.Node.BlockTime.Duration = 5 * time.Second
+	})
+	require.NoError(t, err)
+
+	// Read the customized config
+	cfg, err = ReadYaml(filepath.Join(tempDir2, "config"))
+	require.NoError(t, err)
+
+	// Verify customizations were applied
+	require.True(t, cfg.Node.Aggregator)
+	require.Equal(t, 5*time.Second, cfg.Node.BlockTime.Duration)
+
+	// Test error when config file already exists
+	err = CreateInitialConfig(tempDir)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "file already exists")
 }

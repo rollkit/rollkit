@@ -120,10 +120,10 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 				},
 			},
 			conf[i].chainID,
+			nodeKey,
 			sync.MutexWrap(datastore.NewMapDatastore()),
 			logger,
 			NopMetrics(),
-			*nodeKey,
 		)
 		require.NoError(err)
 		require.NotNil(client)

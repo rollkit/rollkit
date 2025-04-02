@@ -1,14 +1,13 @@
 package executor
 
 import (
-	"context"
 	"fmt"
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 )
 
 // CreateDirectKVExecutor creates a KVExecutor for testing
-func CreateDirectKVExecutor(ctx context.Context) coreexecutor.Executor {
+func CreateDirectKVExecutor() coreexecutor.Executor {
 	kvExecutor := NewKVExecutor()
 
 	// Pre-populate with some test transactions

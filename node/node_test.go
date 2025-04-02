@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	"github.com/ipfs/go-datastore"
+	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -20,6 +22,7 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
@@ -41,6 +44,27 @@ const (
 	// MockExecutorAddress is a sample address used by the mock executor
 	MockExecutorAddress = "127.0.0.1:40041"
 )
+
+// createTestComponents creates test components for node initialization
+func createTestComponents(t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, *p2p.Client, datastore.Batching) {
+	executor := coreexecutor.NewDummyExecutor()
+	sequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
+	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	// Create genesis and keys for P2P client
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	nodeKey := &key.NodeKey{
+		PrivKey: genesisValidatorKey,
+		PubKey:  genesisValidatorKey.GetPublic(),
+	}
+	p2pClient, err := p2p.NewClient(rollkitconfig.DefaultNodeConfig, genesis.ChainID, nodeKey, dssync.MutexWrap(datastore.NewMapDatastore()), log.NewNopLogger(), p2p.NopMetrics())
+	require.NoError(t, err)
+	require.NotNil(t, p2pClient)
+	ds := dssync.MutexWrap(datastore.NewMapDatastore())
+
+	return executor, sequencer, dummyClient, p2pClient, ds
+}
 
 // startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
 func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
@@ -184,10 +208,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
 	require.NoError(t, err)
 
-	dummyExec := coreexecutor.NewDummyExecutor()
-	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+	executor, sequencer, dac, p2pClient, ds := createTestComponents(t)
 
 	err = InitFiles(config.RootDir)
 	require.NoError(t, err)
@@ -200,12 +221,14 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	node, err := NewNode(
 		ctx,
 		config,
-		dummyExec,
-		dummySequencer,
-		dummyClient,
+		executor,
+		sequencer,
+		dac,
 		remoteSigner,
 		*nodeKey,
+		p2pClient,
 		genesis,
+		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		logger,
 	)

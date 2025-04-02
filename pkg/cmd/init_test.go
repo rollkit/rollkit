@@ -43,7 +43,7 @@ func TestInitCommand(t *testing.T) {
 	rollconf.AddBasicFlags(cmd, "testapp")
 
 	// Set home flag to the test directory
-	cmd.SetArgs([]string{"init", "--home", dir, "--node.aggregator", "--signer.passphrase", "test"})
+	cmd.SetArgs([]string{"init", "--home", dir, "--rollkit.node.aggregator", "--rollkit.signer.passphrase", "test"})
 
 	// Execute the command
 	err = cmd.Execute()
@@ -79,5 +79,5 @@ func TestInitCommand(t *testing.T) {
 
 	// Verify addresses
 	require.Contains(t, yamlContent, "address: ")
-	require.Contains(t, yamlContent, "http://localhost:26658")
+	require.Contains(t, yamlContent, "http://localhost:7980")
 }

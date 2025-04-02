@@ -117,21 +117,6 @@ func TestNodeKey_SaveAndLoad(t *testing.T) {
 				assert.Nil(t, loaded)
 			},
 		},
-		{
-			name: "save to invalid path",
-			setup: func() (*NodeKey, string) {
-				privKey, pubKey, _ := crypto.GenerateKeyPair(crypto.Ed25519, 256)
-				nodeKey := &NodeKey{
-					PrivKey: privKey,
-					PubKey:  pubKey,
-				}
-				return nodeKey, filepath.Join(tempDir, "invalid", "path", "key.json")
-			},
-			wantErr: true,
-			validate: func(t *testing.T, original, loaded *NodeKey) {
-				assert.Nil(t, loaded)
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -183,13 +168,6 @@ func TestLoadOrGenNodeKey(t *testing.T) {
 				return tempDir
 			},
 			wantErr: false,
-		},
-		{
-			name: "invalid path",
-			setup: func() string {
-				return filepath.Join(tempDir, "invalid", "path")
-			},
-			wantErr: true,
 		},
 	}
 

@@ -10,6 +10,8 @@ import (
 
 	"cosmossdk.io/log"
 	testutils "github.com/celestiaorg/utils/test"
+	ds "github.com/ipfs/go-datastore"
+	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
@@ -18,6 +20,7 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
@@ -56,11 +59,14 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
-
-	err = InitFiles(config.RootDir)
+	nodeKey := &key.NodeKey{
+		PrivKey: genesisValidatorKey,
+		PubKey:  genesisValidatorKey.GetPublic(),
+	}
+	p2pClient, err := p2p.NewClient(config, genesis.ChainID, nodeKey, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
 	require.NoError(s.T(), err)
 
-	nodeKey, err := key.GenerateNodeKey()
+	err = InitFiles(config.RootDir)
 	require.NoError(s.T(), err)
 
 	node, err := NewNode(
@@ -71,7 +77,9 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		dummyClient,
 		remoteSigner,
 		*nodeKey,
+		p2pClient,
 		genesis,
+		dssync.MutexWrap(ds.NewMapDatastore()),
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
@@ -177,7 +185,8 @@ func (s *NodeIntegrationTestSuite) TestBlockProduction() {
 	s.NoError(err, "Failed to produce first block")
 
 	// Get the current height
-	height := s.node.(*FullNode).Store.Height()
+	height, err := s.node.(*FullNode).Store.Height(s.ctx)
+	require.NoError(s.T(), err)
 	s.GreaterOrEqual(height, uint64(1), "Expected block height >= 1")
 
 	// Get all blocks and log their contents
