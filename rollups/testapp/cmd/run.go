@@ -11,7 +11,7 @@ import (
 	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
-	rollconf "github.com/rollkit/rollkit/pkg/config"
+
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/store"
@@ -29,7 +29,7 @@ var RunCmd = &cobra.Command{
 		executor := kvexecutor.CreateDirectKVExecutor()
 		sequencer := coresequencer.NewDummySequencer()
 
-		nodeConfig, err := rollcmd.ParseConfig(cmd, cmd.Flag(rollconf.FlagRootDir).Value.String())
+		nodeConfig, err := rollcmd.ParseConfig(cmd, cmd.Flag(config.FlagRootDir).Value.String())
 		if err != nil {
 			panic(err)
 		}
@@ -59,5 +59,5 @@ var RunCmd = &cobra.Command{
 }
 
 func init() {
-	rollconf.AddFlags(RunCmd)
+	config.AddFlags(RunCmd)
 }
