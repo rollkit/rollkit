@@ -146,7 +146,7 @@ var InitCmd = &cobra.Command{
 		config := rollconf.DefaultNodeConfig
 
 		// Update with the values we found
-		config.ConfigDir = homePath
+		config.ConfigDir = homePath + "/config"
 
 		// Set the root directory to the specified home path
 		config.RootDir = homePath
