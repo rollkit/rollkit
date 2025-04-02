@@ -27,12 +27,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
 
-var (
-// initialize the rollkit node configuration
-
-)
-
-func parseConfig(cmd *cobra.Command, home string) (rollconf.Config, error) {
+func ParseConfig(cmd *cobra.Command, home string) (rollconf.Config, error) {
 	// Load configuration with the correct order of precedence:
 	// DefaultNodeConfig -> Yaml -> Flags
 	var err error
@@ -93,43 +88,8 @@ func SetupLogger(config rollconf.LogConfig) log.Logger {
 	return configuredLogger.With("module", "main")
 }
 
-// NewRunNodeCmd returns the command that allows the CLI to start a node.
-func NewRunNodeCmd(
-	executor coreexecutor.Executor,
-	sequencer coresequencer.Sequencer,
-	dac coreda.Client,
-	remoteSigner signer.Signer,
-	nodeKey *key.NodeKey,
-	p2pClient *p2p.Client,
-	datastore datastore.Batching,
-) *cobra.Command {
-	if executor == nil {
-		panic("executor cannot be nil")
-	}
-	if sequencer == nil {
-		panic("sequencer cannot be nil")
-	}
-	if dac == nil {
-		panic("da client cannot be nil")
-	}
-
-	cmd := &cobra.Command{
-		Use:     "start",
-		Aliases: []string{"node", "run"},
-		Short:   "Run the rollkit node",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return startNode(cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore)
-		},
-	}
-
-	// Add Rollkit flags
-	rollconf.AddFlags(cmd)
-
-	return cmd
-}
-
-// startNode handles the node startup logic
-func startNode(
+// StartNode handles the node startup logic
+func StartNode(
 	cmd *cobra.Command,
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
@@ -141,7 +101,7 @@ func startNode(
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
-	nodeConfig, err := parseConfig(cmd, cmd.Flag(rollconf.FlagRootDir).Value.String())
+	nodeConfig, err := ParseConfig(cmd, cmd.Flag(rollconf.FlagRootDir).Value.String())
 	if err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)
 	}
@@ -167,7 +127,7 @@ func startNode(
 
 	metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
-	genesisPath := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "genesis.json")
+	genesisPath := filepath.Join(nodeConfig.ConfigDir, "genesis.json")
 	genesis, err := genesispkg.LoadGenesis(genesisPath)
 	if err != nil {
 		return fmt.Errorf("failed to load genesis: %w", err)
