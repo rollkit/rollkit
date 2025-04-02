@@ -314,6 +314,7 @@ func (s *FullNodeTestSuite) TestDAInclusion() {
 		finalDAHeight = currentDAHeight
 		return nil
 	})
+	require.NoError(err, "DA height did not increase")
 
 	// Final state logging
 	s.T().Log("=== Final State ===")
