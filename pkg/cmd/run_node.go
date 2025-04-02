@@ -135,7 +135,7 @@ func startNode(cmd *cobra.Command, executor coreexecutor.Executor, sequencer cor
 
 	//create a new remote signer
 	var signer signer.Signer
-	if nodeConfig.Signer.SignerType == "file" {
+	if nodeConfig.Signer.SignerType == "file" && nodeConfig.Node.Aggregator {
 		passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
 		if err != nil {
 			return err

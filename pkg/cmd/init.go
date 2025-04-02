@@ -11,10 +11,9 @@ import (
 
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/hash"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
-	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
-	"github.com/rollkit/rollkit/types"
 )
 
 // ValidateHomePath checks if the home path is valid and not already initialized
@@ -40,7 +39,7 @@ func InitializeConfig(homePath string, aggregator bool) rollconf.Config {
 }
 
 // InitializeSigner sets up the signer configuration and creates necessary files
-func InitializeSigner(config *rollconf.Config, homePath string, passphrase string) (signer.Signer, error) {
+func InitializeSigner(config *rollconf.Config, homePath string, passphrase string) ([]byte, error) {
 	if config.Signer.SignerType == "file" && config.Node.Aggregator {
 		if passphrase == "" {
 			return nil, fmt.Errorf("passphrase is required when using local file signer")
@@ -51,13 +50,28 @@ func InitializeSigner(config *rollconf.Config, homePath string, passphrase strin
 			return nil, fmt.Errorf("failed to create signer directory: %w", err)
 		}
 
-		config.Signer.SignerPath = filepath.Join(signerDir, "priv_key.json")
+		config.Signer.SignerPath = signerDir
 
 		signer, err := file.NewFileSystemSigner(config.Signer.SignerPath, []byte(passphrase))
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize signer: %w", err)
 		}
-		return signer, nil
+
+		pubKey, err := signer.GetPublic()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get public key: %w", err)
+		}
+
+		bz, err := pubKey.Raw()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get public key raw bytes: %w", err)
+		}
+
+		proposerAddress := hash.SumTruncated(bz)
+
+		return proposerAddress, nil
+	} else if config.Signer.SignerType != "file" && config.Node.Aggregator {
+		return nil, fmt.Errorf("remote signer not implemented for aggregator nodes, use local signer instead")
 	}
 	return nil, nil
 }
@@ -74,7 +88,28 @@ func InitializeNodeKey(homePath string) error {
 
 // InitializeGenesis creates and saves a genesis file with the given app state
 func InitializeGenesis(homePath string, chainID string, initialHeight uint64, proposerAddress, appState []byte) error {
-	// Create an empty genesis file
+	// Create the config directory path first
+	configDir := filepath.Join(homePath, "config")
+	// Determine the genesis file path
+	genesisPath := filepath.Join(configDir, "genesis.json")
+
+	// Check if the genesis file already exists
+	if _, err := os.Stat(genesisPath); err == nil {
+		// File exists, return successfully without overwriting
+		fmt.Printf("Genesis file already exists: %s\n", genesisPath)
+		return nil
+	} else if !os.IsNotExist(err) {
+		// An error other than "not exist" occurred (e.g., permissions)
+		return fmt.Errorf("failed to check for existing genesis file at %s: %w", genesisPath, err)
+	}
+	// If os.IsNotExist(err) is true, the file doesn't exist, so we proceed.
+
+	// Create the config directory if it doesn't exist (needed before saving genesis)
+	if err := os.MkdirAll(configDir, rollconf.DefaultDirPerm); err != nil {
+		return fmt.Errorf("error creating config directory: %w", err)
+	}
+
+	// Create the genesis data struct since the file doesn't exist
 	genesisData := genesispkg.NewGenesis(
 		chainID,
 		initialHeight,
@@ -83,18 +118,12 @@ func InitializeGenesis(homePath string, chainID string, initialHeight uint64, pr
 		json.RawMessage(appState), // App state from parameters
 	)
 
-	// Create the config directory if it doesn't exist
-	configDir := filepath.Join(homePath, "config")
-	if err := os.MkdirAll(configDir, rollconf.DefaultDirPerm); err != nil {
-		return fmt.Errorf("error creating config directory: %w", err)
-	}
-
-	// Save the genesis file
-	genesisPath := filepath.Join(configDir, "genesis.json")
+	// Save the new genesis file
 	if err := genesispkg.SaveGenesis(genesisData, genesisPath); err != nil {
 		return fmt.Errorf("error writing genesis file: %w", err)
 	}
 
+	fmt.Printf("Initialized new genesis file: %s\n", genesisPath)
 	return nil
 }
 
@@ -129,7 +158,7 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error reading passphrase flag: %w", err)
 		}
 
-		signer, err := InitializeSigner(&config, homePath, passphrase)
+		proposerAddress, err := InitializeSigner(&config, homePath, passphrase)
 		if err != nil {
 			return err
 		}
@@ -150,13 +179,6 @@ var InitCmd = &cobra.Command{
 		if chainID == "" {
 			chainID = "rollkit-test"
 		}
-
-		pubKey, err := signer.GetPublic()
-		if err != nil {
-			return fmt.Errorf("error getting public key: %w", err)
-		}
-
-		proposerAddress := types.KeyAddress(pubKey)
 
 		// Initialize genesis with empty app state
 		if err := InitializeGenesis(homePath, chainID, 1, proposerAddress, []byte("{}")); err != nil {

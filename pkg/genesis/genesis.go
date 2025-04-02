@@ -30,7 +30,9 @@ func NewGenesis(
 		ProposerAddress:      proposerAddress,
 		AppState:             appState,
 	}
-	genesis.Validate()
+	if err := genesis.Validate(); err != nil {
+		panic(err)
+	}
 
 	return genesis
 }
