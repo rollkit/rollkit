@@ -172,7 +172,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, store store.S
 		err = store.SaveBlockData(ctx,
 			&types.SignedHeader{Header: types.Header{
 				DataHash:        new(types.Data).Hash(),
-				ProposerAddress: genesis.ProposerAddress(),
+				ProposerAddress: genesis.ProposerAddress,
 				BaseHeader: types.BaseHeader{
 					ChainID: genesis.ChainID,
 					Height:  genesis.InitialHeight,
@@ -1070,7 +1070,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 }
 
 func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
-	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress()) && header.ValidateBasic() == nil
+	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
@@ -1493,6 +1493,10 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	data := batchData.Data
 	batchdata := convertBatchDataToBytes(data)
+	key, err := m.proposerKey.GetPublic()
+	if err != nil {
+		return nil, nil, err
+	}
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
@@ -1508,9 +1512,13 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			DataHash:        batchdata,
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         lastState.AppHash,
-			ProposerAddress: m.genesis.ProposerAddress(),
+			ProposerAddress: m.genesis.ProposerAddress,
 		},
 		Signature: *lastSignature,
+		Signer: types.Signer{
+			PubKey:  key,
+			Address: m.genesis.ProposerAddress,
+		},
 	}
 
 	blockData := &types.Data{

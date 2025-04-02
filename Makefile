@@ -96,8 +96,8 @@ proto-gen:
 ## mock-gen: generate mocks of external (commetbft) types
 mock-gen:
 	@echo "-> Generating mocks"
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/store --name Store
 	mockery --output da/mocks --srcpkg github.com/rollkit/rollkit/core/da --name DA
+	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/store --name Store
 .PHONY: mock-gen
 
 
@@ -133,6 +133,12 @@ build:
 	@echo "    Check the version with: rollups/testapp version"
 	@echo "    Check the binary with: $(CURDIR)/rollups/testapp"
 .PHONY: build
+
+build-da:
+	@echo "--> Building local-da"
+	@mkdir -p $(CURDIR)/build
+	@cd da && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/local-da ./cmd/local-da
+.PHONY: build-da
 
 ## clean: clean and build
 clean: 

@@ -12,7 +12,7 @@ const Version = "0.38.5"
 
 // DefaultRootDir returns the default root directory for rollkit
 func DefaultRootDir() string {
-	return DefaultRootDirWithName(".rollkit")
+	return DefaultRootDirWithName("rollkit")
 }
 
 // DefaultRootDirWithName returns the default root directory for an application,
@@ -60,7 +60,7 @@ var DefaultNodeConfig = Config{
 	},
 	Signer: SignerConfig{
 		SignerType: "file",
-		SignerPath: "signer",
+		SignerPath: "config",
 	},
 	RPC: RPCConfig{
 		Address: "127.0.0.1",

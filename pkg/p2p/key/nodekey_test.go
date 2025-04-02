@@ -89,7 +89,7 @@ func TestNodeKey_SaveAndLoad(t *testing.T) {
 					PrivKey: privKey,
 					PubKey:  pubKey,
 				}
-				return nodeKey, filepath.Join(tempDir, "valid_key.json")
+				return nodeKey, filepath.Join(tempDir)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, original, loaded *NodeKey) {
@@ -156,17 +156,16 @@ func TestLoadOrGenNodeKey(t *testing.T) {
 		{
 			name: "generate new key",
 			setup: func() string {
-				return filepath.Join(tempDir, "new_key.json")
+				return tempDir
 			},
 			wantErr: false,
 		},
 		{
 			name: "load existing key",
 			setup: func() string {
-				path := filepath.Join(tempDir, "existing_key.json")
-				_, err := LoadOrGenNodeKey(path)
+				_, err := LoadOrGenNodeKey(tempDir)
 				require.NoError(t, err)
-				return path
+				return tempDir
 			},
 			wantErr: false,
 		},

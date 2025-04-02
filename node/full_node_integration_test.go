@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -351,7 +350,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
 	require.NoError(err)
 
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	nodeKey, err := key.GenerateNodeKey()
 	require.NoError(err)
 
 	executor, sequencer, dac, p2pClient, ds := createTestComponents(s.T())
@@ -447,7 +446,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	p2pClient, err := p2p.NewClient(config, genesis.ChainID, nil, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
 	require.NoError(err)
 
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config", "node_key.json"))
+	nodeKey, err := key.GenerateNodeKey()
 	require.NoError(err)
 
 	node, err := NewNode(

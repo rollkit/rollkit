@@ -39,21 +39,23 @@ type keyData struct {
 func NewFileSystemSigner(keyPath string, passphrase []byte) (signer.Signer, error) {
 	defer zeroBytes(passphrase) // Wipe passphrase from memory after use
 
+	filePath := filepath.Join(keyPath, "signer.json")
+
 	// Create directory if it doesn't exist
-	dir := filepath.Dir(keyPath)
+	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Check if key file exists
-	if _, err := os.Stat(keyPath); os.IsNotExist(err) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		// Generate new keys
-		return generateAndSaveKeys(keyPath, passphrase)
+		return generateAndSaveKeys(filePath, passphrase)
 	}
 
 	// Load existing keys
 	signer := &FileSystemSigner{
-		keyFile: keyPath,
+		keyFile: filePath,
 	}
 
 	// Load keys into memory

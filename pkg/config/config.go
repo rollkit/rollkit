@@ -107,13 +107,13 @@ const (
 	// Signer configuration flags
 
 	// FlagSignerType is a flag for specifying the signer type
-	FlagSignerType = "signer.type"
+	FlagSignerType = "rollkit.signer.type"
 	// FlagSignerPath is a flag for specifying the signer path
-	FlagSignerPath = "signer.path"
+	FlagSignerPath = "rollkit.signer.path"
 
 	// FlagSignerPassphrase is a flag for specifying the signer passphrase
 	//nolint:gosec
-	FlagSignerPassphrase = "signer.passphrase"
+	FlagSignerPassphrase = "rollkit.signer.passphrase"
 
 	// RPC configuration flags
 
@@ -316,19 +316,28 @@ func LoadNodeConfig(cmd *cobra.Command, home string) (Config, error) {
 	config := DefaultNodeConfig
 	setDefaultsInViper(v, config)
 
-	// 2. Try to load YAML configuration from various locations
-	v.SetConfigName(ConfigBaseName)
-	v.SetConfigType(ConfigExtension)
+	// Get the RootDir from flags *first* to ensure correct search paths
+	// If the flag is not set, it will use the default value already in 'config'
+	rootDirFromFlag, _ := cmd.Flags().GetString(FlagRootDir) // Ignore error, default is fine if flag not present
+	if rootDirFromFlag != "" {
+		config.RootDir = rootDirFromFlag // Update our config struct temporarily for path setting
+	}
 
-	// Check if RootDir is set in the default config
-	if home != "" {
-		v.AddConfigPath(home)
-		v.AddConfigPath(filepath.Join(home, DefaultNodeConfig.ConfigDir))
-		config.RootDir = home
-	} else {
-		// If home is not set, use the default root directory
-		v.AddConfigPath(DefaultRootDir())
-		config.RootDir = DefaultRootDir()
+	// 2. Try to load YAML configuration from various locations
+	// First try using the current directory
+	v.SetConfigName(ConfigBaseName)  // e.g., "rollkit"
+	v.SetConfigType(ConfigExtension) // e.g., "yaml"
+
+	// Add search paths in order of precedence
+	// Current directory
+	v.AddConfigPath(".")
+
+	// Check if RootDir is determined (either default or from flag)
+	if config.RootDir != "" {
+		// Search directly in the determined root directory first
+		v.AddConfigPath(config.RootDir)
+		// Then search in the default config subdirectory within that root directory
+		v.AddConfigPath(filepath.Join(config.RootDir, config.ConfigDir)) // DefaultConfigDir is likely "config"
 	}
 
 	// Try to read the config file
@@ -358,6 +367,7 @@ func LoadNodeConfig(cmd *cobra.Command, home string) (Config, error) {
 	}
 
 	// 4. Unmarshal everything from Viper into the config struct
+	// viper.Unmarshal will respect the precedence: defaults < yaml < flags
 	if err := v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
 		c.TagName = "mapstructure"
 		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(

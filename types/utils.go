@@ -248,9 +248,7 @@ func GetGenesisWithPrivkey(chainID string) (genesis.Genesis, crypto.PrivKey, cry
 		chainID,
 		1,
 		time.Now().UTC(),
-		genesis.GenesisExtraData{
-			ProposerAddress: signer.Address,
-		},
+		signer.Address,
 		nil,
 	), privKey, pubKey
 }

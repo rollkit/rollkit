@@ -137,8 +137,7 @@ func InitFiles(dir string) error {
 	}
 
 	// create the nodekey file
-	nodeKeyFile := filepath.Join(configDir, "node_key.json")
-	_, err = key.LoadOrGenNodeKey(nodeKeyFile)
+	_, err = key.LoadOrGenNodeKey(configDir)
 	if err != nil {
 		return fmt.Errorf("failed to create node key: %w", err)
 	}

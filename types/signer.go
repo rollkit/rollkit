@@ -30,3 +30,12 @@ func NewSigner(pubKey crypto.PubKey) (Signer, error) {
 func (s *Signer) Verify(vote []byte, signature []byte) (bool, error) {
 	return s.PubKey.Verify(vote, signature)
 }
+
+func KeyAddress(pubKey crypto.PubKey) []byte {
+	bz, err := pubKey.Raw()
+	if err != nil {
+		return nil
+	}
+	hash := sha256.Sum256(bz)
+	return hash[:]
+}

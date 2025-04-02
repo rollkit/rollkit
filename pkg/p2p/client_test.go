@@ -161,7 +161,7 @@ func TestSeedStringParsing(t *testing.T) {
 			tempDir := t.TempDir()
 			ClientInitFiles(t, tempDir)
 
-			nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tempDir, "config", "node_key.json"))
+			nodeKey, err := key.GenerateNodeKey()
 			require.NoError(err)
 
 			client, err := NewClient(

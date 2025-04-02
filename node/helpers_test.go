@@ -53,7 +53,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	err = InitFiles(config.RootDir)
 	require.NoError(t, err)
 
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "node_key.json"))
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config"))
 	require.NoError(t, err)
 
 	node, err := NewNode(

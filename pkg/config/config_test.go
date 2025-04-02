@@ -33,9 +33,11 @@ func TestDefaultNodeConfig(t *testing.T) {
 	assert.Equal(t, false, def.Node.LazyAggregator)
 	assert.Equal(t, 60*time.Second, def.Node.LazyBlockTime.Duration)
 	assert.Equal(t, "", def.Node.TrustedHash)
-	assert.Equal(t, DefaultNodeConfig.Node.SequencerAddress, def.Node.SequencerAddress)
-	assert.Equal(t, DefaultNodeConfig.Node.SequencerRollupID, def.Node.SequencerRollupID)
-	assert.Equal(t, DefaultNodeConfig.Node.ExecutorAddress, def.Node.ExecutorAddress)
+	assert.Equal(t, def.Node.SequencerAddress, def.Node.SequencerAddress)
+	assert.Equal(t, def.Node.SequencerRollupID, def.Node.SequencerRollupID)
+	assert.Equal(t, def.Node.ExecutorAddress, def.Node.ExecutorAddress)
+	assert.Equal(t, "file", def.Signer.SignerType)
+	assert.Equal(t, "config", def.Signer.SignerPath)
 }
 
 func TestAddFlags(t *testing.T) {
@@ -94,6 +96,11 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, persistentFlags, FlagLogFormat, "text")
 	assertFlagValue(t, persistentFlags, FlagLogTrace, false)
 
+	// Signer flags
+	assertFlagValue(t, flags, FlagSignerPassphrase, "")
+	assertFlagValue(t, flags, FlagSignerType, "file")
+	assertFlagValue(t, flags, FlagSignerPath, DefaultNodeConfig.Signer.SignerPath)
+
 	// Count the number of flags we're explicitly checking
 	expectedFlagCount := 45 // Update this number if you add more flag checks above
 
@@ -122,8 +129,6 @@ func TestLoadNodeConfig(t *testing.T) {
 	// Create a YAML file in the temporary directory
 	yamlPath := filepath.Join(tempDir, RollkitConfigYaml)
 	yamlContent := `
-entrypoint: "./cmd/app/main.go"
-
 node:
   aggregator: true
   block_time: "5s"
@@ -132,6 +137,10 @@ da:
   address: "http://yaml-da:26657"
 
 config_dir: "config"
+
+signer:
+  signer_type: "file"
+  signer_path: "something/config"
 `
 	err := os.WriteFile(yamlPath, []byte(yamlContent), 0600)
 	require.NoError(t, err)
@@ -183,6 +192,10 @@ config_dir: "config"
 
 	// 4. Values not in flags or YAML should remain as default
 	assert.Equal(t, DefaultNodeConfig.DA.BlockTime.Duration, config.DA.BlockTime.Duration, "DABlockTime should remain as default")
+
+	// 5. Signer values should be set from flags
+	assert.Equal(t, "file", config.Signer.SignerType, "SignerType should be set from flag")
+	assert.Equal(t, "something/config", config.Signer.SignerPath, "SignerPath should be set from flag")
 }
 
 func assertFlagValue(t *testing.T, flags *pflag.FlagSet, name string, expectedValue interface{}) {

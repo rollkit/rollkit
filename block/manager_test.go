@@ -151,9 +151,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 		genesisData.ChainID,
 		uint64(2), // Set initial height to 2
 		genesisData.GenesisDAStartHeight,
-		genesispkg.GenesisExtraData{
-			ProposerAddress: genesisData.ProposerAddress(),
-		},
+		genesisData.ProposerAddress,
 		nil, // No raw bytes for now
 	)
 	sampleState := types.State{
@@ -242,7 +240,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := &damocks.DA{}
+			mockDA := &damocks.MockDA{}
 			m := getManager(t, mockDA, tc.gasPrice, tc.gasMultiplier)
 			m.config.DA.BlockTime.Duration = time.Millisecond
 			m.config.DA.MempoolTTL = 1
@@ -536,8 +534,8 @@ func TestAggregationLoop(t *testing.T) {
 			"myChain",
 			1,
 			time.Now(),
-			genesispkg.GenesisExtraData{}, // Empty extra data
-			nil,                           // No raw bytes for now
+			[]byte{}, // Empty extra data
+			nil,      // No raw bytes for now
 		),
 		config: config.Config{
 			Node: config.NodeConfig{

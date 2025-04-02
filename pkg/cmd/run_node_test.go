@@ -24,13 +24,14 @@ import (
 	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
 
-func createTestComponents(ctx context.Context) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.Signer, *p2p.Client, datastore.Batching) {
+func createTestComponents(ctx context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.Signer, *p2p.Client, datastore.Batching) {
 	executor := testExecutor.CreateDirectKVExecutor(ctx)
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	logger := log.NewLogger(os.Stdout)
 	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte{}, logger)
-	keyProvider, err := filesigner.NewFileSystemSigner("config/data", []byte{})
+	tmpDir := t.TempDir()
+	keyProvider, err := filesigner.NewFileSystemSigner(filepath.Join(tmpDir, "config"), []byte{})
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +82,7 @@ func TestParseFlags(t *testing.T) {
 
 	args := append([]string{"start"}, flags...)
 
-	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
+	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
 	tmpDir := t.TempDir()
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
 	if err != nil {
@@ -165,7 +166,7 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	for i, flags := range flagVariants {
 		args := append([]string{"start"}, flags...)
 
-		executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
+		executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
 
 		tmpDir := t.TempDir()
 		nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
@@ -195,7 +196,7 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 func TestDefaultAggregatorValue(t *testing.T) {
 	// Create a new command without specifying any flags
 	args := []string{"start"}
-	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
+	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
 
 	tmpDir := t.TempDir()
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
@@ -230,7 +231,7 @@ func TestCentralizedAddresses(t *testing.T) {
 		"--rollkit.node.sequencer_rollup_id=centralrollup",
 	}
 
-	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
+	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
 
 	tmpDir := t.TempDir()
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
