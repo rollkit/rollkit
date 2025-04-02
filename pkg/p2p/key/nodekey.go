@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
@@ -76,11 +77,16 @@ func (nodeKey *NodeKey) ID() string {
 
 // SaveAs persists the NodeKey to filePath.
 func (nodeKey *NodeKey) SaveAs(filePath string) error {
-
 	jsonBytes, err := json.Marshal(nodeKey)
 	if err != nil {
 		return err
 	}
+	// create directory if it doesn't exist
+	err = os.MkdirAll(filepath.Dir(filePath), 0755)
+	if err != nil {
+		return err
+	}
+
 	err = os.WriteFile(filePath, jsonBytes, 0600)
 	if err != nil {
 		return err

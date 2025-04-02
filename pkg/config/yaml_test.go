@@ -176,16 +176,16 @@ func TestCreateInitialConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the config file exists
-	configPath := filepath.Join(tempDir, RollkitConfigYaml)
+	configPath := filepath.Join(tempDir, "config", RollkitConfigYaml)
 	_, err = os.Stat(configPath)
 	require.NoError(t, err)
 
 	// Read the config back
-	cfg, err := ReadYaml(tempDir)
+	cfg, err := ReadYaml(filepath.Join(tempDir, "config"))
 	require.NoError(t, err)
 
 	// Verify root directory is set correctly
-	require.Equal(t, tempDir, cfg.RootDir)
+	require.Equal(t, filepath.Join(tempDir, "config"), cfg.RootDir)
 
 	// Test creating config with customizations
 	tempDir2 := t.TempDir()
@@ -196,7 +196,7 @@ func TestCreateInitialConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Read the customized config
-	cfg, err = ReadYaml(tempDir2)
+	cfg, err = ReadYaml(filepath.Join(tempDir2, "config"))
 	require.NoError(t, err)
 
 	// Verify customizations were applied

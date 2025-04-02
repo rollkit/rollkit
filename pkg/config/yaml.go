@@ -217,10 +217,9 @@ func EnsureRoot(rootDir string) error {
 // CreateInitialConfig creates the initial config file with default values and optional customizations.
 // It will:
 // 1. Create the root directory if it doesn't exist
-// 2. Look for a main.go entrypoint in the current directory
-// 3. Look for a chain config directory
-// 4. Create a config file with default values and any found values
-// 5. Apply any customizations provided
+// 2. Look for a chain config directory
+// 3. Create a config file with default values and any found values
+// 4. Apply any customizations provided
 func CreateInitialConfig(rootDir string, opts ...func(*Config)) error {
 	// Ensure root directory exists
 	if err := os.MkdirAll(rootDir, 0750); err != nil {
@@ -228,7 +227,7 @@ func CreateInitialConfig(rootDir string, opts ...func(*Config)) error {
 	}
 
 	// Check if config file already exists
-	configPath := filepath.Join(rootDir, RollkitConfigYaml)
+	configPath := filepath.Join(rootDir, "config", RollkitConfigYaml)
 	if _, err := os.Stat(configPath); err == nil {
 		return fmt.Errorf("%s file already exists in %s", RollkitConfigYaml, rootDir)
 	}

@@ -79,5 +79,5 @@ func TestInitCommand(t *testing.T) {
 
 	// Verify addresses
 	require.Contains(t, yamlContent, "address: ")
-	require.Contains(t, yamlContent, "http://localhost:26658")
+	require.Contains(t, yamlContent, "http://localhost:7980")
 }

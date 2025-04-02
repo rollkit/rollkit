@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -81,7 +82,8 @@ func TestParseFlags(t *testing.T) {
 	args := append([]string{"start"}, flags...)
 
 	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
-	nodeKey, err := key.LoadOrGenNodeKey("config/data/node_key.json")
+	tmpDir := t.TempDir()
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}
@@ -165,7 +167,8 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 
 		executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
 
-		nodeKey, err := key.LoadOrGenNodeKey("config/data/node_key.json")
+		tmpDir := t.TempDir()
+		nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
 		if err != nil {
 			t.Fatalf("Error: %v", err)
 		}
@@ -194,7 +197,8 @@ func TestDefaultAggregatorValue(t *testing.T) {
 	args := []string{"start"}
 	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
 
-	nodeKey, err := key.LoadOrGenNodeKey("config/data/node_key.json")
+	tmpDir := t.TempDir()
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}
@@ -228,7 +232,8 @@ func TestCentralizedAddresses(t *testing.T) {
 
 	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background())
 
-	nodeKey, err := key.LoadOrGenNodeKey("config/data/node_key.json")
+	tmpDir := t.TempDir()
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}

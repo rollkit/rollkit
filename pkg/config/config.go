@@ -295,7 +295,7 @@ func AddFlags(cmd *cobra.Command) {
 
 	// Logging configuration flags
 	cmd.Flags().String(FlagLogLevel, "info", "log level (debug, info, warn, error)")
-	cmd.Flags().String(FlagLogFormat, "", "log format (text, json)")
+	cmd.Flags().String(FlagLogFormat, "text", "log format (text, json)")
 	cmd.Flags().Bool(FlagLogTrace, false, "enable stack traces in error logs")
 
 	// Signer configuration flags
@@ -434,7 +434,7 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 
 	// Logging configuration defaults
 	v.SetDefault(FlagLogLevel, "info")
-	v.SetDefault(FlagLogFormat, "")
+	v.SetDefault(FlagLogFormat, "text")
 	v.SetDefault(FlagLogTrace, false)
 
 	// Signer configuration defaults

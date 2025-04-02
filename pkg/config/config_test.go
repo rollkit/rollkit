@@ -91,7 +91,7 @@ func TestAddFlags(t *testing.T) {
 
 	// Logging flags (in persistent flags)
 	assertFlagValue(t, persistentFlags, FlagLogLevel, DefaultNodeConfig.Log.Level)
-	assertFlagValue(t, persistentFlags, FlagLogFormat, "plain")
+	assertFlagValue(t, persistentFlags, FlagLogFormat, "text")
 	assertFlagValue(t, persistentFlags, FlagLogTrace, false)
 
 	// Count the number of flags we're explicitly checking

@@ -55,7 +55,7 @@ var DefaultNodeConfig = Config{
 	Instrumentation: DefaultInstrumentationConfig(),
 	Log: LogConfig{
 		Level:  "info",
-		Format: "",
+		Format: "text",
 		Trace:  false,
 	},
 	Signer: SignerConfig{

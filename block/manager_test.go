@@ -305,7 +305,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
 	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
 	store.On("GetBlockData", mock.Anything, uint64(3)).Return(header3, data3, nil)
-	store.On("Height").Return(uint64(3))
+	store.On("Height", mock.Anything).Return(uint64(3), nil)
 
 	m.store = store
 
@@ -340,7 +340,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
 	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
 	store.On("GetBlockData", mock.Anything, uint64(3)).Return(header3, data3, nil)
-	store.On("Height").Return(uint64(3))
+	store.On("Height", mock.Anything).Return(uint64(3), nil)
 
 	m.store = store
 
@@ -548,7 +548,7 @@ func TestAggregationLoop(t *testing.T) {
 		bq: queue.New[BatchData](),
 	}
 
-	mockStore.On("Height").Return(uint64(0))
+	mockStore.On("Height", mock.Anything).Return(uint64(0), nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
