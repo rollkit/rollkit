@@ -50,7 +50,7 @@ func (c *DummyClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uin
 	copy(blobs, data)
 
 	// Submit blobs to DA layer
-	ids, err := c.da.Submit(ctx, blobs, gasPrice, c.namespace, nil)
+	ids, err := c.da.Submit(ctx, blobs, gasPrice, c.namespace, []byte{})
 	if err != nil {
 		return ResultSubmit{
 			BaseResult: BaseResult{
