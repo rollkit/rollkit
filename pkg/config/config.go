@@ -391,7 +391,10 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 	// Example implementation sketch (might need refinement based on struct tags):
 	configMap := make(map[string]interface{})
 	data, _ := json.Marshal(config) // Using JSON temporarily, mapstructure might be better
-	json.Unmarshal(data, &configMap)
+	err := json.Unmarshal(data, &configMap)
+	if err != nil {
+		fmt.Println("error unmarshalling config", err)
+	}
 
 	for key, value := range configMap {
 		v.SetDefault(key, value)
