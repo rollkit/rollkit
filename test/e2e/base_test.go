@@ -44,7 +44,7 @@ func TestBasic(t *testing.T) {
 		"--rollkit.node.block_time=5ms",
 		"--rollkit.da.block_time=15ms",
 		"--rollkit.signer.passphrase="+aggregatorPass,
-		"--rollkit.rpc.address=tcp://127.0.0.1:7331",
+		"--rollkit.rpc.address=127.0.0.1:7331",
 	)
 	require.NoError(t, err, "failed to init aggregator", output)
 
@@ -58,9 +58,9 @@ func TestBasic(t *testing.T) {
 		"--rollkit.node.block_time=5ms",
 		"--rollkit.da.block_time=15ms",
 	)
-	sut.AwaitNodeUp(t, "tcp://127.0.0.1:7331", 2*time.Second)
+	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
 
-	// // copy genesis to target home2
+	// copy genesis to target home2
 	// MustCopyFile(t, filepath.Join(node1Home, "config", "genesis.json"), filepath.Join(node2Home, "config", "genesis.json"))
 	// sut.StartNode(
 	// 	binaryPath,
@@ -81,7 +81,7 @@ func TestBasic(t *testing.T) {
 	// 	require.NoError(t, err)
 	// 	require.Greater(t, state.LastBlockHeight, uint64(0))
 	// }
-	node1Client := client.NewClient("tcp://127.0.0.1:7331")
+	node1Client := client.NewClient("http://127.0.0.1:7331")
 	require.NoError(t, err)
 	ctx, done := context.WithTimeout(context.Background(), time.Second)
 	defer done()
