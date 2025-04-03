@@ -34,6 +34,7 @@ func ValidateHomePath(homePath string) error {
 func InitializeConfig(homePath string, aggregator bool) rollconf.Config {
 	config := rollconf.DefaultNodeConfig
 	config.RootDir = homePath
+	config.ConfigDir = homePath + "/config"
 	config.Node.Aggregator = aggregator
 	return config
 }
@@ -142,15 +143,6 @@ var InitCmd = &cobra.Command{
 			return err
 		}
 
-		// Create a config with default values
-		config := rollconf.DefaultNodeConfig
-
-		// Update with the values we found
-		config.ConfigDir = homePath + "/config"
-
-		// Set the root directory to the specified home path
-		config.RootDir = homePath
-
 		// Make sure the home directory exists
 		if err := os.MkdirAll(homePath, 0750); err != nil {
 			return fmt.Errorf("error creating directory %s: %w", homePath, err)
@@ -161,7 +153,7 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error reading aggregator flag: %w", err)
 		}
 
-		config = InitializeConfig(homePath, aggregator)
+		config := InitializeConfig(homePath, aggregator)
 
 		passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
 		if err != nil {

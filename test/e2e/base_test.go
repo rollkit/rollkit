@@ -34,24 +34,24 @@ func TestBasic(t *testing.T) {
 	// init aggregator
 	sut.RunCmd(binaryPath,
 		"init",
-		"--home="+node1Home,
-		"--node.sequencer_rollup_id=testing",
-		"--node.aggregator",
-		"--node.block_time=5ms",
-		"--da.block_time=15ms",
-		"--node.aggrgator",
-		"--signer.passphrase="+aggregatorPass,
+		"--home "+node1Home,
+		"--rollkit.node.sequencer_rollup_id testing",
+		"--rollkit.node.aggregator",
+		"--rollkit.node.block_time 5ms",
+		"--rollkit.da.block_time 15ms",
+		"--rollkit.node.aggrgator",
+		"--rollkit.signer.passphrase "+aggregatorPass,
 	)
 
 	// start aggregator
 	sut.StartNode(binaryPath,
 		"start",
 		"--home="+node1Home,
-		"--node.sequencer_rollup_id=testing",
-		"--node.aggregator",
-		"--signer.passphrase="+aggregatorPass,
-		"--node.block_time=5ms",
-		"--da.block_time=15ms",
+		"--rollkit.node.sequencer_rollup_id=testing",
+		"--rollkit.node.aggregator",
+		"--rollkit.signer.passphrase="+aggregatorPass,
+		"--rollkit.node.block_time=5ms",
+		"--rollkit.da.block_time=15ms",
 	)
 	sut.AwaitNodeUp(t, "tcp://127.0.0.1:7331", 2*time.Second)
 

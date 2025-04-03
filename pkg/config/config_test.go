@@ -43,7 +43,7 @@ func TestDefaultNodeConfig(t *testing.T) {
 func TestAddFlags(t *testing.T) {
 	// Create a command with flags
 	cmd := &cobra.Command{Use: "test"}
-	AddBasicFlags(cmd, "test") // Add basic flags first
+	AddGlobalFlags(cmd, "test") // Add basic flags first
 	AddFlags(cmd)
 
 	// Get both persistent and regular flags

@@ -40,7 +40,7 @@ func TestInitCommand(t *testing.T) {
 	cmd.AddCommand(&initCmd)
 
 	// Register all persistent flags from root command
-	rollconf.AddBasicFlags(cmd, "testapp")
+	rollconf.AddGlobalFlags(cmd, "testapp")
 
 	// Set home flag to the test directory
 	cmd.SetArgs([]string{"init", "--home", dir, "--rollkit.node.aggregator", "--rollkit.signer.passphrase", "test"})

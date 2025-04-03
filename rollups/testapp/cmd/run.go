@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"cosmossdk.io/log"
@@ -20,7 +21,7 @@ import (
 var RunCmd = &cobra.Command{
 	Use:     "start",
 	Aliases: []string{"node", "run"},
-	Short:   "Run the rollkit node",
+	Short:   "Run the testapp node",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		// Create test implementations
@@ -28,7 +29,12 @@ var RunCmd = &cobra.Command{
 		executor := kvexecutor.CreateDirectKVExecutor()
 		sequencer := coresequencer.NewDummySequencer()
 
-		nodeConfig, err := rollcmd.ParseConfig(cmd, cmd.Flag(config.FlagRootDir).Value.String())
+		homePath, err := cmd.Flags().GetString(config.FlagRootDir)
+		if err != nil {
+			return fmt.Errorf("error reading home flag: %w", err)
+		}
+
+		nodeConfig, err := rollcmd.ParseConfig(cmd, homePath)
 		if err != nil {
 			panic(err)
 		}
@@ -48,15 +54,11 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		p2pClient, err := p2p.NewClient(config.DefaultNodeConfig, "testapp", nodeKey, datastore, logger, nil)
+		p2pClient, err := p2p.NewClient(nodeConfig, "testapp", nodeKey, datastore, logger, nil)
 		if err != nil {
 			panic(err)
 		}
 
-		return rollcmd.StartNode(cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore)
+		return rollcmd.StartNode(cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
 	},
-}
-
-func init() {
-	config.AddFlags(RunCmd)
 }

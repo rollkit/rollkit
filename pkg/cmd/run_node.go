@@ -97,14 +97,11 @@ func StartNode(
 	nodeKey *key.NodeKey,
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
+	nodeConfig rollconf.Config,
 ) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
-	nodeConfig, err := ParseConfig(cmd, cmd.Flag(rollconf.FlagRootDir).Value.String())
-	if err != nil {
-		return fmt.Errorf("failed to parse config: %w", err)
-	}
 	logger := SetupLogger(nodeConfig.Log)
 
 	//create a new remote signer
