@@ -94,6 +94,9 @@ func (s *SystemUnderTest) AwaitNodeUp(t *testing.T, rpcAddr string, timeout time
 				continue
 			}
 			result, err := con.GetState(ctx)
+			fmt.Println("result", result)
+			block, err := con.GetBlockByHeight(ctx, 0)
+			fmt.Println("block", block)
 			if err != nil || result.LastBlockHeight < 1 {
 				time.Sleep(100 * time.Millisecond)
 				continue
