@@ -266,7 +266,7 @@ func MustCopyFile(t *testing.T, src, dest string) *os.File {
 // NodeID generates and returns the peer ID from the node's private key.
 func NodeID(t *testing.T, nodeDir string) peer.ID {
 	t.Helper()
-	node1Key, err := key.LoadOrGenNodeKey(filepath.Join(nodeDir, "config"))
+	node1Key, err := key.LoadNodeKey(filepath.Join(nodeDir, "config"))
 	require.NoError(t, err)
 	node1ID, err := peer.IDFromPrivateKey(node1Key.PrivKey)
 	require.NoError(t, err)

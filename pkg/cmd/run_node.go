@@ -118,7 +118,7 @@ func StartNode(
 		}
 	} else if nodeConfig.Signer.SignerType == "grpc" {
 		panic("grpc remote signer not implemented")
-	} else {
+	} else if nodeConfig.Node.Aggregator {
 		return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 	}
 
