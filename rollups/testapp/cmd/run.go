@@ -49,7 +49,7 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		datastore, err := store.NewDefaultInMemoryKVStore()
+		datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "testapp")
 		if err != nil {
 			panic(err)
 		}
