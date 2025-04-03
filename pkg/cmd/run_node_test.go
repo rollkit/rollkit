@@ -44,7 +44,7 @@ func createTestComponents(ctx context.Context, t *testing.T) (coreexecutor.Execu
 
 func TestParseFlags(t *testing.T) {
 	flags := []string{
-		"--home", "custom/root/dir",
+		"--rollkit.home", "custom/root/dir",
 		"--rollkit.db_path", "custom/db/path",
 
 		// P2P flags
@@ -91,7 +91,7 @@ func TestParseFlags(t *testing.T) {
 
 	newRunNodeCmd := NewRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
 
-	// Register root flags to be able to use --home flag
+	// Register root flags to be able to use --rollkit.home flag
 	rollconf.AddBasicFlags(newRunNodeCmd, "testapp")
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {

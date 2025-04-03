@@ -34,7 +34,7 @@ func TestBasic(t *testing.T) {
 	// init aggregator
 	sut.RunCmd(binaryPath,
 		"init",
-		"--home="+node1Home,
+		"--rollkit.home="+node1Home,
 		"--node.sequencer_rollup_id=testing",
 		"--node.aggregator",
 		"--node.block_time=5ms",
@@ -46,7 +46,7 @@ func TestBasic(t *testing.T) {
 	// start aggregator
 	sut.StartNode(binaryPath,
 		"start",
-		"--home="+node1Home,
+		"--rollkit.home="+node1Home,
 		"--node.sequencer_rollup_id=testing",
 		"--node.aggregator",
 		"--signer.passphrase="+aggregatorPass,
@@ -60,7 +60,7 @@ func TestBasic(t *testing.T) {
 	// sut.StartNode(
 	// 	binaryPath,
 	// 	"start",
-	// 	"--home="+node2Home,
+	// 	"--rollkit.home="+node2Home,
 	// 	"--node.sequencer_rollup_id=testing",
 	// 	fmt.Sprintf("--p2p.seeds=%s@127.0.0.1:26656", NodeID(t, node1Home)),
 	// 	"--block_time=5ms",

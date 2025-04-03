@@ -19,13 +19,13 @@ const (
 	// Base configuration flags
 
 	// FlagRootDir is a flag for specifying the root directory
-	FlagRootDir = "home"
+	FlagRootDir = "rollkit.home"
 	// FlagDBPath is a flag for specifying the database path
 	FlagDBPath = "rollkit.db_path"
 	// FlagChainConfigDir is a flag for specifying the chain config directory
-	FlagChainConfigDir = "config_dir"
+	FlagChainConfigDir = "rollkit.config_dir"
 	// FlagChainID is a flag for specifying the chain ID
-	FlagChainID = "chain_id"
+	FlagChainID = "rollkit.chain_id"
 
 	// Node configuration flags
 

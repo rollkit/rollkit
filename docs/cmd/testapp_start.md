@@ -10,7 +10,7 @@ testapp start [flags]
 
 ```
       --ci                                              run node for ci testing
-      --config_dir string                               chain configuration directory (default "config")
+      --rollkit.config_dir string                               chain configuration directory (default "config")
       --da.address string                               DA address (host:port) (default "http://localhost:26658")
       --da.auth_token string                            DA auth token
       --da.block_time duration                          DA chain block time (for syncing) (default 15s)
@@ -20,7 +20,7 @@ testapp start [flags]
       --da.namespace string                             DA namespace to submit blob transactions
       --da.start_height uint                            starting DA block height (for syncing)
       --da.submit_options string                        DA submit options
-      --db_path string                                  database path relative to root directory (default "data")
+      --rollkit.db_path string                                  database path relative to root directory (default "data")
   -h, --help                                            help for start
       --instrumentation.max_open_connections int        maximum number of simultaneous connections for metrics (default 3)
       --instrumentation.pprof                           enable pprof HTTP endpoint
@@ -48,7 +48,7 @@ testapp start [flags]
 ### Options inherited from parent commands
 
 ```
-      --home string         Root directory for application data (default "HOME/.testapp")
+      --rollkit.home string         Root directory for application data (default "HOME/.testapp")
       --log.format string   Set the log format (text, json) (default "plain")
       --log.level string    Set the log level (debug, info, warn, error) (default "info")
       --log.trace           Enable stack traces in error logs

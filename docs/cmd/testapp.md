@@ -5,13 +5,13 @@ The first sovereign rollup framework that allows you to launch a sovereign, cust
 ### Synopsis
 
 Rollkit is the first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
-If the --home flag is not specified, the rollkit command will create a folder "~/.testapp" where it will store node keys, config, and data.
+If the --rollkit.home flag is not specified, the rollkit command will create a folder "~/.testapp" where it will store node keys, config, and data.
 
 ### Options
 
 ```
   -h, --help                help for testapp
-      --home string         Root directory for application data (default "HOME/.testapp")
+      --rollkit.home string         Root directory for application data (default "HOME/.testapp")
       --log.format string   Set the log format (text, json) (default "plain")
       --log.level string    Set the log level (debug, info, warn, error) (default "info")
       --log.trace           Enable stack traces in error logs

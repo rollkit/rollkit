@@ -43,7 +43,7 @@ func TestInitCommand(t *testing.T) {
 	rollconf.AddBasicFlags(cmd, "testapp")
 
 	// Set home flag to the test directory
-	cmd.SetArgs([]string{"init", "--home", dir, "--rollkit.node.aggregator", "--rollkit.signer.passphrase", "test"})
+	cmd.SetArgs([]string{"init", "--rollkit.home", dir, "--rollkit.node.aggregator", "--rollkit.signer.passphrase", "test"})
 
 	// Execute the command
 	err = cmd.Execute()
