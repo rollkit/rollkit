@@ -32,7 +32,7 @@ func createTestComponents(ctx context.Context, t *testing.T) (coreexecutor.Execu
 	logger := log.NewLogger(os.Stdout)
 	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte{}, logger)
 	tmpDir := t.TempDir()
-	keyProvider, err := filesigner.NewFileSystemSigner(filepath.Join(tmpDir, "config"), []byte{})
+	keyProvider, err := filesigner.CreateFileSystemSigner(filepath.Join(tmpDir, "config"), []byte{})
 	if err != nil {
 		panic(err)
 	}

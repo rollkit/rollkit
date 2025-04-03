@@ -34,13 +34,13 @@ func TestBasic(t *testing.T) {
 	// init aggregator
 	sut.RunCmd(binaryPath,
 		"init",
-		"--home "+node1Home,
-		"--rollkit.node.sequencer_rollup_id testing",
+		"--home="+node1Home,
+		"--rollkit.node.sequencer_rollup_id=testing",
 		"--rollkit.node.aggregator",
-		"--rollkit.node.block_time 5ms",
-		"--rollkit.da.block_time 15ms",
+		"--rollkit.node.block_time=5ms",
+		"--rollkit.da.block_time=15ms",
 		"--rollkit.node.aggrgator",
-		"--rollkit.signer.passphrase "+aggregatorPass,
+		"--rollkit.signer.passphrase="+aggregatorPass,
 	)
 
 	// start aggregator

@@ -112,7 +112,7 @@ func StartNode(
 			return err
 		}
 
-		signer, err = file.NewFileSystemSigner(nodeConfig.Signer.SignerPath, []byte(passphrase))
+		signer, err = file.LoadFileSystemSigner(nodeConfig.Signer.SignerPath, []byte(passphrase))
 		if err != nil {
 			return err
 		}

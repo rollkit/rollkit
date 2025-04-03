@@ -53,7 +53,7 @@ func InitializeSigner(config *rollconf.Config, homePath string, passphrase strin
 
 		config.Signer.SignerPath = signerDir
 
-		signer, err := file.NewFileSystemSigner(config.Signer.SignerPath, []byte(passphrase))
+		signer, err := file.CreateFileSystemSigner(config.Signer.SignerPath, []byte(passphrase))
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize signer: %w", err)
 		}

@@ -44,7 +44,7 @@ var RunCmd = &cobra.Command{
 		logger := log.NewLogger(os.Stdout)
 		dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
 
-		nodeKey, err := key.LoadOrGenNodeKey(nodeConfig.ConfigDir)
+		nodeKey, err := key.LoadNodeKey(nodeConfig.ConfigDir)
 		if err != nil {
 			panic(err)
 		}

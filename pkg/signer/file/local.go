@@ -34,9 +34,8 @@ type keyData struct {
 	Salt             []byte `json:"salt,omitempty"`
 }
 
-// NewFileSystemSigner creates a new signer that stores keys securely on disk.
-// If the keys don't exist at the specified paths, it generates new ones.
-func NewFileSystemSigner(keyPath string, passphrase []byte) (signer.Signer, error) {
+// CreateFileSystemSigner creates a new key pair and saves it encrypted to disk.
+func CreateFileSystemSigner(keyPath string, passphrase []byte) (signer.Signer, error) {
 	defer zeroBytes(passphrase) // Wipe passphrase from memory after use
 
 	filePath := filepath.Join(keyPath, "signer.json")
@@ -47,28 +46,13 @@ func NewFileSystemSigner(keyPath string, passphrase []byte) (signer.Signer, erro
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Check if key file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		// Generate new keys
-		return generateAndSaveKeys(filePath, passphrase)
+	// Check if key file already exists
+	if _, err := os.Stat(filePath); err == nil {
+		return nil, fmt.Errorf("key file already exists at %s", filePath)
+	} else if !os.IsNotExist(err) {
+		// Handle other potential errors from os.Stat
+		return nil, fmt.Errorf("failed to check key file status: %w", err)
 	}
-
-	// Load existing keys
-	signer := &FileSystemSigner{
-		keyFile: filePath,
-	}
-
-	// Load keys into memory
-	if err := signer.loadKeys(passphrase); err != nil {
-		return nil, err
-	}
-
-	return signer, nil
-}
-
-// generateAndSaveKeys creates a new key pair and saves it to disk
-func generateAndSaveKeys(keyPath string, passphrase []byte) (*FileSystemSigner, error) {
-	defer zeroBytes(passphrase)
 
 	// Generate new Ed25519 key pair
 	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
@@ -79,12 +63,41 @@ func generateAndSaveKeys(keyPath string, passphrase []byte) (*FileSystemSigner, 
 	signer := &FileSystemSigner{
 		privateKey: privKey,
 		publicKey:  pubKey,
-		keyFile:    keyPath,
+		keyFile:    filePath,
 	}
 
 	// Save keys to disk
 	if err := signer.saveKeys(passphrase); err != nil {
-		return nil, err
+		// Attempt to clean up the file if saving failed partially
+		_ = os.Remove(filePath)
+		return nil, fmt.Errorf("failed to save keys: %w", err)
+	}
+
+	return signer, nil
+}
+
+// LoadFileSystemSigner loads existing keys from an encrypted file on disk.
+func LoadFileSystemSigner(keyPath string, passphrase []byte) (signer.Signer, error) {
+	defer zeroBytes(passphrase) // Wipe passphrase from memory after use
+
+	filePath := filepath.Join(keyPath, "signer.json")
+
+	// Check if key file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("key file not found at %s: %w", filePath, err)
+	} else if err != nil {
+		// Handle other potential errors from os.Stat
+		return nil, fmt.Errorf("failed to check key file status: %w", err)
+	}
+
+	// Load existing keys
+	signer := &FileSystemSigner{
+		keyFile: filePath,
+	}
+
+	// Load keys into memory
+	if err := signer.loadKeys(passphrase); err != nil {
+		return nil, err // loadKeys already provides context
 	}
 
 	return signer, nil
