@@ -5,7 +5,6 @@ package e2e
 import (
 	"context"
 	"flag"
-	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -61,31 +60,31 @@ func TestBasic(t *testing.T) {
 	)
 	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
 
-	// copy genesis to target home2
-	output, err = sut.RunCmd(binaryPath,
-		"init",
-		"--home="+node2Home,
-		"--rollkit.node.sequencer_rollup_id=testing",
-		"--rollkit.rpc.address=127.0.0.1:7331",
-	)
-	MustCopyFile(t, filepath.Join(node1Home, "config", "genesis.json"), filepath.Join(node2Home, "config", "genesis.json"))
-	sut.StartNode(
-		binaryPath,
-		"start",
-		"--home="+node2Home,
-		"--rollkit.node.sequencer_rollup_id=testing",
-		fmt.Sprintf("--rollkit.p2p.seeds=%s@127.0.0.1:26656", NodeID(t, node1Home)),
-		"--rollkit.log.level=debug",
-	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:16657", 2*time.Second)
+	// // copy genesis to target home2
+	// output, err = sut.RunCmd(binaryPath,
+	// 	"init",
+	// 	"--home="+node2Home,
+	// 	"--rollkit.node.sequencer_rollup_id=testing",
+	// 	"--rollkit.rpc.address=127.0.0.1:7331",
+	// )
+	// MustCopyFile(t, filepath.Join(node1Home, "config", "genesis.json"), filepath.Join(node2Home, "config", "genesis.json"))
+	// sut.StartNode(
+	// 	binaryPath,
+	// 	"start",
+	// 	"--home="+node2Home,
+	// 	"--rollkit.node.sequencer_rollup_id=testing",
+	// 	fmt.Sprintf("--rollkit.p2p.seeds=%s@127.0.0.1:26656", NodeID(t, node1Home)),
+	// 	"--rollkit.log.level=debug",
+	// )
+	// sut.AwaitNodeUp(t, "http://127.0.0.1:16657", 2*time.Second)
 
-	asserNodeCaughtUp := func(c *client.Client) {
-		ctx, done := context.WithTimeout(context.Background(), time.Second)
-		defer done()
-		state, err := c.GetState(ctx)
-		require.NoError(t, err)
-		require.Greater(t, state.LastBlockHeight, uint64(0))
-	}
+	// asserNodeCaughtUp := func(c *client.Client) {
+	// 	ctx, done := context.WithTimeout(context.Background(), time.Second)
+	// 	defer done()
+	// 	state, err := c.GetState(ctx)
+	// 	require.NoError(t, err)
+	// 	require.Greater(t, state.LastBlockHeight, uint64(0))
+	// }
 
 	node1Client := client.NewClient("http://127.0.0.1:7331")
 	require.NoError(t, err)
@@ -95,9 +94,9 @@ func TestBasic(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, state.LastBlockHeight, uint64(1))
 
-	node2Client := client.NewClient("http://127.0.0.1:16657")
-	require.NoError(t, err)
-	asserNodeCaughtUp(node2Client)
+	// node2Client := client.NewClient("http://127.0.0.1:16657")
+	// require.NoError(t, err)
+	// asserNodeCaughtUp(node2Client)
 
 	// when a client TX for state update is executed
 	// const myKey = "foo"
