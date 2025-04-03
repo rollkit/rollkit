@@ -28,7 +28,7 @@ func TestBasic(t *testing.T) {
 	var (
 		workDir   = t.TempDir()
 		node1Home = filepath.Join(workDir, "1")
-		node2Home = filepath.Join(workDir, "2")
+		// node2Home = filepath.Join(workDir, "2")
 	)
 
 	// Define and parse the binary flag locally in the test function.
