@@ -191,19 +191,3 @@ var InitCmd = &cobra.Command{
 		return nil
 	},
 }
-
-func init() {
-	InitFlags(InitCmd)
-}
-
-func SignerFlags(cmd *cobra.Command) {
-	// Add passphrase flag
-	cmd.Flags().String(rollconf.FlagSignerPassphrase, "", "Passphrase for encrypting the local signer key (required when using local file signer)")
-	cmd.Flags().Bool(rollconf.FlagAggregator, false, "Run node in aggregator mode")
-}
-
-// InitFlags adds init command flags
-func InitFlags(cmd *cobra.Command) {
-	SignerFlags(cmd)
-	cmd.Flags().String(rollconf.FlagChainID, "rollkit-test", "Chain ID for the genesis file")
-}

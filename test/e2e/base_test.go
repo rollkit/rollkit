@@ -3,10 +3,14 @@
 package e2e
 
 import (
+	"context"
 	"flag"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/rollkit/rollkit/pkg/rpc/client"
+	"github.com/stretchr/testify/require"
 )
 
 var binaryPath string
@@ -32,16 +36,17 @@ func TestBasic(t *testing.T) {
 	sut := NewSystemUnderTest(t)
 	aggregatorPass := "12345678"
 	// init aggregator
-	sut.RunCmd(binaryPath,
+	output, err := sut.RunCmd(binaryPath,
 		"init",
 		"--home="+node1Home,
 		"--rollkit.node.sequencer_rollup_id=testing",
 		"--rollkit.node.aggregator",
 		"--rollkit.node.block_time=5ms",
 		"--rollkit.da.block_time=15ms",
-		"--rollkit.node.aggrgator",
 		"--rollkit.signer.passphrase="+aggregatorPass,
+		"--rollkit.rpc.address=tcp://127.0.0.1:7331",
 	)
+	require.NoError(t, err, "failed to init aggregator", output)
 
 	// start aggregator
 	sut.StartNode(binaryPath,
@@ -69,16 +74,20 @@ func TestBasic(t *testing.T) {
 	// )
 	// sut.AwaitNodeUp(t, "tcp://127.0.0.1:16657", 2*time.Second)
 
-	// asserNodeCaughtUp := func(c *rpchttp.HTTP) {
+	// asserNodeCaughtUp := func(c *client.Client) {
 	// 	ctx, done := context.WithTimeout(context.Background(), time.Second)
 	// 	defer done()
-	// 	status, err := c.Status(ctx)
+	// 	state, err := c.GetState(ctx)
 	// 	require.NoError(t, err)
-	// 	require.False(t, status.SyncInfo.CatchingUp)
+	// 	require.Greater(t, state.LastBlockHeight, uint64(0))
 	// }
-	// node1Client, err := rpchttp.New("tcp://localhost:26657", "tcp://localhost:26657"+"/websocket")
-	// require.NoError(t, err)
-	// asserNodeCaughtUp(node1Client)
+	node1Client := client.NewClient("tcp://127.0.0.1:7331")
+	require.NoError(t, err)
+	ctx, done := context.WithTimeout(context.Background(), time.Second)
+	defer done()
+	state, err := node1Client.GetState(ctx)
+	require.NoError(t, err)
+	require.Greater(t, state.LastBlockHeight, uint64(1))
 
 	// node2Client, err := rpchttp.New("tcp://localhost:16657", "tcp://localhost:16657"+"/websocket")
 	// require.NoError(t, err)

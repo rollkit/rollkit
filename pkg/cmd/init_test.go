@@ -36,8 +36,9 @@ func TestInitCommand(t *testing.T) {
 	}
 
 	// Add init command as subcommand
-	initCmd := *InitCmd // Create a copy to avoid affecting other tests
-	cmd.AddCommand(&initCmd)
+	initCmd := InitCmd // Create a copy to avoid affecting other tests
+	rollconf.AddFlags(initCmd)
+	cmd.AddCommand(initCmd)
 
 	// Register all persistent flags from root command
 	rollconf.AddGlobalFlags(cmd, "testapp")
