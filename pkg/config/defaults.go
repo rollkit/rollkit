@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-// Version is the current rollkit version
-// Please keep updated with each new release
-const Version = "0.38.5"
-
 // DefaultRootDir returns the default root directory for rollkit
 func DefaultRootDir() string {
 	return DefaultRootDirWithName("rollkit")

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"connectrpc.com/grpcreflect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -40,25 +41,42 @@ func (s *StoreServer) GetBlock(
 
 	switch identifier := req.Msg.Identifier.(type) {
 	case *pb.GetBlockRequest_Height:
-		header, data, err = s.store.GetBlockData(ctx, identifier.Height)
+		fetchHeight := identifier.Height
+		if fetchHeight == 0 {
+			// Subcase 2a: Height is 0 -> Fetch latest block
+			fetchHeight, err = s.store.Height(ctx)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get latest height: %w", err))
+			}
+			if fetchHeight == 0 {
+				return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("store is empty, no latest block available"))
+			}
+		}
+		// Fetch by the determined height (either specific or latest)
+		header, data, err = s.store.GetBlockData(ctx, fetchHeight)
+
 	case *pb.GetBlockRequest_Hash:
 		hash := types.Hash(identifier.Hash)
 		header, data, err = s.store.GetBlockByHash(ctx, hash)
+
 	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid identifier type"))
+		// This case handles potential future identifier types or invalid states
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid or unsupported identifier type provided"))
 	}
 
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to retrieve block data: %w", err))
 	}
 
-	// Convert types to protobuf types
+	// Convert retrieved types to protobuf types
 	pbHeader, err := header.ToProto()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		// Error during conversion indicates an issue with the retrieved data or proto definition
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to convert block header to proto format: %w", err))
 	}
-	pbData := data.ToProto()
+	pbData := data.ToProto() // Assuming data.ToProto() exists and doesn't return an error
 
+	// Return the successful response
 	return connect.NewResponse(&pb.GetBlockResponse{
 		Block: &pb.Block{
 			Header: pbHeader,
@@ -117,6 +135,13 @@ func NewStoreServiceHandler(store store.Store) (http.Handler, error) {
 	storeServer := NewStoreServer(store)
 
 	mux := http.NewServeMux()
+
+	compress1KB := connect.WithCompressMinBytes(1024)
+	reflector := grpcreflect.NewStaticReflector(
+		rpc.StoreServiceName,
+	)
+	mux.Handle(grpcreflect.NewHandlerV1(reflector, compress1KB))
+	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector, compress1KB))
 
 	// Register the StoreService
 	path, handler := rpc.NewStoreServiceHandler(storeServer)

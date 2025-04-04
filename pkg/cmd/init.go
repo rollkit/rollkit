@@ -34,6 +34,7 @@ func ValidateHomePath(homePath string) error {
 func InitializeConfig(homePath string, aggregator bool) rollconf.Config {
 	config := rollconf.DefaultNodeConfig
 	config.RootDir = homePath
+	config.ConfigDir = homePath + "/config"
 	config.Node.Aggregator = aggregator
 	return config
 }
@@ -52,7 +53,7 @@ func InitializeSigner(config *rollconf.Config, homePath string, passphrase strin
 
 		config.Signer.SignerPath = signerDir
 
-		signer, err := file.NewFileSystemSigner(config.Signer.SignerPath, []byte(passphrase))
+		signer, err := file.CreateFileSystemSigner(config.Signer.SignerPath, []byte(passphrase))
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize signer: %w", err)
 		}
@@ -142,15 +143,6 @@ var InitCmd = &cobra.Command{
 			return err
 		}
 
-		// Create a config with default values
-		config := rollconf.DefaultNodeConfig
-
-		// Update with the values we found
-		config.ConfigDir = homePath + "/config"
-
-		// Set the root directory to the specified home path
-		config.RootDir = homePath
-
 		// Make sure the home directory exists
 		if err := os.MkdirAll(homePath, 0750); err != nil {
 			return fmt.Errorf("error creating directory %s: %w", homePath, err)
@@ -161,7 +153,7 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error reading aggregator flag: %w", err)
 		}
 
-		config = InitializeConfig(homePath, aggregator)
+		config := InitializeConfig(homePath, aggregator)
 
 		passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
 		if err != nil {
@@ -198,20 +190,4 @@ var InitCmd = &cobra.Command{
 		fmt.Printf("Initialized %s file in %s\n", rollconf.RollkitConfigYaml, homePath)
 		return nil
 	},
-}
-
-func init() {
-	InitFlags(InitCmd)
-}
-
-func SignerFlags(cmd *cobra.Command) {
-	// Add passphrase flag
-	cmd.Flags().String(rollconf.FlagSignerPassphrase, "", "Passphrase for encrypting the local signer key (required when using local file signer)")
-	cmd.Flags().Bool(rollconf.FlagAggregator, false, "Run node in aggregator mode")
-}
-
-// InitFlags adds init command flags
-func InitFlags(cmd *cobra.Command) {
-	SignerFlags(cmd)
-	cmd.Flags().String(rollconf.FlagChainID, "rollkit-test", "Chain ID for the genesis file")
 }
