@@ -63,7 +63,7 @@ func TestInitialStateClean(t *testing.T) {
 	logger := log.NewTestLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
-	s, err := getInitialState(context.TODO(), genesisData, emptyStore, coreexecutor.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesisData, nil, emptyStore, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
 	initialHeight := genesisData.InitialHeight
 	require.Equal(initialHeight-1, s.LastBlockHeight)
@@ -88,7 +88,7 @@ func TestInitialStateStored(t *testing.T) {
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	logger := log.NewTestLogger(t)
-	s, err := getInitialState(context.TODO(), genesisData, store, coreexecutor.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesisData, nil, store, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -165,7 +165,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	_, err = getInitialState(context.TODO(), genesis, store, coreexecutor.NewDummyExecutor(), logger)
+	_, err = getInitialState(context.TODO(), genesis, nil, store, coreexecutor.NewDummyExecutor(), logger)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 }
 

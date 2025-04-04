@@ -14,6 +14,7 @@ import (
 	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/rollkit/go-sequencing"
@@ -161,7 +162,7 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
-func getInitialState(ctx context.Context, genesis genesis.Genesis, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
+func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(ctx)
 
@@ -169,17 +170,42 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, store store.S
 		logger.Info("No state found in store, initializing new state")
 
 		// Initialize genesis block explicitly
+		header := types.Header{
+			DataHash:        new(types.Data).Hash(),
+			ProposerAddress: genesis.ProposerAddress,
+			BaseHeader: types.BaseHeader{
+				ChainID: genesis.ChainID,
+				Height:  genesis.InitialHeight,
+				Time:    uint64(genesis.GenesisDAStartHeight.UnixNano()),
+			}}
+
+		var signature types.Signature
+		var pubKey crypto.PubKey
+		// The signer is only provided in aggregator nodes. This enables the creation of a signed genesis header,
+		// which includes a public key and a cryptographic signature for the header.
+		// In a full node (non-aggregator), the signer will be nil, and only an unsigned genesis header will be initialized locally.
+		if signer != nil {
+			pubKey, err = signer.GetPublic()
+			if err != nil {
+				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
+			}
+			signature, err = getSignature(header, signer)
+			if err != nil {
+				return types.State{}, fmt.Errorf("failed to get header signature: %w", err)
+			}
+		}
+
 		err = store.SaveBlockData(ctx,
-			&types.SignedHeader{Header: types.Header{
-				DataHash:        new(types.Data).Hash(),
-				ProposerAddress: genesis.ProposerAddress,
-				BaseHeader: types.BaseHeader{
-					ChainID: genesis.ChainID,
-					Height:  genesis.InitialHeight,
-					Time:    uint64(genesis.GenesisDAStartHeight.UnixNano()),
-				}}},
+			&types.SignedHeader{
+				Header: header,
+				Signer: types.Signer{
+					PubKey:  pubKey,
+					Address: genesis.ProposerAddress,
+				},
+				Signature: signature,
+			},
 			&types.Data{},
-			&types.Signature{},
+			&signature,
 		)
 		if err != nil {
 			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
@@ -235,7 +261,7 @@ func NewManager(
 	gasPrice float64,
 	gasMultiplier float64,
 ) (*Manager, error) {
-	s, err := getInitialState(ctx, genesis, store, exec, logger)
+	s, err := getInitialState(ctx, genesis, proposerKey, store, exec, logger)
 	if err != nil {
 		logger.Error("error while getting initial state", "error", err)
 		return nil, err
@@ -1085,11 +1111,15 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 }
 
 func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
+	return getSignature(header, m.proposerKey)
+}
+
+func getSignature(header types.Header, proposerKey signer.Signer) (types.Signature, error) {
 	b, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	return m.proposerKey.Sign(b)
+	return proposerKey.Sign(b)
 }
 
 func (m *Manager) getTxsFromBatch() (*BatchData, error) {
