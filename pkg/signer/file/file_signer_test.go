@@ -237,6 +237,9 @@ func TestKeyPersistence(t *testing.T) {
 	signer1, err := CreateFileSystemSigner(keyPath, passphrase)
 	require.NoError(t, err)
 
+	privateKey1 := signer1.(*FileSystemSigner).privateKey
+	require.NotNil(t, privateKey1)
+
 	// Get public key for later comparison
 	pubKey1, err := signer1.GetPublic()
 	require.NoError(t, err)
@@ -258,6 +261,10 @@ func TestKeyPersistence(t *testing.T) {
 	newPassphrase := []byte("secure-test-passphrase")
 	signer2, err := LoadFileSystemSigner(keyPath, newPassphrase)
 	require.NoError(t, err)
+
+	privateKey3 := signer2.(*FileSystemSigner).privateKey
+	require.NotNil(t, privateKey3)
+	require.Equal(t, privateKey1, privateKey3)
 
 	// Get public key from loaded signer
 	pubKey2, err := signer2.GetPublic()

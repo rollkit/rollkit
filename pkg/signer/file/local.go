@@ -244,7 +244,6 @@ func (s *FileSystemSigner) loadKeys(passphrase []byte) error {
 
 	// Zero out sensitive data
 	zeroBytes(derivedKey)
-	zeroBytes(privKeyBytes)
 
 	return nil
 }
