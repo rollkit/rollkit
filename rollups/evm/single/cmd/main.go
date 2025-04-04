@@ -17,11 +17,14 @@ func main() {
 		Short: "Rollkit with EVM; single sequencer",
 	}
 
-	rollkitconfig.AddBasicFlags(&rootCmd, "evm-single")
+	rollkitconfig.AddGlobalFlags(&rootCmd, "evm-single")
 
 	// Add subcommands to the root command
+	initCmd := cmd.InitCmd
+	rollkitconfig.AddFlags(initCmd)
+
 	rootCmd.AddCommand(
-		cmd.InitCmd,
+		initCmd,
 		RunCmd,
 	)
 
