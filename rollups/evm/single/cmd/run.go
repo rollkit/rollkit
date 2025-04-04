@@ -26,8 +26,6 @@ var RunCmd = &cobra.Command{
 	Short:   "Run the rollkit node",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		// Create test implementations
-		// TODO: we need to start the executor http server
 		executor, err := createExecutionClient(cmd)
 		if err != nil {
 			panic(err)
@@ -49,12 +47,12 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		datastore, err := store.NewDefaultInMemoryKVStore()
+		datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "evm-single")
 		if err != nil {
 			panic(err)
 		}
 
-		p2pClient, err := p2p.NewClient(config.DefaultNodeConfig, "testapp", nodeKey, datastore, logger, nil)
+		p2pClient, err := p2p.NewClient(nodeConfig, "testapp", nodeKey, datastore, logger, nil)
 		if err != nil {
 			panic(err)
 		}
