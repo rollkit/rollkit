@@ -505,7 +505,11 @@ func TestCreateFileSystemSigner_StatError(t *testing.T) {
 	}
 
 	// Defer restoring permissions so cleanup can happen
-	defer os.Chmod(restrictedDir, 0700)
+	defer func() {
+		if os.Chmod(restrictedDir, 0700) != nil {
+			t.Log("Failed to restore permissions:", err)
+		}
+	}()
 
 	keyPath := filepath.Join(restrictedDir, "key_dir")
 	passphrase := []byte("test-passphrase")
