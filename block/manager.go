@@ -78,25 +78,6 @@ var (
 	initialBackoff = 100 * time.Millisecond
 )
 
-// NewHeaderEvent is used to pass header and DA height to headerInCh
-type NewHeaderEvent struct {
-	Header   *types.SignedHeader
-	DAHeight uint64
-}
-
-// NewDataEvent is used to pass header and DA height to headerInCh
-type NewDataEvent struct {
-	Data     *types.Data
-	DAHeight uint64
-}
-
-// BatchData is used to pass batch, time and data (da.IDs) to BatchQueue
-type BatchData struct {
-	*coresequencer.Batch
-	time.Time
-	Data [][]byte
-}
-
 // Manager is responsible for aggregating transactions into blocks.
 type Manager struct {
 	lastState types.State
@@ -1491,8 +1472,8 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 }
 
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
-	data := batchData.Data
-	batchdata := convertBatchDataToBytes(data)
+	// data := batchData.Data
+	// batchdata := convertBatchDataToBytes(data)
 	key, err := m.proposerKey.GetPublic()
 	if err != nil {
 		return nil, nil, err
@@ -1509,7 +1490,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 				Time:    uint64(batchData.Time.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash:  lastHeaderHash,
-			DataHash:        batchdata,
+			DataHash:        make(types.Hash, 32),
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
