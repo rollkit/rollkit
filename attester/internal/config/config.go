@@ -9,11 +9,27 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Added AggregatorConfig struct
+type AggregatorConfig struct {
+	QuorumThreshold int               `mapstructure:"quorum_threshold"` // Min signatures needed
+	Attesters       map[string]string `mapstructure:"attesters"`        // AttesterID -> PublicKeyFilePath
+}
+
+// Added NetworkConfig struct
+type NetworkConfig struct {
+	// Addr for followers to send signatures to the leader.
+	SequencerSigEndpoint string `mapstructure:"sequencer_sig_endpoint"`
+	// Optional: Endpoint for block execution verification (if implemented)
+	// FullnodeEndpoint   string `mapstructure:"fullnode_endpoint"`
+}
+
 type Config struct {
-	Node    NodeConfig    `mapstructure:"node"`
-	Raft    RaftConfig    `mapstructure:"raft"`
-	GRPC    GRPCConfig    `mapstructure:"grpc"`
-	Signing SigningConfig `mapstructure:"signing"`
+	Node       NodeConfig       `mapstructure:"node"`
+	Raft       RaftConfig       `mapstructure:"raft"`
+	GRPC       GRPCConfig       `mapstructure:"grpc"`
+	Signing    SigningConfig    `mapstructure:"signing"`
+	Network    NetworkConfig    `mapstructure:"network"`    // Added Network field
+	Aggregator AggregatorConfig `mapstructure:"aggregator"` // Added Aggregator field
 	// Possibly LoggingConfig, etc.
 }
 

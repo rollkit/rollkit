@@ -1,15 +1,39 @@
 package main
 
 import (
+	"context"
+	"crypto/ed25519"
 	"fmt"
-	"log"
+	"io"
+
+	// "io" // No longer needed
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/hashicorp/raft"
 	"github.com/spf13/cobra"
 
+	"github.com/rollkit/rollkit/attester/internal/aggregator" // Import aggregator
 	"github.com/rollkit/rollkit/attester/internal/config"
+	"github.com/rollkit/rollkit/attester/internal/fsm"
+	internalgrpc "github.com/rollkit/rollkit/attester/internal/grpc" // Import internal grpc package
+	internalraft "github.com/rollkit/rollkit/attester/internal/raft"
+	"github.com/rollkit/rollkit/attester/internal/signing"
+	// Placeholder imports - these packages might not exist or need adjustment
+	// "github.com/rollkit/rollkit/attester/internal/grpc"
+)
+
+// Constants for flag names and defaults
+const (
+	flagConfig   = "config"
+	flagLogLevel = "log-level"
+	flagLeader   = "leader"
+
+	defaultConfigPath = "attester.yaml"
+	defaultLogLevel   = "info"
 )
 
 var rootCmd = &cobra.Command{
@@ -23,14 +47,13 @@ var rootCmd = &cobra.Command{
 var (
 	configFile string
 	logLevel   string
+	isLeader   bool
 )
 
 func init() {
-	// Assume config is relative to the binary directory or CWD.
-	// We might want it in $HOME/.attesterd/config.yaml or similar.
-	// For now, relative to where it's executed.
-	rootCmd.PersistentFlags().StringVar(&configFile, "config", "attester.yaml", "Path to the configuration file")
-	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Logging level (e.g., debug, info, warn, error)")
+	rootCmd.PersistentFlags().StringVar(&configFile, flagConfig, defaultConfigPath, "Path to the configuration file")
+	rootCmd.PersistentFlags().StringVar(&logLevel, flagLogLevel, defaultLogLevel, "Logging level (e.g., debug, info, warn, error)")
+	rootCmd.PersistentFlags().BoolVar(&isLeader, flagLeader, false, "Run the node as the RAFT leader (sequencer)")
 }
 
 func main() {
@@ -41,70 +64,194 @@ func main() {
 }
 
 func runNode(cmd *cobra.Command, args []string) {
-	log.Println("Initializing attester node...")
+	var levelVar slog.LevelVar
+	if err := levelVar.UnmarshalText([]byte(logLevel)); err != nil {
+		// Use standard log before logger is fully setup for this specific error
+		fmt.Fprintf(os.Stderr, "Invalid log level '%s', defaulting to '%s'. Error: %v\n", logLevel, defaultLogLevel, err)
+		// Default to info level if parsing fails
+		if defaultErr := levelVar.UnmarshalText([]byte(defaultLogLevel)); defaultErr != nil {
+			// This should ideally not happen if defaultLogLevel is valid
+			fmt.Fprintf(os.Stderr, "Error setting default log level: %v\n", defaultErr)
+			os.Exit(1)
+		}
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: levelVar.Level()}))
+	slog.SetDefault(logger) // Make it the default logger
+
+	if isLeader {
+		slog.Info("Initializing attester node as LEADER...")
+	} else {
+		slog.Info("Initializing attester node as FOLLOWER...")
+	}
 
 	// 1. Load configuration
-	log.Printf("Loading configuration from %s...\n", configFile)
+	slog.Info("Loading configuration", "path", configFile)
 	cfg, err := config.LoadConfig(configFile)
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		slog.Error("Failed to load configuration", "error", err)
+		os.Exit(1) // Use os.Exit after logging error
 	}
-	// TODO: Validate loaded configuration
-
-	// 2. Initialize logger (Use a more advanced logger like slog or zerolog)
-	log.Println("Initializing logger...") // Placeholder
-	// logger := ... setup logger based on cfg.LogLevel ...
+	// TODO: Validate loaded configuration further if needed
 
 	// 3. Load private key
-	log.Println("Loading signing key...")
-	// signer, err := signing.LoadSigner(cfg.Signing)
-	// if err != nil {
-	//  log.Fatalf("Failed to load signing key: %v", err)
-	// }
-	// log.Printf("Loaded signing key with scheme: %s", signer.Scheme())
+	slog.Info("Loading signing key", "path", cfg.Signing.PrivateKeyPath)
+	signer, err := signing.LoadSigner(cfg.Signing)
+	if err != nil {
+		slog.Error("Failed to load signing key", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("Loaded signing key", "scheme", cfg.Signing.Scheme) // Assuming Scheme is accessible
 
-	// 4. Instantiate FSM
-	log.Println("Initializing FSM...")
-	// attesterFSM := fsm.NewAttesterFSM(logger, signer, cfg.Raft.DataDir)
+	// Declare components needed across roles/scopes
+	var sigAggregator *aggregator.SignatureAggregator
+	var attesterFSM *fsm.AttesterFSM
+	var raftNode *raft.Raft
+	var transport raft.Transport // Use raft.Transport as returned by NewRaftNode
+	var grpcServer *internalgrpc.AttesterServer
+	var sigClient *internalgrpc.SignatureClient // Declare signature client
 
-	// 5. Instantiate RAFT node
-	log.Println("Initializing RAFT node...")
-	// raftNode, transport, err := raft.NewRaftNode(cfg, attesterFSM, logger)
-	// if err != nil {
-	//  log.Fatalf("Failed to initialize RAFT node: %v", err)
-	// }
-	// defer transport.Close() // Ensure transport is closed
+	if isLeader {
+		// 6. Instantiate Aggregator (Leader only)
+		slog.Info("Initializing signature aggregator...")
 
-	// 6. Instantiate gRPC server
-	log.Println("Initializing gRPC server...")
-	// grpcServer := grpc.NewAttesterServer(raftNode, logger)
+		// Validate aggregator config for leader
+		if cfg.Aggregator.QuorumThreshold <= 0 {
+			slog.Error("aggregator.quorum_threshold must be positive for the leader")
+			os.Exit(1)
+		}
+		if len(cfg.Aggregator.Attesters) == 0 {
+			slog.Error("aggregator.attesters map cannot be empty for the leader")
+			os.Exit(1)
+		}
 
-	// 7. Start gRPC server in a goroutine
-	log.Println("Starting gRPC server...")
-	// go func() {
-	//     if err := grpcServer.Start(cfg.GRPC.ListenAddress); err != nil {
-	//         log.Fatalf("Failed to start gRPC server: %v", err)
-	//     }
-	// }()
+		// Load attester public keys from files specified in config
+		attesterKeys := make(map[string]ed25519.PublicKey)
+		slog.Info("Loading attester public keys...")
+		for attesterID, keyPath := range cfg.Aggregator.Attesters {
+			if keyPath == "" {
+				slog.Error("Public key path is empty for attester", "id", attesterID)
+				os.Exit(1)
+			}
+			keyBytes, err := os.ReadFile(keyPath)
+			if err != nil {
+				slog.Error("Failed to read public key file for attester", "id", attesterID, "path", keyPath, "error", err)
+				os.Exit(1)
+			}
+			if len(keyBytes) != ed25519.PublicKeySize {
+				slog.Error("Invalid public key size for attester", "id", attesterID, "path", keyPath, "expected_size", ed25519.PublicKeySize, "actual_size", len(keyBytes))
+				os.Exit(1)
+			}
+			attesterKeys[attesterID] = ed25519.PublicKey(keyBytes)
+			slog.Debug("Loaded public key", "attester_id", attesterID, "path", keyPath)
+		}
+		slog.Info("Successfully loaded public keys", "count", len(attesterKeys))
 
-	// 8. Handle graceful shutdown
-	log.Println("Attester node running. Press Ctrl+C to exit.")
+		// Create the aggregator with loaded keys and quorum threshold from config
+		sigAggregator, err = aggregator.NewSignatureAggregator(logger, cfg.Aggregator.QuorumThreshold, attesterKeys)
+		if err != nil {
+			slog.Error("Failed to initialize signature aggregator", "error", err)
+			os.Exit(1)
+		}
+
+		// Instantiate gRPC server (NOW that raftNode exists)
+		slog.Info("Initializing gRPC server...")
+		grpcServer = internalgrpc.NewAttesterServer(raftNode, logger, sigAggregator)
+
+		// 8. Start gRPC server in a goroutine (Leader only)
+		slog.Info("Starting gRPC server...")
+		go func() {
+			listenAddr := cfg.GRPC.ListenAddress
+			if listenAddr == "" {
+				slog.Error("grpc.listen_address is required in config for the leader")
+				return
+			}
+			slog.Info("gRPC server listening", "address", listenAddr)
+			if err := grpcServer.Start(listenAddr); err != nil {
+				slog.Error("Failed to start gRPC server", "error", err)
+			}
+		}()
+	} else {
+		// Instantiate Signature Client (Follower only)
+		slog.Info("Initializing signature client...")
+		if cfg.Network.SequencerSigEndpoint == "" {
+			slog.Error("network.sequencer_sig_endpoint is required in config for followers")
+			os.Exit(1)
+		}
+		// Use background context with timeout for initial connection
+		clientCtx, clientCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer clientCancel() // Ensure context is cancelled eventually
+
+		sigClient, err = internalgrpc.NewSignatureClient(clientCtx, cfg.Network.SequencerSigEndpoint, logger)
+		if err != nil {
+			slog.Error("Failed to initialize signature client", "error", err)
+			os.Exit(1)
+		}
+		// Defer closing the client connection
+		defer func() {
+			if err := sigClient.Close(); err != nil {
+				slog.Error("Error closing signature client", "error", err)
+			}
+		}()
+	}
+
+	// 4. Instantiate FSM (Pass node ID, aggregator, client)
+	slog.Info("Initializing FSM", "data_dir", cfg.Raft.DataDir, "node_id", cfg.Node.ID)
+	attesterFSM = fsm.NewAttesterFSM(logger, signer, cfg.Node.ID, cfg.Raft.DataDir, sigAggregator, sigClient)
+
+	// 5. Instantiate RAFT node (Pass the FSM)
+	slog.Info("Initializing RAFT node...")
+	raftNode, transport, err = internalraft.NewRaftNode(cfg, attesterFSM, logger)
+	if err != nil {
+		slog.Error("Failed to initialize RAFT node", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if tcpTransport, ok := transport.(io.Closer); ok {
+			slog.Debug("Closing RAFT transport...")
+			if err := tcpTransport.Close(); err != nil {
+				slog.Error("Error closing RAFT transport", "error", err)
+			}
+		} else {
+			slog.Warn("RAFT transport does not implement io.Closer, cannot close automatically")
+		}
+	}()
+
+	if isLeader {
+		// 8. Start gRPC server in a goroutine (Leader only)
+		slog.Info("Starting gRPC server...")
+		go func() {
+			listenAddr := cfg.GRPC.ListenAddress
+			if listenAddr == "" {
+				slog.Error("grpc.listen_address is required in config for the leader")
+				return
+			}
+			slog.Info("gRPC server listening", "address", listenAddr)
+			if err := grpcServer.Start(listenAddr); err != nil {
+				slog.Error("Failed to start gRPC server", "error", err)
+			}
+		}()
+	}
+
+	// 9. Handle graceful shutdown (Renumbered)
+	slog.Info("Attester node running. Press Ctrl+C to exit.")
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sigChan // Block until a signal is received
 
-	log.Println("Shutting down...")
+	slog.Info("Shutting down...")
 
-	// Shutdown logic for gRPC and Raft
-	// if grpcServer != nil {
-	//     grpcServer.Stop()
-	// }
-	// if raftNode != nil {
-	//     if err := raftNode.Shutdown().Error(); err != nil {
-	//         log.Printf("Error shutting down RAFT node: %v", err)
-	//     }
-	// }
+	// Shutdown logic for gRPC (leader) and Raft
+	if isLeader && grpcServer != nil {
+		slog.Info("Stopping gRPC server...")
+		grpcServer.Stop() // Call Stop on our server instance
+	}
+	if raftNode != nil {
+		slog.Info("Shutting down RAFT node...")
+		if err := raftNode.Shutdown().Error(); err != nil {
+			slog.Error("Error shutting down RAFT node", "error", err)
+		}
+	}
 
-	log.Println("Shutdown complete.")
+	slog.Info("Shutdown complete.")
 }

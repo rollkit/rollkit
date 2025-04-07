@@ -1,15 +1,19 @@
 package fsm
 
 import (
+	"context"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/raft"
 	"google.golang.org/protobuf/proto"
 
 	// Import internal packages
+	"github.com/rollkit/rollkit/attester/internal/aggregator"
+	internalgrpc "github.com/rollkit/rollkit/attester/internal/grpc"
 	"github.com/rollkit/rollkit/attester/internal/signing"
 	"github.com/rollkit/rollkit/attester/internal/state"
 
@@ -30,18 +34,27 @@ type AttesterFSM struct {
 	processedBlocks map[uint64]state.BlockHash           // Height -> Hash (ensures height uniqueness)
 	blockDetails    map[state.BlockHash]*state.BlockInfo // Hash -> Full block info including signature
 
-	logger *log.Logger // TODO: Replace with a structured logger (e.g., slog)
-	signer signing.Signer
+	logger     *slog.Logger
+	signer     signing.Signer
+	aggregator *aggregator.SignatureAggregator
+	sigClient  *internalgrpc.SignatureClient
+	nodeID     string
 	// db *bolt.DB // Optional: Direct DB access if state becomes too complex for memory/simple snapshot
 }
 
 // NewAttesterFSM creates a new instance of the AttesterFSM.
-func NewAttesterFSM(logger *log.Logger, signer signing.Signer, dataDir string /* unused for now */) *AttesterFSM {
+func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, dataDir string, aggregator *aggregator.SignatureAggregator, sigClient *internalgrpc.SignatureClient) *AttesterFSM {
+	if nodeID == "" {
+		panic("node ID cannot be empty for FSM")
+	}
 	return &AttesterFSM{
 		processedBlocks: make(map[uint64]state.BlockHash),
 		blockDetails:    make(map[state.BlockHash]*state.BlockInfo),
-		logger:          logger,
+		logger:          logger.With("component", "fsm"),
 		signer:          signer,
+		aggregator:      aggregator,
+		sigClient:       sigClient,
+		nodeID:          nodeID,
 	}
 }
 
@@ -52,7 +65,7 @@ func (f *AttesterFSM) Apply(logEntry *raft.Log) interface{} {
 	defer f.mu.Unlock()
 
 	if len(logEntry.Data) == 0 {
-		f.logger.Printf("ERROR: Apply called with empty data log index: %d", logEntry.Index)
+		f.logger.Error("Apply called with empty data", "log_index", logEntry.Index)
 		return fmt.Errorf("empty log data at index %d", logEntry.Index)
 	}
 
@@ -61,68 +74,79 @@ func (f *AttesterFSM) Apply(logEntry *raft.Log) interface{} {
 
 	switch entryType {
 	case LogEntryTypeSubmitBlock:
-		// Use the generated proto type now
 		var req attesterv1.SubmitBlockRequest
 
 		if err := proto.Unmarshal(entryData, &req); err != nil {
-			f.logger.Printf("ERROR: Failed to unmarshal SubmitBlockRequest at index %d: %v", logEntry.Index, err)
-			// Returning an error here might be appropriate depending on failure modes.
-			// Raft might retry or handle this based on configuration.
+			f.logger.Error("Failed to unmarshal SubmitBlockRequest", "log_index", logEntry.Index, "error", err)
 			return fmt.Errorf("failed to unmarshal log data at index %d: %w", logEntry.Index, err)
 		}
 
-		f.logger.Printf("INFO: Applying block Height: %d, Hash: %x (Log Index: %d)", req.BlockHeight, req.BlockHash, logEntry.Index)
+		blockHashStr := fmt.Sprintf("%x", req.BlockHash)
+		logArgs := []any{"block_height", req.BlockHeight, "block_hash", blockHashStr, "log_index", logEntry.Index}
 
-		// Check if height is already processed
+		f.logger.Info("Applying block", logArgs...)
+
 		if _, exists := f.processedBlocks[req.BlockHeight]; exists {
-			f.logger.Printf("WARN: Block height %d already processed, skipping. (Log Index: %d)", req.BlockHeight, logEntry.Index)
-			return nil // Indicate no change or already processed
+			f.logger.Warn("Block height already processed, skipping.", logArgs...)
+			return nil
 		}
 
-		// Validate hash size
 		if len(req.BlockHash) != state.BlockHashSize {
-			f.logger.Printf("ERROR: Invalid block hash size (%d) for height %d at log index %d", len(req.BlockHash), req.BlockHeight, logEntry.Index)
+			f.logger.Error("Invalid block hash size", append(logArgs, "size", len(req.BlockHash))...)
 			return fmt.Errorf("invalid block hash size at index %d", logEntry.Index)
 		}
 		blockHash, err := state.BlockHashFromBytes(req.BlockHash)
-		if err != nil { // Should be caught by len check, but belt-and-suspenders
-			f.logger.Printf("ERROR: Cannot convert block hash bytes at index %d: %v", logEntry.Index, err)
+		if err != nil {
+			f.logger.Error("Cannot convert block hash bytes", append(logArgs, "error", err)...)
 			return fmt.Errorf("invalid block hash bytes at index %d: %w", logEntry.Index, err)
 		}
 
-		// Check if hash is already processed (collision? unlikely but possible)
 		if _, exists := f.blockDetails[blockHash]; exists {
-			f.logger.Printf("ERROR: Block hash %s already exists, possible hash collision or duplicate submit. (Log Index: %d)", blockHash, logEntry.Index)
+			f.logger.Error("Block hash already exists, possible hash collision or duplicate submit.", logArgs...)
 			return fmt.Errorf("block hash %s collision or duplicate at index %d", blockHash, logEntry.Index)
 		}
 
-		// Create block info and sign
-		// NOTE: We use state.BlockInfo for internal storage.
-		// The proto definition attesterv1.BlockInfo is used for serialization (Snapshot/Restore).
 		info := &state.BlockInfo{
 			Height:     req.BlockHeight,
 			Hash:       blockHash,
-			DataToSign: req.DataToSign, // This is the data we actually sign
+			DataToSign: req.DataToSign,
 		}
 
 		signature, err := f.signer.Sign(info.DataToSign)
 		if err != nil {
-			f.logger.Printf("ERROR: Failed to sign data for block %d (%s) at log index %d: %v", req.BlockHeight, blockHash, logEntry.Index, err)
-			// This is a critical internal error.
+			f.logger.Error("Failed to sign data for block", append(logArgs, "error", err)...)
 			return fmt.Errorf("failed to sign data at index %d: %w", logEntry.Index, err)
 		}
 		info.Signature = signature
 
-		// Update state
 		f.processedBlocks[info.Height] = info.Hash
 		f.blockDetails[info.Hash] = info
 
-		f.logger.Printf("INFO: Successfully applied and signed block Height: %d, Hash: %s (Log Index: %d)", info.Height, info.Hash, logEntry.Index)
-		// Return the processed info. This can be retrieved via ApplyFuture.Response().
+		if f.aggregator != nil {
+			f.aggregator.SetBlockData(info.Hash[:], info.DataToSign)
+		}
+
+		f.logger.Info("Successfully applied and signed block", logArgs...)
+
+		if f.sigClient != nil {
+			go func(blockInfo *state.BlockInfo) {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				err := f.sigClient.SubmitSignature(ctx, blockInfo.Height, blockInfo.Hash[:], f.nodeID, blockInfo.Signature)
+				if err != nil {
+					f.logger.Error("Failed to submit signature to leader",
+						"block_height", blockInfo.Height,
+						"block_hash", blockInfo.Hash.String(),
+						"error", err)
+				}
+			}(info)
+		}
+
 		return info
 
 	default:
-		f.logger.Printf("ERROR: Unknown log entry type: 0x%x at log index %d", entryType, logEntry.Index)
+		f.logger.Error("Unknown log entry type", "type", fmt.Sprintf("0x%x", entryType), "log_index", logEntry.Index)
 		return fmt.Errorf("unknown log entry type 0x%x at index %d", entryType, logEntry.Index)
 	}
 }
@@ -132,32 +156,26 @@ func (f *AttesterFSM) Snapshot() (raft.FSMSnapshot, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	f.logger.Printf("INFO: Creating FSM snapshot...")
+	f.logger.Info("Creating FSM snapshot...")
 
-	// Collect all BlockInfo from the map
 	allBlocks := make([]*state.BlockInfo, 0, len(f.blockDetails))
 	for _, info := range f.blockDetails {
 		allBlocks = append(allBlocks, info)
 	}
 
-	// Create the state object to be serialized
 	fsmState := state.FSMState{
 		Blocks: allBlocks,
 	}
 
-	// Serialize the state using protobuf (or gob, json, etc.)
-	// TODO: Replace placeholder with actual generated proto type and marshal
-	// dataBytes, err := proto.Marshal(&fsmState)
-	// For now, simulate marshaling error possibility
 	var dataBytes []byte
-	var err error = fmt.Errorf("TODO: Implement FSM state marshaling (protobuf/gob)") // Placeholder error
+	err := fmt.Errorf("TODO: Implement FSM state marshaling (protobuf/gob)")
 
 	if err != nil {
-		f.logger.Printf("ERROR: Failed to marshal FSM state for snapshot: %v", err)
+		f.logger.Error("Failed to marshal FSM state for snapshot", "error", err)
 		return nil, err
 	}
 
-	f.logger.Printf("INFO: FSM snapshot created, size: %d bytes (NOTE: Marshaling not implemented)", len(dataBytes))
+	f.logger.Info("FSM snapshot created", "size_bytes", len(dataBytes), "note", "Marshaling not implemented")
 	return &fsmSnapshot{state: dataBytes}, nil
 }
 
@@ -166,48 +184,42 @@ func (f *AttesterFSM) Restore(snapshot io.ReadCloser) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.logger.Printf("INFO: Restoring FSM from snapshot...")
+	f.logger.Info("Restoring FSM from snapshot...")
 
 	dataBytes, err := io.ReadAll(snapshot)
 	if err != nil {
-		f.logger.Printf("ERROR: Failed to read snapshot data: %v", err)
+		f.logger.Error("Failed to read snapshot data", "error", err)
 		return err
 	}
 
 	var restoredState state.FSMState
-	// Deserialize the state using protobuf (or gob, json, etc.)
-	// TODO: Replace placeholder with actual generated proto type and unmarshal
-	// err = proto.Unmarshal(dataBytes, &restoredState)
-	// For now, simulate unmarshaling error possibility
-	err = fmt.Errorf("TODO: Implement FSM state unmarshaling (protobuf/gob)") // Placeholder error
+	err = fmt.Errorf("TODO: Implement FSM state unmarshaling (protobuf/gob)")
 
 	if err != nil {
-		f.logger.Printf("ERROR: Failed to unmarshal FSM state from snapshot: %v", err)
+		f.logger.Error("Failed to unmarshal FSM state from snapshot", "error", err)
 		return err
 	}
 
-	// Reset current state and repopulate from the restored state
 	f.processedBlocks = make(map[uint64]state.BlockHash)
 	f.blockDetails = make(map[state.BlockHash]*state.BlockInfo)
 
 	for _, info := range restoredState.Blocks {
 		if info == nil {
-			f.logger.Printf("WARN: Found nil BlockInfo in restored snapshot, skipping")
+			f.logger.Warn("Found nil BlockInfo in restored snapshot, skipping")
 			continue
 		}
-		// Basic validation on restored data
 		if len(info.Hash) != state.BlockHashSize {
-			f.logger.Printf("ERROR: Invalid BlockHash size found in snapshot for height %d, skipping", info.Height)
-			continue // Or return error?
+			f.logger.Error("Invalid BlockHash size found in snapshot, skipping", "height", info.Height, "size", len(info.Hash))
+			continue
 		}
-		if _, heightExists := f.processedBlocks[info.Height]; heightExists {
-			f.logger.Printf("ERROR: Duplicate height %d found during snapshot restore, hash1: %s, hash2: %s",
-				info.Height, f.processedBlocks[info.Height], info.Hash)
+		if existingHash, heightExists := f.processedBlocks[info.Height]; heightExists {
+			f.logger.Error("Duplicate height found during snapshot restore",
+				"height", info.Height, "hash1", existingHash.String(), "hash2", info.Hash.String())
 			return fmt.Errorf("duplicate height %d found in snapshot", info.Height)
 		}
-		if _, hashExists := f.blockDetails[info.Hash]; hashExists {
-			f.logger.Printf("ERROR: Duplicate hash %s found during snapshot restore, height1: %d, height2: %d",
-				info.Hash, f.blockDetails[info.Hash].Height, info.Height)
+		if existingInfo, hashExists := f.blockDetails[info.Hash]; hashExists {
+			f.logger.Error("Duplicate hash found during snapshot restore",
+				"hash", info.Hash.String(), "height1", existingInfo.Height, "height2", info.Height)
 			return fmt.Errorf("duplicate hash %s found in snapshot", info.Hash)
 		}
 
@@ -215,7 +227,7 @@ func (f *AttesterFSM) Restore(snapshot io.ReadCloser) error {
 		f.blockDetails[info.Hash] = info
 	}
 
-	f.logger.Printf("INFO: FSM restored successfully from snapshot. Blocks loaded: %d (NOTE: Unmarshaling not implemented)", len(f.blockDetails))
+	f.logger.Info("FSM restored successfully from snapshot", "blocks_loaded", len(f.blockDetails), "note", "Unmarshaling not implemented")
 	return nil
 }
 
@@ -229,7 +241,7 @@ type fsmSnapshot struct {
 // Persist writes the FSM state to a sink (typically a file).
 func (s *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 	if _, err := sink.Write(s.state); err != nil {
-		sink.Cancel() // Make sure to cancel the sink on error
+		sink.Cancel()
 		return fmt.Errorf("failed to write snapshot state to sink: %w", err)
 	}
 	return sink.Close()

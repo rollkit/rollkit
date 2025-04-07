@@ -5,10 +5,14 @@ package attester.v1;
 // Define the Go package path within the attester module's api directory.
 option go_package = "github.com/rollkit/rollkit/attester/api/gen/attesterv1;attesterv1";
 
-// AttesterService defines the gRPC service for submitting blocks to be attested.
+// AttesterService defines the gRPC service for block submission and signature collection.
 service AttesterService {
-  // SubmitBlock is called by the Sequencer to propose a block for attestation.
+  // SubmitBlock is called by the Sequencer (or other client) to propose a block for attestation.
+  // This likely triggers the leader to propose the block via Raft.
   rpc SubmitBlock(SubmitBlockRequest) returns (SubmitBlockResponse);
+
+  // SubmitSignature is called by follower nodes to send their signature back to the leader.
+  rpc SubmitSignature(SubmitSignatureRequest) returns (SubmitSignatureResponse);
 }
 
 // SubmitBlockRequest contains the details of the block to be attested.
@@ -23,6 +27,23 @@ message SubmitBlockResponse {
   bool accepted = 1;       // True if the node accepted the request (e.g., it's the leader).
   string error_message = 2; // Contains an error message if accepted is false.
   string leader_hint = 3;   // Provides the address of the current leader if known and this node is not the leader.
+}
+
+// --- Messages for Signature Submission ---
+
+// SubmitSignatureRequest contains a signature from a specific attester for a block.
+message SubmitSignatureRequest {
+  uint64 block_height = 1; // The height of the block being signed.
+  bytes block_hash = 2;   // The hash of the block being signed.
+  string attester_id = 3; // The unique ID of the attester node submitting the signature.
+  bytes signature = 4;    // The attester's signature over the data_to_sign for this block.
+}
+
+// SubmitSignatureResponse indicates the result of the signature submission.
+message SubmitSignatureResponse {
+  bool success = 1;       // True if the signature was received and initially processed.
+                        // Final aggregation status is handled asynchronously.
+  string error_message = 2; // Optional error message if processing failed immediately.
 }
 
 // BlockInfo represents the attested information for a block, stored in the FSM state.
