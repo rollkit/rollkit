@@ -117,7 +117,7 @@ LDFLAGS := \
 ## install: Install rollkit CLI
 install:
 	@echo "--> Installing Testapp CLI"
-	@cd rollups/testapp && go install -ldflags "$(LDFLAGS)" ./rollups/testapp
+	@cd rollups/testapp && go install -ldflags "$(LDFLAGS)" .
 	@echo "--> Testapp CLI Installed!"
 	@echo "    Check the version with: testapp version"
 	@echo "    Check the binary with: which testapp"

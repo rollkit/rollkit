@@ -22,7 +22,7 @@ WORKDIR /rollkit
 COPY . .
 
 # Now download dependencies and build
-RUN go mod download && \
+RUN cd rollups/testapp && go mod download && \
 	make install
 
 ## prep the final image.
