@@ -9,14 +9,6 @@ import (
 	cmds "github.com/rollkit/rollkit/rollups/testapp/cmd"
 )
 
-var (
-	// GitSHA is set at build time
-	GitSHA string
-
-	// Version is set at build time
-	Version string
-)
-
 func main() {
 	// Initiate the root command
 	rootCmd := cmds.RootCmd
