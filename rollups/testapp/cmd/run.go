@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -24,8 +23,6 @@ var RunCmd = &cobra.Command{
 	Aliases: []string{"node", "run"},
 	Short:   "Run the testapp node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-
-		ctx := context.Background()
 
 		logger := log.NewLogger(os.Stdout)
 
@@ -62,7 +59,7 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		sequencer, err := single.NewSequencer(ctx, logger, datastore, dummyDA, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.Node.SequencerRollupID), nodeConfig.Node.BlockTime.Duration, singleMetrics, nodeConfig.Node.Aggregator)
+		sequencer, err := single.NewSequencer(logger, datastore, dummyDA, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.Node.SequencerRollupID), nodeConfig.Node.BlockTime.Duration, singleMetrics, nodeConfig.Node.Aggregator)
 		if err != nil {
 			panic(err)
 		}
@@ -72,6 +69,6 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		return rollcmd.StartNode(ctx, logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
 	},
 }

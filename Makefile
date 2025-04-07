@@ -1,6 +1,6 @@
 DOCKER := $(shell which docker)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
-# PACKAGE_NAME          := github.com/rollkit/rollkit
+PACKAGE_NAME          := github.com/rollkit/rollkit
 GOLANG_CROSS_VERSION  ?= v1.22.1
 
 # Define pkgs, run, and cover variables for test so that we can override them in
