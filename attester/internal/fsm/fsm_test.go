@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	// Import generated protobuf types from the api directory
-	attesterv1 "github.com/rollkit/rollkit/attester/api/gen/attesterv1"
+	attesterv1 "github.com/rollkit/rollkit/attester/api/gen/attester/v1"
 )
 
 // --- Mocks --- //

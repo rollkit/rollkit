@@ -13,7 +13,7 @@ import (
 	"github.com/rollkit/rollkit/attester/internal/signing"
 	"github.com/rollkit/rollkit/attester/internal/state"
 
-	attesterv1 "github.com/rollkit/rollkit/attester/api/gen/attesterv1"
+	attesterv1 "github.com/rollkit/rollkit/attester/api/gen/attester/v1"
 )
 
 // LogEntryTypeSubmitBlock identifies log entries related to block submissions.
