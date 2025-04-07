@@ -200,7 +200,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 				break
 			}
 		} else {
-			filteredHeights, err = idx.match(ctx, c, ds.NewKey(string(startKey)).String(), filteredHeights, false)
+			filteredHeights, err = idx.match(ctx, c, ds.NewKey(startKey).String(), filteredHeights, false)
 			if err != nil {
 				return nil, err
 			}
@@ -340,9 +340,7 @@ LOOP:
 			} else {
 				withinBounds, err = state.CheckBounds(qr, v)
 			}
-			if err != nil {
-
-			} else {
+			if err == nil {
 				if withinBounds {
 					tmpHeights[string(result.Entry.Value)] = result.Entry.Value
 				}
@@ -546,7 +544,7 @@ func (idx *BlockerIndexer) indexEvents(batch ds.Txn, events []abci.Event, typ st
 			}
 
 			if attr.GetIndex() {
-				key := eventKey(compositeKey, typ, string(attr.Value), height)
+				key := eventKey(compositeKey, typ, attr.Value, height)
 
 				if err := batch.Put(idx.ctx, ds.NewKey(key), heightBz); err != nil {
 					return err

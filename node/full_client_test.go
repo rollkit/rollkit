@@ -188,7 +188,7 @@ func TestGenesisChunked(t *testing.T) {
 	gotID := gc2.ChunkNumber
 	assert.NoError(err)
 	assert.NotNil(gc2)
-	assert.Equal(int(expectedID), gotID) //nolint:gosec
+	assert.Equal(int(expectedID), gotID)
 
 	gc3, err := rpc.GenesisChunked(context.Background(), 5)
 	assert.Error(err)

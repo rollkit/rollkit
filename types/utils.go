@@ -403,7 +403,7 @@ func getBlockDataWith(nTxs int) *Data {
 // Other fields (especially ValidatorAddress and Timestamp of Signature) have to be filled by caller.
 func GetABCICommit(height uint64, hash Hash, val cmtypes.Address, time time.Time, signature Signature) *cmtypes.Commit {
 	tmCommit := cmtypes.Commit{
-		Height: int64(height), //nolint:gosec
+		Height: int64(height),
 		Round:  0,
 		BlockID: cmtypes.BlockID{
 			Hash:          cmbytes.HexBytes(hash),

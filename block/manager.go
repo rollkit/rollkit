@@ -182,7 +182,7 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 		// Perform a sanity-check to stop the user from
 		// using a higher genesis than the last stored state.
 		// if they meant to hard-fork, they should have cleared the stored State
-		if uint64(genesis.InitialHeight) > s.LastBlockHeight { //nolint:gosec
+		if uint64(genesis.InitialHeight) > s.LastBlockHeight {
 			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
 		}
 	}
@@ -249,7 +249,7 @@ func NewManager(
 	maxBlobSize -= blockProtocolOverhead
 
 	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics)
-	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) { //nolint:gosec
+	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
 			return nil, err
@@ -477,7 +477,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
-	initialHeight := uint64(m.genesis.InitialHeight) //nolint:gosec
+	initialHeight := uint64(m.genesis.InitialHeight)
 	height := m.store.Height()
 	var delay time.Duration
 
@@ -1057,7 +1057,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	height := m.store.Height()
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
-	if newHeight == uint64(m.genesis.InitialHeight) { //nolint:gosec
+	if newHeight == uint64(m.genesis.InitialHeight) {
 		lastSignature = &types.Signature{}
 	} else {
 		lastSignature, err = m.store.GetSignature(ctx, height)
@@ -1255,7 +1255,7 @@ func (m *Manager) processVoteExtension(ctx context.Context, header *types.Signed
 	}
 
 	vote := &cmproto.Vote{
-		Height:    int64(newHeight), //nolint:gosec
+		Height:    int64(newHeight),
 		Round:     0,
 		Extension: extension,
 	}
@@ -1275,12 +1275,12 @@ func (m *Manager) processVoteExtension(ctx context.Context, header *types.Signed
 
 func (m *Manager) voteExtensionEnabled(newHeight uint64) bool {
 	enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
-	return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight //nolint:gosec
+	return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight
 }
 
 func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
 	emptyExtendedCommit := abci.ExtendedCommitInfo{}
-	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) { //nolint:gosec
+	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) {
 		return emptyExtendedCommit, nil
 	}
 	extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
@@ -1382,7 +1382,7 @@ daSubmitRetryLoop:
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL) //nolint:gosec
+			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL)
 			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * m.dalc.GasMultiplier
 			}
