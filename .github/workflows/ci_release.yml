@@ -48,7 +48,7 @@ jobs:
       - name: Build cli
         run: make install
       - name: Run cli
-        run: testapp start --ci
+        run: testapp init
 
   # branch_name trims ref/heads/ from github.ref to access a clean branch name
   branch_name:
