@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package attester.v1;
+
+// Define the Go package path within the attester module's api directory.
+option go_package = "github.com/rollkit/rollkit/attester/api/gen/attesterv1;attesterv1";
+
+// AttesterService defines the gRPC service for submitting blocks to be attested.
+service AttesterService {
+  // SubmitBlock is called by the Sequencer to propose a block for attestation.
+  rpc SubmitBlock(SubmitBlockRequest) returns (SubmitBlockResponse);
+}
+
+// SubmitBlockRequest contains the details of the block to be attested.
+message SubmitBlockRequest {
+  uint64 block_height = 1; // The height of the block.
+  bytes block_hash = 2;   // The hash of the block (e.g., 32 bytes).
+  bytes data_to_sign = 3; // The specific data payload that needs to be signed by the attesters.
+}
+
+// SubmitBlockResponse indicates the result of the submission attempt.
+message SubmitBlockResponse {
+  bool accepted = 1;       // True if the node accepted the request (e.g., it's the leader).
+  string error_message = 2; // Contains an error message if accepted is false.
+  string leader_hint = 3;   // Provides the address of the current leader if known and this node is not the leader.
+}
+
+// BlockInfo represents the attested information for a block, stored in the FSM state.
+message BlockInfo {
+  uint64 height = 1;
+  bytes hash = 2;         // Block hash (must match state.BlockHashSize).
+  bytes data_to_sign = 3; // The data that was actually signed.
+  bytes signature = 4;    // The signature produced by the attester node.
+}
+
+// FSMState represents the serializable state of the AttesterFSM for snapshots.
+message FSMState {
+  repeated BlockInfo blocks = 1; // List of all attested block information.
+} 

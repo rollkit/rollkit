@@ -12,8 +12,8 @@ import (
 	// Import internal packages
 	"github.com/rollkit/rollkit/attester/internal/signing"
 	"github.com/rollkit/rollkit/attester/internal/state"
-	// Import generated protobuf types (adjust path as needed when generated)
-	// attesterv1 "github.com/rollkit/rollkit/gen/go/attester/v1"
+
+	attesterv1 "github.com/rollkit/rollkit/attester/api/gen/attesterv1"
 )
 
 // LogEntryTypeSubmitBlock identifies log entries related to block submissions.
@@ -61,14 +61,8 @@ func (f *AttesterFSM) Apply(logEntry *raft.Log) interface{} {
 
 	switch entryType {
 	case LogEntryTypeSubmitBlock:
-		// TODO: Replace placeholder with actual generated proto type
-		// var req attesterv1.SubmitBlockRequest
-		type SubmitBlockRequestPlaceholder struct { // Temporary placeholder
-			BlockHeight uint64 `protobuf:"varint,1,opt,name=block_height,json=blockHeight,proto3"`
-			BlockHash   []byte `protobuf:"bytes,2,opt,name=block_hash,json=blockHash,proto3"`
-			DataToSign  []byte `protobuf:"bytes,3,opt,name=data_to_sign,json=dataToSign,proto3"`
-		}
-		var req SubmitBlockRequestPlaceholder // Use placeholder
+		// Use the generated proto type now
+		var req attesterv1.SubmitBlockRequest
 
 		if err := proto.Unmarshal(entryData, &req); err != nil {
 			f.logger.Printf("ERROR: Failed to unmarshal SubmitBlockRequest at index %d: %v", logEntry.Index, err)
@@ -82,10 +76,6 @@ func (f *AttesterFSM) Apply(logEntry *raft.Log) interface{} {
 		// Check if height is already processed
 		if _, exists := f.processedBlocks[req.BlockHeight]; exists {
 			f.logger.Printf("WARN: Block height %d already processed, skipping. (Log Index: %d)", req.BlockHeight, logEntry.Index)
-			// Return existing info or nil? Returning nil signals no state change resulted from this log entry.
-			// If we want idempotency to return the original result, we need to look it up.
-			// blockHash := f.processedBlocks[req.BlockHeight]
-			// return f.blockDetails[blockHash]
 			return nil // Indicate no change or already processed
 		}
 
@@ -107,6 +97,8 @@ func (f *AttesterFSM) Apply(logEntry *raft.Log) interface{} {
 		}
 
 		// Create block info and sign
+		// NOTE: We use state.BlockInfo for internal storage.
+		// The proto definition attesterv1.BlockInfo is used for serialization (Snapshot/Restore).
 		info := &state.BlockInfo{
 			Height:     req.BlockHeight,
 			Hash:       blockHash,
