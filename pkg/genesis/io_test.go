@@ -78,6 +78,8 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 
 			// Test SaveGenesis
 			err := SaveGenesis(tc.genesis, tmpFile)
+			require.NoError(t, err)
+			err = tc.genesis.Validate()
 			if tc.wantErr {
 				assert.Error(t, err)
 				return
