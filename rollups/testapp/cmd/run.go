@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	coreda "github.com/rollkit/rollkit/core/da"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
@@ -16,6 +16,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/store"
 	kvexecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
+	"github.com/rollkit/rollkit/sequencers/single"
 )
 
 var RunCmd = &cobra.Command{
@@ -24,10 +25,13 @@ var RunCmd = &cobra.Command{
 	Short:   "Run the testapp node",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
+		ctx := context.Background()
+
+		logger := log.NewLogger(os.Stdout)
+
 		// Create test implementations
 		// TODO: we need to start the executor http server
 		executor := kvexecutor.CreateDirectKVExecutor()
-		sequencer := coresequencer.NewDummySequencer()
 
 		homePath, err := cmd.Flags().GetString(config.FlagRootDir)
 		if err != nil {
@@ -41,7 +45,6 @@ var RunCmd = &cobra.Command{
 
 		// Create DA client with dummy DA
 		dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-		logger := log.NewLogger(os.Stdout)
 		dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
 
 		nodeKey, err := key.LoadNodeKey(nodeConfig.ConfigDir)
@@ -54,11 +57,21 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		p2pClient, err := p2p.NewClient(nodeConfig, "testapp", nodeKey, datastore, logger, nil)
+		singleMetrics, err := single.NopMetrics()
 		if err != nil {
 			panic(err)
 		}
 
-		return rollcmd.StartNode(cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
+		sequencer, err := single.NewSequencer(ctx, logger, datastore, dummyDA, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.Node.SequencerRollupID), nodeConfig.Node.BlockTime.Duration, singleMetrics, nodeConfig.Node.Aggregator)
+		if err != nil {
+			panic(err)
+		}
+
+		p2pClient, err := p2p.NewClient(nodeConfig, "testapp", nodeKey, datastore, logger, p2p.NopMetrics())
+		if err != nil {
+			panic(err)
+		}
+
+		return rollcmd.StartNode(ctx, logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
 	},
 }

@@ -22,11 +22,10 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer"
 	filesigner "github.com/rollkit/rollkit/pkg/signer/file"
-	testExecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 )
 
 func createTestComponents(ctx context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.Signer, *p2p.Client, datastore.Batching) {
-	executor := testExecutor.CreateDirectKVExecutor()
+	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	logger := log.NewLogger(os.Stdout)
@@ -92,7 +91,7 @@ func TestParseFlags(t *testing.T) {
 	nodeConfig := rollconf.DefaultNodeConfig
 	nodeConfig.RootDir = t.TempDir()
 
-	newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+	newRunNodeCmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
 
 	// Register root flags to be able to use --home flag
 	rollconf.AddGlobalFlags(newRunNodeCmd, "testapp")
@@ -179,7 +178,7 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 		nodeConfig := rollconf.DefaultNodeConfig
 		nodeConfig.RootDir = t.TempDir()
 
-		newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+		newRunNodeCmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
@@ -210,7 +209,7 @@ func TestDefaultAggregatorValue(t *testing.T) {
 
 	nodeConfig := rollconf.DefaultNodeConfig
 
-	newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+	newRunNodeCmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
@@ -245,7 +244,7 @@ func TestCentralizedAddresses(t *testing.T) {
 		t.Fatalf("Error: %v", err)
 	}
 
-	cmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+	cmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
@@ -271,6 +270,7 @@ func TestCentralizedAddresses(t *testing.T) {
 
 // newRunNodeCmd returns the command that allows the CLI to start a node.
 func newRunNodeCmd(
+	ctx context.Context,
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
@@ -295,7 +295,7 @@ func newRunNodeCmd(
 		Aliases: []string{"node", "run"},
 		Short:   "Run the rollkit node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return StartNode(cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
+			return StartNode(ctx, log.NewNopLogger(), cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
 

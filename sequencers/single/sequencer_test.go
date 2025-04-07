@@ -21,7 +21,7 @@ func TestNewSequencer(t *testing.T) {
 	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0)
 	metrics, _ := NopMetrics()
 	db := ds.NewMapDatastore()
-	seq, err := NewSequencer(context.Background(), log.NewNopLogger(), db, dummyDA, []byte("namespace"), []byte("rollup1"), 10*time.Second, metrics, true)
+	seq, err := NewSequencer(context.Background(), log.NewNopLogger(), db, dummyDA, []byte("namespace"), []byte("rollup1"), 10*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestSequencer_SubmitRollupBatchTxs(t *testing.T) {
 	metrics, _ := NopMetrics()
 	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0)
 	db := ds.NewMapDatastore()
-	seq, err := NewSequencer(context.Background(), log.NewNopLogger(), db, dummyDA, []byte("namespace"), []byte("rollup1"), 10*time.Second, metrics, true)
+	seq, err := NewSequencer(context.Background(), log.NewNopLogger(), db, dummyDA, []byte("namespace"), []byte("rollup1"), 10*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
