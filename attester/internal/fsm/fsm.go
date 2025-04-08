@@ -31,16 +31,18 @@ type SignatureSubmitter interface {
 }
 
 // AggregatorService defines the combined interface for aggregator interactions needed by the FSM.
+// It includes methods used by the FSM (SetBlockData) and potentially other components
+// interacting with the aggregator implementation (AddSignature, GetAggregatedSignatures).
 type AggregatorService interface {
-	// SetBlockData informs the aggregator about the data to sign for a block hash (Leader usage).
+	// SetBlockData informs the aggregator about the data to sign for a block hash (used by Leader FSM).
 	SetBlockData(blockHash []byte, dataToSign []byte)
 
-	// AddSignature adds a signature from an attester for a specific block (Potentially used by Aggregator component itself, mocked here).
-	// The FSM itself doesn't call this, but the combined interface requires it.
+	// AddSignature adds a signature from an attester for a specific block.
+	// The FSM itself doesn't call this directly, but the aggregator implementation likely uses it.
 	AddSignature(blockHeight uint64, blockHash []byte, attesterID string, signature []byte) (bool, error)
 
-	// GetAggregatedSignatures retrieves aggregated signatures for a block (Potentially used by Aggregator component itself, mocked here).
-	// The FSM itself doesn't call this, but the combined interface requires it.
+	// GetAggregatedSignatures retrieves aggregated signatures for a block.
+	// The FSM itself doesn't call this directly, but the aggregator implementation likely uses it.
 	GetAggregatedSignatures(blockHeight uint64) ([][]byte, bool)
 }
 
@@ -51,12 +53,12 @@ type AttesterFSM struct {
 
 	// State - These maps need to be persisted via Snapshot/Restore
 	processedBlocks map[uint64]state.BlockHash           // Height -> Hash (ensures height uniqueness)
-	blockDetails    map[state.BlockHash]*state.BlockInfo // Hash -> Full block info (signature is not stored here)
+	blockDetails    map[state.BlockHash]*state.BlockInfo // Hash -> Full block info
 
 	logger *slog.Logger
 	signer signing.Signer
 	// Use interfaces for dependencies
-	aggregator AggregatorService  // Updated to use the combined interface
+	aggregator AggregatorService
 	sigClient  SignatureSubmitter // Interface for signature client (non-nil only if follower)
 	nodeID     string
 	// Explicitly store the role
@@ -70,7 +72,7 @@ func NewAttesterFSM(
 	signer signing.Signer,
 	nodeID string,
 	isLeader bool,
-	agg AggregatorService, // Updated to accept the combined interface
+	agg AggregatorService,
 	client SignatureSubmitter,
 ) (*AttesterFSM, error) {
 	if logger == nil {
@@ -91,18 +93,18 @@ func NewAttesterFSM(
 	fsm := &AttesterFSM{
 		processedBlocks: make(map[uint64]state.BlockHash),
 		blockDetails:    make(map[state.BlockHash]*state.BlockInfo),
-		logger:          logger.With("component", "fsm", "is_leader", isLeader), // Add role to logger
+		logger:          logger.With("component", "fsm", "is_leader", isLeader),
 		signer:          signer,
 		aggregator:      agg,
 		sigClient:       client,
 		nodeID:          nodeID,
-		isLeader:        isLeader, // Store the role
+		isLeader:        isLeader,
 	}
-	return fsm, nil // Return created FSM and nil error
+	return fsm, nil
 }
 
 // Apply applies a Raft log entry to the FSM.
-// It returns a value which is stored in the ApplyFuture.
+// This method is called by the Raft library when a new log entry is committed.
 func (f *AttesterFSM) Apply(logEntry *raft.Log) interface{} {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -118,89 +120,108 @@ func (f *AttesterFSM) Apply(logEntry *raft.Log) interface{} {
 	switch entryType {
 	case LogEntryTypeSubmitBlock:
 		var req attesterv1.SubmitBlockRequest
-
 		if err := proto.Unmarshal(entryData, &req); err != nil {
 			f.logger.Error("Failed to unmarshal SubmitBlockRequest", "log_index", logEntry.Index, "error", err)
 			return fmt.Errorf("failed to unmarshal log data at index %d: %w", logEntry.Index, err)
 		}
-
-		blockHashStr := fmt.Sprintf("%x", req.BlockHash)
-		logArgs := []any{"block_height", req.BlockHeight, "block_hash", blockHashStr, "log_index", logEntry.Index}
-
-		f.logger.Info("Applying block", logArgs...)
-
-		if _, exists := f.processedBlocks[req.BlockHeight]; exists {
-			f.logger.Warn("Block height already processed, skipping.", logArgs...)
-			return nil
-		}
-
-		if len(req.BlockHash) != state.BlockHashSize {
-			f.logger.Error("Invalid block hash size", append(logArgs, "size", len(req.BlockHash))...)
-			return fmt.Errorf("invalid block hash size at index %d", logEntry.Index)
-		}
-		blockHash, err := state.BlockHashFromBytes(req.BlockHash)
-		if err != nil {
-			f.logger.Error("Cannot convert block hash bytes", append(logArgs, "error", err)...)
-			return fmt.Errorf("invalid block hash bytes at index %d: %w", logEntry.Index, err)
-		}
-
-		if _, exists := f.blockDetails[blockHash]; exists {
-			f.logger.Error("Block hash already exists, possible hash collision or duplicate submit.", logArgs...)
-			return fmt.Errorf("block hash %s collision or duplicate at index %d", blockHash, logEntry.Index)
-		}
-
-		info := &state.BlockInfo{
-			Height:     req.BlockHeight,
-			Hash:       blockHash,
-			DataToSign: req.DataToSign,
-		}
-
-		signature, err := f.signer.Sign(info.DataToSign)
-		if err != nil {
-			f.logger.Error("Failed to sign data for block", append(logArgs, "error", err)...)
-			return fmt.Errorf("failed to sign data at index %d: %w", logEntry.Index, err)
-		}
-
-		f.processedBlocks[info.Height] = info.Hash
-		f.blockDetails[info.Hash] = info
-
-		// Use isLeader flag to determine action
-		if f.isLeader {
-			// Leader stores block data for signature verification
-			if f.aggregator != nil { // Still good practice to check for nil
-				f.aggregator.SetBlockData(info.Hash[:], info.DataToSign)
-			} else {
-				f.logger.Error("FSM is leader but aggregator is nil, cannot set block data")
-			}
-		} // No specific leader action needed beyond SetBlockData for Apply
-
-		f.logger.Info("Successfully applied and signed block", logArgs...)
-
-		// Only followers submit signatures
-		if !f.isLeader {
-			if f.sigClient != nil { // Still good practice to check for nil
-				go func(blockInfo *state.BlockInfo) {
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					defer cancel()
-
-					err := f.sigClient.SubmitSignature(ctx, blockInfo.Height, blockInfo.Hash[:], f.nodeID, signature)
-					if err != nil {
-						f.logger.Error("Failed to submit signature to leader",
-							"block_height", blockInfo.Height,
-							"block_hash", blockInfo.Hash.String(),
-							"error", err)
-					}
-				}(info)
-			} else {
-				f.logger.Error("FSM is follower but signature client is nil, cannot submit signature")
-			}
-		}
-
-		return info
-
+		return f.applySubmitBlock(logEntry.Index, &req)
 	default:
 		f.logger.Error("Unknown log entry type", "type", fmt.Sprintf("0x%x", entryType), "log_index", logEntry.Index)
 		return fmt.Errorf("unknown log entry type 0x%x at index %d", entryType, logEntry.Index)
+	}
+}
+
+// applySubmitBlock handles the application of a SubmitBlockRequest log entry.
+// It assumes the FSM lock is already held.
+func (f *AttesterFSM) applySubmitBlock(logIndex uint64, req *attesterv1.SubmitBlockRequest) interface{} {
+	blockHashStr := fmt.Sprintf("%x", req.BlockHash)
+	logArgs := []any{"block_height", req.BlockHeight, "block_hash", blockHashStr, "log_index", logIndex}
+
+	f.logger.Info("Applying block", logArgs...)
+
+	// Validation checks
+	if _, exists := f.processedBlocks[req.BlockHeight]; exists {
+		f.logger.Warn("Block height already processed, skipping.", logArgs...)
+		return nil // Not an error, just already processed
+	}
+	if len(req.BlockHash) != state.BlockHashSize {
+		f.logger.Error("Invalid block hash size", append(logArgs, "size", len(req.BlockHash))...)
+		return fmt.Errorf("invalid block hash size at index %d", logIndex)
+	}
+	blockHash, err := state.BlockHashFromBytes(req.BlockHash)
+	if err != nil {
+		f.logger.Error("Cannot convert block hash bytes", append(logArgs, "error", err)...)
+		return fmt.Errorf("invalid block hash bytes at index %d: %w", logIndex, err)
+	}
+	if _, exists := f.blockDetails[blockHash]; exists {
+		f.logger.Error("Block hash already exists, possible hash collision or duplicate submit.", logArgs...)
+		return fmt.Errorf("block hash %s collision or duplicate at index %d", blockHash, logIndex)
+	}
+
+	// Create block info and sign
+	info := &state.BlockInfo{
+		Height:     req.BlockHeight,
+		Hash:       blockHash,
+		DataToSign: req.DataToSign,
+	}
+	signature, err := f.signer.Sign(info.DataToSign)
+	if err != nil {
+		f.logger.Error("Failed to sign data for block", append(logArgs, "error", err)...)
+		return fmt.Errorf("failed to sign data at index %d: %w", logIndex, err)
+	}
+
+	// Update FSM state
+	f.processedBlocks[info.Height] = info.Hash
+	f.blockDetails[info.Hash] = info
+
+	// Leader specific logic
+	if f.isLeader {
+		if f.aggregator != nil {
+			f.aggregator.SetBlockData(info.Hash[:], info.DataToSign)
+		} else {
+			f.logger.Error("CRITICAL: FSM is leader but aggregator is nil. This indicates an unrecoverable state.", logArgs...)
+			panic("invariant violation: aggregator is nil for leader FSM")
+		}
+	}
+
+	f.logger.Info("Successfully applied and signed block", logArgs...)
+
+	// Follower specific logic: Submit signature (non-blocking)
+	if !f.isLeader {
+		if f.sigClient != nil {
+			// TODO: (Refactor) Consider moving this network call outside the FSM Apply
+			// flow for better separation of concerns. The FSM Apply should ideally
+			// only handle deterministic state transitions. An event/queue system
+			// could trigger this submission asynchronously after the state is applied.
+			go f.submitSignatureAsync(info, signature)
+		} else {
+			f.logger.Error("CRITICAL: FSM is follower but signature client is nil. This indicates an unrecoverable state.", logArgs...)
+			panic("invariant violation: signature client is nil for follower FSM")
+		}
+	}
+
+	// Return the processed block info (or nil if already processed)
+	return info
+}
+
+// submitSignatureAsync submits the signature to the leader in a separate goroutine.
+func (f *AttesterFSM) submitSignatureAsync(blockInfo *state.BlockInfo, signature []byte) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Consider making timeout configurable
+	defer cancel()
+
+	// Use a separate logger context if needed, or reuse f.logger
+	logger := f.logger.With("sub_task", "submit_signature")
+
+	err := f.sigClient.SubmitSignature(ctx, blockInfo.Height, blockInfo.Hash[:], f.nodeID, signature)
+	if err != nil {
+		logger.Error("Failed to submit signature to leader",
+			"block_height", blockInfo.Height,
+			"block_hash", blockInfo.Hash.String(),
+			"error", err)
+	} else {
+		logger.Info("Successfully submitted signature to leader",
+			"block_height", blockInfo.Height,
+			"block_hash", blockInfo.Hash.String())
 	}
 }
 
@@ -213,11 +234,9 @@ func (f *AttesterFSM) Snapshot() (raft.FSMSnapshot, error) {
 
 	allProtoBlocks := make([]*attesterv1.BlockInfo, 0, len(f.blockDetails))
 	for _, info := range f.blockDetails {
-		// Convert internal state.BlockInfo to proto BlockInfo for marshaling
-		// Note: proto BlockInfo no longer has signature field
 		protoBlock := &attesterv1.BlockInfo{
 			Height:     info.Height,
-			Hash:       info.Hash[:], // Convert state.BlockHash (array) to bytes slice
+			Hash:       info.Hash[:],
 			DataToSign: info.DataToSign,
 		}
 		allProtoBlocks = append(allProtoBlocks, protoBlock)
