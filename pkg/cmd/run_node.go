@@ -97,14 +97,11 @@ func StartNode(
 	nodeKey *key.NodeKey,
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
+	nodeConfig rollconf.Config,
 ) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
-	nodeConfig, err := ParseConfig(cmd, cmd.Flag(rollconf.FlagRootDir).Value.String())
-	if err != nil {
-		return fmt.Errorf("failed to parse config: %w", err)
-	}
 	logger := SetupLogger(nodeConfig.Log)
 
 	//create a new remote signer
@@ -115,13 +112,13 @@ func StartNode(
 			return err
 		}
 
-		signer, err = file.NewFileSystemSigner(nodeConfig.Signer.SignerPath, []byte(passphrase))
+		signer, err = file.LoadFileSystemSigner(nodeConfig.Signer.SignerPath, []byte(passphrase))
 		if err != nil {
 			return err
 		}
 	} else if nodeConfig.Signer.SignerType == "grpc" {
 		panic("grpc remote signer not implemented")
-	} else {
+	} else if nodeConfig.Node.Aggregator {
 		return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 	}
 

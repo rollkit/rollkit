@@ -43,7 +43,7 @@ func TestDefaultNodeConfig(t *testing.T) {
 func TestAddFlags(t *testing.T) {
 	// Create a command with flags
 	cmd := &cobra.Command{Use: "test"}
-	AddBasicFlags(cmd, "test") // Add basic flags first
+	AddGlobalFlags(cmd, "test") // Add basic flags first
 	AddFlags(cmd)
 
 	// Get both persistent and regular flags
@@ -102,7 +102,7 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagSignerPath, DefaultNodeConfig.Signer.SignerPath)
 
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 45 // Update this number if you add more flag checks above
+	expectedFlagCount := 41 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags (both regular and persistent)
 	actualFlagCount := 0

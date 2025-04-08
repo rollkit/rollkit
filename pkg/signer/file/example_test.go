@@ -16,7 +16,7 @@ func TestFileSystemSigner(t *testing.T) {
 	passphrase := []byte("test-passphrase-123")
 
 	// Create a new signer (this will generate and save keys)
-	signer, err := NewFileSystemSigner(keyPath, passphrase)
+	signer, err := CreateFileSystemSigner(keyPath, passphrase)
 	require.NoError(t, err)
 	require.NotNil(t, signer)
 
@@ -42,7 +42,7 @@ func TestFileSystemSigner(t *testing.T) {
 
 	passphrase = []byte("test-passphrase-123")
 	// Create a new signer instance (this will load the existing keys)
-	signer2, err := NewFileSystemSigner(keyPath, passphrase)
+	signer2, err := LoadFileSystemSigner(keyPath, passphrase)
 	require.NoError(t, err)
 	require.NotNil(t, signer2)
 
@@ -60,7 +60,7 @@ func TestFileSystemSigner(t *testing.T) {
 
 	// Test with wrong passphrase
 	wrongPassphrase := []byte("wrong-passphrase")
-	_, err = NewFileSystemSigner(keyPath, wrongPassphrase)
+	_, err = LoadFileSystemSigner(keyPath, wrongPassphrase)
 	assert.Error(t, err)
 }
 
@@ -71,7 +71,7 @@ func Example() {
 	keyPath := "/path/to/secure/keys.json"
 
 	// Create or load a signer
-	signer, err := NewFileSystemSigner(keyPath, passphrase)
+	signer, err := CreateFileSystemSigner(keyPath, passphrase)
 	if err != nil {
 		panic(err)
 	}

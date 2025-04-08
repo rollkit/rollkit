@@ -56,8 +56,10 @@ func (s *SystemUnderTest) RunCmd(cmd string, args ...string) (string, error) {
 		locateExecutable(cmd),
 		args...,
 	)
-	out, err := c.Output()
-	return string(out), err
+	// Use CombinedOutput to capture both stdout and stderr
+	combinedOutput, err := c.CombinedOutput() // Changed from c.Output()
+
+	return string(combinedOutput), err
 }
 
 // StartNode starts a process for the given command and manages it cleanup on test end.
@@ -84,7 +86,7 @@ func (s *SystemUnderTest) AwaitNodeUp(t *testing.T, rpcAddr string, timeout time
 
 	started := make(chan struct{}, 1)
 	go func() { // query for a non empty block on status page
-		t.Logf("Checking node status: %s\n", rpcAddr)
+		t.Logf("Checking node state: %s\n", rpcAddr)
 		for {
 			con := client.NewClient(rpcAddr)
 			if con == nil {
@@ -264,7 +266,7 @@ func MustCopyFile(t *testing.T, src, dest string) *os.File {
 // NodeID generates and returns the peer ID from the node's private key.
 func NodeID(t *testing.T, nodeDir string) peer.ID {
 	t.Helper()
-	node1Key, err := key.LoadOrGenNodeKey(filepath.Join(nodeDir, "config"))
+	node1Key, err := key.LoadNodeKey(filepath.Join(nodeDir, "config"))
 	require.NoError(t, err)
 	node1ID, err := peer.IDFromPrivateKey(node1Key.PrivKey)
 	require.NoError(t, err)

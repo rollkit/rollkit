@@ -12,7 +12,8 @@ const (
 )
 
 func init() {
-	rollkitconfig.AddBasicFlags(RootCmd, AppName)
+	rollkitconfig.AddGlobalFlags(RootCmd, AppName)
+	rollkitconfig.AddFlags(RunCmd)
 }
 
 // RootCmd is the root command for Rollkit

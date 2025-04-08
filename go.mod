@@ -11,6 +11,7 @@ replace (
 
 require (
 	connectrpc.com/connect v1.18.1
+	connectrpc.com/grpcreflect v1.3.0
 	cosmossdk.io/log v1.5.0
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/celestiaorg/utils v0.1.0

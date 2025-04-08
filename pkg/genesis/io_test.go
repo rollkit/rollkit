@@ -132,14 +132,74 @@ func TestLoadGenesis_InvalidJSON(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid genesis file")
 }
 
-func TestSaveGenesis_InvalidPath(t *testing.T) {
-	genesis := Genesis{
-		ChainID:              "test-chain",
-		InitialHeight:        1,
-		GenesisDAStartHeight: time.Now().UTC(),
-		ProposerAddress:      []byte("proposer-address"),
-	}
-	err := SaveGenesis(genesis, "/nonexistent/directory/genesis.json")
+func TestLoadGenesis_ReadError(t *testing.T) {
+	// Create a temporary directory
+	tmpDir := t.TempDir()
+
+	// Create a directory with the same name as our intended file
+	// This will cause ReadFile to fail with "is a directory" error
+	tmpFilePath := filepath.Join(tmpDir, "genesis.json")
+	err := os.Mkdir(tmpFilePath, 0755)
+	require.NoError(t, err)
+
+	// Try to load from a path that is actually a directory
+	_, err = LoadGenesis(tmpFilePath)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to write genesis file")
+	assert.Contains(t, err.Error(), "failed to read genesis file")
+}
+
+func TestLoadGenesis_InvalidGenesisContent(t *testing.T) {
+	// Create a temporary file with valid JSON but invalid Genesis content
+	tmpFile := filepath.Join(t.TempDir(), "valid_json_invalid_genesis.json")
+	// This is valid JSON but doesn't have required Genesis fields
+	err := os.WriteFile(filepath.Clean(tmpFile), []byte(`{"foo": "bar"}`), 0600)
+	require.NoError(t, err)
+
+	_, err = LoadGenesis(tmpFile)
+	assert.Error(t, err)
+	// This should fail validation since required fields are missing
+	assert.Contains(t, err.Error(), "invalid or missing chain_id")
+}
+
+func TestSaveGenesis_InvalidPath(t *testing.T) {
+	// Test different invalid paths for better coverage
+	testCases := []struct {
+		name       string
+		path       string
+		createPath bool
+	}{
+		{
+			name: "nonexistent directory",
+			path: "/nonexistent/directory/genesis.json",
+		},
+		{
+			name:       "invalid directory permissions",
+			path:       filepath.Join(t.TempDir(), "readonly", "genesis.json"),
+			createPath: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.createPath {
+				// Create a read-only directory if needed
+				dirPath := filepath.Dir(tc.path)
+				err := os.MkdirAll(dirPath, 0500) // read-only directory
+				if err != nil {
+					t.Skip("Failed to create directory with specific permissions, skipping:", err)
+				}
+			}
+
+			genesis := Genesis{
+				ChainID:              "test-chain",
+				InitialHeight:        1,
+				GenesisDAStartHeight: time.Now().UTC(),
+				ProposerAddress:      []byte("proposer-address"),
+			}
+
+			err := SaveGenesis(genesis, tc.path)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "failed to write genesis file")
+		})
+	}
 }

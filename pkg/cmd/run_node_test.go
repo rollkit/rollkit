@@ -32,7 +32,7 @@ func createTestComponents(ctx context.Context, t *testing.T) (coreexecutor.Execu
 	logger := log.NewLogger(os.Stdout)
 	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte{}, logger)
 	tmpDir := t.TempDir()
-	keyProvider, err := filesigner.NewFileSystemSigner(filepath.Join(tmpDir, "config"), []byte{})
+	keyProvider, err := filesigner.CreateFileSystemSigner(filepath.Join(tmpDir, "config"), []byte{})
 	if err != nil {
 		panic(err)
 	}
@@ -84,22 +84,24 @@ func TestParseFlags(t *testing.T) {
 	args := append([]string{"start"}, flags...)
 
 	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
-	tmpDir := t.TempDir()
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
+	nodeKey, err := key.GenerateNodeKey()
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}
 
-	newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
+	nodeConfig := rollconf.DefaultNodeConfig
+	nodeConfig.RootDir = t.TempDir()
+
+	newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
 
 	// Register root flags to be able to use --home flag
-	rollconf.AddBasicFlags(newRunNodeCmd, "testapp")
+	rollconf.AddGlobalFlags(newRunNodeCmd, "testapp")
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error: %v", err)
 	}
 
-	nodeConfig, err := ParseConfig(newRunNodeCmd, "custom/root/dir")
+	nodeConfig, err = ParseConfig(newRunNodeCmd, "custom/root/dir")
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
@@ -169,19 +171,21 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 
 		executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
 
-		tmpDir := t.TempDir()
-		nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
+		nodeKey, err := key.GenerateNodeKey()
 		if err != nil {
 			t.Fatalf("Error: %v", err)
 		}
 
-		newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
+		nodeConfig := rollconf.DefaultNodeConfig
+		nodeConfig.RootDir = t.TempDir()
+
+		newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
-		nodeConfig, err := ParseConfig(newRunNodeCmd, "custom/root/dir")
+		nodeConfig, err = ParseConfig(newRunNodeCmd, "custom/root/dir")
 		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
@@ -199,19 +203,20 @@ func TestDefaultAggregatorValue(t *testing.T) {
 	args := []string{"start"}
 	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
 
-	tmpDir := t.TempDir()
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tmpDir, "config", "node_key.json"))
+	nodeKey, err := key.GenerateNodeKey()
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}
 
-	newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
+	nodeConfig := rollconf.DefaultNodeConfig
+
+	newRunNodeCmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
 	}
 
-	nodeConfig, err := ParseConfig(newRunNodeCmd, "custom/root/dir")
+	nodeConfig, err = ParseConfig(newRunNodeCmd, "custom/root/dir")
 	if err != nil {
 		t.Errorf("Error parsing config: %v", err)
 	}
@@ -240,7 +245,7 @@ func TestCentralizedAddresses(t *testing.T) {
 		t.Fatalf("Error: %v", err)
 	}
 
-	cmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds)
+	cmd := newRunNodeCmd(executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
@@ -273,6 +278,7 @@ func newRunNodeCmd(
 	nodeKey *key.NodeKey,
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
+	nodeConfig rollconf.Config,
 ) *cobra.Command {
 	if executor == nil {
 		panic("executor cannot be nil")
@@ -289,7 +295,7 @@ func newRunNodeCmd(
 		Aliases: []string{"node", "run"},
 		Short:   "Run the rollkit node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return StartNode(cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore)
+			return StartNode(cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
 
