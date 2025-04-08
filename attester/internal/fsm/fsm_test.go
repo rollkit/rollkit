@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/rollkit/rollkit/attester/internal/mocks" // Import central mocks
 	"github.com/rollkit/rollkit/attester/internal/signing"
 	"github.com/rollkit/rollkit/attester/internal/state"
 
@@ -72,18 +73,6 @@ func (m *mockSignatureClient) SubmitSignature(ctx context.Context, height uint64
 // Ensure mockSignatureClient implements SignatureSubmitter
 var _ SignatureSubmitter = (*mockSignatureClient)(nil)
 
-// Mock Aggregator
-type mockAggregator struct {
-	mock.Mock
-}
-
-func (m *mockAggregator) SetBlockData(blockHash []byte, dataToSign []byte) {
-	m.Called(blockHash, dataToSign)
-}
-
-// Ensure mockAggregator implements BlockDataSetter
-var _ BlockDataSetter = (*mockAggregator)(nil)
-
 // Helper to create a raft log entry with a marshaled request
 func createTestLogEntry(t *testing.T, height uint64, hash []byte, dataToSign []byte) *raft.Log {
 	t.Helper()
@@ -118,7 +107,7 @@ func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-func newTestLeaderFSM(t *testing.T, logger *slog.Logger, signer signing.Signer, nodeID string, agg BlockDataSetter) *AttesterFSM {
+func newTestLeaderFSM(t *testing.T, logger *slog.Logger, signer signing.Signer, nodeID string, agg AggregatorService) *AttesterFSM {
 	t.Helper()
 	fsm, err := NewAttesterFSM(logger, signer, nodeID, true, agg, nil) // isLeader=true, client=nil
 	// Allow specific test cases to expect errors from NewAttesterFSM
@@ -139,6 +128,8 @@ func newTestLeaderFSM(t *testing.T, logger *slog.Logger, signer signing.Signer, 
 
 func newTestFollowerFSM(t *testing.T, logger *slog.Logger, signer signing.Signer, nodeID string, client SignatureSubmitter) *AttesterFSM {
 	t.Helper()
+	// Follower still needs an AggregatorService, but it can be nil or a dummy mock
+	// since it shouldn't be used. Passing nil is consistent with NewAttesterFSM validation.
 	fsm, err := NewAttesterFSM(logger, signer, nodeID, false, nil, client) // isLeader=false, agg=nil
 	// Allow specific test cases to expect errors from NewAttesterFSM
 	if err != nil {
@@ -159,7 +150,7 @@ func newTestFollowerFSM(t *testing.T, logger *slog.Logger, signer signing.Signer
 func TestFSM_Apply_SubmitBlock_Success_Leader(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	mockSigClient := new(mockSignatureClient)
-	mockAgg := new(mockAggregator)
+	mockAgg := new(mocks.MockAggregator) // Use central mock
 	logger := discardLogger()
 	nodeID := "test-node-submit"
 	fsm := newTestLeaderFSM(t, logger, mockSigner, nodeID, mockAgg)
@@ -468,14 +459,14 @@ func TestFSM_Snapshot_Restore(t *testing.T) {
 func TestNewAttesterFSM_Errors(t *testing.T) {
 	logger := discardLogger()
 	mockSigner := newMockSigner(false)
-	mockAgg := new(mockAggregator)
+	mockAgg := new(mocks.MockAggregator) // Use central mock
 	mockSigClient := new(mockSignatureClient)
 
 	tests := []struct {
 		name                   string
 		nodeID                 string
 		isLeader               bool
-		agg                    BlockDataSetter
+		agg                    AggregatorService
 		client                 SignatureSubmitter
 		expectedErrorSubstring string
 	}{
@@ -517,14 +508,14 @@ func TestNewAttesterFSM_Errors(t *testing.T) {
 func TestNewAttesterFSM_Success(t *testing.T) {
 	logger := discardLogger()
 	mockSigner := newMockSigner(false)
-	mockAgg := new(mockAggregator)
+	mockAgg := new(mocks.MockAggregator) // Use central mock
 	mockSigClient := new(mockSignatureClient)
 
 	tests := []struct {
 		name            string
 		nodeID          string
 		isLeader        bool
-		agg             BlockDataSetter
+		agg             AggregatorService
 		client          SignatureSubmitter
 		expectAggNil    bool
 		expectClientNil bool

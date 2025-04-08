@@ -24,16 +24,24 @@ const (
 	LogEntryTypeSubmitBlock byte = 0x01
 )
 
-// BlockDataSetter defines the interface for setting block data in the aggregator.
-// This allows mocking the aggregator dependency.
-type BlockDataSetter interface {
-	SetBlockData(blockHash []byte, dataToSign []byte)
-}
-
 // SignatureSubmitter defines the interface for submitting signatures.
 // This allows mocking the gRPC client dependency.
 type SignatureSubmitter interface {
 	SubmitSignature(ctx context.Context, height uint64, hash []byte, attesterID string, signature []byte) error
+}
+
+// AggregatorService defines the combined interface for aggregator interactions needed by the FSM.
+type AggregatorService interface {
+	// SetBlockData informs the aggregator about the data to sign for a block hash (Leader usage).
+	SetBlockData(blockHash []byte, dataToSign []byte)
+
+	// AddSignature adds a signature from an attester for a specific block (Potentially used by Aggregator component itself, mocked here).
+	// The FSM itself doesn't call this, but the combined interface requires it.
+	AddSignature(blockHeight uint64, blockHash []byte, attesterID string, signature []byte) (bool, error)
+
+	// GetAggregatedSignatures retrieves aggregated signatures for a block (Potentially used by Aggregator component itself, mocked here).
+	// The FSM itself doesn't call this, but the combined interface requires it.
+	GetAggregatedSignatures(blockHeight uint64) ([][]byte, bool)
 }
 
 // AttesterFSM implements the raft.FSM interface for the attester service.
@@ -48,7 +56,7 @@ type AttesterFSM struct {
 	logger *slog.Logger
 	signer signing.Signer
 	// Use interfaces for dependencies
-	aggregator BlockDataSetter    // Interface for aggregator (non-nil only if leader)
+	aggregator AggregatorService  // Updated to use the combined interface
 	sigClient  SignatureSubmitter // Interface for signature client (non-nil only if follower)
 	nodeID     string
 	// Explicitly store the role
@@ -56,21 +64,28 @@ type AttesterFSM struct {
 }
 
 // NewAttesterFSM creates a new instance of the AttesterFSM.
-// It now accepts interfaces for aggregator and sigClient for better testability,
-// and an explicit isLeader flag. Returns an error if validation fails.
-func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, isLeader bool, aggregator BlockDataSetter, sigClient SignatureSubmitter) (*AttesterFSM, error) {
+// Dependencies (signer, aggregator/client) are injected based on whether the node is a leader.
+func NewAttesterFSM(
+	logger *slog.Logger,
+	signer signing.Signer,
+	nodeID string,
+	isLeader bool,
+	agg AggregatorService, // Updated to accept the combined interface
+	client SignatureSubmitter,
+) (*AttesterFSM, error) {
+	if logger == nil {
+		return nil, fmt.Errorf("logger cannot be nil for FSM")
+	}
 	if nodeID == "" {
-		// Return error instead of panic
 		return nil, fmt.Errorf("node ID cannot be empty for FSM")
 	}
-	// Basic validation: Leader should have aggregator, follower should have client
-	if isLeader && aggregator == nil {
-		// Return error instead of warning
-		return nil, fmt.Errorf("FSM configured as leader but required aggregator dependency is nil")
+	if isLeader && agg == nil {
+		logger.Warn("FSM is leader but required aggregator dependency is nil")
+		return nil, fmt.Errorf("leader but required aggregator dependency is nil")
 	}
-	if !isLeader && sigClient == nil {
-		// Return error instead of warning
-		return nil, fmt.Errorf("FSM configured as follower but required signature client dependency is nil")
+	if !isLeader && client == nil {
+		logger.Warn("FSM is follower but required signature client dependency is nil")
+		return nil, fmt.Errorf("follower but required signature client dependency is nil")
 	}
 
 	fsm := &AttesterFSM{
@@ -78,8 +93,8 @@ func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, i
 		blockDetails:    make(map[state.BlockHash]*state.BlockInfo),
 		logger:          logger.With("component", "fsm", "is_leader", isLeader), // Add role to logger
 		signer:          signer,
-		aggregator:      aggregator,
-		sigClient:       sigClient,
+		aggregator:      agg,
+		sigClient:       client,
 		nodeID:          nodeID,
 		isLeader:        isLeader, // Store the role
 	}
