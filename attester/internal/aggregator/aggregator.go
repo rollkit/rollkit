@@ -16,9 +16,9 @@ type SignatureAggregator struct {
 	mu sync.RWMutex
 
 	// State
-	signatures map[uint64]map[string][]byte // blockHeight -> attesterID -> signature
-	blockData  map[string][]byte            // blockHash (as string) -> dataToSign
-	// TODO: Add state for quorum status per block?
+	signatures    map[uint64]map[string][]byte // blockHeight -> attesterID -> signature
+	blockData     map[string][]byte            // blockHash (as string) -> dataToSign
+	quorumReached map[uint64]bool              // blockHeight -> quorum reached?
 
 	// Configuration
 	quorumThreshold int
@@ -32,7 +32,7 @@ func NewSignatureAggregator(logger *slog.Logger, quorumThreshold int, attesterKe
 	if quorumThreshold <= 0 {
 		return nil, fmt.Errorf("quorum threshold must be positive")
 	}
-	// Require non-empty keys for now
+
 	if len(attesterKeys) == 0 {
 		return nil, fmt.Errorf("attester keys map cannot be empty")
 	}
@@ -40,6 +40,7 @@ func NewSignatureAggregator(logger *slog.Logger, quorumThreshold int, attesterKe
 	return &SignatureAggregator{
 		signatures:      make(map[uint64]map[string][]byte),
 		blockData:       make(map[string][]byte),
+		quorumReached:   make(map[uint64]bool),
 		quorumThreshold: quorumThreshold,
 		attesterKeys:    attesterKeys,
 		logger:          logger.With("component", "aggregator"),
@@ -66,7 +67,6 @@ func (a *SignatureAggregator) SetBlockData(blockHash []byte, dataToSign []byte) 
 // It returns true if quorum was reached for the block after adding this signature.
 func (a *SignatureAggregator) AddSignature(blockHeight uint64, blockHash []byte, attesterID string, signature []byte) (bool, error) {
 	a.mu.Lock()
-	// Defer unlock until the end, covering reads from blockData as well.
 	defer a.mu.Unlock()
 
 	blockHashStr := fmt.Sprintf("%x", blockHash)
@@ -91,7 +91,7 @@ func (a *SignatureAggregator) AddSignature(blockHeight uint64, blockHash []byte,
 	// 2. Get the expected data that was signed for this blockHash.
 	expectedDataToSign, dataExists := a.blockData[blockHashStr]
 	if !dataExists {
-		// Data hasn't been set yet by the FSM (or was pruned). Cannot verify yet.
+		// Data hasn't been set yet by the FSM. Cannot verify yet.
 		// Option 1: Return error. Option 2: Store pending verification?
 		// Let's return an error for now.
 		a.logger.Warn("Cannot verify signature: data to sign not available (yet?) for block", logArgs...)
@@ -125,33 +125,37 @@ func (a *SignatureAggregator) AddSignature(blockHeight uint64, blockHash []byte,
 			"signatures_count", len(a.signatures[blockHeight]),
 			"quorum_threshold", a.quorumThreshold)...)
 
-	// Check if quorum is now met
-	quorumReached := len(a.signatures[blockHeight]) >= a.quorumThreshold
-	if quorumReached {
-		a.logger.Info("Quorum reached for block", "block_height", blockHeight, "block_hash", blockHashStr)
-		// --- TODO: Trigger action on quorum ---
+	// Check if quorum is now met and update status if needed
+	currentlyMet := len(a.signatures[blockHeight]) >= a.quorumThreshold
+	if currentlyMet && !a.quorumReached[blockHeight] {
+		a.quorumReached[blockHeight] = true
+		a.logger.Info("Quorum reached for the first time", "block_height", blockHeight, "block_hash", blockHashStr)
 	}
 
-	return quorumReached, nil
+	return currentlyMet, nil
 }
 
 // GetAggregatedSignatures retrieves the collected valid signatures for a given block height
-// if the quorum threshold has been met.
-// It returns the slice of signatures and true if quorum is met, otherwise nil/empty slice and false.
+// **only if** the quorum threshold has been met for that height.
+// It returns the slice of signatures and true if quorum is met, otherwise nil and false.
 func (a *SignatureAggregator) GetAggregatedSignatures(blockHeight uint64) ([][]byte, bool) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
+	// Check if quorum was ever reached for this height
+	if !a.quorumReached[blockHeight] {
+		return nil, false
+	}
+
+	// Quorum was reached, retrieve the signatures
 	sigsForHeight, exists := a.signatures[blockHeight]
 	if !exists {
+		// This should ideally not happen if quorumReached is true, but check for safety
+		a.logger.Error("Inconsistent state: quorumReached is true but signatures map entry missing", "block_height", blockHeight)
 		return nil, false
 	}
 
-	if len(sigsForHeight) < a.quorumThreshold {
-		return nil, false
-	}
-
-	// Quorum met, collect signatures
+	// Collect signatures
 	collectedSigs := make([][]byte, 0, len(sigsForHeight))
 	for _, sig := range sigsForHeight {
 		collectedSigs = append(collectedSigs, sig)
@@ -163,6 +167,14 @@ func (a *SignatureAggregator) GetAggregatedSignatures(blockHeight uint64) ([][]b
 	return collectedSigs, true
 }
 
+// IsQuorumReached checks if the quorum threshold has been met for a given block height.
+func (a *SignatureAggregator) IsQuorumReached(blockHeight uint64) bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.quorumReached[blockHeight]
+}
+
 // TODO: Add methods like:
-// - IsQuorumReached(blockHeight uint64) bool
 // - PruneSignatures(olderThanHeight uint64) // To prevent memory leaks
+// - PruneBlockData(olderThanHash ...) // To prevent memory leaks
+// - PruneQuorumStatus(olderThanHeight uint64) // To prevent memory leaks

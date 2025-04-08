@@ -367,3 +367,96 @@ func TestGetAggregatedSignatures(t *testing.T) {
 		require.Nil(t, sigs, "Expected nil slice for unknown height")
 	})
 }
+
+// TestIsQuorumReached verifies the IsQuorumReached method and related logic.
+func TestIsQuorumReached(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	numAttesters := 5
+	quorum := 3
+	pubKeys, privKeys := generateTestKeys(t, numAttesters)
+	agg, err := aggregator.NewSignatureAggregator(logger, quorum, pubKeys)
+	require.NoError(t, err)
+
+	blockHeight1 := uint64(20)
+	blockHash1 := []byte("block_hash_20")
+	dataToSign1 := []byte("data for block 20")
+	agg.SetBlockData(blockHash1, dataToSign1)
+
+	blockHeight2 := uint64(21)
+	blockHash2 := []byte("block_hash_21")
+	dataToSign2 := []byte("data for block 21")
+	agg.SetBlockData(blockHash2, dataToSign2)
+
+	// Initial state: No quorum for either block
+	require.False(t, agg.IsQuorumReached(blockHeight1))
+	require.False(t, agg.IsQuorumReached(blockHeight2))
+	sigs1, ok1 := agg.GetAggregatedSignatures(blockHeight1)
+	require.False(t, ok1)
+	require.Nil(t, sigs1)
+	sigs2, ok2 := agg.GetAggregatedSignatures(blockHeight2)
+	require.False(t, ok2)
+	require.Nil(t, sigs2)
+
+	// Add signatures for block 1 until quorum is met
+	for i := 0; i < quorum; i++ {
+		attesterID := fmt.Sprintf("attester-%d", i)
+		sig := ed25519.Sign(privKeys[attesterID], dataToSign1)
+		justMetQuorum, addErr := agg.AddSignature(blockHeight1, blockHash1, attesterID, sig)
+		require.NoError(t, addErr)
+		if i < quorum-1 {
+			require.False(t, justMetQuorum, "Quorum should not be met yet for block 1")
+			require.False(t, agg.IsQuorumReached(blockHeight1), "IsQuorumReached should be false before reaching quorum for block 1")
+		} else {
+			require.True(t, justMetQuorum, "Quorum should be met now for block 1")
+			require.True(t, agg.IsQuorumReached(blockHeight1), "IsQuorumReached should be true after reaching quorum for block 1")
+		}
+		// Check block 2 remains unaffected
+		require.False(t, agg.IsQuorumReached(blockHeight2), "Block 2 quorum status should not change")
+	}
+
+	// Verify state after quorum for block 1
+	require.True(t, agg.IsQuorumReached(blockHeight1))
+	sigs1After, ok1After := agg.GetAggregatedSignatures(blockHeight1)
+	require.True(t, ok1After)
+	require.Len(t, sigs1After, quorum)
+
+	// Add more signatures for block 1 (should not change quorum state)
+	attesterIDExtra := fmt.Sprintf("attester-%d", quorum) // Next attester
+	sigExtra := ed25519.Sign(privKeys[attesterIDExtra], dataToSign1)
+	metAgain, addErrExtra := agg.AddSignature(blockHeight1, blockHash1, attesterIDExtra, sigExtra)
+	require.NoError(t, addErrExtra)
+	require.True(t, metAgain, "AddSignature should still return true after quorum is met")
+	sigs1Extra, ok1Extra := agg.GetAggregatedSignatures(blockHeight1)
+	require.True(t, ok1Extra)
+	require.Len(t, sigs1Extra, quorum+1)
+
+	// Check duplicate signature for block 1 doesn't break anything
+	attesterIDRepeat := "attester-0"
+	sigRepeat := ed25519.Sign(privKeys[attesterIDRepeat], dataToSign1)
+	metRepeat, addErrRepeat := agg.AddSignature(blockHeight1, blockHash1, attesterIDRepeat, sigRepeat)
+	require.NoError(t, addErrRepeat)
+	require.True(t, metRepeat, "AddSignature should return true for duplicate after quorum")
+	require.True(t, agg.IsQuorumReached(blockHeight1), "IsQuorumReached should remain true after duplicate")
+
+	// Now add signatures for block 2 until quorum
+	for i := 0; i < quorum; i++ {
+		attesterID := fmt.Sprintf("attester-%d", i)
+		sig := ed25519.Sign(privKeys[attesterID], dataToSign2)
+		justMetQuorum, addErr := agg.AddSignature(blockHeight2, blockHash2, attesterID, sig)
+		require.NoError(t, addErr)
+		if i < quorum-1 {
+			require.False(t, justMetQuorum)
+			require.False(t, agg.IsQuorumReached(blockHeight2))
+		} else {
+			require.True(t, justMetQuorum)
+			require.True(t, agg.IsQuorumReached(blockHeight2))
+		}
+		require.True(t, agg.IsQuorumReached(blockHeight1), "Block 1 quorum should remain true") // Verify block 1 state persists
+	}
+
+	// Final check for block 2
+	require.True(t, agg.IsQuorumReached(blockHeight2))
+	sigs2After, ok2After := agg.GetAggregatedSignatures(blockHeight2)
+	require.True(t, ok2After)
+	require.Len(t, sigs2After, quorum)
+}
