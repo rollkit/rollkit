@@ -53,7 +53,6 @@ type Sequencer struct {
 
 // NewSequencer creates a new Centralized Sequencer
 func NewSequencer(
-	ctx context.Context,
 	logger log.Logger,
 	db ds.Batching,
 	da coreda.DA,
@@ -63,6 +62,10 @@ func NewSequencer(
 	metrics *Metrics,
 	proposer bool,
 ) (*Sequencer, error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	dalc := dac.NewDAClient(da, -1, -1, daNamespace, nil, logger)
 	mBlobSize, err := dalc.MaxBlobSize(ctx)
 	if err != nil {
