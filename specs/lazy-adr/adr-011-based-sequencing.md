@@ -101,7 +101,36 @@ We decide to use the proposer based approach for efficiency reason as well as ut
 
 The sequence digram below demostrates the interactions between the user, the execution layer, the sequencing layer, and the consensus layer (rollkit's block manager). In the no-proposer mode, every node (propose or full node) will follow all the interactions, whereas in case of proposer mode, the full nodes will follow all the interactions, however, they p2p layer front runs the sharing of the batch (created by the proposer) and state updates (in the form of headers).
 
-![Based Sequencing Diagram](./figures/based-sequencing.jpg)
+```mermaid
+sequenceDiagram
+    participant User as user
+    participant Reth as reth
+    participant Exec as go-execution-evm
+    participant Reaper as reaper
+    participant Header as header proposer
+    participant BlockMgr as block manager
+    participant Sequencer as based-sequencer
+    participant Base as base layer
+
+    User->>Reth: submits rollup tx
+
+    Reaper->>Exec: GetTxs
+    Exec->>Reth: get txs from mempool
+    Reaper->>Sequencer: SubmitRollupTxs
+    Sequencer->>Base: Submit blobs
+
+    BlockMgr->>Sequencer: GetNextBatch
+    Sequencer->>Base: Retrieve blobs
+    Sequencer->>BlockMgr: batch w/ proofs
+
+    BlockMgr->>Exec: ExecuteTxs
+    Exec->>Reth: call engine api to create new evm block
+
+    Header->>Exec: SetFinal
+    Exec->>Reth: call engine api to finalize the state
+
+    Reth-->>User: user can query tx being final
+```
 
 ### Transaction submission
 
