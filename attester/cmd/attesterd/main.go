@@ -191,9 +191,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		}()
 	}
 
-	// 4. Instantiate FSM (Pass node ID, aggregator, client)
-	slog.Info("Initializing FSM", "data_dir", cfg.Raft.DataDir, "node_id", cfg.Node.ID)
-	attesterFSM = fsm.NewAttesterFSM(logger, signer, cfg.Node.ID, sigAggregator, sigClient)
+	// 4. Instantiate FSM (Pass node ID, isLeader flag, aggregator, client)
+	slog.Info("Initializing FSM", "data_dir", cfg.Raft.DataDir, "node_id", cfg.Node.ID, "is_leader", isLeader)
+	attesterFSM = fsm.NewAttesterFSM(logger, signer, cfg.Node.ID, isLeader, sigAggregator, sigClient)
 
 	// 5. Instantiate RAFT node (Pass the FSM)
 	slog.Info("Initializing RAFT node...")

@@ -42,31 +42,43 @@ type AttesterFSM struct {
 	mu sync.RWMutex
 
 	// State - These maps need to be persisted via Snapshot/Restore
-	processedBlocks map[uint64]state.BlockHash // Height -> Hash (ensures height uniqueness)
-	blockDetails    map[state.BlockHash]*state.BlockInfo
+	processedBlocks map[uint64]state.BlockHash           // Height -> Hash (ensures height uniqueness)
+	blockDetails    map[state.BlockHash]*state.BlockInfo // Hash -> Full block info (signature is not stored here)
 
 	logger *slog.Logger
 	signer signing.Signer
-
-	aggregator BlockDataSetter
-	sigClient  SignatureSubmitter
+	// Use interfaces for dependencies
+	aggregator BlockDataSetter    // Interface for aggregator (non-nil only if leader)
+	sigClient  SignatureSubmitter // Interface for signature client (non-nil only if follower)
 	nodeID     string
+	// Explicitly store the role
+	isLeader bool
 }
 
 // NewAttesterFSM creates a new instance of the AttesterFSM.
-// It now accepts interfaces for aggregator and sigClient for better testability.
-func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, aggregator BlockDataSetter, sigClient SignatureSubmitter) *AttesterFSM {
+// It now accepts interfaces for aggregator and sigClient for better testability,
+// and an explicit isLeader flag.
+func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, isLeader bool, aggregator BlockDataSetter, sigClient SignatureSubmitter) *AttesterFSM {
 	if nodeID == "" {
 		panic("node ID cannot be empty for FSM")
 	}
+	// Basic validation: Leader should have aggregator, follower should have client
+	if isLeader && aggregator == nil {
+		logger.Warn("FSM created as leader but aggregator is nil")
+	}
+	if !isLeader && sigClient == nil {
+		logger.Warn("FSM created as follower but signature client is nil")
+	}
+
 	return &AttesterFSM{
 		processedBlocks: make(map[uint64]state.BlockHash),
 		blockDetails:    make(map[state.BlockHash]*state.BlockInfo),
-		logger:          logger.With("component", "fsm"),
+		logger:          logger.With("component", "fsm", "is_leader", isLeader), // Add role to logger
 		signer:          signer,
 		aggregator:      aggregator,
 		sigClient:       sigClient,
 		nodeID:          nodeID,
+		isLeader:        isLeader, // Store the role
 	}
 }
 
@@ -133,25 +145,36 @@ func (f *AttesterFSM) Apply(logEntry *raft.Log) interface{} {
 		f.processedBlocks[info.Height] = info.Hash
 		f.blockDetails[info.Hash] = info
 
-		if f.aggregator != nil {
-			f.aggregator.SetBlockData(info.Hash[:], info.DataToSign)
-		}
+		// Use isLeader flag to determine action
+		if f.isLeader {
+			// Leader stores block data for signature verification
+			if f.aggregator != nil { // Still good practice to check for nil
+				f.aggregator.SetBlockData(info.Hash[:], info.DataToSign)
+			} else {
+				f.logger.Error("FSM is leader but aggregator is nil, cannot set block data")
+			}
+		} // No specific leader action needed beyond SetBlockData for Apply
 
 		f.logger.Info("Successfully applied and signed block", logArgs...)
 
-		if f.sigClient != nil {
-			go func(blockInfo *state.BlockInfo) {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
+		// Only followers submit signatures
+		if !f.isLeader {
+			if f.sigClient != nil { // Still good practice to check for nil
+				go func(blockInfo *state.BlockInfo) {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
 
-				err := f.sigClient.SubmitSignature(ctx, blockInfo.Height, blockInfo.Hash[:], f.nodeID, signature)
-				if err != nil {
-					f.logger.Error("Failed to submit signature to leader",
-						"block_height", blockInfo.Height,
-						"block_hash", blockInfo.Hash.String(),
-						"error", err)
-				}
-			}(info)
+					err := f.sigClient.SubmitSignature(ctx, blockInfo.Height, blockInfo.Hash[:], f.nodeID, signature)
+					if err != nil {
+						f.logger.Error("Failed to submit signature to leader",
+							"block_height", blockInfo.Height,
+							"block_hash", blockInfo.Hash.String(),
+							"error", err)
+					}
+				}(info)
+			} else {
+				f.logger.Error("FSM is follower but signature client is nil, cannot submit signature")
+			}
 		}
 
 		return info
