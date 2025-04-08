@@ -3,7 +3,7 @@ package grpc_test
 import (
 	"context"
 	"fmt"
-	"io" // Added for io.Discard
+	"io"
 	"log/slog"
 	"net"
 	"testing"
@@ -25,19 +25,14 @@ import (
 const bufSize = 1024 * 1024
 
 // setupTestServer initializes an in-memory gRPC server and returns a client.
-// Uses mocks from the mocks package.
 func setupTestServer(t *testing.T, mockRaft *mocks.MockRaftNode, mockAgg *mocks.MockAggregator) attesterv1.AttesterServiceClient {
 	t.Helper()
 
 	lis := bufconn.Listen(bufSize)
-	t.Cleanup(func() {
-		lis.Close()
-	})
+	t.Cleanup(func() { lis.Close() })
 
 	s := grpc.NewServer()
-
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-
 	attesterServer := grpcServer.NewAttesterServer(mockRaft, logger, mockAgg)
 	attesterv1.RegisterAttesterServiceServer(s, attesterServer)
 
@@ -47,11 +42,9 @@ func setupTestServer(t *testing.T, mockRaft *mocks.MockRaftNode, mockAgg *mocks.
 		}
 	}()
 
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
-	t.Cleanup(func() {
-		s.GracefulStop()
-	})
+	t.Cleanup(func() { s.GracefulStop() })
 
 	bufDialer := func(ctx context.Context, addr string) (net.Conn, error) {
 		return lis.Dial()
@@ -70,7 +63,6 @@ func setupTestServer(t *testing.T, mockRaft *mocks.MockRaftNode, mockAgg *mocks.
 	})
 
 	client := attesterv1.NewAttesterServiceClient(conn)
-
 	return client
 }
 
@@ -82,14 +74,13 @@ func TestAttesterServer_SubmitBlock_SuccessLeader(t *testing.T) {
 	expectedBlockHeight := uint64(100)
 	expectedBlockHash := []byte("test_block_hash_success")
 	expectedDataToSign := []byte("data_to_be_signed_success")
-
 	expectedLogEntry := &attesterv1.BlockInfo{
 		Height:     expectedBlockHeight,
 		Hash:       expectedBlockHash,
 		DataToSign: expectedDataToSign,
 	}
 	expectedLogData, err := proto.Marshal(expectedLogEntry)
-	require.NoError(t, err, "Failed to marshal expected BlockInfo")
+	require.NoError(t, err)
 
 	mockRaft.On("State").Return(raft.Leader).Once()
 	mockRaft.On("Apply", expectedLogData, mock.AnythingOfType("time.Duration")).Return(nil).Once()
@@ -105,12 +96,11 @@ func TestAttesterServer_SubmitBlock_SuccessLeader(t *testing.T) {
 
 	resp, err := client.SubmitBlock(context.Background(), req)
 
-	require.NoError(t, err, "SubmitBlock failed unexpectedly")
-	require.NotNil(t, resp, "Response should not be nil")
-	require.True(t, resp.Accepted, "Response should indicate acceptance")
-	require.Empty(t, resp.ErrorMessage, "Error message should be empty on success")
-	require.Empty(t, resp.LeaderHint, "Leader hint should be empty when node is leader")
-
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.Accepted)
+	require.Empty(t, resp.ErrorMessage)
+	require.Empty(t, resp.LeaderHint)
 	mockRaft.AssertExpectations(t)
 }
 
@@ -120,9 +110,8 @@ func TestAttesterServer_SubmitBlock_NotLeader(t *testing.T) {
 	expectedLeader := raft.ServerAddress("192.168.1.100:12345")
 	mockRaft.MockLeader = expectedLeader
 
-	mockRaft.On("State").Return(raft.Follower) // Allow multiple calls if necessary
+	mockRaft.On("State").Return(raft.Follower)
 	mockRaft.On("Leader").Return(expectedLeader).Once()
-
 	mockAgg := new(mocks.MockAggregator)
 
 	client := setupTestServer(t, mockRaft, mockAgg)
@@ -135,16 +124,16 @@ func TestAttesterServer_SubmitBlock_NotLeader(t *testing.T) {
 
 	resp, err := client.SubmitBlock(context.Background(), req)
 
-	require.NoError(t, err, "SubmitBlock should not return a transport-level error when node is not leader")
-	require.NotNil(t, resp, "Response should not be nil")
-	require.False(t, resp.Accepted, "Response should indicate not accepted")
-	require.Contains(t, resp.ErrorMessage, "Node is not the RAFT leader", "Error message should indicate node is not leader")
-	require.Equal(t, string(expectedLeader), resp.LeaderHint, "Response should provide the correct leader hint")
-
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.False(t, resp.Accepted)
+	require.Contains(t, resp.ErrorMessage, "Node is not the RAFT leader")
+	require.Equal(t, string(expectedLeader), resp.LeaderHint)
 	mockRaft.AssertExpectations(t)
 	mockRaft.AssertNotCalled(t, "Apply", mock.Anything, mock.Anything)
 }
 
+// TestAttesterServer_SubmitBlock_ValidationErrors covers various input validation failures.
 func TestAttesterServer_SubmitBlock_ValidationErrors(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -155,8 +144,8 @@ func TestAttesterServer_SubmitBlock_ValidationErrors(t *testing.T) {
 			name: "InvalidHeightZero",
 			request: &attesterv1.SubmitBlockRequest{
 				BlockHeight: 0,
-				BlockHash:   []byte("some_hash"),
-				DataToSign:  []byte("some_data"),
+				BlockHash:   []byte("hash"),
+				DataToSign:  []byte("data"),
 			},
 			expectedErrMsg: "Block height cannot be zero",
 		},
@@ -165,7 +154,7 @@ func TestAttesterServer_SubmitBlock_ValidationErrors(t *testing.T) {
 			request: &attesterv1.SubmitBlockRequest{
 				BlockHeight: 102,
 				BlockHash:   []byte{},
-				DataToSign:  []byte("some_data"),
+				DataToSign:  []byte("data"),
 			},
 			expectedErrMsg: "Block hash cannot be empty",
 		},
@@ -174,7 +163,7 @@ func TestAttesterServer_SubmitBlock_ValidationErrors(t *testing.T) {
 			request: &attesterv1.SubmitBlockRequest{
 				BlockHeight: 103,
 				BlockHash:   nil,
-				DataToSign:  []byte("some_data"),
+				DataToSign:  []byte("data"),
 			},
 			expectedErrMsg: "Block hash cannot be empty",
 		},
@@ -182,7 +171,7 @@ func TestAttesterServer_SubmitBlock_ValidationErrors(t *testing.T) {
 			name: "EmptyDataToSign",
 			request: &attesterv1.SubmitBlockRequest{
 				BlockHeight: 104,
-				BlockHash:   []byte("some_hash"),
+				BlockHash:   []byte("hash"),
 				DataToSign:  []byte{},
 			},
 			expectedErrMsg: "Data to sign cannot be empty",
@@ -191,7 +180,7 @@ func TestAttesterServer_SubmitBlock_ValidationErrors(t *testing.T) {
 			name: "NilDataToSign",
 			request: &attesterv1.SubmitBlockRequest{
 				BlockHeight: 105,
-				BlockHash:   []byte("some_hash"),
+				BlockHash:   []byte("hash"),
 				DataToSign:  nil,
 			},
 			expectedErrMsg: "Data to sign cannot be empty",
@@ -203,6 +192,7 @@ func TestAttesterServer_SubmitBlock_ValidationErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
+			// Node must be leader to hit validation logic after leader check.
 			mockRaft := new(mocks.MockRaftNode)
 			mockRaft.MockState = raft.Leader
 			mockRaft.On("State").Return(raft.Leader).Once()
@@ -212,11 +202,10 @@ func TestAttesterServer_SubmitBlock_ValidationErrors(t *testing.T) {
 
 			resp, err := client.SubmitBlock(context.Background(), tc.request)
 
-			require.NoError(t, err, "SubmitBlock should not return a transport-level error for validation failures")
-			require.NotNil(t, resp, "Response should not be nil")
-			require.False(t, resp.Accepted, "Response should indicate not accepted due to validation error")
-			require.Contains(t, resp.ErrorMessage, tc.expectedErrMsg, "Incorrect error message")
-
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.False(t, resp.Accepted)
+			require.Contains(t, resp.ErrorMessage, tc.expectedErrMsg)
 			mockRaft.AssertExpectations(t)
 			mockRaft.AssertNotCalled(t, "Apply", mock.Anything, mock.Anything)
 		})
@@ -224,13 +213,11 @@ func TestAttesterServer_SubmitBlock_ValidationErrors(t *testing.T) {
 }
 
 func TestAttesterServer_SubmitBlock_ApplyError(t *testing.T) {
-	// Arrange Mocks: Node is leader, but Apply call fails
 	mockRaft := new(mocks.MockRaftNode)
 	mockRaft.MockState = raft.Leader
 	expectedApplyError := fmt.Errorf("simulated RAFT Apply error")
-	mockRaft.ApplyErr = expectedApplyError // Configure Apply to return this error
+	mockRaft.ApplyErr = expectedApplyError
 
-	// Define expected data for the Apply call (must still be correct)
 	expectedBlockHeight := uint64(106)
 	expectedBlockHash := []byte("test_block_hash_apply_error")
 	expectedDataToSign := []byte("data_to_be_signed_apply_error")
@@ -240,41 +227,186 @@ func TestAttesterServer_SubmitBlock_ApplyError(t *testing.T) {
 		DataToSign: expectedDataToSign,
 	}
 	expectedLogData, err := proto.Marshal(expectedLogEntry)
-	require.NoError(t, err, "Failed to marshal expected BlockInfo")
+	require.NoError(t, err)
 
-	// Set mock expectations:
-	// State() should be called once.
-	// Apply() should be called once with the correct data.
 	mockRaft.On("State").Return(raft.Leader).Once()
 	mockRaft.On("Apply", expectedLogData, mock.AnythingOfType("time.Duration")).Return(nil).Once()
-
 	mockAgg := new(mocks.MockAggregator)
 
-	// Arrange gRPC Client
 	client := setupTestServer(t, mockRaft, mockAgg)
 
-	// Arrange Request
 	req := &attesterv1.SubmitBlockRequest{
 		BlockHeight: expectedBlockHeight,
 		BlockHash:   expectedBlockHash,
 		DataToSign:  expectedDataToSign,
 	}
 
-	// Act: Call the gRPC method
 	resp, err := client.SubmitBlock(context.Background(), req)
 
-	// Assert: Check the response indicates rejection due to Apply error
-	require.NoError(t, err, "SubmitBlock should not return a transport-level error for Apply failures")
-	require.NotNil(t, resp, "Response should not be nil")
-	require.False(t, resp.Accepted, "Response should indicate not accepted due to Apply error")
-	require.Contains(t, resp.ErrorMessage, "Failed to commit block via RAFT", "Error message prefix mismatch")
-	require.Contains(t, resp.ErrorMessage, expectedApplyError.Error(), "Original apply error mismatch")
-
-	// Verify that mock expectations were met (State and Apply called)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.False(t, resp.Accepted)
+	require.Contains(t, resp.ErrorMessage, "Failed to commit block via RAFT")
+	require.Contains(t, resp.ErrorMessage, expectedApplyError.Error())
 	mockRaft.AssertExpectations(t)
-	// mockAgg.AssertExpectations(t) // No calls expected
 }
 
-// TODO: Add more test cases:
-// - TestAttesterServer_SubmitBlock_ApplyError
-// ...
+func TestAttesterServer_SubmitSignature_Success(t *testing.T) {
+	mockRaft := new(mocks.MockRaftNode)
+	mockAgg := new(mocks.MockAggregator)
+
+	expectedBlockHeight := uint64(200)
+	expectedBlockHash := []byte("test_block_hash_sig_success")
+	expectedAttesterID := "attester-1"
+	expectedSignature := []byte("test_signature_success")
+
+	// Expect AddSignature to succeed, assume quorum not reached.
+	mockAgg.On("AddSignature",
+		expectedBlockHeight,
+		expectedBlockHash,
+		expectedAttesterID,
+		expectedSignature,
+	).Return(false, nil).Once()
+
+	client := setupTestServer(t, mockRaft, mockAgg)
+
+	req := &attesterv1.SubmitSignatureRequest{
+		BlockHeight: expectedBlockHeight,
+		BlockHash:   expectedBlockHash,
+		AttesterId:  expectedAttesterID,
+		Signature:   expectedSignature,
+	}
+
+	resp, err := client.SubmitSignature(context.Background(), req)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.Success)
+	mockAgg.AssertExpectations(t)
+}
+
+// TestAttesterServer_SubmitSignature_ValidationErrors covers input validation failures.
+func TestAttesterServer_SubmitSignature_ValidationErrors(t *testing.T) {
+	testCases := []struct {
+		name           string
+		request        *attesterv1.SubmitSignatureRequest
+		expectedErrMsg string
+	}{
+		{
+			name: "InvalidHeightZero",
+			request: &attesterv1.SubmitSignatureRequest{
+				BlockHeight: 0,
+				BlockHash:   []byte("hash"),
+				AttesterId:  "id",
+				Signature:   []byte("sig"),
+			},
+			expectedErrMsg: "block height cannot be zero",
+		},
+		{
+			name: "EmptyBlockHash",
+			request: &attesterv1.SubmitSignatureRequest{
+				BlockHeight: 201,
+				BlockHash:   []byte{},
+				AttesterId:  "id",
+				Signature:   []byte("sig"),
+			},
+			expectedErrMsg: "block hash cannot be empty",
+		},
+		{
+			name: "NilBlockHash",
+			request: &attesterv1.SubmitSignatureRequest{
+				BlockHeight: 202,
+				BlockHash:   nil,
+				AttesterId:  "id",
+				Signature:   []byte("sig"),
+			},
+			expectedErrMsg: "block hash cannot be empty",
+		},
+		{
+			name: "EmptyAttesterID",
+			request: &attesterv1.SubmitSignatureRequest{
+				BlockHeight: 203,
+				BlockHash:   []byte("hash"),
+				AttesterId:  "",
+				Signature:   []byte("sig"),
+			},
+			expectedErrMsg: "attester ID cannot be empty",
+		},
+		{
+			name: "EmptySignature",
+			request: &attesterv1.SubmitSignatureRequest{
+				BlockHeight: 204,
+				BlockHash:   []byte("hash"),
+				AttesterId:  "id",
+				Signature:   []byte{},
+			},
+			expectedErrMsg: "signature cannot be empty",
+		},
+		{
+			name: "NilSignature",
+			request: &attesterv1.SubmitSignatureRequest{
+				BlockHeight: 205,
+				BlockHash:   []byte("hash"),
+				AttesterId:  "id",
+				Signature:   nil,
+			},
+			expectedErrMsg: "signature cannot be empty",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			mockRaft := new(mocks.MockRaftNode)
+			mockAgg := new(mocks.MockAggregator)
+			client := setupTestServer(t, mockRaft, mockAgg)
+
+			resp, err := client.SubmitSignature(context.Background(), tc.request)
+
+			// Assert based on current implementation returning fmt.Errorf on validation fail.
+			// TODO: Consider returning gRPC status errors (codes.InvalidArgument) instead.
+			require.Error(t, err)
+			require.Nil(t, resp)
+			require.ErrorContains(t, err, tc.expectedErrMsg)
+			mockAgg.AssertNotCalled(t, "AddSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestAttesterServer_SubmitSignature_AggregatorError(t *testing.T) {
+	mockRaft := new(mocks.MockRaftNode)
+	mockAgg := new(mocks.MockAggregator)
+	expectedAggError := fmt.Errorf("simulated aggregator error")
+
+	expectedBlockHeight := uint64(206)
+	expectedBlockHash := []byte("test_block_hash_agg_error")
+	expectedAttesterID := "attester-2"
+	expectedSignature := []byte("test_signature_agg_error")
+
+	// Expect AddSignature to be called and return an error.
+	mockAgg.On("AddSignature",
+		expectedBlockHeight,
+		expectedBlockHash,
+		expectedAttesterID,
+		expectedSignature,
+	).Return(false, expectedAggError).Once()
+
+	client := setupTestServer(t, mockRaft, mockAgg)
+
+	req := &attesterv1.SubmitSignatureRequest{
+		BlockHeight: expectedBlockHeight,
+		BlockHash:   expectedBlockHash,
+		AttesterId:  expectedAttesterID,
+		Signature:   expectedSignature,
+	}
+
+	resp, err := client.SubmitSignature(context.Background(), req)
+
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.ErrorContains(t, err, "failed to process signature")
+	require.ErrorContains(t, err, expectedAggError.Error())
+	mockAgg.AssertExpectations(t)
+}
