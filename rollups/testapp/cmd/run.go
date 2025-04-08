@@ -7,8 +7,8 @@ import (
 	"cosmossdk.io/log"
 	"github.com/spf13/cobra"
 
-	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/da/proxy"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -40,9 +40,19 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		// Create DA client with dummy DA
-		dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-		dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
+		daJrpc, err := proxy.NewClient(nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		if err != nil {
+			panic(err)
+		}
+
+		dac := da.NewDAClient(
+			daJrpc, // Updated to use daJrpc instead of da.NewNoOpDA()
+			nodeConfig.DA.GasPrice,
+			nodeConfig.DA.GasMultiplier,
+			[]byte(nodeConfig.DA.Namespace),
+			[]byte(nodeConfig.DA.SubmitOptions),
+			logger,
+		)
 
 		nodeKey, err := key.LoadNodeKey(nodeConfig.ConfigDir)
 		if err != nil {
@@ -59,7 +69,7 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		sequencer, err := single.NewSequencer(logger, datastore, dummyDA, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.Node.SequencerRollupID), nodeConfig.Node.BlockTime.Duration, singleMetrics, nodeConfig.Node.Aggregator)
+		sequencer, err := single.NewSequencer(logger, datastore, daJrpc, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.Node.SequencerRollupID), nodeConfig.Node.BlockTime.Duration, singleMetrics, nodeConfig.Node.Aggregator)
 		if err != nil {
 			panic(err)
 		}
