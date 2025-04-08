@@ -135,7 +135,36 @@ func (a *SignatureAggregator) AddSignature(blockHeight uint64, blockHash []byte,
 	return quorumReached, nil
 }
 
+// GetAggregatedSignatures retrieves the collected valid signatures for a given block height
+// if the quorum threshold has been met.
+// It returns the slice of signatures and true if quorum is met, otherwise nil/empty slice and false.
+func (a *SignatureAggregator) GetAggregatedSignatures(blockHeight uint64) ([][]byte, bool) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	sigsForHeight, exists := a.signatures[blockHeight]
+	if !exists {
+		// No signatures recorded for this height yet
+		return nil, false
+	}
+
+	if len(sigsForHeight) < a.quorumThreshold {
+		// Quorum not yet met
+		return nil, false
+	}
+
+	// Quorum met, collect signatures
+	collectedSigs := make([][]byte, 0, len(sigsForHeight))
+	for _, sig := range sigsForHeight {
+		collectedSigs = append(collectedSigs, sig)
+	}
+
+	// Optionally sort the signatures for deterministic output?
+	// sort.Slice(collectedSigs, func(i, j int) bool { ... })
+
+	return collectedSigs, true
+}
+
 // TODO: Add methods like:
-// - GetAggregatedSignature(blockHeight uint64) ([]byte, error) // Returns multi-sig or list
 // - IsQuorumReached(blockHeight uint64) bool
 // - PruneSignatures(olderThanHeight uint64) // To prevent memory leaks

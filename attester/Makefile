@@ -19,7 +19,7 @@ CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
 
 # Add docker-proto-gen to .PHONY
-.PHONY: proto-gen clean-protos docker-proto-gen
+.PHONY: proto-gen clean-protos docker-proto-gen test
 
 # Target to generate Go code from .proto files using local tools
 proto-gen: $(GO_PROTO_GENERATED_DIR)/attester.pb.go $(GO_PROTO_GENERATED_DIR)/attester_grpc.pb.go
@@ -53,4 +53,9 @@ clean-protos:
 	@echo "Cleaning generated proto files..."
 	@rm -f $(GO_PROTO_GENERATED_DIR)/attester.pb.go
 	@rm -f $(GO_PROTO_GENERATED_DIR)/attester_grpc.pb.go
-	@echo "Done." 
+	@echo "Done."
+
+.PHONY: test
+test:
+	@echo "Running attester tests..."
+	go test ./... 

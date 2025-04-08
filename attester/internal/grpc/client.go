@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"time"
 
 	"google.golang.org/grpc"
@@ -14,15 +15,15 @@ import (
 	attesterv1 "github.com/rollkit/rollkit/attester/api/gen/attester/v1"
 )
 
-// SignatureClient provides methods to interact with the leader's AttesterService.
-type SignatureClient struct {
+// Client provides methods to interact with the leader's AttesterService.
+type Client struct {
 	conn   *grpc.ClientConn
 	client attesterv1.AttesterServiceClient
 	logger *slog.Logger
 }
 
-// NewSignatureClient creates a new client connected to the given target address.
-func NewSignatureClient(ctx context.Context, target string, logger *slog.Logger) (*SignatureClient, error) {
+// NewClient creates a new client connected to the given target address.
+func NewClient(ctx context.Context, target string, logger *slog.Logger) (*Client, error) {
 	if target == "" {
 		return nil, fmt.Errorf("signature client target address cannot be empty")
 	}
@@ -40,12 +41,19 @@ func NewSignatureClient(ctx context.Context, target string, logger *slog.Logger)
 	connCtx, cancel := context.WithTimeout(ctx, 5*time.Second) // Timeout for initial connection
 	defer cancel()
 
-	conn, err := grpc.DialContext(
-		connCtx,
+	conn, err := grpc.NewClient(
 		target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()), // Use insecure for now
-		grpc.WithBlock(), // Block until the connection is up, respects DialContext timeout
-		// grpc.WithKeepaliveParams(kacp),
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			// Use connCtx for the dialer context to respect the initial connection timeout
+			deadline, _ := connCtx.Deadline() // ok is always true for context.WithTimeout
+			timeout := deadline.Sub(time.Now())
+			if timeout < 0 {
+				timeout = 0 // Ensure timeout is non-negative
+			}
+			d := net.Dialer{Timeout: timeout}
+			return d.DialContext(ctx, "tcp", addr)
+		}),
 	)
 	if err != nil {
 		logger.Error("Failed to dial leader gRPC service", "error", err)
@@ -56,7 +64,7 @@ func NewSignatureClient(ctx context.Context, target string, logger *slog.Logger)
 
 	client := attesterv1.NewAttesterServiceClient(conn)
 
-	return &SignatureClient{
+	return &Client{
 		conn:   conn,
 		client: client,
 		logger: logger,
@@ -64,7 +72,7 @@ func NewSignatureClient(ctx context.Context, target string, logger *slog.Logger)
 }
 
 // Close closes the underlying gRPC connection.
-func (c *SignatureClient) Close() error {
+func (c *Client) Close() error {
 	if c.conn != nil {
 		c.logger.Info("Closing connection to leader gRPC service")
 		return c.conn.Close()
@@ -73,7 +81,7 @@ func (c *SignatureClient) Close() error {
 }
 
 // SubmitSignature sends the signature to the leader.
-func (c *SignatureClient) SubmitSignature(ctx context.Context, height uint64, hash []byte, attesterID string, signature []byte) error {
+func (c *Client) SubmitSignature(ctx context.Context, height uint64, hash []byte, attesterID string, signature []byte) error {
 	req := &attesterv1.SubmitSignatureRequest{
 		BlockHeight: height,
 		BlockHash:   hash,
