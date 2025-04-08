@@ -193,7 +193,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// 4. Instantiate FSM (Pass node ID, isLeader flag, aggregator, client)
 	slog.Info("Initializing FSM", "data_dir", cfg.Raft.DataDir, "node_id", cfg.Node.ID, "is_leader", isLeader)
-	attesterFSM = fsm.NewAttesterFSM(logger, signer, cfg.Node.ID, isLeader, sigAggregator, sigClient)
+	attesterFSM, err = fsm.NewAttesterFSM(logger, signer, cfg.Node.ID, isLeader, sigAggregator, sigClient)
+	if err != nil {
+		slog.Error("Failed to initialize FSM", "error", err)
+		os.Exit(1)
+	}
 
 	// 5. Instantiate RAFT node (Pass the FSM)
 	slog.Info("Initializing RAFT node...")

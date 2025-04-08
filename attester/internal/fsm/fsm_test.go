@@ -120,11 +120,32 @@ func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
+// Helper function to create FSM, handling the error for tests
+func newTestFSM(t *testing.T, logger *slog.Logger, signer signing.Signer, nodeID string, isLeader bool, agg BlockDataSetter, client SignatureSubmitter) *AttesterFSM {
+	t.Helper()
+	fsm, err := NewAttesterFSM(logger, signer, nodeID, isLeader, agg, client)
+	// Allow specific test cases to expect errors from NewAttesterFSM
+	if err != nil {
+		// Check if the test function name indicates an error is expected
+		if !(assert.Contains(t, t.Name(), "Error") || assert.Contains(t, t.Name(), "Panic")) {
+			t.Fatalf("NewAttesterFSM failed unexpectedly in test %s: %v", t.Name(), err)
+		}
+		// If error is expected, return nil FSM so the test can assert on the error
+		return nil
+	}
+	require.NotNil(t, fsm, "NewAttesterFSM should return a non-nil FSM when no error occurs")
+	return fsm
+}
+
 func TestFSM_Apply_SubmitBlock_Success_NoSubmit(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	// Provide nil for aggregator and sigClient as they are not tested here
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node", false, nil, nil)
+	mockSigClient := new(mockSignatureClient) // Create mock client
+	// Provide nil aggregator, but mock client for follower
+	fsm := newTestFSM(t, logger, mockSigner, "test-node", false, nil, mockSigClient)
+
+	// Expect the SubmitSignature call because it's a follower and Apply succeeds
+	mockSigClient.On("SubmitSignature", mock.Anything, uint64(100), mock.AnythingOfType("[]uint8"), "test-node", mockSigner.signatureToReturn).Return(nil).Maybe()
 
 	height := uint64(100)
 	hash := testHash(1)
@@ -149,18 +170,22 @@ func TestFSM_Apply_SubmitBlock_Success_NoSubmit(t *testing.T) {
 	savedInfo, hashExists := fsm.blockDetails[hash]
 	assert.True(t, hashExists)
 	assert.Equal(t, blockInfo, savedInfo)
+
+	// Allow time for goroutine
+	time.Sleep(50 * time.Millisecond)
+	mockSigClient.AssertExpectations(t)
 }
 
 // Tests that were previously commented out are now active
 
 func TestFSM_Apply_SubmitBlock_Success_WithSubmit(t *testing.T) {
 	mockSigner := newMockSigner(false)
-	mockSigClient := new(mockSignatureClient)
+	mockSigClient := new(mockSignatureClient) // Mock client for type check, not used when leader
 	mockAgg := new(mockAggregator)
 	logger := discardLogger()
 	nodeID := "test-node-submit"
-	// Now this call works because NewAttesterFSM accepts interfaces
-	fsm := NewAttesterFSM(logger, mockSigner, nodeID, true, mockAgg, mockSigClient)
+	// Set isLeader=true because we are testing aggregator interaction
+	fsm := newTestFSM(t, logger, mockSigner, nodeID, true, mockAgg, nil) // Pass nil client for leader
 
 	height := uint64(101)
 	hash := testHash(2)
@@ -177,24 +202,23 @@ func TestFSM_Apply_SubmitBlock_Success_WithSubmit(t *testing.T) {
 	_, ok := applyResponse.(*state.BlockInfo)
 	require.True(t, ok)
 
-	// Allow time for the goroutine to execute
-	time.Sleep(100 * time.Millisecond)
+	// Allow time for the goroutine to execute (though none expected here)
+	time.Sleep(50 * time.Millisecond)
 
 	mockAgg.AssertExpectations(t)
 	mockSigClient.AssertExpectations(t)
-	// Note: We can't easily assert the error log, but we've asserted the mock was called.
 	// Assert that SubmitSignature was *not* called (optional, but good practice)
 	mockSigClient.AssertNotCalled(t, "SubmitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestFSM_Apply_SubmitBlock_SubmitError(t *testing.T) {
 	mockSigner := newMockSigner(false)
-	mockSigClient := new(mockSignatureClient)
+	mockSigClient := new(mockSignatureClient) // Mock client for type check, not used when leader
 	mockAgg := new(mockAggregator)
 	logger := discardLogger()
 	nodeID := "test-node-submit-err"
-	// Now this call works because NewAttesterFSM accepts interfaces
-	fsm := NewAttesterFSM(logger, mockSigner, nodeID, true, mockAgg, mockSigClient)
+	// Set isLeader=true because we are testing aggregator interaction
+	fsm := newTestFSM(t, logger, mockSigner, nodeID, true, mockAgg, nil) // Pass nil client for leader
 
 	height := uint64(102)
 	hash := testHash(3)
@@ -209,11 +233,10 @@ func TestFSM_Apply_SubmitBlock_SubmitError(t *testing.T) {
 	_, ok := applyResponse.(*state.BlockInfo)
 	require.True(t, ok) // Apply itself should still succeed
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	mockAgg.AssertExpectations(t)
 	mockSigClient.AssertExpectations(t)
-	// Note: We can't easily assert the error log, but we've asserted the mock was called.
 	// Assert that SubmitSignature was *not* called (optional, but good practice)
 	mockSigClient.AssertNotCalled(t, "SubmitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
@@ -221,8 +244,12 @@ func TestFSM_Apply_SubmitBlock_SubmitError(t *testing.T) {
 func TestFSM_Apply_SubmitBlock_DuplicateHeight(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	// Pass nil for aggregator/client as they shouldn't be called on duplicate
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-dup", false, nil, nil)
+	mockSigClient := new(mockSignatureClient) // Create mock client
+	// Provide nil aggregator, but mock client for follower
+	fsm := newTestFSM(t, logger, mockSigner, "test-node-dup", false, nil, mockSigClient)
+
+	// Expect SubmitSignature calls for the first successful Apply only
+	mockSigClient.On("SubmitSignature", mock.Anything, uint64(103), mock.AnythingOfType("[]uint8"), "test-node-dup", mockSigner.signatureToReturn).Return(nil).Once()
 
 	height := uint64(103)
 	hash1 := testHash(4)
@@ -247,12 +274,19 @@ func TestFSM_Apply_SubmitBlock_DuplicateHeight(t *testing.T) {
 	assert.Equal(t, 1, len(fsm.blockDetails))
 	_, detailExists := fsm.blockDetails[hash2]
 	assert.False(t, detailExists)
+
+	// Allow time for goroutine
+	time.Sleep(50 * time.Millisecond)
+	mockSigClient.AssertExpectations(t)
 }
 
 func TestFSM_Apply_SubmitBlock_InvalidHashSize(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-invhash", false, nil, nil)
+	mockSigClient := new(mockSignatureClient) // Create mock client
+	// Provide nil aggregator, but mock client for follower
+	fsm := newTestFSM(t, logger, mockSigner, "test-node-invhash", false, nil, mockSigClient)
+	// Do not expect SubmitSignature because Apply fails before signing
 
 	height := uint64(104)
 	invalidHash := []byte{0x01, 0x02, 0x03}
@@ -270,12 +304,19 @@ func TestFSM_Apply_SubmitBlock_InvalidHashSize(t *testing.T) {
 	defer fsm.mu.RUnlock()
 	assert.Empty(t, fsm.processedBlocks)
 	assert.Empty(t, fsm.blockDetails)
+
+	mockSigClient.AssertNotCalled(t, "SubmitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestFSM_Apply_SubmitBlock_DuplicateHash(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-duphash", false, nil, nil)
+	mockSigClient := new(mockSignatureClient) // Create mock client
+	// Provide nil aggregator, but mock client for follower
+	fsm := newTestFSM(t, logger, mockSigner, "test-node-duphash", false, nil, mockSigClient)
+
+	// Expect SubmitSignature for the first successful Apply only
+	mockSigClient.On("SubmitSignature", mock.Anything, uint64(105), mock.AnythingOfType("[]uint8"), "test-node-duphash", mockSigner.signatureToReturn).Return(nil).Once()
 
 	height1 := uint64(105)
 	height2 := uint64(106)
@@ -303,12 +344,19 @@ func TestFSM_Apply_SubmitBlock_DuplicateHash(t *testing.T) {
 	assert.Equal(t, hash, fsm.processedBlocks[height1])
 	_, height2Exists := fsm.processedBlocks[height2]
 	assert.False(t, height2Exists)
+
+	// Allow time for goroutine
+	time.Sleep(50 * time.Millisecond)
+	mockSigClient.AssertExpectations(t)
 }
 
 func TestFSM_Apply_UnknownLogType(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-unknown", false, nil, nil)
+	mockSigClient := new(mockSignatureClient) // Create mock client
+	// Provide nil aggregator, but mock client for follower
+	fsm := newTestFSM(t, logger, mockSigner, "test-node-unknown", false, nil, mockSigClient)
+	// Do not expect SubmitSignature because Apply fails before signing
 
 	logEntry := &raft.Log{
 		Index: 1, Term: 1, Type: raft.LogCommand,
@@ -320,12 +368,17 @@ func TestFSM_Apply_UnknownLogType(t *testing.T) {
 	assert.True(t, ok)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown log entry type")
+
+	mockSigClient.AssertNotCalled(t, "SubmitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestFSM_Apply_EmptyLogData(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-empty", false, nil, nil)
+	mockSigClient := new(mockSignatureClient) // Create mock client
+	// Provide nil aggregator, but mock client for follower
+	fsm := newTestFSM(t, logger, mockSigner, "test-node-empty", false, nil, mockSigClient)
+	// Do not expect SubmitSignature because Apply fails before signing
 
 	logEntry := &raft.Log{
 		Index: 1, Term: 1, Type: raft.LogCommand,
@@ -337,12 +390,17 @@ func TestFSM_Apply_EmptyLogData(t *testing.T) {
 	assert.True(t, ok)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "empty log data")
+
+	mockSigClient.AssertNotCalled(t, "SubmitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestFSM_Apply_SignerError(t *testing.T) {
 	mockSigner := newMockSigner(true) // Signer configured to return an error
 	logger := discardLogger()
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-signerr", false, nil, nil)
+	mockSigClient := new(mockSignatureClient) // Create mock client
+	// Provide nil aggregator, but mock client for follower
+	fsm := newTestFSM(t, logger, mockSigner, "test-node-signerr", false, nil, mockSigClient)
+	// Do not expect SubmitSignature because Apply fails before signing
 
 	height := uint64(107)
 	hash := testHash(7)
@@ -360,6 +418,8 @@ func TestFSM_Apply_SignerError(t *testing.T) {
 	defer fsm.mu.RUnlock()
 	assert.Empty(t, fsm.processedBlocks)
 	assert.Empty(t, fsm.blockDetails)
+
+	mockSigClient.AssertNotCalled(t, "SubmitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 // Mock SnapshotSink
@@ -388,18 +448,27 @@ func (m *mockSnapshotSink) Cancel() error {
 func TestFSM_Snapshot_Restore(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	fsm1 := NewAttesterFSM(logger, mockSigner, "node1", false, nil, nil)
+	mockSigClient := new(mockSignatureClient) // Create mock client
+	// Provide nil aggregator, but mock client for follower
+	fsm1 := newTestFSM(t, logger, mockSigner, "node1", false, nil, mockSigClient)
+
+	// Expect SubmitSignature calls for both applies
+	mockSigClient.On("SubmitSignature", mock.Anything, uint64(200), mock.AnythingOfType("[]uint8"), "node1", mockSigner.signatureToReturn).Return(nil).Once()
+	mockSigClient.On("SubmitSignature", mock.Anything, uint64(201), mock.AnythingOfType("[]uint8"), "node1", mockSigner.signatureToReturn).Return(nil).Once()
 
 	// Apply some data to fsm1
 	height1, hash1, data1 := uint64(200), testHash(10), []byte("block200")
 	height2, hash2, data2 := uint64(201), testHash(11), []byte("block201")
 	applyResp1 := fsm1.Apply(createTestLogEntry(t, height1, hash1[:], data1))
 	require.NotNil(t, applyResp1)
-	// Use assert.NotImplements which checks if the value implements the error interface
 	assert.NotImplements(t, (*error)(nil), applyResp1, "Apply 1 should not return an error")
 	applyResp2 := fsm1.Apply(createTestLogEntry(t, height2, hash2[:], data2))
 	require.NotNil(t, applyResp2)
 	assert.NotImplements(t, (*error)(nil), applyResp2, "Apply 2 should not return an error")
+
+	// Allow time for goroutines
+	time.Sleep(50 * time.Millisecond)
+	mockSigClient.AssertExpectations(t) // Assert SubmitSignatures were called
 
 	// Take a snapshot of fsm1
 	snapshot, err := fsm1.Snapshot()
@@ -413,7 +482,7 @@ func TestFSM_Snapshot_Restore(t *testing.T) {
 	snapshot.Release() // Important to release
 
 	// Create a new FSM (fsm2) and restore from the snapshot
-	fsm2 := NewAttesterFSM(logger, mockSigner, "node2", false, nil, nil)
+	fsm2 := newTestFSM(t, logger, mockSigner, "node2", false, nil, new(mockSignatureClient))
 	err = fsm2.Restore(io.NopCloser(&sink.buf)) // Wrap buffer in NopCloser
 	require.NoError(t, err, "Restore should succeed")
 
@@ -433,4 +502,60 @@ func TestFSM_Snapshot_Restore(t *testing.T) {
 	assert.Equal(t, hash2, fsm2.processedBlocks[height2])
 	assert.Equal(t, data1, fsm2.blockDetails[hash1].DataToSign)
 	assert.Equal(t, data2, fsm2.blockDetails[hash2].DataToSign)
+}
+
+// --- Tests for NewAttesterFSM errors --- //
+
+func TestNewAttesterFSM_Error_NoNodeID(t *testing.T) {
+	logger := discardLogger()
+	mockSigner := newMockSigner(false)
+	// Do not use helper here, call directly to test error
+	_, err := NewAttesterFSM(logger, mockSigner, "", false, nil, new(mockSignatureClient)) // Empty node ID
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "node ID cannot be empty")
+}
+
+func TestNewAttesterFSM_Error_LeaderNeedsAggregator(t *testing.T) {
+	logger := discardLogger()
+	mockSigner := newMockSigner(false)
+	mockSigClient := new(mockSignatureClient)
+	// Do not use helper here, call directly to test error
+	_, err := NewAttesterFSM(logger, mockSigner, "node-leader", true, nil, mockSigClient) // Leader but nil aggregator
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "leader but required aggregator dependency is nil")
+}
+
+func TestNewAttesterFSM_Error_FollowerNeedsClient(t *testing.T) {
+	logger := discardLogger()
+	mockSigner := newMockSigner(false)
+	mockAgg := new(mockAggregator)
+	// Do not use helper here, call directly to test error
+	_, err := NewAttesterFSM(logger, mockSigner, "node-follower", false, mockAgg, nil) // Follower but nil client
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "follower but required signature client dependency is nil")
+}
+
+// Test successful creation cases (implicitly tested by newTestFSM helper, but can be explicit)
+func TestNewAttesterFSM_Success_Leader(t *testing.T) {
+	logger := discardLogger()
+	mockSigner := newMockSigner(false)
+	mockAgg := new(mockAggregator)
+	fsm, err := NewAttesterFSM(logger, mockSigner, "node-leader-ok", true, mockAgg, nil) // Leader with aggregator
+	require.NoError(t, err)
+	require.NotNil(t, fsm)
+	assert.True(t, fsm.isLeader)
+	assert.NotNil(t, fsm.aggregator)
+	assert.Nil(t, fsm.sigClient)
+}
+
+func TestNewAttesterFSM_Success_Follower(t *testing.T) {
+	logger := discardLogger()
+	mockSigner := newMockSigner(false)
+	mockSigClient := new(mockSignatureClient)
+	fsm, err := NewAttesterFSM(logger, mockSigner, "node-follower-ok", false, nil, mockSigClient) // Follower with client
+	require.NoError(t, err)
+	require.NotNil(t, fsm)
+	assert.False(t, fsm.isLeader)
+	assert.Nil(t, fsm.aggregator)
+	assert.NotNil(t, fsm.sigClient)
 }

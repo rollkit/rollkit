@@ -57,20 +57,23 @@ type AttesterFSM struct {
 
 // NewAttesterFSM creates a new instance of the AttesterFSM.
 // It now accepts interfaces for aggregator and sigClient for better testability,
-// and an explicit isLeader flag.
-func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, isLeader bool, aggregator BlockDataSetter, sigClient SignatureSubmitter) *AttesterFSM {
+// and an explicit isLeader flag. Returns an error if validation fails.
+func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, isLeader bool, aggregator BlockDataSetter, sigClient SignatureSubmitter) (*AttesterFSM, error) {
 	if nodeID == "" {
-		panic("node ID cannot be empty for FSM")
+		// Return error instead of panic
+		return nil, fmt.Errorf("node ID cannot be empty for FSM")
 	}
 	// Basic validation: Leader should have aggregator, follower should have client
 	if isLeader && aggregator == nil {
-		logger.Warn("FSM created as leader but aggregator is nil")
+		// Return error instead of warning
+		return nil, fmt.Errorf("FSM configured as leader but required aggregator dependency is nil")
 	}
 	if !isLeader && sigClient == nil {
-		logger.Warn("FSM created as follower but signature client is nil")
+		// Return error instead of warning
+		return nil, fmt.Errorf("FSM configured as follower but required signature client dependency is nil")
 	}
 
-	return &AttesterFSM{
+	fsm := &AttesterFSM{
 		processedBlocks: make(map[uint64]state.BlockHash),
 		blockDetails:    make(map[state.BlockHash]*state.BlockInfo),
 		logger:          logger.With("component", "fsm", "is_leader", isLeader), // Add role to logger
@@ -80,6 +83,7 @@ func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, i
 		nodeID:          nodeID,
 		isLeader:        isLeader, // Store the role
 	}
+	return fsm, nil // Return created FSM and nil error
 }
 
 // Apply applies a Raft log entry to the FSM.
