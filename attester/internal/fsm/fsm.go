@@ -24,8 +24,6 @@ const (
 	LogEntryTypeSubmitBlock byte = 0x01
 )
 
-// --- Interfaces for Dependencies --- //
-
 // BlockDataSetter defines the interface for setting block data in the aggregator.
 // This allows mocking the aggregator dependency.
 type BlockDataSetter interface {
@@ -49,16 +47,15 @@ type AttesterFSM struct {
 
 	logger *slog.Logger
 	signer signing.Signer
-	// Use interfaces for dependencies
-	aggregator BlockDataSetter    // Interface for aggregator
-	sigClient  SignatureSubmitter // Interface for signature client
+
+	aggregator BlockDataSetter
+	sigClient  SignatureSubmitter
 	nodeID     string
-	// db *bolt.DB // Optional: Direct DB access if state becomes too complex for memory/simple snapshot
 }
 
 // NewAttesterFSM creates a new instance of the AttesterFSM.
 // It now accepts interfaces for aggregator and sigClient for better testability.
-func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, dataDir string, aggregator BlockDataSetter, sigClient SignatureSubmitter) *AttesterFSM {
+func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, aggregator BlockDataSetter, sigClient SignatureSubmitter) *AttesterFSM {
 	if nodeID == "" {
 		panic("node ID cannot be empty for FSM")
 	}
@@ -264,8 +261,6 @@ func (f *AttesterFSM) Restore(snapshot io.ReadCloser) error {
 	f.logger.Info("FSM restored successfully from snapshot", "blocks_loaded", len(f.blockDetails))
 	return nil
 }
-
-// --- FSMSnapshot --- //
 
 // fsmSnapshot implements the raft.FSMSnapshot interface.
 type fsmSnapshot struct {

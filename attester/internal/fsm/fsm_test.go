@@ -128,7 +128,7 @@ func TestFSM_Apply_SubmitBlock_Success_NoSubmit(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
 	// Provide nil for aggregator and sigClient as they are not tested here
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node", "/tmp", nil, nil)
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node", nil, nil)
 
 	height := uint64(100)
 	hash := testHash(1)
@@ -163,8 +163,8 @@ func TestFSM_Apply_SubmitBlock_Success_WithSubmit(t *testing.T) {
 	mockAgg := new(mockAggregator)
 	logger := discardLogger()
 	nodeID := "test-node-submit"
-	// This call fails because mockAgg and mockSigClient don't match concrete types
-	fsm := NewAttesterFSM(logger, mockSigner, nodeID, "/tmp", mockAgg, mockSigClient)
+	// Now this call works because NewAttesterFSM accepts interfaces
+	fsm := NewAttesterFSM(logger, mockSigner, nodeID, mockAgg, mockSigClient)
 
 	height := uint64(101)
 	hash := testHash(2)
@@ -194,8 +194,8 @@ func TestFSM_Apply_SubmitBlock_SubmitError(t *testing.T) {
 	mockAgg := new(mockAggregator)
 	logger := discardLogger()
 	nodeID := "test-node-submit-err"
-	// This call fails because mockAgg and mockSigClient don't match concrete types
-	fsm := NewAttesterFSM(logger, mockSigner, nodeID, "/tmp", mockAgg, mockSigClient)
+	// Now this call works because NewAttesterFSM accepts interfaces
+	fsm := NewAttesterFSM(logger, mockSigner, nodeID, mockAgg, mockSigClient)
 
 	height := uint64(102)
 	hash := testHash(3)
@@ -221,7 +221,7 @@ func TestFSM_Apply_SubmitBlock_DuplicateHeight(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
 	// Pass nil for aggregator/client as they shouldn't be called on duplicate
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-dup", "/tmp", nil, nil)
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-dup", nil, nil)
 
 	height := uint64(103)
 	hash1 := testHash(4)
@@ -251,7 +251,7 @@ func TestFSM_Apply_SubmitBlock_DuplicateHeight(t *testing.T) {
 func TestFSM_Apply_SubmitBlock_InvalidHashSize(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-invhash", "/tmp", nil, nil)
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-invhash", nil, nil)
 
 	height := uint64(104)
 	invalidHash := []byte{0x01, 0x02, 0x03}
@@ -274,7 +274,7 @@ func TestFSM_Apply_SubmitBlock_InvalidHashSize(t *testing.T) {
 func TestFSM_Apply_SubmitBlock_DuplicateHash(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-duphash", "/tmp", nil, nil)
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-duphash", nil, nil)
 
 	height1 := uint64(105)
 	height2 := uint64(106)
@@ -307,7 +307,7 @@ func TestFSM_Apply_SubmitBlock_DuplicateHash(t *testing.T) {
 func TestFSM_Apply_UnknownLogType(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-unknown", "/tmp", nil, nil)
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-unknown", nil, nil)
 
 	logEntry := &raft.Log{
 		Index: 1, Term: 1, Type: raft.LogCommand,
@@ -324,7 +324,7 @@ func TestFSM_Apply_UnknownLogType(t *testing.T) {
 func TestFSM_Apply_EmptyLogData(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-empty", "/tmp", nil, nil)
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-empty", nil, nil)
 
 	logEntry := &raft.Log{
 		Index: 1, Term: 1, Type: raft.LogCommand,
@@ -341,7 +341,7 @@ func TestFSM_Apply_EmptyLogData(t *testing.T) {
 func TestFSM_Apply_SignerError(t *testing.T) {
 	mockSigner := newMockSigner(true) // Signer configured to return an error
 	logger := discardLogger()
-	fsm := NewAttesterFSM(logger, mockSigner, "test-node-signerr", "/tmp", nil, nil)
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-signerr", nil, nil)
 
 	height := uint64(107)
 	hash := testHash(7)
@@ -387,7 +387,7 @@ func (m *mockSnapshotSink) Cancel() error {
 func TestFSM_Snapshot_Restore(t *testing.T) {
 	mockSigner := newMockSigner(false)
 	logger := discardLogger()
-	fsm1 := NewAttesterFSM(logger, mockSigner, "node1", "/tmp", nil, nil)
+	fsm1 := NewAttesterFSM(logger, mockSigner, "node1", nil, nil)
 
 	// Apply some data to fsm1
 	height1, hash1, data1 := uint64(200), testHash(10), []byte("block200")
@@ -412,7 +412,7 @@ func TestFSM_Snapshot_Restore(t *testing.T) {
 	snapshot.Release() // Important to release
 
 	// Create a new FSM (fsm2) and restore from the snapshot
-	fsm2 := NewAttesterFSM(logger, mockSigner, "node2", "/tmp", nil, nil)
+	fsm2 := NewAttesterFSM(logger, mockSigner, "node2", nil, nil)
 	err = fsm2.Restore(io.NopCloser(&sink.buf)) // Wrap buffer in NopCloser
 	require.NoError(t, err, "Restore should succeed")
 
