@@ -71,27 +71,7 @@ func LoadSigner(cfg config.SigningConfig) (Signer, error) {
 		}
 		privKey := ed25519.PrivateKey(privKeyBytes)
 		return NewEd25519Signer(privKey)
-	case "bls":
-		// Placeholder for BLS implementation
-		// key, err := loadBlsPrivateKey(privKeyBytes)
-		// if err != nil { ... }
-		// return NewBlsSigner(key), nil
-		return nil, fmt.Errorf("BLS signing scheme not yet implemented")
 	default:
 		return nil, fmt.Errorf("unknown signing scheme specified in config: '%s'", cfg.Scheme)
 	}
 }
-
-// --- BLS Implementation (Placeholder) ---
-/*
-type BlsSigner struct {
-    // ... fields required for BLS (e.g., suite, private scalar)
-}
-
-func NewBlsSigner(...) (*BlsSigner, error) { ... }
-func (s *BlsSigner) Sign(data []byte) ([]byte, error) { ... }
-func (s *BlsSigner) PublicKey() []byte { ... }
-func (s *BlsSigner) Scheme() string { return "bls" }
-
-func loadBlsPrivateKey(data []byte) (..., error) { ... }
-*/

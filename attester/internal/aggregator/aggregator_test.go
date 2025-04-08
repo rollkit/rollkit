@@ -349,7 +349,7 @@ func TestGetAggregatedSignatures(t *testing.T) {
 		require.True(t, ok, "Expected ok=true when quorum is met")
 		require.NotNil(t, sigs)
 		require.Len(t, sigs, 2, "Expected 2 signatures when quorum is met")
-		// Check if the returned signatures match the ones added (order might vary)
+
 		require.Contains(t, sigs, sigQuorum0)
 		require.Contains(t, sigs, sigQuorum1)
 	})
@@ -367,5 +367,3 @@ func TestGetAggregatedSignatures(t *testing.T) {
 		require.Nil(t, sigs, "Expected nil slice for unknown height")
 	})
 }
-
-// TODO: Add test for PruneSignatures (if implemented)
