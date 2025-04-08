@@ -24,7 +24,7 @@ Disadvantages:
 - Forgone MEV Income: Based rollups sacrifice potential MEV revenue to the base layer, limiting their income primarily to base fees. However, this trade-off may be offset by achieving greater adoption due to enhanced security and simplicity.
 - Reduced Sequencing Flexibility: Relying on L1 for sequencing can constrain the rollup’s ability to offer services like rapid pre-confirmations or first-come-first-served transaction ordering, which are more straightforward in centralized sequencing models.
 
-Further details can be found in [Justin Drake's post about based rollups](justin-drake-based).
+Further details can be found in [Justin Drake's post about based rollups](https://ethresear.ch/t/based-rollups-superpowers-from-l1-sequencing/15016).
 
 Examples of based rollups:
 - [Taiko](https://taiko.mirror.xyz/7dfMydX1FqEx9_sOvhRt3V8hJksKSIWjzhCVu7FyMZU)
@@ -157,4 +157,3 @@ Proposed and under implementation.
 
 - [go-sequencing](https://github.com/rollkit/go-sequencing)
 - [go-da](https://github.com/rollkit/go-da)
-- [justin-drake-based](https://ethresear.ch/t/based-rollups-superpowers-from-l1-sequencing/15016)
