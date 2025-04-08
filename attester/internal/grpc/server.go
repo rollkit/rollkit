@@ -30,7 +30,7 @@ type RaftNode interface {
 // Aggregator defines the interface required from the signature aggregator.
 type Aggregator interface {
 	AddSignature(blockHeight uint64, blockHash []byte, attesterID string, signature []byte) (bool, error)
-	GetAggregatedSignature(blockHeight uint64, blockHash []byte) ([]byte, bool) // Assuming server might need this eventually
+	GetAggregatedSignatures(blockHeight uint64) ([][]byte, bool)
 }
 
 var _ attesterv1.AttesterServiceServer = (*AttesterServer)(nil)

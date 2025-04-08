@@ -77,7 +77,7 @@ In our blockchain ecosystem, the centralized sequencer is responsible for block 
     1. **DA Block Creation:** A Data Availability (DA) block is produced.
     2. **Sequencer Propagation:** The block is sent to the centralized sequencer.
     3. **Attester Verification & RAFT Proposal:** The sequencer (RAFT leader) forwards the block data to the attester network by proposing it via `raft.Apply()`.
-    4. **Consensus, Signing, and Signature Return:** Attester nodes achieve RAFT consensus on the block proposal. Each node applies the committed log entry to its local Finite State Machine (FSM), signs the relevant block data using its private key, and stores this signature locally within the FSM state. **Crucially, each attester node then actively pushes its generated signature (along with relevant block identifiers) back to the sequencer via a dedicated RPC call.**
+    4. **Consensus, Signing, and Signature Return:** Attester nodes achieve RAFT consensus on the block proposal. Each node applies the committed log entry to its local Finite State Machine (FSM), signs the relevant block data using its private key. **Crucially, each attester node then actively pushes its generated signature (along with relevant block identifiers) back to the sequencer via a dedicated RPC call.**
     5. **Signature Aggregation & Block Finalization:** The sequencer receives signatures from the attestors via the dedicated RPC endpoint. It aggregates these signatures (e.g., creating a multi-signature or collecting them) and includes the aggregated signature data in the block header as a validator hash before finalizing the block.
 
 ---
@@ -106,8 +106,8 @@ graph LR
 
 - **Step 1:** A DA block is created and submitted to the sequencer.
 - **Step 2:** The sequencer, acting as the leader in a RAFT cluster, proposes the block data to all attester nodes using `raft.Apply()`.
-- **Step 3:** Attester nodes participate in RAFT consensus. Once the block proposal is committed, each node applies it to its local FSM. Inside the FSM `Apply` function, the node validates the block (optionally executing content via a full node) and signs the relevant block data with its _local_ private key, storing the signature in its FSM state.
-- **Step 4:** **Signature Return:** After successful signing within the FSM, each attester node initiates a separate RPC call (e.g., `SubmitSignature`) back to the sequencer, sending its generated signature and necessary block identification (height/hash).
+- **Step 3:** Attester nodes participate in RAFT consensus. Once the block proposal is committed, each node applies it to its local FSM. Inside the FSM `Apply` function, the node validates the block (optionally executing content via a full node) and signs the relevant block data with its _local_ private key.
+- **Step 4:** **Signature Return:** After successful signing within the FSM `Apply` function, each attester node initiates a separate RPC call (e.g., `SubmitSignature`) back to the sequencer, sending its generated signature and necessary block identification (height/hash).
 - **Step 5:** **Signature Aggregation:** The sequencer listens for incoming signatures on its dedicated RPC endpoint. It collects signatures for the specific block from the attestors until a predefined condition is met (e.g., receiving signatures from a quorum or all nodes).
 - **Step 6:** **Block Finalization:** The sequencer embeds the aggregated attester signatures (or a cryptographic representation like a multi-sig or signature hash) into the final block header as the validator hash. The block is then committed, providing an extra security layer over the centralized sequencer.
 
@@ -139,8 +139,8 @@ The RAFT state machine (on each node) is responsible for:
 - Validating the block data upon applying the log entry.
 - Optionally triggering execution of block contents via a full node connection.
 - **Signing the appropriate block data using the node's local key.**
-- **Storing the resulting `BlockInfo` (including the local signature) in the local FSM state.** (Not mandatory I would say)
-- _(Triggering the subsequent signature submission RPC call back to the leader happens after the FSM `Apply` completes successfully)._
+- **Recording processed block identifiers (height/hash) to prevent replays.**
+- _(Triggering the subsequent signature submission RPC call back to the leader happens after the FSM `Apply` completes successfully and the block has been signed)._
 
 ### Signature Collection Protocol
 
@@ -176,7 +176,7 @@ Nodes also accept command line flags to override or supplement configuration fil
 - **Config Loader:** Reads the `config.toml` file and command line flags.
 - **RAFT Node Initialization:** Sets up the RAFT consensus node using HashiCorp's RAFT library. Includes setting up the FSM.
 - **Block Handling (Leader):** Receives blocks (e.g., from DA layer), proposes them to RAFT via `raft.Apply()`.
-- **FSM Implementation:** Contains the `Apply` logic for validating, optionally executing, signing block data with the local key, and storing `BlockInfo`.
+- **FSM Implementation:** Contains the `Apply` logic for validating, optionally executing, signing block data with the local key, and recording processed block identifiers.
 - **Signature Submission (Follower):** Logic triggered after successful FSM `Apply` to call the sequencer's `SubmitSignature` RPC endpoint.
 - **Signature Reception & Aggregation (Leader):** Implements the `SubmitSignature` RPC server endpoint and the logic to collect and aggregate signatures.
 - **Optional Execution:** For followers with execution enabled, connects to a full node to verify the correctness of block execution (likely triggered within the FSM `Apply`).
@@ -197,7 +197,7 @@ Nodes also accept command line flags to override or supplement configuration fil
     - When a block log entry is applied via the FSM:
         - Validate/Execute the block.
         - Sign the block data using the local key.
-        - Store `BlockInfo` locally.
+        - Record processed block identifiers locally.
     - **After FSM `Apply` returns successfully, call the sequencer's `SubmitSignature` RPC with the generated signature.**
 
 ---

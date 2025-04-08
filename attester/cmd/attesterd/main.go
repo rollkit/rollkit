@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	// "io" // No longer needed
 	"log/slog"
 	"os"
 	"os/signal"
@@ -16,14 +15,12 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/spf13/cobra"
 
-	"github.com/rollkit/rollkit/attester/internal/aggregator" // Import aggregator
+	"github.com/rollkit/rollkit/attester/internal/aggregator"
 	"github.com/rollkit/rollkit/attester/internal/config"
 	"github.com/rollkit/rollkit/attester/internal/fsm"
-	internalgrpc "github.com/rollkit/rollkit/attester/internal/grpc" // Import internal grpc package
+	internalgrpc "github.com/rollkit/rollkit/attester/internal/grpc"
 	internalraft "github.com/rollkit/rollkit/attester/internal/raft"
 	"github.com/rollkit/rollkit/attester/internal/signing"
-	// Placeholder imports - these packages might not exist or need adjustment
-	// "github.com/rollkit/rollkit/attester/internal/grpc"
 )
 
 // Constants for flag names and defaults
@@ -100,15 +97,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		slog.Error("Failed to load signing key", "error", err)
 		os.Exit(1)
 	}
-	slog.Info("Loaded signing key", "scheme", cfg.Signing.Scheme) // Assuming Scheme is accessible
+	slog.Info("Loaded signing key", "scheme", cfg.Signing.Scheme)
 
 	// Declare components needed across roles/scopes
 	var sigAggregator *aggregator.SignatureAggregator
 	var attesterFSM *fsm.AttesterFSM
 	var raftNode *raft.Raft
-	var transport raft.Transport // Use raft.Transport as returned by NewRaftNode
+	var transport raft.Transport
 	var grpcServer *internalgrpc.AttesterServer
-	var sigClient *internalgrpc.SignatureClient // Declare signature client
+	var sigClient *internalgrpc.Client
 
 	if isLeader {
 		// 6. Instantiate Aggregator (Leader only)
@@ -181,7 +178,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		clientCtx, clientCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer clientCancel() // Ensure context is cancelled eventually
 
-		sigClient, err = internalgrpc.NewSignatureClient(clientCtx, cfg.Network.SequencerSigEndpoint, logger)
+		sigClient, err = internalgrpc.NewClient(clientCtx, cfg.Network.SequencerSigEndpoint, logger) // Corrected constructor name
 		if err != nil {
 			slog.Error("Failed to initialize signature client", "error", err)
 			os.Exit(1)

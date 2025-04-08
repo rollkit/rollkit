@@ -51,7 +51,6 @@ message BlockInfo {
   uint64 height = 1;
   bytes hash = 2;         // Block hash (must match state.BlockHashSize).
   bytes data_to_sign = 3; // The data that was actually signed.
-  bytes signature = 4;    // The signature produced by the attester node.
 }
 
 // FSMState represents the serializable state of the AttesterFSM for snapshots.

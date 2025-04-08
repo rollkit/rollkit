@@ -12,8 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	// Import internal packages
-	"github.com/rollkit/rollkit/attester/internal/aggregator"
-	internalgrpc "github.com/rollkit/rollkit/attester/internal/grpc"
+
 	"github.com/rollkit/rollkit/attester/internal/signing"
 	"github.com/rollkit/rollkit/attester/internal/state"
 
@@ -25,25 +24,41 @@ const (
 	LogEntryTypeSubmitBlock byte = 0x01
 )
 
+// --- Interfaces for Dependencies --- //
+
+// BlockDataSetter defines the interface for setting block data in the aggregator.
+// This allows mocking the aggregator dependency.
+type BlockDataSetter interface {
+	SetBlockData(blockHash []byte, dataToSign []byte)
+}
+
+// SignatureSubmitter defines the interface for submitting signatures.
+// This allows mocking the gRPC client dependency.
+type SignatureSubmitter interface {
+	SubmitSignature(ctx context.Context, height uint64, hash []byte, attesterID string, signature []byte) error
+}
+
 // AttesterFSM implements the raft.FSM interface for the attester service.
 // It manages the state related to attested blocks.
 type AttesterFSM struct {
 	mu sync.RWMutex
 
 	// State - These maps need to be persisted via Snapshot/Restore
-	processedBlocks map[uint64]state.BlockHash           // Height -> Hash (ensures height uniqueness)
-	blockDetails    map[state.BlockHash]*state.BlockInfo // Hash -> Full block info including signature
+	processedBlocks map[uint64]state.BlockHash // Height -> Hash (ensures height uniqueness)
+	blockDetails    map[state.BlockHash]*state.BlockInfo
 
-	logger     *slog.Logger
-	signer     signing.Signer
-	aggregator *aggregator.SignatureAggregator
-	sigClient  *internalgrpc.SignatureClient
+	logger *slog.Logger
+	signer signing.Signer
+	// Use interfaces for dependencies
+	aggregator BlockDataSetter    // Interface for aggregator
+	sigClient  SignatureSubmitter // Interface for signature client
 	nodeID     string
 	// db *bolt.DB // Optional: Direct DB access if state becomes too complex for memory/simple snapshot
 }
 
 // NewAttesterFSM creates a new instance of the AttesterFSM.
-func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, dataDir string, aggregator *aggregator.SignatureAggregator, sigClient *internalgrpc.SignatureClient) *AttesterFSM {
+// It now accepts interfaces for aggregator and sigClient for better testability.
+func NewAttesterFSM(logger *slog.Logger, signer signing.Signer, nodeID string, dataDir string, aggregator BlockDataSetter, sigClient SignatureSubmitter) *AttesterFSM {
 	if nodeID == "" {
 		panic("node ID cannot be empty for FSM")
 	}
@@ -117,7 +132,6 @@ func (f *AttesterFSM) Apply(logEntry *raft.Log) interface{} {
 			f.logger.Error("Failed to sign data for block", append(logArgs, "error", err)...)
 			return fmt.Errorf("failed to sign data at index %d: %w", logEntry.Index, err)
 		}
-		info.Signature = signature
 
 		f.processedBlocks[info.Height] = info.Hash
 		f.blockDetails[info.Hash] = info
@@ -133,7 +147,7 @@ func (f *AttesterFSM) Apply(logEntry *raft.Log) interface{} {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 
-				err := f.sigClient.SubmitSignature(ctx, blockInfo.Height, blockInfo.Hash[:], f.nodeID, blockInfo.Signature)
+				err := f.sigClient.SubmitSignature(ctx, blockInfo.Height, blockInfo.Hash[:], f.nodeID, signature)
 				if err != nil {
 					f.logger.Error("Failed to submit signature to leader",
 						"block_height", blockInfo.Height,
@@ -158,24 +172,30 @@ func (f *AttesterFSM) Snapshot() (raft.FSMSnapshot, error) {
 
 	f.logger.Info("Creating FSM snapshot...")
 
-	allBlocks := make([]*state.BlockInfo, 0, len(f.blockDetails))
+	allProtoBlocks := make([]*attesterv1.BlockInfo, 0, len(f.blockDetails))
 	for _, info := range f.blockDetails {
-		allBlocks = append(allBlocks, info)
+		// Convert internal state.BlockInfo to proto BlockInfo for marshaling
+		// Note: proto BlockInfo no longer has signature field
+		protoBlock := &attesterv1.BlockInfo{
+			Height:     info.Height,
+			Hash:       info.Hash[:], // Convert state.BlockHash (array) to bytes slice
+			DataToSign: info.DataToSign,
+		}
+		allProtoBlocks = append(allProtoBlocks, protoBlock)
 	}
 
-	fsmState := state.FSMState{
-		Blocks: allBlocks,
+	fsmStateProto := attesterv1.FSMState{
+		Blocks: allProtoBlocks,
 	}
 
-	var dataBytes []byte
-	err := fmt.Errorf("TODO: Implement FSM state marshaling (protobuf/gob)")
+	dataBytes, err := proto.Marshal(&fsmStateProto)
 
 	if err != nil {
 		f.logger.Error("Failed to marshal FSM state for snapshot", "error", err)
 		return nil, err
 	}
 
-	f.logger.Info("FSM snapshot created", "size_bytes", len(dataBytes), "note", "Marshaling not implemented")
+	f.logger.Info("FSM snapshot created", "size_bytes", len(dataBytes), "blocks", len(allProtoBlocks))
 	return &fsmSnapshot{state: dataBytes}, nil
 }
 
@@ -192,10 +212,8 @@ func (f *AttesterFSM) Restore(snapshot io.ReadCloser) error {
 		return err
 	}
 
-	var restoredState state.FSMState
-	err = fmt.Errorf("TODO: Implement FSM state unmarshaling (protobuf/gob)")
-
-	if err != nil {
+	var restoredStateProto attesterv1.FSMState
+	if err := proto.Unmarshal(dataBytes, &restoredStateProto); err != nil {
 		f.logger.Error("Failed to unmarshal FSM state from snapshot", "error", err)
 		return err
 	}
@@ -203,15 +221,31 @@ func (f *AttesterFSM) Restore(snapshot io.ReadCloser) error {
 	f.processedBlocks = make(map[uint64]state.BlockHash)
 	f.blockDetails = make(map[state.BlockHash]*state.BlockInfo)
 
-	for _, info := range restoredState.Blocks {
-		if info == nil {
+	for _, protoInfo := range restoredStateProto.Blocks {
+		if protoInfo == nil {
 			f.logger.Warn("Found nil BlockInfo in restored snapshot, skipping")
 			continue
 		}
-		if len(info.Hash) != state.BlockHashSize {
+		// Convert proto BlockInfo back to internal state.BlockInfo
+		blockHash, err := state.BlockHashFromBytes(protoInfo.Hash)
+		if err != nil {
+			f.logger.Error("Invalid BlockHash bytes found in snapshot, skipping", "height", protoInfo.Height, "hash_hex", fmt.Sprintf("%x", protoInfo.Hash), "error", err)
+			continue
+		}
+
+		// Reconstruct the internal state type
+		info := &state.BlockInfo{
+			Height:     protoInfo.Height,
+			Hash:       blockHash,
+			DataToSign: protoInfo.DataToSign,
+			// Signature field no longer exists here
+		}
+
+		if len(info.Hash) != state.BlockHashSize { // Redundant check due to BlockHashFromBytes, but safe
 			f.logger.Error("Invalid BlockHash size found in snapshot, skipping", "height", info.Height, "size", len(info.Hash))
 			continue
 		}
+
 		if existingHash, heightExists := f.processedBlocks[info.Height]; heightExists {
 			f.logger.Error("Duplicate height found during snapshot restore",
 				"height", info.Height, "hash1", existingHash.String(), "hash2", info.Hash.String())
@@ -227,7 +261,7 @@ func (f *AttesterFSM) Restore(snapshot io.ReadCloser) error {
 		f.blockDetails[info.Hash] = info
 	}
 
-	f.logger.Info("FSM restored successfully from snapshot", "blocks_loaded", len(f.blockDetails), "note", "Unmarshaling not implemented")
+	f.logger.Info("FSM restored successfully from snapshot", "blocks_loaded", len(f.blockDetails))
 	return nil
 }
 

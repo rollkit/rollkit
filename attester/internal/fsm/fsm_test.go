@@ -1,21 +1,26 @@
 package fsm
 
 import (
+	"bytes"
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/raft"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/rollkit/rollkit/attester/internal/signing"
 	"github.com/rollkit/rollkit/attester/internal/state"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	// Import generated protobuf types from the api directory
 	attesterv1 "github.com/rollkit/rollkit/attester/api/gen/attester/v1"
 )
 
@@ -43,8 +48,6 @@ func (m *mockSigner) Sign(data []byte) ([]byte, error) {
 	if m.signShouldError {
 		return nil, fmt.Errorf("mock signer error")
 	}
-	// Return a signature derived from data to make it unique if needed
-	// return append(m.signatureToReturn, data...), nil
 	return m.signatureToReturn, nil
 }
 
@@ -59,12 +62,36 @@ func (m *mockSigner) Scheme() string {
 // Ensure mockSigner implements signing.Signer
 var _ signing.Signer = (*mockSigner)(nil)
 
+// Mock Signature Client
+type mockSignatureClient struct {
+	mock.Mock
+}
+
+func (m *mockSignatureClient) SubmitSignature(ctx context.Context, height uint64, hash []byte, attesterID string, signature []byte) error {
+	args := m.Called(ctx, height, hash, attesterID, signature)
+	return args.Error(0)
+}
+
+// Ensure mockSignatureClient implements SignatureSubmitter
+var _ SignatureSubmitter = (*mockSignatureClient)(nil)
+
+// Mock Aggregator
+type mockAggregator struct {
+	mock.Mock
+}
+
+func (m *mockAggregator) SetBlockData(blockHash []byte, dataToSign []byte) {
+	m.Called(blockHash, dataToSign)
+}
+
+// Ensure mockAggregator implements BlockDataSetter
+var _ BlockDataSetter = (*mockAggregator)(nil)
+
 // --- Helpers --- //
 
 // Helper to create a raft log entry with a marshaled request
 func createTestLogEntry(t *testing.T, height uint64, hash []byte, dataToSign []byte) *raft.Log {
 	t.Helper()
-	// Use the generated type now
 	req := &attesterv1.SubmitBlockRequest{
 		BlockHeight: height,
 		BlockHash:   hash,
@@ -92,12 +119,16 @@ func testHash(seed byte) state.BlockHash {
 	return hash
 }
 
-// --- Tests --- //
+// Helper to create a discard logger for slog
+func discardLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
 
-func TestFSM_Apply_SubmitBlock_Success(t *testing.T) {
-	mockSigner := newMockSigner(false)                              // Signer should succeed
-	logger := log.New(io.Discard, "", 0)                            // Discard logs
-	fsm := NewAttesterFSM(logger, mockSigner, "/tmp/test-fsm-data") // dataDir not used yet
+func TestFSM_Apply_SubmitBlock_Success_NoSubmit(t *testing.T) {
+	mockSigner := newMockSigner(false)
+	logger := discardLogger()
+	// Provide nil for aggregator and sigClient as they are not tested here
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node", "/tmp", nil, nil)
 
 	height := uint64(100)
 	hash := testHash(1)
@@ -106,117 +137,168 @@ func TestFSM_Apply_SubmitBlock_Success(t *testing.T) {
 
 	applyResponse := fsm.Apply(logEntry)
 
-	// Check response type and value
 	blockInfo, ok := applyResponse.(*state.BlockInfo)
 	require.True(t, ok, "Apply response should be of type *state.BlockInfo")
 	require.NotNil(t, blockInfo)
 	assert.Equal(t, height, blockInfo.Height)
 	assert.Equal(t, hash, blockInfo.Hash)
 	assert.Equal(t, dataToSign, blockInfo.DataToSign)
-	assert.Equal(t, mockSigner.signatureToReturn, blockInfo.Signature)
 
-	// Check internal FSM state
 	fsm.mu.RLock()
 	defer fsm.mu.RUnlock()
 
 	savedHash, heightExists := fsm.processedBlocks[height]
-	assert.True(t, heightExists, "Height should be recorded in processedBlocks")
-	assert.Equal(t, hash, savedHash, "Hash in processedBlocks should match")
-
+	assert.True(t, heightExists)
+	assert.Equal(t, hash, savedHash)
 	savedInfo, hashExists := fsm.blockDetails[hash]
-	assert.True(t, hashExists, "Hash should be recorded in blockDetails")
-	assert.Equal(t, blockInfo, savedInfo, "BlockInfo in blockDetails should match the returned one")
+	assert.True(t, hashExists)
+	assert.Equal(t, blockInfo, savedInfo)
+}
+
+// Tests that were previously commented out are now active
+
+func TestFSM_Apply_SubmitBlock_Success_WithSubmit(t *testing.T) {
+	mockSigner := newMockSigner(false)
+	mockSigClient := new(mockSignatureClient)
+	mockAgg := new(mockAggregator)
+	logger := discardLogger()
+	nodeID := "test-node-submit"
+	// This call fails because mockAgg and mockSigClient don't match concrete types
+	fsm := NewAttesterFSM(logger, mockSigner, nodeID, "/tmp", mockAgg, mockSigClient)
+
+	height := uint64(101)
+	hash := testHash(2)
+	dataToSign := []byte("data for block 101")
+	logEntry := createTestLogEntry(t, height, hash[:], dataToSign)
+
+	// Expect aggregator SetBlockData call
+	mockAgg.On("SetBlockData", hash[:], dataToSign).Return()
+	// Expect signature client SubmitSignature call
+	mockSigClient.On("SubmitSignature", mock.Anything, // context
+		height, hash[:], nodeID, mockSigner.signatureToReturn).Return(nil) // Expect success
+
+	applyResponse := fsm.Apply(logEntry)
+	_, ok := applyResponse.(*state.BlockInfo)
+	require.True(t, ok)
+
+	// Allow time for the goroutine to execute
+	time.Sleep(100 * time.Millisecond)
+
+	mockAgg.AssertExpectations(t)
+	mockSigClient.AssertExpectations(t)
+}
+
+func TestFSM_Apply_SubmitBlock_SubmitError(t *testing.T) {
+	mockSigner := newMockSigner(false)
+	mockSigClient := new(mockSignatureClient)
+	mockAgg := new(mockAggregator)
+	logger := discardLogger()
+	nodeID := "test-node-submit-err"
+	// This call fails because mockAgg and mockSigClient don't match concrete types
+	fsm := NewAttesterFSM(logger, mockSigner, nodeID, "/tmp", mockAgg, mockSigClient)
+
+	height := uint64(102)
+	hash := testHash(3)
+	dataToSign := []byte("data for block 102")
+	logEntry := createTestLogEntry(t, height, hash[:], dataToSign)
+	submitErr := fmt.Errorf("network error")
+
+	mockAgg.On("SetBlockData", hash[:], dataToSign).Return()
+	mockSigClient.On("SubmitSignature", mock.Anything, height, hash[:], nodeID, mockSigner.signatureToReturn).Return(submitErr)
+
+	applyResponse := fsm.Apply(logEntry)
+	_, ok := applyResponse.(*state.BlockInfo)
+	require.True(t, ok) // Apply itself should still succeed
+
+	time.Sleep(100 * time.Millisecond)
+
+	mockAgg.AssertExpectations(t)
+	mockSigClient.AssertExpectations(t)
+	// Note: We can't easily assert the error log, but we've asserted the mock was called.
 }
 
 func TestFSM_Apply_SubmitBlock_DuplicateHeight(t *testing.T) {
 	mockSigner := newMockSigner(false)
-	logger := log.New(io.Discard, "", 0)
-	fsm := NewAttesterFSM(logger, mockSigner, "")
+	logger := discardLogger()
+	// Pass nil for aggregator/client as they shouldn't be called on duplicate
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-dup", "/tmp", nil, nil)
 
-	height := uint64(101)
-	hash1 := testHash(1)
-	hash2 := testHash(2) // Different hash, same height
+	height := uint64(103)
+	hash1 := testHash(4)
+	hash2 := testHash(5)
 	dataToSign1 := []byte("data1")
 	dataToSign2 := []byte("data2")
 
 	logEntry1 := createTestLogEntry(t, height, hash1[:], dataToSign1)
 	logEntry2 := createTestLogEntry(t, height, hash2[:], dataToSign2)
 
-	// Apply the first one - should succeed
 	applyResponse1 := fsm.Apply(logEntry1)
 	_, ok1 := applyResponse1.(*state.BlockInfo)
-	require.True(t, ok1, "First apply should return BlockInfo")
+	require.True(t, ok1)
 
-	// Apply the second one with the same height - should be ignored
 	applyResponse2 := fsm.Apply(logEntry2)
-	assert.Nil(t, applyResponse2, "Apply response for duplicate height should be nil")
+	assert.Nil(t, applyResponse2)
 
-	// Verify internal state reflects only the first block
 	fsm.mu.RLock()
 	defer fsm.mu.RUnlock()
-	assert.Equal(t, 1, len(fsm.processedBlocks), "Only one height should be processed")
-	assert.Equal(t, hash1, fsm.processedBlocks[height], "Stored hash should be from the first apply")
-	assert.Equal(t, 1, len(fsm.blockDetails), "Only one block detail should be stored")
+	assert.Equal(t, 1, len(fsm.processedBlocks))
+	assert.Equal(t, hash1, fsm.processedBlocks[height])
+	assert.Equal(t, 1, len(fsm.blockDetails))
 	_, detailExists := fsm.blockDetails[hash2]
-	assert.False(t, detailExists, "Details for the second hash should not exist")
+	assert.False(t, detailExists)
 }
 
 func TestFSM_Apply_SubmitBlock_InvalidHashSize(t *testing.T) {
 	mockSigner := newMockSigner(false)
-	logger := log.New(io.Discard, "", 0)
-	fsm := NewAttesterFSM(logger, mockSigner, "")
+	logger := discardLogger()
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-invhash", "/tmp", nil, nil)
 
-	height := uint64(102)
-	invalidHash := []byte{0x01, 0x02, 0x03} // Too short
+	height := uint64(104)
+	invalidHash := []byte{0x01, 0x02, 0x03}
 	dataToSign := []byte("data")
 	logEntry := createTestLogEntry(t, height, invalidHash, dataToSign)
 
 	applyResponse := fsm.Apply(logEntry)
 
-	// Should return an error
 	err, ok := applyResponse.(error)
-	assert.True(t, ok, "Apply response should be an error for invalid hash size")
+	assert.True(t, ok)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid block hash size", "Error message should mention invalid hash size")
+	assert.Contains(t, err.Error(), "invalid block hash size")
 
-	// Verify internal state is unchanged
 	fsm.mu.RLock()
 	defer fsm.mu.RUnlock()
-	assert.Empty(t, fsm.processedBlocks, "processedBlocks should be empty")
-	assert.Empty(t, fsm.blockDetails, "blockDetails should be empty")
+	assert.Empty(t, fsm.processedBlocks)
+	assert.Empty(t, fsm.blockDetails)
 }
 
 func TestFSM_Apply_SubmitBlock_DuplicateHash(t *testing.T) {
 	mockSigner := newMockSigner(false)
-	logger := log.New(io.Discard, "", 0)
-	fsm := NewAttesterFSM(logger, mockSigner, "")
+	logger := discardLogger()
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-duphash", "/tmp", nil, nil)
 
-	height1 := uint64(103)
-	height2 := uint64(104) // Different height, same hash
-	hash := testHash(3)
+	height1 := uint64(105)
+	height2 := uint64(106)
+	hash := testHash(6)
 	dataToSign1 := []byte("data1")
 	dataToSign2 := []byte("data2")
 
 	logEntry1 := createTestLogEntry(t, height1, hash[:], dataToSign1)
 	logEntry2 := createTestLogEntry(t, height2, hash[:], dataToSign2)
 
-	// Apply the first one - should succeed
 	applyResponse1 := fsm.Apply(logEntry1)
 	_, ok1 := applyResponse1.(*state.BlockInfo)
-	require.True(t, ok1, "First apply should return BlockInfo")
+	require.True(t, ok1)
 
-	// Apply the second one with the same hash - should error
 	applyResponse2 := fsm.Apply(logEntry2)
 	err, ok := applyResponse2.(error)
-	assert.True(t, ok, "Apply response for duplicate hash should be an error")
+	assert.True(t, ok)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "collision or duplicate", "Error message should mention collision or duplicate")
+	assert.Contains(t, err.Error(), "collision or duplicate")
 
-	// Verify internal state reflects only the first block
 	fsm.mu.RLock()
 	defer fsm.mu.RUnlock()
-	assert.Equal(t, 1, len(fsm.processedBlocks), "Only one height should be processed")
-	assert.Equal(t, 1, len(fsm.blockDetails), "Only one block detail should be stored")
+	assert.Equal(t, 1, len(fsm.processedBlocks))
+	assert.Equal(t, 1, len(fsm.blockDetails))
 	assert.Equal(t, hash, fsm.processedBlocks[height1])
 	_, height2Exists := fsm.processedBlocks[height2]
 	assert.False(t, height2Exists)
@@ -224,8 +306,8 @@ func TestFSM_Apply_SubmitBlock_DuplicateHash(t *testing.T) {
 
 func TestFSM_Apply_UnknownLogType(t *testing.T) {
 	mockSigner := newMockSigner(false)
-	logger := log.New(io.Discard, "", 0)
-	fsm := NewAttesterFSM(logger, mockSigner, "")
+	logger := discardLogger()
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-unknown", "/tmp", nil, nil)
 
 	logEntry := &raft.Log{
 		Index: 1, Term: 1, Type: raft.LogCommand,
@@ -234,15 +316,15 @@ func TestFSM_Apply_UnknownLogType(t *testing.T) {
 
 	applyResponse := fsm.Apply(logEntry)
 	err, ok := applyResponse.(error)
-	assert.True(t, ok, "Apply response for unknown log type should be an error")
+	assert.True(t, ok)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown log entry type", "Error message should mention unknown type")
+	assert.Contains(t, err.Error(), "unknown log entry type")
 }
 
 func TestFSM_Apply_EmptyLogData(t *testing.T) {
 	mockSigner := newMockSigner(false)
-	logger := log.New(io.Discard, "", 0)
-	fsm := NewAttesterFSM(logger, mockSigner, "")
+	logger := discardLogger()
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-empty", "/tmp", nil, nil)
 
 	logEntry := &raft.Log{
 		Index: 1, Term: 1, Type: raft.LogCommand,
@@ -251,35 +333,103 @@ func TestFSM_Apply_EmptyLogData(t *testing.T) {
 
 	applyResponse := fsm.Apply(logEntry)
 	err, ok := applyResponse.(error)
-	assert.True(t, ok, "Apply response for empty log data should be an error")
+	assert.True(t, ok)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "empty log data", "Error message should mention empty data")
+	assert.Contains(t, err.Error(), "empty log data")
 }
 
 func TestFSM_Apply_SignerError(t *testing.T) {
 	mockSigner := newMockSigner(true) // Signer configured to return an error
-	logger := log.New(io.Discard, "", 0)
-	fsm := NewAttesterFSM(logger, mockSigner, "")
+	logger := discardLogger()
+	fsm := NewAttesterFSM(logger, mockSigner, "test-node-signerr", "/tmp", nil, nil)
 
-	height := uint64(105)
-	hash := testHash(4)
+	height := uint64(107)
+	hash := testHash(7)
 	dataToSign := []byte("data")
 	logEntry := createTestLogEntry(t, height, hash[:], dataToSign)
 
 	applyResponse := fsm.Apply(logEntry)
 
 	err, ok := applyResponse.(error)
-	assert.True(t, ok, "Apply response should be an error when signer fails")
+	assert.True(t, ok)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to sign data", "Error message should mention signing failure")
-	// Check the wrapped error maybe?
-	// assert.ErrorContains(t, err, "mock signer error")
+	assert.Contains(t, err.Error(), "failed to sign data")
 
-	// Verify internal state is unchanged
 	fsm.mu.RLock()
 	defer fsm.mu.RUnlock()
-	assert.Empty(t, fsm.processedBlocks, "processedBlocks should be empty on signer error")
-	assert.Empty(t, fsm.blockDetails, "blockDetails should be empty on signer error")
+	assert.Empty(t, fsm.processedBlocks)
+	assert.Empty(t, fsm.blockDetails)
 }
 
-// TODO: Add tests for Snapshot/Restore (once marshaling is implemented)
+// Mock SnapshotSink
+type mockSnapshotSink struct {
+	buf bytes.Buffer
+	id  string
+}
+
+func (m *mockSnapshotSink) Write(p []byte) (n int, err error) {
+	return m.buf.Write(p)
+}
+
+func (m *mockSnapshotSink) Close() error {
+	return nil // Indicate success
+}
+
+func (m *mockSnapshotSink) ID() string {
+	return m.id
+}
+
+func (m *mockSnapshotSink) Cancel() error {
+	return fmt.Errorf("snapshot cancelled")
+}
+
+// Test Snapshot and Restore
+func TestFSM_Snapshot_Restore(t *testing.T) {
+	mockSigner := newMockSigner(false)
+	logger := discardLogger()
+	fsm1 := NewAttesterFSM(logger, mockSigner, "node1", "/tmp", nil, nil)
+
+	// Apply some data to fsm1
+	height1, hash1, data1 := uint64(200), testHash(10), []byte("block200")
+	height2, hash2, data2 := uint64(201), testHash(11), []byte("block201")
+	applyResp1 := fsm1.Apply(createTestLogEntry(t, height1, hash1[:], data1))
+	require.NotNil(t, applyResp1)
+	// Use assert.NotImplements which checks if the value implements the error interface
+	assert.NotImplements(t, (*error)(nil), applyResp1, "Apply 1 should not return an error")
+	applyResp2 := fsm1.Apply(createTestLogEntry(t, height2, hash2[:], data2))
+	require.NotNil(t, applyResp2)
+	assert.NotImplements(t, (*error)(nil), applyResp2, "Apply 2 should not return an error")
+
+	// Take a snapshot of fsm1
+	snapshot, err := fsm1.Snapshot()
+	require.NoError(t, err, "Snapshot should succeed")
+	require.NotNil(t, snapshot)
+
+	// Persist the snapshot to a buffer
+	sink := &mockSnapshotSink{id: "snap1"}
+	err = snapshot.Persist(sink)
+	require.NoError(t, err, "Persist should succeed")
+	snapshot.Release() // Important to release
+
+	// Create a new FSM (fsm2) and restore from the snapshot
+	fsm2 := NewAttesterFSM(logger, mockSigner, "node2", "/tmp", nil, nil)
+	err = fsm2.Restore(io.NopCloser(&sink.buf)) // Wrap buffer in NopCloser
+	require.NoError(t, err, "Restore should succeed")
+
+	// Verify the state of fsm2 matches fsm1
+	fsm1.mu.RLock()
+	fsm2.mu.RLock()
+	defer fsm1.mu.RUnlock()
+	defer fsm2.mu.RUnlock()
+
+	assert.Equal(t, fsm1.processedBlocks, fsm2.processedBlocks, "Restored processedBlocks should match")
+	assert.Equal(t, fsm1.blockDetails, fsm2.blockDetails, "Restored blockDetails should match")
+	assert.Len(t, fsm2.processedBlocks, 2, "Restored fsm should have 2 processed blocks")
+	assert.Len(t, fsm2.blockDetails, 2, "Restored fsm should have 2 block details")
+
+	// Check specific entries
+	assert.Equal(t, hash1, fsm2.processedBlocks[height1])
+	assert.Equal(t, hash2, fsm2.processedBlocks[height2])
+	assert.Equal(t, data1, fsm2.blockDetails[hash1].DataToSign)
+	assert.Equal(t, data2, fsm2.blockDetails[hash2].DataToSign)
+}

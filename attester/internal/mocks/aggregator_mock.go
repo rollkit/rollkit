@@ -21,14 +21,14 @@ func (m *MockAggregator) AddSignature(blockHeight uint64, blockHash []byte, atte
 	return args.Bool(0), args.Error(1)
 }
 
-// GetAggregatedSignature mock implementation.
-func (m *MockAggregator) GetAggregatedSignature(blockHeight uint64, blockHash []byte) ([]byte, bool) {
-	args := m.Called(blockHeight, blockHash)
-	// Handle potential nil return if the mock isn't configured to return []byte
-	var res []byte
+// GetAggregatedSignatures mock implementation. (Updated name and signature)
+func (m *MockAggregator) GetAggregatedSignatures(blockHeight uint64) ([][]byte, bool) {
+	args := m.Called(blockHeight)
+	// Handle potential nil return for the slice
+	var res [][]byte
 	ret := args.Get(0)
 	if ret != nil {
-		res = ret.([]byte)
+		res = ret.([][]byte)
 	}
 	return res, args.Bool(1)
 }
