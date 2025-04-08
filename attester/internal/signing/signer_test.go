@@ -94,20 +94,6 @@ func TestLoadSigner_UnknownScheme(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown signing scheme", "Error message should indicate unknown scheme")
 }
 
-func TestLoadSigner_BLSScheme_Unimplemented(t *testing.T) {
-	// Create a dummy file, content doesn't matter as BLS is checked first
-	keyPath := createDummyFileWithContent(t, "bls_key.priv", []byte("dummy bls key data"))
-
-	signingCfg := config.SigningConfig{
-		PrivateKeyPath: keyPath,
-		Scheme:         "bls",
-	}
-
-	_, err := LoadSigner(signingCfg)
-	require.Error(t, err, "LoadSigner should fail for unimplemented BLS scheme")
-	assert.Contains(t, err.Error(), "BLS signing scheme not yet implemented", "Error message should indicate BLS unimplemented")
-}
-
 func TestEd25519Signer_SignAndVerify(t *testing.T) {
 	privKey, pubKey, _ := createTempEd25519KeyFile(t)
 

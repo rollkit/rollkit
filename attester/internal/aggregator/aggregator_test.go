@@ -357,7 +357,7 @@ func TestGetAggregatedSignatures(t *testing.T) {
 	t.Run("QuorumNotMet", func(t *testing.T) {
 		sigs, ok := agg.GetAggregatedSignatures(blockHeightPartial)
 		require.False(t, ok, "Expected ok=false when quorum is not met")
-		require.Nil(t, sigs, "Expected nil slice when quorum is not met") // Function returns nil explicitly
+		require.Nil(t, sigs, "Expected nil slice when quorum is not met")
 	})
 
 	t.Run("HeightNotFound", func(t *testing.T) {

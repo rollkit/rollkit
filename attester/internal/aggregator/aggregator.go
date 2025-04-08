@@ -144,12 +144,10 @@ func (a *SignatureAggregator) GetAggregatedSignatures(blockHeight uint64) ([][]b
 
 	sigsForHeight, exists := a.signatures[blockHeight]
 	if !exists {
-		// No signatures recorded for this height yet
 		return nil, false
 	}
 
 	if len(sigsForHeight) < a.quorumThreshold {
-		// Quorum not yet met
 		return nil, false
 	}
 
