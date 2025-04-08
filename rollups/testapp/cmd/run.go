@@ -46,7 +46,7 @@ var RunCmd = &cobra.Command{
 		}
 
 		dac := da.NewDAClient(
-			daJrpc, // Updated to use daJrpc instead of da.NewNoOpDA()
+			daJrpc,
 			nodeConfig.DA.GasPrice,
 			nodeConfig.DA.GasMultiplier,
 			[]byte(nodeConfig.DA.Namespace),
