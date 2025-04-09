@@ -135,9 +135,6 @@ func TestParseFlags(t *testing.T) {
 		{"Light", nodeConfig.Node.Light, true},
 		{"MaxPendingBlocks", nodeConfig.Node.MaxPendingBlocks, uint64(100)},
 		{"TrustedHash", nodeConfig.Node.TrustedHash, "abcdef1234567890"},
-		{"SequencerAddress", nodeConfig.Node.SequencerAddress, "seq@127.0.0.1:27007"},
-		{"SequencerRollupID", nodeConfig.Node.SequencerRollupID, "test-rollup"},
-		{"ExecutorAddress", nodeConfig.Node.ExecutorAddress, "exec@127.0.0.1:27008"},
 		{"DASubmitOptions", nodeConfig.DA.SubmitOptions, "custom-options"},
 
 		{"Prometheus", nodeConfig.Instrumentation.Prometheus, true},
@@ -258,14 +255,6 @@ func TestCentralizedAddresses(t *testing.T) {
 		t.Errorf("Expected nodeConfig.Rollkit.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.DA.Address)
 	}
 
-	if nodeConfig.Node.SequencerAddress != "central-seq:26659" {
-		t.Errorf("Expected nodeConfig.Rollkit.SequencerAddress to be 'central-seq:26659', got '%s'", nodeConfig.Node.SequencerAddress)
-	}
-
-	// Also confirm that the sequencer rollup id flag is marked as changed
-	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
-	}
 }
 
 // newRunNodeCmd returns the command that allows the CLI to start a node.

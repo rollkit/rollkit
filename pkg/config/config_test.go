@@ -33,9 +33,6 @@ func TestDefaultNodeConfig(t *testing.T) {
 	assert.Equal(t, false, def.Node.LazyAggregator)
 	assert.Equal(t, 60*time.Second, def.Node.LazyBlockTime.Duration)
 	assert.Equal(t, "", def.Node.TrustedHash)
-	assert.Equal(t, def.Node.SequencerAddress, def.Node.SequencerAddress)
-	assert.Equal(t, def.Node.SequencerRollupID, def.Node.SequencerRollupID)
-	assert.Equal(t, def.Node.ExecutorAddress, def.Node.ExecutorAddress)
 	assert.Equal(t, "file", def.Signer.SignerType)
 	assert.Equal(t, "config", def.Signer.SignerPath)
 }
@@ -62,9 +59,6 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagLazyAggregator, DefaultNodeConfig.Node.LazyAggregator)
 	assertFlagValue(t, flags, FlagMaxPendingBlocks, DefaultNodeConfig.Node.MaxPendingBlocks)
 	assertFlagValue(t, flags, FlagLazyBlockTime, DefaultNodeConfig.Node.LazyBlockTime.Duration)
-	assertFlagValue(t, flags, FlagSequencerAddress, DefaultNodeConfig.Node.SequencerAddress)
-	assertFlagValue(t, flags, FlagSequencerRollupID, DefaultNodeConfig.Node.SequencerRollupID)
-	assertFlagValue(t, flags, FlagExecutorAddress, DefaultNodeConfig.Node.ExecutorAddress)
 
 	// DA flags
 	assertFlagValue(t, flags, FlagDAAddress, DefaultNodeConfig.DA.Address)

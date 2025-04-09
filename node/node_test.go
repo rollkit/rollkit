@@ -194,9 +194,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	config := rollkitconfig.Config{
 		RootDir: t.TempDir(),
 		Node: rollkitconfig.NodeConfig{
-			ExecutorAddress:  MockExecutorAddress,
-			SequencerAddress: MockSequencerAddress,
-			Light:            nodeType == Light,
+			Light: nodeType == Light,
 		},
 		DA: rollkitconfig.DAConfig{
 			Address:   MockDAAddress,

@@ -44,12 +44,6 @@ const (
 	FlagMaxPendingBlocks = "rollkit.node.max_pending_blocks"
 	// FlagLazyBlockTime is a flag for specifying the maximum interval between blocks in lazy aggregation mode
 	FlagLazyBlockTime = "rollkit.node.lazy_block_time"
-	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
-	FlagSequencerAddress = "rollkit.node.sequencer_address"
-	// FlagSequencerRollupID is a flag for specifying the sequencer middleware rollup ID
-	FlagSequencerRollupID = "rollkit.node.sequencer_rollup_id"
-	// FlagExecutorAddress is a flag for specifying the sequencer middleware address
-	FlagExecutorAddress = "rollkit.node.executor_address"
 
 	// Data Availability configuration flags
 
@@ -198,11 +192,6 @@ type NodeConfig struct {
 
 	// Header configuration
 	TrustedHash string `mapstructure:"trusted_hash" yaml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis. When provided, the node will fetch the corresponding header/block from peers using this hash and use it as a starting point for synchronization. If not provided, the node will attempt to fetch the genesis block instead."`
-
-	// Sequencer configuration
-	SequencerAddress  string `mapstructure:"sequencer_address" yaml:"sequencer_address" comment:"Address of the sequencer middleware (host:port). The sequencer is responsible for ordering transactions in the rollup. If not specified, a mock sequencer will be started at this address. Default: localhost:50051."`
-	SequencerRollupID string `mapstructure:"sequencer_rollup_id" yaml:"sequencer_rollup_id" comment:"Unique identifier for the rollup chain used by the sequencer. This ID is used to identify the specific rollup when submitting transactions to and retrieving batches from the sequencer. If not specified, the chain ID from genesis will be used. Default: mock-rollup."`
-	ExecutorAddress   string `mapstructure:"executor_address" yaml:"executor_address" comment:"Address of the executor middleware (host:port). The executor is responsible for processing transactions and maintaining the state of the rollup. Used for connecting to an external execution environment. Default: localhost:40041."`
 }
 
 // LogConfig contains all logging configuration parameters
@@ -260,9 +249,6 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "produce blocks only when transactions are available or after lazy block time")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "maximum blocks pending DA confirmation before pausing block production (0 for no limit)")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime.Duration, "maximum interval between blocks in lazy aggregation mode")
-	cmd.Flags().String(FlagSequencerAddress, def.Node.SequencerAddress, "sequencer middleware address (host:port)")
-	cmd.Flags().String(FlagSequencerRollupID, def.Node.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
-	cmd.Flags().String(FlagExecutorAddress, def.Node.ExecutorAddress, "executor middleware address (host:port)")
 
 	// Data Availability configuration flags
 	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")
