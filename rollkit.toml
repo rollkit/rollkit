@@ -1,0 +1,4 @@
+entrypoint = "/Users/gupadhyaya/go/src/github.com/gupadhyaya/rollkit/cmd/rollkit/main.go"
+
+[chain]
+  config_dir = "/Users/gupadhyaya/.rollkit"

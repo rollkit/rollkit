@@ -157,8 +157,10 @@ func (dac *DAClient) Retrieve(ctx context.Context, dataLayerHeight uint64) cored
 
 	return coreda.ResultRetrieve{
 		BaseResult: coreda.BaseResult{
-			Code:   coreda.StatusSuccess,
-			Height: dataLayerHeight,
+			Code:      coreda.StatusSuccess,
+			Height:    dataLayerHeight,
+			IDs:       result.IDs,
+			Timestamp: result.Timestamp,
 		},
 		Data: blobs,
 	}

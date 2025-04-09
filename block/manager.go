@@ -17,8 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/rollkit/go-sequencing"
-
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -1131,6 +1129,36 @@ func (m *Manager) getTxsFromBatch() (*BatchData, error) {
 	return &BatchData{Batch: batch.Batch, Time: batch.Time, Data: batch.Data}, nil
 }
 
+func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
+	m.logger.Debug("Attempting to retrieve next batch",
+		"chainID", m.genesis.ChainID,
+		"lastBatchData", m.lastBatchData)
+
+	req := coresequencer.GetNextBatchRequest{
+		RollupId:      []byte(m.genesis.ChainID),
+		LastBatchData: m.lastBatchData,
+	}
+
+	res, err := m.sequencer.GetNextBatch(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if res != nil && res.Batch != nil {
+		m.logger.Debug("Retrieved batch",
+			"txCount", len(res.Batch.Transactions),
+			"timestamp", res.Timestamp)
+
+		h := convertBatchDataToBytes(res.BatchData)
+		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
+			m.logger.Error("error while setting last batch hash", "error", err)
+		}
+		m.lastBatchData = res.BatchData
+		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
+	}
+	return nil, ErrNoBatch
+}
+
 func (m *Manager) publishBlock(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -1191,40 +1219,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		execTxs, err := m.exec.GetTxs(ctx)
-		if err != nil {
-			m.logger.Error("failed to get txs from executor", "err", err)
-			// Continue but log the state
-			m.logger.Info("Current state",
-				"height", height,
-				"isProposer", m.isProposer,
-				"pendingHeaders", m.pendingHeaders.numPendingHeaders())
-		}
-
-		m.logger.Debug("Submitting transaction to sequencer",
-			"txCount", len(execTxs))
-		_, err = m.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
-			RollupId: sequencing.RollupId(m.genesis.ChainID),
-			Batch:    &coresequencer.Batch{Transactions: execTxs},
-		})
-		if err != nil {
-			m.logger.Error("failed to submit rollup transaction to sequencer",
-				"err", err,
-				"chainID", m.genesis.ChainID)
-			// Add retry logic or proper error handling
-
-			m.logger.Debug("Successfully submitted transaction to sequencer")
-		}
-
-		batchData, err := m.getTxsFromBatch()
+		batchData, err := m.retrieveBatch(ctx)
 		if errors.Is(err, ErrNoBatch) {
-			m.logger.Debug("No batch available, creating empty block")
-			// Create an empty block instead of returning
-			batchData = &BatchData{
-				Batch: &coresequencer.Batch{Transactions: [][]byte{}},
-				Time:  time.Now().Round(0).UTC(),
-				Data:  [][]byte{},
-			}
+			return fmt.Errorf("no batch to process")
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
