@@ -15,6 +15,7 @@ import (
 
 	"github.com/rollkit/rollkit/attester/internal/signing"
 	"github.com/rollkit/rollkit/attester/internal/state"
+	verification "github.com/rollkit/rollkit/attester/internal/verification"
 
 	attesterv1 "github.com/rollkit/rollkit/attester/api/gen/attester/v1"
 )
@@ -60,13 +61,14 @@ type AttesterFSM struct {
 	// Use interfaces for dependencies
 	aggregator AggregatorService
 	sigClient  SignatureSubmitter // Interface for signature client (non-nil only if follower)
+	verifier   verification.ExecutionVerifier
 	nodeID     string
 	// Explicitly store the role
 	isLeader bool
 }
 
 // NewAttesterFSM creates a new instance of the AttesterFSM.
-// Dependencies (signer, aggregator/client) are injected based on whether the node is a leader.
+// Dependencies (signer, aggregator/client, verifier) are injected.
 func NewAttesterFSM(
 	logger *slog.Logger,
 	signer signing.Signer,
@@ -74,6 +76,7 @@ func NewAttesterFSM(
 	isLeader bool,
 	agg AggregatorService,
 	client SignatureSubmitter,
+	verifier verification.ExecutionVerifier,
 ) (*AttesterFSM, error) {
 	if logger == nil {
 		return nil, fmt.Errorf("logger cannot be nil for FSM")
@@ -97,6 +100,7 @@ func NewAttesterFSM(
 		signer:          signer,
 		aggregator:      agg,
 		sigClient:       client,
+		verifier:        verifier,
 		nodeID:          nodeID,
 		isLeader:        isLeader,
 	}
@@ -158,19 +162,33 @@ func (f *AttesterFSM) applySubmitBlock(logIndex uint64, req *attesterv1.SubmitBl
 		return fmt.Errorf("block hash %s collision or duplicate at index %d", blockHash, logIndex)
 	}
 
-	// Create block info and sign
+	// Create block info object early for use in verification
 	info := &state.BlockInfo{
 		Height:     req.BlockHeight,
 		Hash:       blockHash,
 		DataToSign: req.DataToSign,
 	}
+
+	if f.verifier != nil {
+		f.logger.Debug("Performing execution verification", logArgs...)
+		err := f.verifier.VerifyExecution(context.Background(), info.Height, info.Hash, info.DataToSign)
+		if err != nil {
+			f.logger.Error("Execution verification failed", append(logArgs, "error", err)...)
+			return fmt.Errorf("execution verification failed at index %d for block %d (%s): %w", logIndex, info.Height, blockHashStr, err)
+		}
+		f.logger.Debug("Execution verification successful", logArgs...)
+	} else {
+		f.logger.Debug("Execution verification skipped (verifier not configured)", logArgs...)
+	}
+
+	// Sign the data (only if verification passed or was skipped)
 	signature, err := f.signer.Sign(info.DataToSign)
 	if err != nil {
 		f.logger.Error("Failed to sign data for block", append(logArgs, "error", err)...)
-		return fmt.Errorf("failed to sign data at index %d: %w", logIndex, err)
+		return fmt.Errorf("failed to sign data at index %d after verification: %w", logIndex, err)
 	}
 
-	// Update FSM state
+	// Update FSM state (only after successful verification and signing)
 	f.processedBlocks[info.Height] = info.Hash
 	f.blockDetails[info.Hash] = info
 
@@ -189,10 +207,6 @@ func (f *AttesterFSM) applySubmitBlock(logIndex uint64, req *attesterv1.SubmitBl
 	// Follower specific logic: Submit signature (non-blocking)
 	if !f.isLeader {
 		if f.sigClient != nil {
-			// TODO: (Refactor) Consider moving this network call outside the FSM Apply
-			// flow for better separation of concerns. The FSM Apply should ideally
-			// only handle deterministic state transitions. An event/queue system
-			// could trigger this submission asynchronously after the state is applied.
 			go f.submitSignatureAsync(info, signature)
 		} else {
 			f.logger.Error("CRITICAL: FSM is follower but signature client is nil. This indicates an unrecoverable state.", logArgs...)
@@ -200,16 +214,15 @@ func (f *AttesterFSM) applySubmitBlock(logIndex uint64, req *attesterv1.SubmitBl
 		}
 	}
 
-	// Return the processed block info (or nil if already processed)
+	// Return the processed block info
 	return info
 }
 
 // submitSignatureAsync submits the signature to the leader in a separate goroutine.
 func (f *AttesterFSM) submitSignatureAsync(blockInfo *state.BlockInfo, signature []byte) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Consider making timeout configurable
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Use a separate logger context if needed, or reuse f.logger
 	logger := f.logger.With("sub_task", "submit_signature")
 
 	err := f.sigClient.SubmitSignature(ctx, blockInfo.Height, blockInfo.Hash[:], f.nodeID, signature)
@@ -284,22 +297,19 @@ func (f *AttesterFSM) Restore(snapshot io.ReadCloser) error {
 			f.logger.Warn("Found nil BlockInfo in restored snapshot, skipping")
 			continue
 		}
-		// Convert proto BlockInfo back to internal state.BlockInfo
 		blockHash, err := state.BlockHashFromBytes(protoInfo.Hash)
 		if err != nil {
 			f.logger.Error("Invalid BlockHash bytes found in snapshot, skipping", "height", protoInfo.Height, "hash_hex", fmt.Sprintf("%x", protoInfo.Hash), "error", err)
 			continue
 		}
 
-		// Reconstruct the internal state type
 		info := &state.BlockInfo{
 			Height:     protoInfo.Height,
 			Hash:       blockHash,
 			DataToSign: protoInfo.DataToSign,
-			// Signature field no longer exists here
 		}
 
-		if len(info.Hash) != state.BlockHashSize { // Redundant check due to BlockHashFromBytes, but safe
+		if len(info.Hash) != state.BlockHashSize {
 			f.logger.Error("Invalid BlockHash size found in snapshot, skipping", "height", info.Height, "size", len(info.Hash))
 			continue
 		}

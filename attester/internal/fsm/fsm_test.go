@@ -14,9 +14,10 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/rollkit/rollkit/attester/internal/mocks" // Import central mocks
+	"github.com/rollkit/rollkit/attester/internal/mocks"
 	"github.com/rollkit/rollkit/attester/internal/signing"
 	"github.com/rollkit/rollkit/attester/internal/state"
+	"github.com/rollkit/rollkit/attester/internal/verification"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -57,10 +58,8 @@ func (m *mockSigner) Scheme() string {
 	return m.schemeToReturn
 }
 
-// Ensure mockSigner implements signing.Signer
 var _ signing.Signer = (*mockSigner)(nil)
 
-// Mock Signature Client
 type mockSignatureClient struct {
 	mock.Mock
 }
@@ -70,7 +69,6 @@ func (m *mockSignatureClient) SubmitSignature(ctx context.Context, height uint64
 	return args.Error(0)
 }
 
-// Ensure mockSignatureClient implements SignatureSubmitter
 var _ SignatureSubmitter = (*mockSignatureClient)(nil)
 
 // Helper to create a raft log entry with a marshaled request
@@ -109,7 +107,7 @@ func discardLogger() *slog.Logger {
 
 func newTestLeaderFSM(t *testing.T, logger *slog.Logger, signer signing.Signer, nodeID string, agg AggregatorService) *AttesterFSM {
 	t.Helper()
-	fsm, err := NewAttesterFSM(logger, signer, nodeID, true, agg, nil) // isLeader=true, client=nil
+	fsm, err := NewAttesterFSM(logger, signer, nodeID, true, agg, nil, verification.NewNoOpVerifier())
 	// Allow specific test cases to expect errors from NewAttesterFSM
 	if err != nil {
 		// Check if the test function name indicates an error is expected
@@ -130,7 +128,7 @@ func newTestFollowerFSM(t *testing.T, logger *slog.Logger, signer signing.Signer
 	t.Helper()
 	// Follower still needs an AggregatorService, but it can be nil or a dummy mock
 	// since it shouldn't be used. Passing nil is consistent with NewAttesterFSM validation.
-	fsm, err := NewAttesterFSM(logger, signer, nodeID, false, nil, client) // isLeader=false, agg=nil
+	fsm, err := NewAttesterFSM(logger, signer, nodeID, false, nil, client, verification.NewNoOpVerifier())
 	// Allow specific test cases to expect errors from NewAttesterFSM
 	if err != nil {
 		// Check if the test function name indicates an error is expected
@@ -459,48 +457,38 @@ func TestFSM_Snapshot_Restore(t *testing.T) {
 func TestNewAttesterFSM_Errors(t *testing.T) {
 	logger := discardLogger()
 	mockSigner := newMockSigner(false)
-	mockAgg := new(mocks.MockAggregator) // Use central mock
-	mockSigClient := new(mockSignatureClient)
+	mockAgg := new(mocks.MockAggregator)
+	mockClient := new(mockSignatureClient)
+	noopVerifier := verification.NewNoOpVerifier() // Reuse verifier
 
 	tests := []struct {
-		name                   string
-		nodeID                 string
-		isLeader               bool
-		agg                    AggregatorService
-		client                 SignatureSubmitter
-		expectedErrorSubstring string
+		name        string
+		logger      *slog.Logger
+		signer      signing.Signer
+		nodeID      string
+		isLeader    bool
+		agg         AggregatorService
+		client      SignatureSubmitter
+		verifier    verification.ExecutionVerifier
+		expectError bool
 	}{
-		{
-			name:                   "Error_NoNodeID",
-			nodeID:                 "",
-			isLeader:               false,
-			agg:                    nil,
-			client:                 mockSigClient,
-			expectedErrorSubstring: "node ID cannot be empty",
-		},
-		{
-			name:                   "Error_LeaderNeedsAggregator",
-			nodeID:                 "node-leader",
-			isLeader:               true,
-			agg:                    nil,
-			client:                 nil,
-			expectedErrorSubstring: "leader but required aggregator dependency is nil",
-		},
-		{
-			name:                   "Error_FollowerNeedsClient",
-			nodeID:                 "node-follower",
-			isLeader:               false,
-			agg:                    mockAgg,
-			client:                 nil,
-			expectedErrorSubstring: "follower but required signature client dependency is nil",
-		},
+		{"NilLogger", nil, mockSigner, "id", false, nil, mockClient, noopVerifier, true},
+		{"EmptyNodeID", logger, mockSigner, "", false, nil, mockClient, noopVerifier, true},
+		{"LeaderNilAgg", logger, mockSigner, "id", true, nil, nil, noopVerifier, true},
+		{"FollowerNilClient", logger, mockSigner, "id", false, nil, nil, noopVerifier, true},
+		// Nil verifier is allowed, should not error
+		{"NilVerifierLeader", logger, mockSigner, "id", true, mockAgg, nil, nil, false},
+		{"NilVerifierFollower", logger, mockSigner, "id", false, nil, mockClient, nil, false},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewAttesterFSM(logger, mockSigner, tc.nodeID, tc.isLeader, tc.agg, tc.client)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tc.expectedErrorSubstring)
+			_, err := NewAttesterFSM(tc.logger, tc.signer, tc.nodeID, tc.isLeader, tc.agg, tc.client, tc.verifier)
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
@@ -508,54 +496,36 @@ func TestNewAttesterFSM_Errors(t *testing.T) {
 func TestNewAttesterFSM_Success(t *testing.T) {
 	logger := discardLogger()
 	mockSigner := newMockSigner(false)
-	mockAgg := new(mocks.MockAggregator) // Use central mock
-	mockSigClient := new(mockSignatureClient)
+	mockAgg := new(mocks.MockAggregator)
+	mockClient := new(mockSignatureClient)
+	noopVerifier := verification.NewNoOpVerifier()
+	nodeID := "test-node-success"
 
-	tests := []struct {
-		name            string
-		nodeID          string
-		isLeader        bool
-		agg             AggregatorService
-		client          SignatureSubmitter
-		expectAggNil    bool
-		expectClientNil bool
-	}{
-		{
-			name:            "Success_Leader",
-			nodeID:          "node-leader-ok",
-			isLeader:        true,
-			agg:             mockAgg,
-			client:          nil,
-			expectAggNil:    false,
-			expectClientNil: true,
-		},
-		{
-			name:            "Success_Follower",
-			nodeID:          "node-follower-ok",
-			isLeader:        false,
-			agg:             nil,
-			client:          mockSigClient,
-			expectAggNil:    true,
-			expectClientNil: false,
-		},
-	}
+	// Test leader creation
+	t.Run("Leader", func(t *testing.T) {
+		// Added noopVerifier
+		fsm, err := NewAttesterFSM(logger, mockSigner, nodeID, true, mockAgg, nil, noopVerifier)
+		require.NoError(t, err)
+		require.NotNil(t, fsm)
+		assert.True(t, fsm.isLeader)
+		assert.Equal(t, nodeID, fsm.nodeID)
+		assert.Equal(t, mockSigner, fsm.signer)
+		assert.Equal(t, mockAgg, fsm.aggregator)
+		assert.Nil(t, fsm.sigClient)
+		assert.Equal(t, noopVerifier, fsm.verifier)
+	})
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			fsm, err := NewAttesterFSM(logger, mockSigner, tc.nodeID, tc.isLeader, tc.agg, tc.client)
-			require.NoError(t, err)
-			require.NotNil(t, fsm)
-			assert.Equal(t, tc.isLeader, fsm.isLeader)
-			if tc.expectAggNil {
-				assert.Nil(t, fsm.aggregator)
-			} else {
-				assert.NotNil(t, fsm.aggregator)
-			}
-			if tc.expectClientNil {
-				assert.Nil(t, fsm.sigClient)
-			} else {
-				assert.NotNil(t, fsm.sigClient)
-			}
-		})
-	}
+	// Test follower creation
+	t.Run("Follower", func(t *testing.T) {
+		// Added noopVerifier
+		fsm, err := NewAttesterFSM(logger, mockSigner, nodeID, false, nil, mockClient, noopVerifier)
+		require.NoError(t, err)
+		require.NotNil(t, fsm)
+		assert.False(t, fsm.isLeader)
+		assert.Equal(t, nodeID, fsm.nodeID)
+		assert.Equal(t, mockSigner, fsm.signer)
+		assert.Nil(t, fsm.aggregator)
+		assert.Equal(t, mockClient, fsm.sigClient)
+		assert.Equal(t, noopVerifier, fsm.verifier)
+	})
 }

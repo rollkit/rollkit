@@ -23,13 +23,25 @@ type NetworkConfig struct {
 	// FullnodeEndpoint   string `mapstructure:"fullnode_endpoint"`
 }
 
+// Added ExecutionConfig struct
+type ExecutionConfig struct {
+	Enabled          bool   `mapstructure:"enabled"`
+	Type             string `mapstructure:"type"`              // e.g., "noop", "fullnode"
+	FullnodeEndpoint string `mapstructure:"fullnode_endpoint"` // URL for the full node RPC/API
+	Timeout          string `mapstructure:"timeout"`           // Duration string, e.g., "15s"
+
+	// Parsed duration (not in YAML, calculated on load)
+	parsedTimeout time.Duration
+}
+
 type Config struct {
 	Node       NodeConfig       `mapstructure:"node"`
 	Raft       RaftConfig       `mapstructure:"raft"`
 	GRPC       GRPCConfig       `mapstructure:"grpc"`
 	Signing    SigningConfig    `mapstructure:"signing"`
-	Network    NetworkConfig    `mapstructure:"network"`    // Added Network field
-	Aggregator AggregatorConfig `mapstructure:"aggregator"` // Added Aggregator field
+	Network    NetworkConfig    `mapstructure:"network"`
+	Aggregator AggregatorConfig `mapstructure:"aggregator"`
+	Execution  ExecutionConfig  `mapstructure:"execution"`
 	// Possibly LoggingConfig, etc.
 }
 
@@ -68,15 +80,25 @@ func LoadConfig(path string) (*Config, error) {
 	v.SetConfigFile(path)
 	v.SetConfigType("yaml")
 
+	// Set default values
+	v.SetDefault("execution.enabled", false)
+	v.SetDefault("execution.type", "noop") // Default to no-op if enabled but type not specified
+	v.SetDefault("execution.timeout", "15s")
+	v.SetDefault("raft.election_timeout", "1s")
+	v.SetDefault("raft.heartbeat_timeout", "100ms")
+	v.SetDefault("raft.snapshot_interval", "120s")
+	v.SetDefault("raft.snapshot_threshold", 8192)
+	v.SetDefault("signing.scheme", "ed25519") // Default signing scheme
+
 	if err := v.ReadInConfig(); err != nil {
 		// Allow the file not to exist if it's the default path?
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			// It's an error other than 'file not found'
 			return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
 		}
-		// If it's ConfigFileNotFoundError, we could continue with defaults or return a specific error.
-		// For now, return error if not found.
-		return nil, fmt.Errorf("config file not found at %s: %w", path, err)
+		// If it's ConfigFileNotFoundError, log that defaults are used or proceed silently
+		// For now, we proceed using only defaults if file not found.
+		fmt.Printf("Config file '%s' not found, using defaults.\n", path) // Log this info
 	}
 
 	var cfg Config
@@ -91,7 +113,7 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	// Manually parse RaftConfig durations
+	// Manually parse ALL duration strings AFTER unmarshal to catch invalid formats
 	var err error
 	cfg.Raft.parsedElectionTimeout, err = time.ParseDuration(cfg.Raft.ElectionTimeout)
 	if err != nil {
@@ -105,20 +127,59 @@ func LoadConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid raft.snapshot_interval '%s': %w", cfg.Raft.SnapshotInterval, err)
 	}
+	// We parse execution timeout later, only if enabled or to get a default value
 
 	// Additional validations
 	if cfg.Node.ID == "" {
+		// If not set by file or flag, could potentially generate one?
+		// For now, require it.
 		return nil, fmt.Errorf("node.id is required")
 	}
 	if cfg.Signing.PrivateKeyPath == "" {
 		return nil, fmt.Errorf("signing.private_key_path is required")
 	}
 	if _, err := os.Stat(cfg.Signing.PrivateKeyPath); os.IsNotExist(err) {
-		// Should we perhaps generate a key if it doesn't exist?
 		return nil, fmt.Errorf("signing private key file not found: %s", cfg.Signing.PrivateKeyPath)
 	}
 	if cfg.Raft.DataDir == "" {
 		return nil, fmt.Errorf("raft.data_dir is required")
+	}
+
+	// Execution config validation and parsing
+	if cfg.Execution.Enabled {
+		if cfg.Execution.Type == "" {
+			return nil, fmt.Errorf("execution.type is required when execution.enabled is true")
+		}
+		if cfg.Execution.Type == "fullnode" && cfg.Execution.FullnodeEndpoint == "" {
+			return nil, fmt.Errorf("execution.fullnode_endpoint is required when execution.type is 'fullnode'")
+		}
+		// Parse execution timeout explicitly here to catch errors
+		// var err error // already declared above
+		cfg.Execution.parsedTimeout, err = time.ParseDuration(cfg.Execution.Timeout)
+		if err != nil {
+			return nil, fmt.Errorf("invalid execution.timeout '%s': %w", cfg.Execution.Timeout, err)
+		}
+		if cfg.Execution.parsedTimeout <= 0 {
+			// This check might be redundant now but kept for safety
+			return nil, fmt.Errorf("execution.timeout must be a positive duration, got '%s'", cfg.Execution.Timeout)
+		}
+	} else {
+		// If not enabled, parse the default/provided timeout but don't error on negative/zero
+		// Assign a default sensible value if parsing fails or is non-positive
+		parsed, err := time.ParseDuration(cfg.Execution.Timeout)
+		if err != nil || parsed <= 0 {
+			// Use the default value set by viper earlier if parsing fails or result is non-positive
+			defaultTimeoutStr := v.GetString("execution.timeout")
+			parsedDefault, defaultErr := time.ParseDuration(defaultTimeoutStr)
+			if defaultErr != nil {
+				// Fallback to hardcoded default if the viper default itself is invalid
+				cfg.Execution.parsedTimeout = 15 * time.Second
+			} else {
+				cfg.Execution.parsedTimeout = parsedDefault
+			}
+		} else {
+			cfg.Execution.parsedTimeout = parsed
+		}
 	}
 
 	return &cfg, nil
@@ -128,3 +189,6 @@ func LoadConfig(path string) (*Config, error) {
 func (rc *RaftConfig) GetElectionTimeout() time.Duration  { return rc.parsedElectionTimeout }
 func (rc *RaftConfig) GetHeartbeatTimeout() time.Duration { return rc.parsedHeartbeatTimeout }
 func (rc *RaftConfig) GetSnapshotInterval() time.Duration { return rc.parsedSnapshotInterval }
+
+// Getter for parsed execution timeout
+func (ec *ExecutionConfig) GetTimeout() time.Duration { return ec.parsedTimeout }

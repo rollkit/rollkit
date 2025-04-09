@@ -21,6 +21,7 @@ import (
 	internalgrpc "github.com/rollkit/rollkit/attester/internal/grpc"
 	internalraft "github.com/rollkit/rollkit/attester/internal/raft"
 	"github.com/rollkit/rollkit/attester/internal/signing"
+	"github.com/rollkit/rollkit/attester/internal/verification"
 )
 
 // Constants for flag names and defaults
@@ -89,6 +90,28 @@ func runNode(cmd *cobra.Command, args []string) {
 		os.Exit(1) // Use os.Exit after logging error
 	}
 	// TODO: Validate loaded configuration further if needed
+
+	// 2. Initialize Execution Verifier (based on config)
+	var execVerifier verification.ExecutionVerifier
+	if cfg.Execution.Enabled {
+		slog.Info("Execution verification enabled", "type", cfg.Execution.Type)
+		switch cfg.Execution.Type {
+		case "noop":
+			execVerifier = verification.NewNoOpVerifier()
+			slog.Info("Using NoOp execution verifier")
+		case "fullnode":
+			// TODO: Implement FullNodeVerifier instantiation
+			slog.Warn("FullNode execution verifier selected but not yet implemented. Disabling verification.")
+			// Set execVerifier to nil or NoOp to effectively disable it for now
+			execVerifier = nil // Or: verification.NewNoOpVerifier()
+		default:
+			slog.Warn("Unknown execution verifier type specified", "type", cfg.Execution.Type, "message", "Disabling execution verification.")
+			execVerifier = nil
+		}
+	} else {
+		slog.Info("Execution verification disabled by configuration")
+		execVerifier = verification.NewNoOpVerifier()
+	}
 
 	// 3. Load private key
 	slog.Info("Loading signing key", "path", cfg.Signing.PrivateKeyPath)
@@ -191,9 +214,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		}()
 	}
 
-	// 4. Instantiate FSM (Pass node ID, isLeader flag, aggregator, client)
+	// 4. Instantiate FSM (Pass node ID, isLeader flag, aggregator, client, and verifier)
 	slog.Info("Initializing FSM", "data_dir", cfg.Raft.DataDir, "node_id", cfg.Node.ID, "is_leader", isLeader)
-	attesterFSM, err = fsm.NewAttesterFSM(logger, signer, cfg.Node.ID, isLeader, sigAggregator, sigClient)
+	attesterFSM, err = fsm.NewAttesterFSM(logger, signer, cfg.Node.ID, isLeader, sigAggregator, sigClient, execVerifier)
 	if err != nil {
 		slog.Error("Failed to initialize FSM", "error", err)
 		os.Exit(1)
