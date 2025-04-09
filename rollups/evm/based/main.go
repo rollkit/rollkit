@@ -118,19 +118,19 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to create execution client: %w", err)
 			}
 
-			// _, err = rollcmd.ParseConfig(cmd)
-			// if err != nil {
-			// 	return fmt.Errorf("failed to parse config: %w", err)
-			// }
+			var rollDA coreda.DA
+			if nodeConfig.DA.AuthToken != "" {
+				client, err := jsonrpc.NewClient(ctx, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+				if err != nil {
+					return fmt.Errorf("failed to create DA client: %w", err)
+				}
+				rollDA = &client.DA
+			} else {
+				rollDA = coreda.NewDummyDA(100_000, 0, 0)
+			}
+			rollDALC := da.NewDAClient(rollDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), nil, logger)
 
-			// Create DA client with dummy DA
-			// TODO: replace with actual DA client
-			dummyDA1 := coreda.NewDummyDA(100_000, 0, 0)
-
-			var (
-				basedDA   coreda.DA
-				basedDALC coreda.Client
-			)
+			var basedDA coreda.DA
 			if basedAuth != "" {
 				client, err := jsonrpc.NewClient(ctx, basedURL, basedAuth)
 				if err != nil {
@@ -140,9 +140,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			} else {
 				basedDA = coreda.NewDummyDA(100_000, 0, 0)
 			}
-			basedDALC = da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, []byte(basedNamespace), nil, logger)
-
-			dac := da.NewDAClient(dummyDA1, 0, 1.0, []byte("test"), []byte(""), logger)
+			basedDALC := da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, []byte(basedNamespace), nil, logger)
 
 			sequencer, err := based.NewSequencer(
 				logger,
@@ -180,7 +178,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				panic(err)
 			}
 
-			return rollcmd.StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
+			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDALC, nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
 
