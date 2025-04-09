@@ -549,6 +549,8 @@ func TestNormalAggregationLoop(t *testing.T) {
 				LazyAggregator: false,
 			},
 		},
+		sequencer: coresequencer.NewDummySequencer(),
+		bq:        queue.New[BatchData](),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
