@@ -7,10 +7,22 @@ import "rollkit/v1/state.proto";
 
 option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
 
+// StoreService defines the RPC service for the store package
+service StoreService {
+  // GetBlock returns a block by height or hash
+  rpc GetBlock(GetBlockRequest) returns (GetBlockResponse) {}
+
+  // GetState returns the current state
+  rpc GetState(GetStateRequest) returns (GetStateResponse) {}
+
+  // GetMetadata returns metadata for a specific key
+  rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse) {}
+}
+
 // Block contains all the components of a complete block
 message Block {
   SignedHeader header = 1;
-  Data data = 2;
+  Data         data   = 2;
 }
 
 // GetBlockRequest defines the request for retrieving a block
@@ -18,7 +30,7 @@ message GetBlockRequest {
   // The height or hash of the block to retrieve
   oneof identifier {
     uint64 height = 1;
-    bytes hash = 2;
+    bytes  hash   = 2;
   }
 }
 
@@ -45,16 +57,4 @@ message GetMetadataRequest {
 // GetMetadataResponse defines the response for retrieving metadata
 message GetMetadataResponse {
   bytes value = 1;
-}
-
-// StoreService defines the RPC service for the store package
-service StoreService {
-  // GetBlock returns a block by height or hash
-  rpc GetBlock(GetBlockRequest) returns (GetBlockResponse) {}
-
-  // GetState returns the current state
-  rpc GetState(GetStateRequest) returns (GetStateResponse) {}
-
-  // GetMetadata returns metadata for a specific key
-  rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse) {}
 }

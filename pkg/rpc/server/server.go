@@ -10,8 +10,10 @@ import (
 	"connectrpc.com/grpcreflect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
@@ -130,22 +132,86 @@ func (s *StoreServer) GetMetadata(
 	}), nil
 }
 
-// NewStoreServiceHandler creates a new HTTP handler for the StoreService
-func NewStoreServiceHandler(store store.Store) (http.Handler, error) {
+// P2PServer implements the P2PService defined in the proto file
+type P2PServer struct {
+	// Add dependencies needed for P2P functionality
+	peerManager p2p.PeerManager
+}
+
+// NewP2PServer creates a new P2PServer instance
+func NewP2PServer(peerManager p2p.PeerManager) *P2PServer {
+	return &P2PServer{
+		peerManager: peerManager,
+	}
+}
+
+// GetPeerInfo implements the GetPeerInfo RPC method
+func (p *P2PServer) GetPeerInfo(
+	ctx context.Context,
+	req *connect.Request[emptypb.Empty],
+) (*connect.Response[pb.GetPeerInfoResponse], error) {
+	peers, err := p.peerManager.GetPeers()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get peer info: %w", err))
+	}
+
+	// Convert to protobuf format
+	pbPeers := make([]*pb.PeerInfo, len(peers))
+	for i, peer := range peers {
+		pbPeers[i] = &pb.PeerInfo{
+			Id:      peer.ID.String(),
+			Address: peer.String(),
+		}
+	}
+
+	return connect.NewResponse(&pb.GetPeerInfoResponse{
+		Peers: pbPeers,
+	}), nil
+}
+
+// GetNetInfo implements the GetNetInfo RPC method
+func (p *P2PServer) GetNetInfo(
+	ctx context.Context,
+	req *connect.Request[emptypb.Empty],
+) (*connect.Response[pb.GetNetInfoResponse], error) {
+	netInfo, err := p.peerManager.GetNetworkInfo()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get network info: %w", err))
+	}
+
+	pbNetInfo := &pb.NetInfo{
+		Id:            netInfo.ID,
+		ListenAddress: netInfo.ListenAddress,
+		// ConnectedPeers: netInfo.ConnectedPeers,
+	}
+
+	return connect.NewResponse(&pb.GetNetInfoResponse{
+		NetInfo: pbNetInfo,
+	}), nil
+}
+
+// NewServiceHandler creates a new HTTP handler for both Store and P2P services
+func NewServiceHandler(store store.Store, peerManager p2p.PeerManager) (http.Handler, error) {
 	storeServer := NewStoreServer(store)
+	p2pServer := NewP2PServer(peerManager)
 
 	mux := http.NewServeMux()
 
 	compress1KB := connect.WithCompressMinBytes(1024)
 	reflector := grpcreflect.NewStaticReflector(
 		rpc.StoreServiceName,
+		rpc.P2PServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, compress1KB))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector, compress1KB))
 
 	// Register the StoreService
-	path, handler := rpc.NewStoreServiceHandler(storeServer)
-	mux.Handle(path, handler)
+	storePath, storeHandler := rpc.NewStoreServiceHandler(storeServer)
+	mux.Handle(storePath, storeHandler)
+
+	// Register the P2PService
+	p2pPath, p2pHandler := rpc.NewP2PServiceHandler(p2pServer)
+	mux.Handle(p2pPath, p2pHandler)
 
 	// Use h2c to support HTTP/2 without TLS
 	return h2c.NewHandler(mux, &http2.Server{

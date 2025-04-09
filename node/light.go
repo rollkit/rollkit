@@ -64,7 +64,7 @@ func newLightNode(
 // OnStart starts the P2P and HeaderSync services
 func (ln *LightNode) OnStart(ctx context.Context) error {
 	// Start RPC server
-	handler, err := rpcserver.NewStoreServiceHandler(ln.Store)
+	handler, err := rpcserver.NewServiceHandler(ln.Store, ln.P2P)
 	if err != nil {
 		return fmt.Errorf("error creating RPC handler: %w", err)
 	}

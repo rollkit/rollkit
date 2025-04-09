@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: rollkit/v1/rpc.proto
+// source: rollkit/v1/state_rpc.proto
 
 package v1
 
@@ -33,7 +33,7 @@ type Block struct {
 
 func (x *Block) Reset() {
 	*x = Block{}
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[0]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +45,7 @@ func (x *Block) String() string {
 func (*Block) ProtoMessage() {}
 
 func (x *Block) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[0]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +58,7 @@ func (x *Block) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Block.ProtoReflect.Descriptor instead.
 func (*Block) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rpc_proto_rawDescGZIP(), []int{0}
+	return file_rollkit_v1_state_rpc_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Block) GetHeader() *SignedHeader {
@@ -91,7 +91,7 @@ type GetBlockRequest struct {
 
 func (x *GetBlockRequest) Reset() {
 	*x = GetBlockRequest{}
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[1]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -103,7 +103,7 @@ func (x *GetBlockRequest) String() string {
 func (*GetBlockRequest) ProtoMessage() {}
 
 func (x *GetBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[1]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -116,7 +116,7 @@ func (x *GetBlockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlockRequest.ProtoReflect.Descriptor instead.
 func (*GetBlockRequest) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rpc_proto_rawDescGZIP(), []int{1}
+	return file_rollkit_v1_state_rpc_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetBlockRequest) GetIdentifier() isGetBlockRequest_Identifier {
@@ -170,7 +170,7 @@ type GetBlockResponse struct {
 
 func (x *GetBlockResponse) Reset() {
 	*x = GetBlockResponse{}
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[2]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -182,7 +182,7 @@ func (x *GetBlockResponse) String() string {
 func (*GetBlockResponse) ProtoMessage() {}
 
 func (x *GetBlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[2]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -195,7 +195,7 @@ func (x *GetBlockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlockResponse.ProtoReflect.Descriptor instead.
 func (*GetBlockResponse) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rpc_proto_rawDescGZIP(), []int{2}
+	return file_rollkit_v1_state_rpc_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetBlockResponse) GetBlock() *Block {
@@ -214,7 +214,7 @@ type GetStateRequest struct {
 
 func (x *GetStateRequest) Reset() {
 	*x = GetStateRequest{}
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[3]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -226,7 +226,7 @@ func (x *GetStateRequest) String() string {
 func (*GetStateRequest) ProtoMessage() {}
 
 func (x *GetStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[3]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -239,7 +239,7 @@ func (x *GetStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStateRequest.ProtoReflect.Descriptor instead.
 func (*GetStateRequest) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rpc_proto_rawDescGZIP(), []int{3}
+	return file_rollkit_v1_state_rpc_proto_rawDescGZIP(), []int{3}
 }
 
 // GetStateResponse defines the response for retrieving the current state
@@ -252,7 +252,7 @@ type GetStateResponse struct {
 
 func (x *GetStateResponse) Reset() {
 	*x = GetStateResponse{}
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[4]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -264,7 +264,7 @@ func (x *GetStateResponse) String() string {
 func (*GetStateResponse) ProtoMessage() {}
 
 func (x *GetStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[4]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -277,7 +277,7 @@ func (x *GetStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStateResponse.ProtoReflect.Descriptor instead.
 func (*GetStateResponse) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rpc_proto_rawDescGZIP(), []int{4}
+	return file_rollkit_v1_state_rpc_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetStateResponse) GetState() *State {
@@ -297,7 +297,7 @@ type GetMetadataRequest struct {
 
 func (x *GetMetadataRequest) Reset() {
 	*x = GetMetadataRequest{}
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[5]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -309,7 +309,7 @@ func (x *GetMetadataRequest) String() string {
 func (*GetMetadataRequest) ProtoMessage() {}
 
 func (x *GetMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[5]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -322,7 +322,7 @@ func (x *GetMetadataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetadataRequest.ProtoReflect.Descriptor instead.
 func (*GetMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rpc_proto_rawDescGZIP(), []int{5}
+	return file_rollkit_v1_state_rpc_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetMetadataRequest) GetKey() string {
@@ -342,7 +342,7 @@ type GetMetadataResponse struct {
 
 func (x *GetMetadataResponse) Reset() {
 	*x = GetMetadataResponse{}
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[6]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -354,7 +354,7 @@ func (x *GetMetadataResponse) String() string {
 func (*GetMetadataResponse) ProtoMessage() {}
 
 func (x *GetMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rpc_proto_msgTypes[6]
+	mi := &file_rollkit_v1_state_rpc_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -367,7 +367,7 @@ func (x *GetMetadataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetadataResponse.ProtoReflect.Descriptor instead.
 func (*GetMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rpc_proto_rawDescGZIP(), []int{6}
+	return file_rollkit_v1_state_rpc_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetMetadataResponse) GetValue() []byte {
@@ -377,11 +377,11 @@ func (x *GetMetadataResponse) GetValue() []byte {
 	return nil
 }
 
-var File_rollkit_v1_rpc_proto protoreflect.FileDescriptor
+var File_rollkit_v1_state_rpc_proto protoreflect.FileDescriptor
 
-const file_rollkit_v1_rpc_proto_rawDesc = "" +
+const file_rollkit_v1_state_rpc_proto_rawDesc = "" +
 	"\n" +
-	"\x14rollkit/v1/rpc.proto\x12\n" +
+	"\x1arollkit/v1/state_rpc.proto\x12\n" +
 	"rollkit.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x18rollkit/v1/rollkit.proto\x1a\x16rollkit/v1/state.proto\"_\n" +
 	"\x05Block\x120\n" +
 	"\x06header\x18\x01 \x01(\v2\x18.rollkit.v1.SignedHeaderR\x06header\x12$\n" +
@@ -406,19 +406,19 @@ const file_rollkit_v1_rpc_proto_rawDesc = "" +
 	"\vGetMetadata\x12\x1e.rollkit.v1.GetMetadataRequest\x1a\x1f.rollkit.v1.GetMetadataResponse\"\x00B0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
 
 var (
-	file_rollkit_v1_rpc_proto_rawDescOnce sync.Once
-	file_rollkit_v1_rpc_proto_rawDescData []byte
+	file_rollkit_v1_state_rpc_proto_rawDescOnce sync.Once
+	file_rollkit_v1_state_rpc_proto_rawDescData []byte
 )
 
-func file_rollkit_v1_rpc_proto_rawDescGZIP() []byte {
-	file_rollkit_v1_rpc_proto_rawDescOnce.Do(func() {
-		file_rollkit_v1_rpc_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_rollkit_v1_rpc_proto_rawDesc), len(file_rollkit_v1_rpc_proto_rawDesc)))
+func file_rollkit_v1_state_rpc_proto_rawDescGZIP() []byte {
+	file_rollkit_v1_state_rpc_proto_rawDescOnce.Do(func() {
+		file_rollkit_v1_state_rpc_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_rollkit_v1_state_rpc_proto_rawDesc), len(file_rollkit_v1_state_rpc_proto_rawDesc)))
 	})
-	return file_rollkit_v1_rpc_proto_rawDescData
+	return file_rollkit_v1_state_rpc_proto_rawDescData
 }
 
-var file_rollkit_v1_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
-var file_rollkit_v1_rpc_proto_goTypes = []any{
+var file_rollkit_v1_state_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_rollkit_v1_state_rpc_proto_goTypes = []any{
 	(*Block)(nil),               // 0: rollkit.v1.Block
 	(*GetBlockRequest)(nil),     // 1: rollkit.v1.GetBlockRequest
 	(*GetBlockResponse)(nil),    // 2: rollkit.v1.GetBlockResponse
@@ -430,7 +430,7 @@ var file_rollkit_v1_rpc_proto_goTypes = []any{
 	(*Data)(nil),                // 8: rollkit.v1.Data
 	(*State)(nil),               // 9: rollkit.v1.State
 }
-var file_rollkit_v1_rpc_proto_depIdxs = []int32{
+var file_rollkit_v1_state_rpc_proto_depIdxs = []int32{
 	7, // 0: rollkit.v1.Block.header:type_name -> rollkit.v1.SignedHeader
 	8, // 1: rollkit.v1.Block.data:type_name -> rollkit.v1.Data
 	0, // 2: rollkit.v1.GetBlockResponse.block:type_name -> rollkit.v1.Block
@@ -448,14 +448,14 @@ var file_rollkit_v1_rpc_proto_depIdxs = []int32{
 	0, // [0:4] is the sub-list for field type_name
 }
 
-func init() { file_rollkit_v1_rpc_proto_init() }
-func file_rollkit_v1_rpc_proto_init() {
-	if File_rollkit_v1_rpc_proto != nil {
+func init() { file_rollkit_v1_state_rpc_proto_init() }
+func file_rollkit_v1_state_rpc_proto_init() {
+	if File_rollkit_v1_state_rpc_proto != nil {
 		return
 	}
 	file_rollkit_v1_rollkit_proto_init()
 	file_rollkit_v1_state_proto_init()
-	file_rollkit_v1_rpc_proto_msgTypes[1].OneofWrappers = []any{
+	file_rollkit_v1_state_rpc_proto_msgTypes[1].OneofWrappers = []any{
 		(*GetBlockRequest_Height)(nil),
 		(*GetBlockRequest_Hash)(nil),
 	}
@@ -463,17 +463,17 @@ func file_rollkit_v1_rpc_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rollkit_v1_rpc_proto_rawDesc), len(file_rollkit_v1_rpc_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rollkit_v1_state_rpc_proto_rawDesc), len(file_rollkit_v1_state_rpc_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_rollkit_v1_rpc_proto_goTypes,
-		DependencyIndexes: file_rollkit_v1_rpc_proto_depIdxs,
-		MessageInfos:      file_rollkit_v1_rpc_proto_msgTypes,
+		GoTypes:           file_rollkit_v1_state_rpc_proto_goTypes,
+		DependencyIndexes: file_rollkit_v1_state_rpc_proto_depIdxs,
+		MessageInfos:      file_rollkit_v1_state_rpc_proto_msgTypes,
 	}.Build()
-	File_rollkit_v1_rpc_proto = out.File
-	file_rollkit_v1_rpc_proto_goTypes = nil
-	file_rollkit_v1_rpc_proto_depIdxs = nil
+	File_rollkit_v1_state_rpc_proto = out.File
+	file_rollkit_v1_state_rpc_proto_goTypes = nil
+	file_rollkit_v1_state_rpc_proto_depIdxs = nil
 }

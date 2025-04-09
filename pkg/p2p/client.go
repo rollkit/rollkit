@@ -199,10 +199,10 @@ func (c *Client) Peers() []PeerConnection {
 	res := make([]PeerConnection, 0, len(conns))
 	for _, conn := range conns {
 		pc := PeerConnection{
-			NodeInfo: DefaultNodeInfo{
-				ListenAddr:    c.conf.ListenAddress,
-				Network:       c.chainID,
-				DefaultNodeID: conn.RemotePeer().String(),
+			NodeInfo: NodeInfo{
+				ListenAddr: c.conf.ListenAddress,
+				Network:    c.chainID,
+				NodeID:     conn.RemotePeer().String(),
 			},
 			IsOutbound: conn.Stat().Direction == network.DirOutbound,
 			RemoteIP:   conn.RemoteMultiaddr().String(),
@@ -361,12 +361,23 @@ func (c *Client) getNamespace() string {
 	return c.chainID
 }
 
-// GetAddresss returns the addresses of the host
-func (c *Client) GetAddresses() []string {
-	addrs := c.host.Addrs()
-	res := make([]string, 0, len(addrs))
-	for _, addr := range addrs {
-		res = append(res, fmt.Sprintf("%s/p2p/%s", addr.String(), c.host.ID()))
+func (c *Client) GetPeers() ([]peer.AddrInfo, error) {
+	peerCh, err := c.disc.FindPeers(context.Background(), c.getNamespace(), cdiscovery.Limit(peerLimit))
+	if err != nil {
+		return nil, err
 	}
-	return res
+
+	var peers []peer.AddrInfo
+	for peer := range peerCh {
+		peers = append(peers, peer)
+	}
+	return peers, nil
+}
+
+func (c *Client) GetNetworkInfo() (NetworkInfo, error) {
+	return NetworkInfo{
+		ID:             c.host.ID().String(),
+		ListenAddress:  c.conf.ListenAddress,
+		ConnectedPeers: c.PeerIDs(),
+	}, nil
 }

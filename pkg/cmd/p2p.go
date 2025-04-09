@@ -5,12 +5,10 @@ import (
 	"os"
 
 	"cosmossdk.io/log"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 
 	"github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
-	"github.com/rollkit/rollkit/pkg/store"
 )
 
 // GetNodeID returns the node ID of the node
@@ -32,23 +30,12 @@ var GetNodeAddressCmd = &cobra.Command{
 			panic(err)
 		}
 
-		datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "testapp")
+		maddr, err := multiaddr.NewMultiaddr(nodeConfig.P2P.ListenAddress)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("error creating multiaddr: %w", err)
 		}
 
-		nodeKey, err := key.LoadNodeKey(nodeConfig.ConfigDir)
-		if err != nil {
-			panic(err)
-		}
-
-		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, p2p.NopMetrics())
-		if err != nil {
-			panic(err)
-		}
-		addresses := p2pClient.GetAddresses()
-
-		fmt.Println("P2P Addresses:", addresses)
+		logger.Info(fmt.Sprintf("Node address: %s", maddr.String()))
 
 		return nil
 	},
