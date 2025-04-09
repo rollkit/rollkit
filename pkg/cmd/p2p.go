@@ -44,10 +44,12 @@ var NodeInfoCmd = &cobra.Command{
 			Transport: http.DefaultTransport,
 		}
 
+		baseURL := fmt.Sprintf("http://%s", rpcAddress)
+
 		// Create P2P client
 		p2pClient := rpc.NewP2PServiceClient(
 			&httpClient,
-			rpcAddress,
+			baseURL,
 		)
 
 		// Call GetNetInfo RPC

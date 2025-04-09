@@ -224,7 +224,7 @@ func AddGlobalFlags(cmd *cobra.Command, appName string) {
 
 // RPCConfig contains all RPC server configuration parameters
 type RPCConfig struct {
-	Address string `mapstructure:"address" yaml:"address" comment:"Address to bind the RPC server to (host:port). Default: tcp://127.0.0.1:7331"`
+	Address string `mapstructure:"address" yaml:"address" comment:"Address to bind the RPC server to (host:port). Default: 127.0.0.1:7331"`
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
