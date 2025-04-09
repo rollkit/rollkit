@@ -30,6 +30,7 @@ build-da:
 	@echo "--> Building local-da"
 	@mkdir -p $(CURDIR)/build
 	@cd da && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/local-da ./cmd/local-da
+	@echo "    Check the binary with: $(CURDIR)/rollups/local-da"
 .PHONY: build-da
 
 ## clean: clean and build

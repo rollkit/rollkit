@@ -11,7 +11,7 @@ test:
 .PHONY: test
 
 ## test-e2e: Running e2e tests
-test-e2e: build
+test-e2e: build build-da
 	@echo "--> Running e2e tests"
 	@go test -mod=readonly -failfast -timeout=15m -tags='e2e' ./test/e2e/... --binary=$(CURDIR)/build/testapp
 .PHONY: test-e2e
