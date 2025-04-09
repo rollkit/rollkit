@@ -11,7 +11,6 @@ import (
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	dac "github.com/rollkit/rollkit/da"
 )
 
 var (
@@ -97,12 +96,11 @@ type Sequencer struct {
 func NewSequencer(
 	logger log.Logger,
 	da coreda.DA,
-	daNamespace,
+	dalc coreda.Client,
 	rollupId []byte,
 	daStartHeight uint64,
 	maxHeightDrift uint64,
 ) (*Sequencer, error) {
-	dalc := dac.NewDAClient(da, -1, -1, daNamespace, nil, logger)
 	s := &Sequencer{
 		logger:         logger,
 		maxHeightDrift: maxHeightDrift,

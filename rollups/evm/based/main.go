@@ -11,6 +11,7 @@ import (
 	"github.com/rollkit/go-execution-evm"
 	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/da/proxy/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
@@ -125,13 +126,28 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			// Create DA client with dummy DA
 			// TODO: replace with actual DA client
 			dummyDA1 := coreda.NewDummyDA(100_000, 0, 0)
-			dummyDA2 := coreda.NewDummyDA(100_000, 0, 0)
+
+			var (
+				basedDA   coreda.DA
+				basedDALC coreda.Client
+			)
+			if basedAuth != "" {
+				client, err := jsonrpc.NewClient(ctx, basedURL, basedAuth)
+				if err != nil {
+					return fmt.Errorf("failed to create based client: %w", err)
+				}
+				basedDA = &client.DA
+			} else {
+				basedDA = coreda.NewDummyDA(100_000, 0, 0)
+			}
+			basedDALC = da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, []byte(basedNamespace), nil, logger)
+
 			dac := da.NewDAClient(dummyDA1, 0, 1.0, []byte("test"), []byte(""), logger)
 
 			sequencer, err := based.NewSequencer(
 				logger,
-				dummyDA2,
-				[]byte(basedNamespace),
+				basedDA,
+				basedDALC,
 				[]byte("rollkit-test"),
 				basedStartHeight,
 				basedMaxHeightDrift,
