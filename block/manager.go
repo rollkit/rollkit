@@ -26,7 +26,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
-	"github.com/rollkit/rollkit/pkg/queue"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
@@ -159,7 +158,6 @@ type Manager struct {
 
 	sequencer     coresequencer.Sequencer
 	lastBatchData [][]byte
-	bq            *queue.Queue[BatchData]
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -358,7 +356,6 @@ func NewManager(
 		metrics:        seqMetrics,
 		isProposer:     isProposer,
 		sequencer:      sequencer,
-		bq:             queue.New[BatchData](),
 		exec:           exec,
 		gasPrice:       gasPrice,
 		gasMultiplier:  gasMultiplier,
@@ -504,39 +501,12 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			return
 		case <-batchTimer.C:
 			start := time.Now()
-			m.logger.Debug("Attempting to retrieve next batch",
-				"chainID", m.genesis.ChainID,
-				"lastBatchData", m.lastBatchData)
 
-			req := coresequencer.GetNextBatchRequest{
-				RollupId:      []byte(m.genesis.ChainID),
-				LastBatchData: m.lastBatchData,
-			}
-
-			res, err := m.sequencer.GetNextBatch(ctx, req)
+			// TODO(tzdybal): FIXIT!
+			//err := m.retrieveBatch(ctx)
+			err := ErrNoBatch
 			if err != nil {
 				m.logger.Error("error while retrieving batch", "error", err)
-				// Always reset timer on error
-				batchTimer.Reset(m.config.Node.BlockTime.Duration)
-				continue
-			}
-
-			if res != nil && res.Batch != nil {
-				m.logger.Debug("Retrieved batch",
-					"txCount", len(res.Batch.Transactions),
-					"timestamp", res.Timestamp)
-
-				m.bq.Add(BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData})
-				if len(res.Batch.Transactions) != 0 {
-					h := convertBatchDataToBytes(res.BatchData)
-					if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
-						m.logger.Error("error while setting last batch hash", "error", err)
-					}
-					m.lastBatchData = res.BatchData
-				}
-
-			} else {
-				m.logger.Debug("No batch available")
 			}
 
 			// Always reset timer
@@ -548,6 +518,36 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			batchTimer.Reset(remainingSleep)
 		}
 	}
+}
+
+func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
+	m.logger.Debug("Attempting to retrieve next batch",
+		"chainID", m.genesis.ChainID,
+		"lastBatchData", m.lastBatchData)
+
+	req := coresequencer.GetNextBatchRequest{
+		RollupId:      []byte(m.genesis.ChainID),
+		LastBatchData: m.lastBatchData,
+	}
+
+	res, err := m.sequencer.GetNextBatch(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if res != nil && res.Batch != nil {
+		m.logger.Debug("Retrieved batch",
+			"txCount", len(res.Batch.Transactions),
+			"timestamp", res.Timestamp)
+
+		h := convertBatchDataToBytes(res.BatchData)
+		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
+			m.logger.Error("error while setting last batch hash", "error", err)
+		}
+		m.lastBatchData = res.BatchData
+		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
+	}
+	return nil, ErrNoBatch
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
@@ -604,14 +604,15 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		case <-ctx.Done():
 			return
 		// the m.bq.notifyCh channel is signalled when batch becomes available in the batch queue
-		case _, ok := <-m.bq.NotifyCh():
-			if ok && !m.buildingBlock {
-				// set the buildingBlock flag to prevent multiple calls to reset the time
-				m.buildingBlock = true
-				// Reset the block timer based on the block time.
-				blockTimer.Reset(m.getRemainingSleep(start))
-			}
-			continue
+		// TODO(tzdybal): FIXIT!
+		//case _, ok := <-m.bq.NotifyCh():
+		//	if ok && !m.buildingBlock {
+		//		// set the buildingBlock flag to prevent multiple calls to reset the time
+		//		m.buildingBlock = true
+		//		// Reset the block timer based on the block time.
+		//		blockTimer.Reset(m.getRemainingSleep(start))
+		//	}
+		//	continue
 		case <-lazyTimer.C:
 		case <-blockTimer.C:
 		}
@@ -637,6 +638,7 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 		case <-blockTimer.C:
 			// Define the start time for the block production period
 			start := time.Now()
+
 			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
 				m.logger.Error("error while publishing block", "error", err)
 			}
@@ -1140,15 +1142,6 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 	return getSignature(header, m.proposerKey)
 }
 
-func (m *Manager) getTxsFromBatch() (*BatchData, error) {
-	batch := m.bq.Next()
-	if batch == nil {
-		// batch is nil when there is nothing to process
-		return nil, ErrNoBatch
-	}
-	return &BatchData{Batch: batch.Batch, Time: batch.Time, Data: batch.Data}, nil
-}
-
 func (m *Manager) publishBlock(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -1230,22 +1223,16 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 				"err", err,
 				"chainID", m.genesis.ChainID)
 			// Add retry logic or proper error handling
-
-			m.logger.Debug("Successfully submitted transaction to sequencer")
 		}
+		m.logger.Debug("Successfully submitted transaction to sequencer")
 
-		batchData, err := m.getTxsFromBatch()
+		batchData, err := m.retrieveBatch(ctx)
 		if errors.Is(err, ErrNoBatch) {
-			m.logger.Debug("No batch available, creating empty block")
-			// Create an empty block instead of returning
-			batchData = &BatchData{
-				Batch: &coresequencer.Batch{Transactions: [][]byte{}},
-				Time:  time.Now().Round(0).UTC(),
-				Data:  [][]byte{},
-			}
+			return fmt.Errorf("no batch to process")
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
+
 		// sanity check timestamp for monotonically increasing
 		if batchData.Time.Before(lastHeaderTime) {
 			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
