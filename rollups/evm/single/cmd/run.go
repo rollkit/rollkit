@@ -32,12 +32,7 @@ var RunCmd = &cobra.Command{
 		}
 		sequencer := coresequencer.NewDummySequencer()
 
-		homePath, err := cmd.Flags().GetString(config.FlagRootDir)
-		if err != nil {
-			return fmt.Errorf("error reading home flag: %w", err)
-		}
-
-		nodeConfig, err := rollcmd.ParseConfig(cmd, homePath)
+		nodeConfig, err := rollcmd.ParseConfig(cmd)
 		if err != nil {
 			panic(err)
 		}
@@ -47,7 +42,7 @@ var RunCmd = &cobra.Command{
 		logger := log.NewLogger(os.Stdout)
 		dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
 
-		nodeKey, err := key.LoadNodeKey(nodeConfig.ConfigDir)
+		nodeKey, err := key.LoadNodeKey(nodeConfig.ConfigPath())
 		if err != nil {
 			panic(err)
 		}
@@ -57,12 +52,12 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		p2pClient, err := p2p.NewClient(nodeConfig, "testapp", nodeKey, datastore, logger, nil)
+		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, nil)
 		if err != nil {
 			panic(err)
 		}
 
-		return rollcmd.StartNode(cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
 	},
 }
 
