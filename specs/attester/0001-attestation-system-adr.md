@@ -128,7 +128,7 @@ We use the [HashiCorp RAFT library](https://github.com/hashicorp/raft) for its r
 - **Followers (Attesters):**
     - Participate in RAFT consensus.
     - Apply committed log entries via their FSM.
-    - Verify block contents within the FSM, optionally execute them via a connected full node, and sign the block data using their local private key.
+    - Verify block contents within the FSM, optionally execute them via a connected full node (or using the `ExecutionVerifier`), and sign the block data using their local private key.
     - **Call the sequencer's dedicated RPC endpoint to submit their generated signature.**
 
 #### State Machine (FSM)
@@ -137,8 +137,8 @@ The RAFT state machine (on each node) is responsible for:
 
 - Receiving block proposals (as committed log entries).
 - Validating the block data upon applying the log entry.
-- Optionally triggering execution of block contents via a full node connection.
-- **Signing the appropriate block data using the node's local key.**
+- **Optionally Verifying Execution:** The FSM will hold an `ExecutionVerifier` interface, injected during initialization. If this verifier is configured (`!= nil`), its `VerifyExecution` method is called *after* basic block validation (height, hash) but *before* signing. If `VerifyExecution` returns an error, the FSM logs the error and returns immediately for that log entry, preventing the signing and state update for that block on the current node.
+- **Signing the appropriate block data using the node's local key** (only if optional execution verification passes or is disabled).
 - **Recording processed block identifiers (height/hash) to prevent replays.**
 - _(Triggering the subsequent signature submission RPC call back to the leader happens after the FSM `Apply` completes successfully and the block has been signed)._
 
@@ -150,52 +150,61 @@ To facilitate the collection of signatures by the sequencer (RAFT leader) from t
 - **Sequencer Action:** The sequencer **exposes an RPC endpoint** (e.g., defined in a protobuf service) specifically for receiving these signatures. An example signature for such an RPC method could be `SubmitSignature(ctx context.Context, req *SubmitSignatureRequest) (*SubmitSignatureResponse, error)`, where `SubmitSignatureRequest` contains the attester's ID, block height, block hash, and the signature itself.
 - **Aggregation Logic:** The sequencer implements logic to receive these incoming signatures. It should maintain a temporary store (e.g., a map keyed by block height/hash) to collect signatures for ongoing blocks. Once a sufficient number of signatures (based on policy - e.g., f+1, 2f+1, or all N) is received for a given block, the sequencer considers the attestation complete for that block and proceeds with incorporating the signatures into the final chain block. Timeout mechanisms should be included to handle non-responsive attestors.
 
----
-
 ### Node Configuration and Deployment
 
 #### Configuration File (`config.toml`)
 
-Each node is configured via a `config.toml` file containing:
+Each node is configured via a `config.toml` (or equivalent YAML, e.g., `attester.yaml`) file containing:
 
-- **Node Identification:** Unique ID for the attester.
-- **RAFT Parameters:** Directory paths, bind addresses, and timeouts.
-- **Network Settings:** Addresses for connecting to the full node (if execution is enabled) and other network configurations.
-- **Sequencer Endpoint (for Followers):** The address of the sequencer's signature submission RPC endpoint needs to be configured for follower nodes.
+- **Node Identification:** Unique ID for the attester (`[node].id`).
+- **RAFT Parameters:** Directory paths (`[raft].data_dir`), bind addresses (`[node].raft_bind_address`), timeouts (`[raft].election_timeout`, `[raft].heartbeat_timeout`), snapshot settings (`[raft].snapshot_interval`, `[raft].snapshot_threshold`), peers (`[raft].peers`), etc.
+- **Network Settings:**
+    - Address for the full node if direct execution verification is enabled (see Execution Verification section below, `[execution].fullnode_endpoint`).
+    - Address of the sequencer's signature submission RPC endpoint for follower nodes (`[network].sequencer_sig_endpoint`).
+- **Signing Configuration:** Path to the private key and the signing scheme (`[signing].private_key_path`, `[signing].scheme`).
+- **Execution Verification Configuration (`[execution]` section):** Controls the optional execution verification.
+    - `enabled: bool` (default: `false`): Globally enables or disables the feature.
+    - `type: string` (e.g., `"noop"`, `"fullnode"`): Selects the `ExecutionVerifier` implementation. Required if `enabled` is `true`.
+    - `fullnode_endpoint: string`: The URL/endpoint of the full node RPC/API. Required if `type` is `"fullnode"`.
+    - `timeout: string` (e.g., `"15s"`): Specific timeout for verification calls.
 
 #### Command Line Options
 
 Nodes also accept command line flags to override or supplement configuration file settings, providing flexibility during deployment and testing.
 
----
-
 ### Golang Implementation Details
 
 #### Main Components
 
-- **Config Loader:** Reads the `config.toml` file and command line flags.
-- **RAFT Node Initialization:** Sets up the RAFT consensus node using HashiCorp's RAFT library. Includes setting up the FSM.
+- **Config Loader:** Reads the configuration file (`config.toml`/`attester.yaml`) and command line flags, handling defaults and parsing values, including the new `[execution]` section.
+- **RAFT Node Initialization:** Sets up the RAFT consensus node using HashiCorp's RAFT library. Includes setting up the FSM and injecting dependencies like the logger, signer, and the configured `ExecutionVerifier` instance.
+- **Execution Verifier Abstraction:**
+    - An `ExecutionVerifier` interface defines the `VerifyExecution` method.
+    - A `NoOpVerifier` implementation always returns success (nil error), used when `[execution].enabled` is false or `[execution].type` is `"noop"`.
+    - Concrete implementations (e.g., `FullNodeVerifier`) encapsulate the logic to interact with external systems (like a full node RPC) for verification. The specific verifier is instantiated in `main.go` based on configuration and passed to the FSM.
 - **Block Handling (Leader):** Receives blocks (e.g., from DA layer), proposes them to RAFT via `raft.Apply()`.
-- **FSM Implementation:** Contains the `Apply` logic for validating, optionally executing, signing block data with the local key, and recording processed block identifiers.
-- **Signature Submission (Follower):** Logic triggered after successful FSM `Apply` to call the sequencer's `SubmitSignature` RPC endpoint.
+- **FSM Implementation:** Contains the `Apply` logic for validating block proposals, calling the injected `ExecutionVerifier` if present/enabled, signing block data (if verification passed), and recording processed block identifiers.
+- **Signature Submission (Follower):** Logic triggered after successful FSM `Apply` (including signing) to call the sequencer's `SubmitSignature` RPC endpoint.
 - **Signature Reception & Aggregation (Leader):** Implements the `SubmitSignature` RPC server endpoint and the logic to collect and aggregate signatures.
-- **Optional Execution:** For followers with execution enabled, connects to a full node to verify the correctness of block execution (likely triggered within the FSM `Apply`).
+- **Optional Execution:** (Now primarily handled by the `ExecutionVerifier` implementations) For followers with a verifier like `FullNodeVerifier` configured, this component connects to a full node to verify the correctness of block execution, triggered via the `VerifyExecution` call from the FSM `Apply` logic.
 
 #### Sample Workflow in Code
 
-1. Load configuration from `config.toml` and merge with command line flags.
-2. Initialize the RAFT node, FSM, and transport.
-3. **If Leader (Sequencer):**
+1. Load configuration from file and merge with command line flags.
+2. Instantiate the appropriate `ExecutionVerifier` based on the `[execution]` config section (`NoOpVerifier` or a concrete one).
+3. Initialize the RAFT node, FSM (injecting logger, signer, verifier), and transport.
+4. **If Leader (Sequencer):**
     - Start the RPC server to listen for `SubmitSignature` calls.
     - Receive a new block.
     - Propose the block to the RAFT cluster: `raft.Apply(blockData, timeout)`.
     - Wait for the `Apply` to complete locally (confirming it's committed).
     - Wait for incoming signatures via the `SubmitSignature` RPC endpoint, aggregating them.
     - Once enough signatures are collected, finalize the block header.
-4. **If Follower (Attester):**
+5. **If Follower (Attester):**
     - Participate in RAFT consensus.
     - When a block log entry is applied via the FSM:
-        - Validate/Execute the block.
+        - Perform basic validations.
+        - Call `verifier.VerifyExecution(...)` if `verifier` is not nil. If it returns an error, stop processing this entry.
         - Sign the block data using the local key.
         - Record processed block identifiers locally.
     - **After FSM `Apply` returns successfully, call the sequencer's `SubmitSignature` RPC with the generated signature.**
