@@ -358,14 +358,13 @@ func (n *FullNode) Run(ctx context.Context) error {
 	}
 
 	// Start RPC server
-	rpcAddr := fmt.Sprintf("%s:%d", n.nodeConfig.RPC.Address, n.nodeConfig.RPC.Port)
 	handler, err := rpcserver.NewStoreServiceHandler(n.Store)
 	if err != nil {
 		return fmt.Errorf("error creating RPC handler: %w", err)
 	}
 
 	n.rpcServer = &http.Server{
-		Addr:         rpcAddr,
+		Addr:         n.nodeConfig.RPC.Address,
 		Handler:      handler,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
@@ -378,7 +377,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 		}
 	}()
 
-	n.Logger.Info("Started RPC server", "addr", rpcAddr)
+	n.Logger.Info("Started RPC server", "addr", n.nodeConfig.RPC.Address)
 
 	n.Logger.Info("starting P2P client")
 	err = n.p2pClient.Start(ctx)

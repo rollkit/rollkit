@@ -114,8 +114,6 @@ const (
 
 	// FlagRPCAddress is a flag for specifying the RPC server address
 	FlagRPCAddress = "rollkit.rpc.address"
-	// FlagRPCPort is a flag for specifying the RPC server port
-	FlagRPCPort = "rollkit.rpc.port"
 )
 
 // DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
@@ -226,8 +224,7 @@ func AddGlobalFlags(cmd *cobra.Command, appName string) {
 
 // RPCConfig contains all RPC server configuration parameters
 type RPCConfig struct {
-	Address string `mapstructure:"address" yaml:"address" comment:"Address to bind the RPC server to (host). Default: tcp://0.0.0.0"`
-	Port    uint16 `mapstructure:"port" yaml:"port" comment:"Port to bind the RPC server to. Default: 26657"`
+	Address string `mapstructure:"address" yaml:"address" comment:"Address to bind the RPC server to (host:port). Default: tcp://127.0.0.1:7331"`
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
@@ -268,8 +265,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagP2PAllowedPeers, def.P2P.AllowedPeers, "Comma separated list of nodes to whitelist")
 
 	// RPC configuration flags
-	cmd.Flags().String(FlagRPCAddress, def.RPC.Address, "RPC server address (host)")
-	cmd.Flags().Uint16(FlagRPCPort, def.RPC.Port, "RPC server port")
+	cmd.Flags().String(FlagRPCAddress, def.RPC.Address, "RPC server address (host:port)")
 
 	// Instrumentation configuration flags
 	instrDef := DefaultInstrumentationConfig()

@@ -5,6 +5,7 @@ package e2e
 import (
 	"context"
 	"flag"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func TestBasic(t *testing.T) {
 	var (
 		workDir   = t.TempDir()
 		node1Home = filepath.Join(workDir, "1")
-		// node2Home = filepath.Join(workDir, "2")
+		node2Home = filepath.Join(workDir, "2")
 	)
 
 	// Define and parse the binary flag locally in the test function.
@@ -46,12 +47,8 @@ func TestBasic(t *testing.T) {
 	output, err := sut.RunCmd(binaryPath,
 		"init",
 		"--home="+node1Home,
-		"--rollkit.node.sequencer_rollup_id=testing",
 		"--rollkit.node.aggregator",
-		"--rollkit.node.block_time=5ms",
-		"--rollkit.da.block_time=15ms",
 		"--rollkit.signer.passphrase="+aggregatorPass,
-		"--rollkit.rpc.address=127.0.0.1:7331",
 	)
 	require.NoError(t, err, "failed to init aggregator", output)
 
@@ -59,7 +56,6 @@ func TestBasic(t *testing.T) {
 	sut.StartNode(binaryPath,
 		"start",
 		"--home="+node1Home,
-		"--rollkit.node.sequencer_rollup_id=testing",
 		"--rollkit.node.aggregator",
 		"--rollkit.signer.passphrase="+aggregatorPass,
 		"--rollkit.node.block_time=5ms",
@@ -68,42 +64,43 @@ func TestBasic(t *testing.T) {
 	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
 
 	// copy genesis to target home2
-	// output, err = sut.RunCmd(binaryPath,
-	// 	"init",
-	// 	"--home="+node2Home,
-	// 	"--rollkit.node.sequencer_rollup_id=testing",
-	// 	"--rollkit.rpc.address=127.0.0.1:7331",
-	// )
-	// MustCopyFile(t, filepath.Join(node1Home, "config", "genesis.json"), filepath.Join(node2Home, "config", "genesis.json"))
-	// sut.StartNode(
-	// 	binaryPath,
-	// 	"start",
-	// 	"--home="+node2Home,
-	// 	"--rollkit.node.sequencer_rollup_id=testing",
-	// 	fmt.Sprintf("--rollkit.p2p.seeds=%s@127.0.0.1:26656", NodeID(t, node1Home)),
-	// 	"--rollkit.log.level=debug",
-	// )
-	// sut.AwaitNodeUp(t, "http://127.0.0.1:16657", 2*time.Second)
+	output, err = sut.RunCmd(binaryPath,
+		"init",
+		"--home="+node2Home,
+	)
+	require.NoError(t, err, "failed to init fullnode", output)
+	MustCopyFile(t, filepath.Join(node1Home, "config", "genesis.json"), filepath.Join(node2Home, "config", "genesis.json"))
+	sut.StartNode(
+		binaryPath,
+		"start",
+		"--home="+node2Home,
+		fmt.Sprintf("--rollkit.p2p.seeds=%s@127.0.0.1:26656", NodeID(t, node1Home)),
+		"--rollkit.log.level=debug",
+		"--rollkit.rpc.address=127.0.0.1:7332",
+	)
+	sut.AwaitNodeUp(t, "http://127.0.0.1:7332", 2*time.Second)
 
-	// asserNodeCaughtUp := func(c *client.Client) {
-	// 	ctx, done := context.WithTimeout(context.Background(), time.Second)
-	// 	defer done()
-	// 	state, err := c.GetState(ctx)
-	// 	require.NoError(t, err)
-	// 	require.Greater(t, state.LastBlockHeight, uint64(0))
-	// }
+	asserNodeCaughtUp := func(c *client.Client, height uint64) {
+		ctx, done := context.WithTimeout(context.Background(), time.Second)
+		defer done()
+		state, err := c.GetState(ctx)
+		require.NoError(t, err)
+		require.Greater(t, state.LastBlockHeight, height)
+	}
 
 	node1Client := client.NewClient("http://127.0.0.1:7331")
 	require.NoError(t, err)
-	ctx, done := context.WithTimeout(context.Background(), time.Second)
-	defer done()
-	state, err := node1Client.GetState(ctx)
-	require.NoError(t, err)
-	require.Greater(t, state.LastBlockHeight, uint64(1))
+	asserNodeCaughtUp(node1Client, 1)
+
+	// get latest height
+	// ctx, done := context.WithTimeout(context.Background(), time.Second)
+	// defer done()
+	// state, err := node1Client.GetState(ctx)
+	// require.NoError(t, err)
 
 	// node2Client := client.NewClient("http://127.0.0.1:16657")
 	// require.NoError(t, err)
-	// asserNodeCaughtUp(node2Client)
+	// asserNodeCaughtUp(node2Client, state.LastBlockHeight)
 
 	// when a client TX for state update is executed
 	// const myKey = "foo"
