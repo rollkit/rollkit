@@ -2,6 +2,7 @@ include ./scripts/build.mk
 include ./scripts/test.mk
 include ./scripts/proto.mk
 include ./scripts/utils.mk
+include ./scripts/run.mk
 
 ## help: Show this help message
 help: Makefile

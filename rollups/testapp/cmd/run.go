@@ -69,7 +69,7 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		sequencer, err := single.NewSequencer(logger, datastore, daJrpc, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.Node.SequencerRollupID), nodeConfig.Node.BlockTime.Duration, singleMetrics, nodeConfig.Node.Aggregator)
+		sequencer, err := single.NewSequencer(logger, datastore, daJrpc, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.ChainID), nodeConfig.Node.BlockTime.Duration, singleMetrics, nodeConfig.Node.Aggregator)
 		if err != nil {
 			panic(err)
 		}

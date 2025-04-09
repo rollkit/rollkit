@@ -74,8 +74,8 @@ func main() {
 	log.Println("Initializing testapp with local DA...")
 	initArgs := []string{
 		"init",
-		"--da.type=local",
-		"--da.config.url=http://localhost:7980",
+		"--home=./testapp_home", // Specify a home directory for testapp
+		"--rollkit.da.address=http://localhost:7980",
 		"--rollkit.node.aggregator=true",       // Set to true if you want to run as an aggregator
 		"--rollkit.signer.passphrase=12345678", // Replace with your passphrase
 		// Add any other required flags for initialization
@@ -90,8 +90,8 @@ func main() {
 	log.Println("Starting testapp with local DA...")
 	appArgs := []string{
 		"run",
-		"--da.type=local",
-		"--da.config.url=http://localhost:7980",
+		"--home=./testapp_home", // Specify a home directory for testapp
+		"--rollkit.da.address=http://localhost:7980",
 		"--rollkit.node.aggregator=true",       // Set to true if you want to run as an aggregator
 		"--rollkit.signer.passphrase=12345678", // Replace with your passphrase
 		// Add any other required flags for testapp
