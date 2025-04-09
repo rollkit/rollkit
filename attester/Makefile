@@ -59,3 +59,32 @@ clean-protos:
 test:
 	@echo "Running attester tests..."
 	go test ./... 
+
+# Define Output directory and binary name
+BIN_DIR := bin
+BINARY := attesterd
+BINARY_PATH := $(BIN_DIR)/$(BINARY)
+
+# Go package for the main command
+CMD_PACKAGE := ./cmd/attesterd
+
+.PHONY: build
+build: $(BINARY_PATH)
+
+$(BINARY_PATH):
+	@echo "Building $(BINARY) binary..."
+	@mkdir -p $(BIN_DIR)
+	go build -o $(BINARY_PATH) $(CMD_PACKAGE)
+	@echo "Build complete: $(BINARY_PATH)"
+
+.PHONY: install
+install:
+	@echo "Installing $(BINARY) binary..."
+	go install $(CMD_PACKAGE)
+	@echo "Install complete (check $GOPATH/bin or $GOBIN)"
+
+.PHONY: clean
+clean: clean-protos
+	@echo "Cleaning build artifacts..."
+	@rm -rf $(BIN_DIR)
+	@echo "Done." 
