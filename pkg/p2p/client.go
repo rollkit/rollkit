@@ -62,10 +62,8 @@ type Client struct {
 // NewClient creates new Client object.
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
-// TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
 func NewClient(
 	conf config.Config,
-	chainID string,
 	nodeKey *key.NodeKey,
 	ds datastore.Datastore,
 	logger log.Logger,
@@ -92,7 +90,7 @@ func NewClient(
 		conf:    conf.P2P,
 		gater:   gater,
 		privKey: nodeKey.PrivKey,
-		chainID: chainID,
+		chainID: conf.ChainID,
 		logger:  logger,
 		metrics: metrics,
 	}, nil
@@ -224,17 +222,17 @@ func (c *Client) listen() (host.Host, error) {
 }
 
 func (c *Client) setupDHT(ctx context.Context) error {
-	seedNodes := c.parseAddrInfoList(c.conf.Seeds)
-	if len(seedNodes) == 0 {
+	peers := c.parseAddrInfoList(c.conf.Peers)
+	if len(peers) == 0 {
 		c.logger.Info("no seed nodes - only listening for connections")
 	}
 
-	for _, sa := range seedNodes {
+	for _, sa := range peers {
 		c.logger.Debug("seed node", "addr", sa)
 	}
 
 	var err error
-	c.dht, err = dht.New(ctx, c.host, dht.Mode(dht.ModeServer), dht.BootstrapPeers(seedNodes...))
+	c.dht, err = dht.New(ctx, c.host, dht.Mode(dht.ModeServer), dht.BootstrapPeers(peers...))
 	if err != nil {
 		return fmt.Errorf("failed to create DHT: %w", err)
 	}
@@ -361,4 +359,14 @@ func (c *Client) parseAddrInfoList(addrInfoStr string) []peer.AddrInfo {
 // For now, chainID is used.
 func (c *Client) getNamespace() string {
 	return c.chainID
+}
+
+// GetAddresss returns the addresses of the host
+func (c *Client) GetAddresses() []string {
+	addrs := c.host.Addrs()
+	res := make([]string, 0, len(addrs))
+	for _, addr := range addrs {
+		res = append(res, fmt.Sprintf("%s/p2p/%s", addr.String(), c.host.ID()))
+	}
+	return res
 }

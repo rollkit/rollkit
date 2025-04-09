@@ -29,7 +29,7 @@ var DefaultNodeConfig = Config{
 	ChainID:   "rollkit-test",
 	P2P: P2PConfig{
 		ListenAddress: "/ip4/0.0.0.0/tcp/7676",
-		Seeds:         "",
+		Peers:         "",
 	},
 	Node: NodeConfig{
 		Aggregator:     false,

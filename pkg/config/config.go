@@ -70,8 +70,8 @@ const (
 
 	// FlagP2PListenAddress is a flag for specifying the P2P listen address
 	FlagP2PListenAddress = "rollkit.p2p.listen_address"
-	// FlagP2PSeeds is a flag for specifying the P2P seeds
-	FlagP2PSeeds = "rollkit.p2p.seeds"
+	// FlagP2PPeers is a flag for specifying the P2P seeds
+	FlagP2PPeers = "rollkit.p2p.peers"
 	// FlagP2PBlockedPeers is a flag for specifying the P2P blocked peers
 	FlagP2PBlockedPeers = "rollkit.p2p.blocked_peers"
 	// FlagP2PAllowedPeers is a flag for specifying the P2P allowed peers
@@ -202,7 +202,7 @@ type LogConfig struct {
 // P2PConfig contains all peer-to-peer networking configuration parameters
 type P2PConfig struct {
 	ListenAddress string `mapstructure:"listen_address" yaml:"listen_address" comment:"Address to listen for incoming connections (host:port)"`
-	Seeds         string `mapstructure:"seeds" yaml:"seeds" comment:"Comma separated list of seed nodes to connect to"`
+	Peers         string `mapstructure:"peers" yaml:"peers" comment:"Comma separated list of peers to connect to"`
 	BlockedPeers  string `mapstructure:"blocked_peers" yaml:"blocked_peers" comment:"Comma separated list of peer IDs to block from connecting"`
 	AllowedPeers  string `mapstructure:"allowed_peers" yaml:"allowed_peers" comment:"Comma separated list of peer IDs to allow connections from"`
 }
@@ -260,7 +260,7 @@ func AddFlags(cmd *cobra.Command) {
 
 	// P2P configuration flags
 	cmd.Flags().String(FlagP2PListenAddress, def.P2P.ListenAddress, "P2P listen address (host:port)")
-	cmd.Flags().String(FlagP2PSeeds, def.P2P.Seeds, "Comma separated list of seed nodes to connect to")
+	cmd.Flags().String(FlagP2PPeers, def.P2P.Peers, "Comma separated list of seed nodes to connect to")
 	cmd.Flags().String(FlagP2PBlockedPeers, def.P2P.BlockedPeers, "Comma separated list of nodes to ignore")
 	cmd.Flags().String(FlagP2PAllowedPeers, def.P2P.AllowedPeers, "Comma separated list of nodes to whitelist")
 

@@ -115,7 +115,7 @@ func TestParseFlags(t *testing.T) {
 
 		// P2P fields
 		{"ListenAddress", nodeConfig.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
-		{"Seeds", nodeConfig.P2P.Seeds, "node1@127.0.0.1:27001,node2@127.0.0.1:27002"},
+		{"Seeds", nodeConfig.P2P.Peers, "node1@127.0.0.1:27001,node2@127.0.0.1:27002"},
 		{"BlockedPeers", nodeConfig.P2P.BlockedPeers, "node3@127.0.0.1:27003,node4@127.0.0.1:27004"},
 		{"AllowedPeers", nodeConfig.P2P.AllowedPeers, "node5@127.0.0.1:27005,node6@127.0.0.1:27006"},
 

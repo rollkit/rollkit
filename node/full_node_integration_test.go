@@ -77,11 +77,13 @@ func (s *FullNodeTestSuite) SetupTest() {
 		PubKey:  genesisValidatorKey.GetPublic(),
 	}
 
+	config.ChainID = genesis.ChainID
+
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
-	p2pClient, err := p2p.NewClient(config, genesis.ChainID, nodeKey, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
+	p2pClient, err := p2p.NewClient(config, nodeKey, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
 	require.NoError(err)
 
 	err = InitFiles(config.RootDir)
@@ -444,7 +446,8 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
-	p2pClient, err := p2p.NewClient(config, genesis.ChainID, nil, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
+	config.ChainID = genesis.ChainID
+	p2pClient, err := p2p.NewClient(config, nil, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
 	require.NoError(err)
 
 	nodeKey, err := key.GenerateNodeKey()

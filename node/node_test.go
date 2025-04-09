@@ -53,12 +53,12 @@ func createTestComponents(t *testing.T) (coreexecutor.Executor, coresequencer.Se
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	// Create genesis and keys for P2P client
-	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	_, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
 	nodeKey := &key.NodeKey{
 		PrivKey: genesisValidatorKey,
 		PubKey:  genesisValidatorKey.GetPublic(),
 	}
-	p2pClient, err := p2p.NewClient(rollkitconfig.DefaultNodeConfig, genesis.ChainID, nodeKey, dssync.MutexWrap(datastore.NewMapDatastore()), log.NewNopLogger(), p2p.NopMetrics())
+	p2pClient, err := p2p.NewClient(rollkitconfig.DefaultNodeConfig, nodeKey, dssync.MutexWrap(datastore.NewMapDatastore()), log.NewNopLogger(), p2p.NopMetrics())
 	require.NoError(t, err)
 	require.NotNil(t, p2pClient)
 	ds := dssync.MutexWrap(datastore.NewMapDatastore())

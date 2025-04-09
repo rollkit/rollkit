@@ -22,6 +22,7 @@ func main() {
 		rollcmd.NewDocsGenCmd(rootCmd, cmds.AppName),
 		cmds.RunCmd,
 		rollcmd.VersionCmd,
+		rollcmd.GetNodeAddressCmd,
 		initCmd,
 	)
 

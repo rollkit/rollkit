@@ -74,7 +74,7 @@ func TestAddFlags(t *testing.T) {
 
 	// P2P flags
 	assertFlagValue(t, flags, FlagP2PListenAddress, DefaultNodeConfig.P2P.ListenAddress)
-	assertFlagValue(t, flags, FlagP2PSeeds, DefaultNodeConfig.P2P.Seeds)
+	assertFlagValue(t, flags, FlagP2PPeers, DefaultNodeConfig.P2P.Peers)
 	assertFlagValue(t, flags, FlagP2PBlockedPeers, DefaultNodeConfig.P2P.BlockedPeers)
 	assertFlagValue(t, flags, FlagP2PAllowedPeers, DefaultNodeConfig.P2P.AllowedPeers)
 

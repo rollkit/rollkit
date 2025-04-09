@@ -74,7 +74,7 @@ var RunCmd = &cobra.Command{
 			panic(err)
 		}
 
-		p2pClient, err := p2p.NewClient(nodeConfig, "testapp", nodeKey, datastore, logger, p2p.NopMetrics())
+		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, p2p.NopMetrics())
 		if err != nil {
 			panic(err)
 		}
