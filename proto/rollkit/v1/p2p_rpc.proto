@@ -16,14 +16,6 @@ service P2PService {
   rpc GetNetInfo(google.protobuf.Empty) returns (GetNetInfoResponse) {}
 }
 
-// GetPeerInfoRequest defines the request for retrieving peer information
-message GetPeerInfoRequest {
-  // Empty request
-}
-// GetNetInfoRequest defines the request for retrieving network information
-message GetNetInfoRequest {
-  // Empty request
-}
 // GetPeerInfoResponse defines the response for retrieving peer information
 message GetPeerInfoResponse {
   // List of connected peers

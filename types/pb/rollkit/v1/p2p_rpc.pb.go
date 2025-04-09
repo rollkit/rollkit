@@ -22,80 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// GetPeerInfoRequest defines the request for retrieving peer information
-type GetPeerInfoRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetPeerInfoRequest) Reset() {
-	*x = GetPeerInfoRequest{}
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetPeerInfoRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetPeerInfoRequest) ProtoMessage() {}
-
-func (x *GetPeerInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetPeerInfoRequest.ProtoReflect.Descriptor instead.
-func (*GetPeerInfoRequest) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{0}
-}
-
-// GetNetInfoRequest defines the request for retrieving network information
-type GetNetInfoRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetNetInfoRequest) Reset() {
-	*x = GetNetInfoRequest{}
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetNetInfoRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetNetInfoRequest) ProtoMessage() {}
-
-func (x *GetNetInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetNetInfoRequest.ProtoReflect.Descriptor instead.
-func (*GetNetInfoRequest) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{1}
-}
-
 // GetPeerInfoResponse defines the response for retrieving peer information
 type GetPeerInfoResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -107,7 +33,7 @@ type GetPeerInfoResponse struct {
 
 func (x *GetPeerInfoResponse) Reset() {
 	*x = GetPeerInfoResponse{}
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[2]
+	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -119,7 +45,7 @@ func (x *GetPeerInfoResponse) String() string {
 func (*GetPeerInfoResponse) ProtoMessage() {}
 
 func (x *GetPeerInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[2]
+	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -132,7 +58,7 @@ func (x *GetPeerInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPeerInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetPeerInfoResponse) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{2}
+	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GetPeerInfoResponse) GetPeers() []*PeerInfo {
@@ -153,7 +79,7 @@ type GetNetInfoResponse struct {
 
 func (x *GetNetInfoResponse) Reset() {
 	*x = GetNetInfoResponse{}
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[3]
+	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -165,7 +91,7 @@ func (x *GetNetInfoResponse) String() string {
 func (*GetNetInfoResponse) ProtoMessage() {}
 
 func (x *GetNetInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[3]
+	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -178,7 +104,7 @@ func (x *GetNetInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNetInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetNetInfoResponse) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{3}
+	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetNetInfoResponse) GetNetInfo() *NetInfo {
@@ -194,16 +120,14 @@ type PeerInfo struct {
 	// Peer ID
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Peer address
-	Address string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	// Peer protocol versions
-	Protocols     []string `protobuf:"bytes,3,rep,name=protocols,proto3" json:"protocols,omitempty"`
+	Address       string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PeerInfo) Reset() {
 	*x = PeerInfo{}
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[4]
+	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -215,7 +139,7 @@ func (x *PeerInfo) String() string {
 func (*PeerInfo) ProtoMessage() {}
 
 func (x *PeerInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[4]
+	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -228,7 +152,7 @@ func (x *PeerInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerInfo.ProtoReflect.Descriptor instead.
 func (*PeerInfo) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{4}
+	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PeerInfo) GetId() string {
@@ -243,13 +167,6 @@ func (x *PeerInfo) GetAddress() string {
 		return x.Address
 	}
 	return ""
-}
-
-func (x *PeerInfo) GetProtocols() []string {
-	if x != nil {
-		return x.Protocols
-	}
-	return nil
 }
 
 // NetInfo contains information about the network
@@ -267,7 +184,7 @@ type NetInfo struct {
 
 func (x *NetInfo) Reset() {
 	*x = NetInfo{}
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[5]
+	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -279,7 +196,7 @@ func (x *NetInfo) String() string {
 func (*NetInfo) ProtoMessage() {}
 
 func (x *NetInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[5]
+	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -292,7 +209,7 @@ func (x *NetInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetInfo.ProtoReflect.Descriptor instead.
 func (*NetInfo) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{5}
+	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *NetInfo) GetId() string {
@@ -321,17 +238,14 @@ var File_rollkit_v1_p2p_rpc_proto protoreflect.FileDescriptor
 const file_rollkit_v1_p2p_rpc_proto_rawDesc = "" +
 	"\n" +
 	"\x18rollkit/v1/p2p_rpc.proto\x12\n" +
-	"rollkit.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x18rollkit/v1/rollkit.proto\x1a\x16rollkit/v1/state.proto\"\x14\n" +
-	"\x12GetPeerInfoRequest\"\x13\n" +
-	"\x11GetNetInfoRequest\"A\n" +
+	"rollkit.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x18rollkit/v1/rollkit.proto\x1a\x16rollkit/v1/state.proto\"A\n" +
 	"\x13GetPeerInfoResponse\x12*\n" +
 	"\x05peers\x18\x01 \x03(\v2\x14.rollkit.v1.PeerInfoR\x05peers\"D\n" +
 	"\x12GetNetInfoResponse\x12.\n" +
-	"\bnet_info\x18\x01 \x01(\v2\x13.rollkit.v1.NetInfoR\anetInfo\"R\n" +
+	"\bnet_info\x18\x01 \x01(\v2\x13.rollkit.v1.NetInfoR\anetInfo\"4\n" +
 	"\bPeerInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x1c\n" +
-	"\tprotocols\x18\x03 \x03(\tR\tprotocols\"i\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\"i\n" +
 	"\aNetInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0elisten_address\x18\x02 \x01(\tR\rlistenAddress\x12'\n" +
@@ -354,23 +268,21 @@ func file_rollkit_v1_p2p_rpc_proto_rawDescGZIP() []byte {
 	return file_rollkit_v1_p2p_rpc_proto_rawDescData
 }
 
-var file_rollkit_v1_p2p_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_rollkit_v1_p2p_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_rollkit_v1_p2p_rpc_proto_goTypes = []any{
-	(*GetPeerInfoRequest)(nil),  // 0: rollkit.v1.GetPeerInfoRequest
-	(*GetNetInfoRequest)(nil),   // 1: rollkit.v1.GetNetInfoRequest
-	(*GetPeerInfoResponse)(nil), // 2: rollkit.v1.GetPeerInfoResponse
-	(*GetNetInfoResponse)(nil),  // 3: rollkit.v1.GetNetInfoResponse
-	(*PeerInfo)(nil),            // 4: rollkit.v1.PeerInfo
-	(*NetInfo)(nil),             // 5: rollkit.v1.NetInfo
-	(*emptypb.Empty)(nil),       // 6: google.protobuf.Empty
+	(*GetPeerInfoResponse)(nil), // 0: rollkit.v1.GetPeerInfoResponse
+	(*GetNetInfoResponse)(nil),  // 1: rollkit.v1.GetNetInfoResponse
+	(*PeerInfo)(nil),            // 2: rollkit.v1.PeerInfo
+	(*NetInfo)(nil),             // 3: rollkit.v1.NetInfo
+	(*emptypb.Empty)(nil),       // 4: google.protobuf.Empty
 }
 var file_rollkit_v1_p2p_rpc_proto_depIdxs = []int32{
-	4, // 0: rollkit.v1.GetPeerInfoResponse.peers:type_name -> rollkit.v1.PeerInfo
-	5, // 1: rollkit.v1.GetNetInfoResponse.net_info:type_name -> rollkit.v1.NetInfo
-	6, // 2: rollkit.v1.P2PService.GetPeerInfo:input_type -> google.protobuf.Empty
-	6, // 3: rollkit.v1.P2PService.GetNetInfo:input_type -> google.protobuf.Empty
-	2, // 4: rollkit.v1.P2PService.GetPeerInfo:output_type -> rollkit.v1.GetPeerInfoResponse
-	3, // 5: rollkit.v1.P2PService.GetNetInfo:output_type -> rollkit.v1.GetNetInfoResponse
+	2, // 0: rollkit.v1.GetPeerInfoResponse.peers:type_name -> rollkit.v1.PeerInfo
+	3, // 1: rollkit.v1.GetNetInfoResponse.net_info:type_name -> rollkit.v1.NetInfo
+	4, // 2: rollkit.v1.P2PService.GetPeerInfo:input_type -> google.protobuf.Empty
+	4, // 3: rollkit.v1.P2PService.GetNetInfo:input_type -> google.protobuf.Empty
+	0, // 4: rollkit.v1.P2PService.GetPeerInfo:output_type -> rollkit.v1.GetPeerInfoResponse
+	1, // 5: rollkit.v1.P2PService.GetNetInfo:output_type -> rollkit.v1.GetNetInfoResponse
 	4, // [4:6] is the sub-list for method output_type
 	2, // [2:4] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -391,7 +303,7 @@ func file_rollkit_v1_p2p_rpc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rollkit_v1_p2p_rpc_proto_rawDesc), len(file_rollkit_v1_p2p_rpc_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
