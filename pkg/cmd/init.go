@@ -16,14 +16,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
 
-// InitializeConfig creates and initializes the configuration with default values
-func InitializeConfig(homePath string, aggregator bool) rollconf.Config {
-	config := rollconf.DefaultConfig
-	config.RootDir = homePath
-	config.Node.Aggregator = aggregator
-	return config
-}
-
 // InitializeSigner sets up the signer configuration and creates necessary files
 func InitializeSigner(config *rollconf.Config, homePath string, passphrase string) ([]byte, error) {
 	if config.Signer.SignerType == "file" && config.Node.Aggregator {
@@ -82,7 +74,7 @@ func InitializeGenesis(homePath string, chainID string, initialHeight uint64, pr
 	// Check if the genesis file already exists
 	if _, err := os.Stat(genesisPath); err == nil {
 		// File exists, return successfully without overwriting
-		fmt.Printf("Genesis file already exists: %s\n", genesisPath)
+		fmt.Printf("Genesis file already exists at %s: skipping...\n", genesisPath)
 		return nil
 	} else if !os.IsNotExist(err) {
 		// An error other than "not exist" occurred (e.g., permissions)
@@ -129,7 +121,10 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error reading aggregator flag: %w", err)
 		}
 
-		cfg := InitializeConfig(homePath, aggregator)
+		// ignore error, as we are creating a new config
+		// we use load in order to parse all the flags
+		cfg, _ := rollconf.Load(cmd)
+		cfg.Node.Aggregator = aggregator
 		if err := cfg.Validate(); err != nil {
 			return fmt.Errorf("error validating config: %w", err)
 		}

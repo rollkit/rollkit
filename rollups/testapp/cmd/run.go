@@ -30,7 +30,7 @@ var RunCmd = &cobra.Command{
 
 		nodeConfig, err := rollcmd.ParseConfig(cmd)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		// Create DA client with dummy DA
@@ -39,27 +39,36 @@ var RunCmd = &cobra.Command{
 
 		nodeKey, err := key.LoadNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "testapp")
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		singleMetrics, err := single.NopMetrics()
 		if err != nil {
-			panic(err)
+			return err
 		}
 
-		sequencer, err := single.NewSequencer(logger, datastore, dummyDA, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.Node.SequencerRollupID), nodeConfig.Node.BlockTime.Duration, singleMetrics, nodeConfig.Node.Aggregator)
+		sequencer, err := single.NewSequencer(
+			logger,
+			datastore,
+			dummyDA,
+			[]byte(nodeConfig.DA.Namespace),
+			[]byte(nodeConfig.Node.SequencerRollupID),
+			nodeConfig.Node.BlockTime.Duration,
+			singleMetrics,
+			nodeConfig.Node.Aggregator,
+		)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		p2pClient, err := p2p.NewClient(nodeConfig, "testapp", nodeKey, datastore, logger, p2p.NopMetrics())
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		return rollcmd.StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)

@@ -42,7 +42,7 @@ func (c *Config) SaveAsYaml() error {
 	yamlCommentMap := yaml.CommentMap{}
 	addComment := func(path string, comment string) {
 		yamlCommentMap[path] = []*yaml.Comment{
-			yaml.HeadComment(comment),
+			yaml.HeadComment(" " + comment), // add a space for better formatting
 		}
 	}
 
