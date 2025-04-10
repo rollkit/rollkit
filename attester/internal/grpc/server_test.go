@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	attesterv1 "github.com/rollkit/rollkit/attester/api/gen/attester/v1"
+	"github.com/rollkit/rollkit/attester/internal/fsm"
 	grpcServer "github.com/rollkit/rollkit/attester/internal/grpc"
 	"github.com/rollkit/rollkit/attester/internal/mocks"
 )
@@ -71,19 +72,31 @@ func TestAttesterServer_SubmitBlock_SuccessLeader(t *testing.T) {
 	mockRaft.MockState = raft.Leader
 	mockRaft.ApplyErr = nil
 
+	// Setup mock for GetConfiguration
+	mockConfigFuture := new(mocks.MockConfigurationFuture)
+	mockConfigFuture.Err = nil                    // Expect GetConfiguration to succeed
+	mockConfigFuture.Config = raft.Configuration{ // Provide a dummy configuration
+		Servers: []raft.Server{
+			{ID: "leader", Address: "localhost:1"},
+		},
+	}
+	mockRaft.On("GetConfiguration").Return(mockConfigFuture).Maybe() // Allow multiple calls if needed
+
 	expectedBlockHeight := uint64(100)
 	expectedBlockHash := []byte("test_block_hash_success")
 	expectedDataToSign := []byte("data_to_be_signed_success")
-	expectedLogEntry := &attesterv1.BlockInfo{
-		Height:     expectedBlockHeight,
-		Hash:       expectedBlockHash,
-		DataToSign: expectedDataToSign,
+	// The log data now includes the type byte
+	expectedSubmitReq := &attesterv1.SubmitBlockRequest{
+		BlockHeight: expectedBlockHeight,
+		BlockHash:   expectedBlockHash,
+		DataToSign:  expectedDataToSign,
 	}
-	expectedLogData, err := proto.Marshal(expectedLogEntry)
+	expectedReqData, err := proto.Marshal(expectedSubmitReq)
 	require.NoError(t, err)
+	expectedLogData := append([]byte{fsm.LogEntryTypeSubmitBlock}, expectedReqData...) // Prepend type byte
 
 	mockRaft.On("State").Return(raft.Leader).Once()
-	mockRaft.On("Apply", expectedLogData, mock.AnythingOfType("time.Duration")).Return(nil).Once()
+	mockRaft.On("Apply", expectedLogData, mock.AnythingOfType("time.Duration")).Return(new(mocks.MockApplyFuture)).Once() // Return a successful future
 	mockAgg := new(mocks.MockAggregator)
 
 	client := setupTestServer(t, mockRaft, mockAgg)
@@ -195,6 +208,13 @@ func TestAttesterServer_SubmitBlock_ValidationErrors(t *testing.T) {
 			// Node must be leader to hit validation logic after leader check.
 			mockRaft := new(mocks.MockRaftNode)
 			mockRaft.MockState = raft.Leader
+
+			// Setup mock for GetConfiguration (needed even for validation errors if leader)
+			mockConfigFuture := new(mocks.MockConfigurationFuture)
+			mockConfigFuture.Err = nil
+			mockConfigFuture.Config = raft.Configuration{Servers: []raft.Server{{ID: "leader", Address: "localhost:1"}}}
+			mockRaft.On("GetConfiguration").Return(mockConfigFuture).Maybe()
+
 			mockRaft.On("State").Return(raft.Leader).Once()
 			mockAgg := new(mocks.MockAggregator)
 
@@ -216,21 +236,35 @@ func TestAttesterServer_SubmitBlock_ApplyError(t *testing.T) {
 	mockRaft := new(mocks.MockRaftNode)
 	mockRaft.MockState = raft.Leader
 	expectedApplyError := fmt.Errorf("simulated RAFT Apply error")
-	mockRaft.ApplyErr = expectedApplyError
+	// Setup mock to return an error future for Apply
+	mockApplyFuture := new(mocks.MockApplyFuture)
+	mockApplyFuture.Err = expectedApplyError
+	mockRaft.ApplyFn = func(cmd []byte, timeout time.Duration) raft.ApplyFuture { // Use ApplyFn for clarity
+		return mockApplyFuture
+	}
+
+	// Setup mock for GetConfiguration
+	mockConfigFuture := new(mocks.MockConfigurationFuture)
+	mockConfigFuture.Err = nil
+	mockConfigFuture.Config = raft.Configuration{Servers: []raft.Server{{ID: "leader", Address: "localhost:1"}}}
+	mockRaft.On("GetConfiguration").Return(mockConfigFuture).Maybe()
 
 	expectedBlockHeight := uint64(106)
 	expectedBlockHash := []byte("test_block_hash_apply_error")
 	expectedDataToSign := []byte("data_to_be_signed_apply_error")
-	expectedLogEntry := &attesterv1.BlockInfo{
-		Height:     expectedBlockHeight,
-		Hash:       expectedBlockHash,
-		DataToSign: expectedDataToSign,
+	// Construct expected log data correctly
+	expectedSubmitReq := &attesterv1.SubmitBlockRequest{
+		BlockHeight: expectedBlockHeight,
+		BlockHash:   expectedBlockHash,
+		DataToSign:  expectedDataToSign,
 	}
-	expectedLogData, err := proto.Marshal(expectedLogEntry)
+	expectedReqData, err := proto.Marshal(expectedSubmitReq)
 	require.NoError(t, err)
+	expectedLogData := append([]byte{fsm.LogEntryTypeSubmitBlock}, expectedReqData...)
 
 	mockRaft.On("State").Return(raft.Leader).Once()
-	mockRaft.On("Apply", expectedLogData, mock.AnythingOfType("time.Duration")).Return(nil).Once()
+	// Expect Apply to be called, but return the error future
+	mockRaft.On("Apply", expectedLogData, mock.AnythingOfType("time.Duration")).Return(mockApplyFuture).Once()
 	mockAgg := new(mocks.MockAggregator)
 
 	client := setupTestServer(t, mockRaft, mockAgg)

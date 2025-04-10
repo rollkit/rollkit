@@ -14,12 +14,15 @@ import (
 type MockRaftNode struct {
 	mock.Mock
 	// Allow configuration directly on the mock instance in tests
-	StateFn    func() raft.RaftState                        // Optional func override for State
-	LeaderFn   func() raft.ServerAddress                    // Optional func override for Leader
-	ApplyFn    func([]byte, time.Duration) raft.ApplyFuture // Optional func override for Apply
-	MockState  raft.RaftState                               // Direct state value for simple cases
-	MockLeader raft.ServerAddress                           // Direct leader value for simple cases
-	ApplyErr   error                                        // Error to be returned by ApplyFuture
+	StateFn              func() raft.RaftState                        // Optional func override for State
+	LeaderFn             func() raft.ServerAddress                    // Optional func override for Leader
+	ApplyFn              func([]byte, time.Duration) raft.ApplyFuture // Optional func override for Apply
+	GetConfigurationFn   func() raft.ConfigurationFuture              // Optional func override for GetConfiguration
+	MockState            raft.RaftState                               // Direct state value for simple cases
+	MockLeader           raft.ServerAddress                           // Direct leader value for simple cases
+	ApplyErr             error                                        // Error to be returned by ApplyFuture
+	ConfigurationErr     error                                        // Error to be returned by ConfigurationFuture
+	MockConfigurationVal raft.Configuration                           // Direct configuration value
 }
 
 // Compile-time check (optional, requires importing grpcServer)
@@ -58,7 +61,7 @@ func (m *MockRaftNode) Leader() raft.ServerAddress {
 }
 
 func (m *MockRaftNode) Apply(cmd []byte, timeout time.Duration) raft.ApplyFuture {
-	m.Called(cmd, timeout)
+	m.Called(cmd, timeout) // Track the call
 	if m.ApplyFn != nil {
 		return m.ApplyFn(cmd, timeout)
 	}
@@ -67,10 +70,25 @@ func (m *MockRaftNode) Apply(cmd []byte, timeout time.Duration) raft.ApplyFuture
 	return future
 }
 
+// GetConfiguration implements the RaftNode interface.
+func (m *MockRaftNode) GetConfiguration() raft.ConfigurationFuture {
+	m.Called() // Track the call
+	if m.GetConfigurationFn != nil {
+		return m.GetConfigurationFn()
+	}
+	future := new(MockConfigurationFuture)
+	future.Err = m.ConfigurationErr
+	future.Config = m.MockConfigurationVal
+	return future
+}
+
+// --- Mock Futures ---
+
 // MockApplyFuture is a mock implementation of raft.ApplyFuture.
 // Needs to be exported.
 type MockApplyFuture struct {
-	Err error // The error this future will return
+	Err error       // The error this future will return
+	Res interface{} // The response this future will return
 }
 
 func (m *MockApplyFuture) Error() error {
@@ -78,7 +96,7 @@ func (m *MockApplyFuture) Error() error {
 }
 
 func (m *MockApplyFuture) Response() interface{} {
-	return nil // Default mock response
+	return m.Res
 }
 
 func (m *MockApplyFuture) Done() <-chan struct{} {
@@ -89,4 +107,25 @@ func (m *MockApplyFuture) Done() <-chan struct{} {
 
 func (m *MockApplyFuture) Index() uint64 {
 	return 0 // Default mock index
+}
+
+// MockConfigurationFuture is a mock implementation of raft.ConfigurationFuture.
+type MockConfigurationFuture struct {
+	Err    error              // The error this future will return
+	Config raft.Configuration // The configuration this future will return
+}
+
+func (m *MockConfigurationFuture) Error() error {
+	return m.Err
+}
+
+func (m *MockConfigurationFuture) Configuration() raft.Configuration {
+	return m.Config
+}
+
+// Index implements the raft.ConfigurationFuture interface.
+func (m *MockConfigurationFuture) Index() uint64 {
+	// For mock purposes, returning 0 is often sufficient.
+	// Adjust if specific index tracking is needed for tests.
+	return 0
 }

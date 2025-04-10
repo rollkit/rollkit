@@ -31,7 +31,7 @@ func createDummyFile(t *testing.T, name string) string {
 }
 
 func TestLoadConfig_Success(t *testing.T) {
-	dummyKeyPath := createDummyFile(t, "test_priv_key.pem")
+	dummyKeyPath := createDummyFile(t, "key.pem")
 
 	validYaml := `
 node:
@@ -41,8 +41,10 @@ node:
 raft:
   data_dir: "/tmp/attester-data"
   peers:
-    - "127.0.0.1:8002"
-    - "127.0.0.1:8003"
+    - id: "peer-2"
+      address: "127.0.0.1:8002"
+    - id: "peer-3"
+      address: "127.0.0.1:8003"
   bootstrap_cluster: false
   election_timeout: "600ms"
   heartbeat_timeout: "60ms"
@@ -67,7 +69,11 @@ signing:
 	assert.Equal(t, "test-node-1", cfg.Node.ID)
 	assert.Equal(t, "127.0.0.1:8001", cfg.Node.RaftBindAddress)
 	assert.Equal(t, "/tmp/attester-data", cfg.Raft.DataDir)
-	assert.Equal(t, []string{"127.0.0.1:8002", "127.0.0.1:8003"}, cfg.Raft.Peers)
+	expectedPeers := []PeerConfig{
+		{ID: "peer-2", Address: "127.0.0.1:8002"},
+		{ID: "peer-3", Address: "127.0.0.1:8003"},
+	}
+	assert.Equal(t, expectedPeers, cfg.Raft.Peers)
 	assert.False(t, cfg.Raft.BootstrapCluster)
 	assert.Equal(t, "600ms", cfg.Raft.ElectionTimeout)                   // Check original string
 	assert.Equal(t, 600*time.Millisecond, cfg.Raft.GetElectionTimeout()) // Check parsed duration
