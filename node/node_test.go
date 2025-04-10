@@ -58,7 +58,7 @@ func createTestComponents(t *testing.T) (coreexecutor.Executor, coresequencer.Se
 		PrivKey: genesisValidatorKey,
 		PubKey:  genesisValidatorKey.GetPublic(),
 	}
-	p2pClient, err := p2p.NewClient(rollkitconfig.DefaultNodeConfig, genesis.ChainID, nodeKey, dssync.MutexWrap(datastore.NewMapDatastore()), log.NewNopLogger(), p2p.NopMetrics())
+	p2pClient, err := p2p.NewClient(rollkitconfig.DefaultConfig, genesis.ChainID, nodeKey, dssync.MutexWrap(datastore.NewMapDatastore()), log.NewNopLogger(), p2p.NopMetrics())
 	require.NoError(t, err)
 	require.NotNil(t, p2pClient)
 	ds := dssync.MutexWrap(datastore.NewMapDatastore())
@@ -238,8 +238,8 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 func TestNewNode(t *testing.T) {
 	ctx := context.Background()
 	chainID := "TestNewNode"
-	//ln := initAndStartNodeWithCleanup(ctx, t, Light, chainID)
-	//require.IsType(t, new(LightNode), ln)
+	// ln := initAndStartNodeWithCleanup(ctx, t, Light, chainID)
+	// require.IsType(t, new(LightNode), ln)
 	fn := initAndStartNodeWithCleanup(ctx, t, Full, chainID)
 	require.IsType(t, new(FullNode), fn)
 }

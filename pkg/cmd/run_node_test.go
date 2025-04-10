@@ -88,19 +88,16 @@ func TestParseFlags(t *testing.T) {
 		t.Fatalf("Error: %v", err)
 	}
 
-	nodeConfig := rollconf.DefaultNodeConfig
+	nodeConfig := rollconf.DefaultConfig
 	nodeConfig.RootDir = t.TempDir()
 
 	newRunNodeCmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
-
-	// Register root flags to be able to use --home flag
-	rollconf.AddGlobalFlags(newRunNodeCmd, "testapp")
-
+	newRunNodeCmd.Flags().Set(rollconf.FlagRootDir, "custom/root/dir")
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error: %v", err)
 	}
 
-	nodeConfig, err = ParseConfig(newRunNodeCmd, "custom/root/dir")
+	nodeConfig, err = ParseConfig(newRunNodeCmd)
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
@@ -175,16 +172,17 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 			t.Fatalf("Error: %v", err)
 		}
 
-		nodeConfig := rollconf.DefaultNodeConfig
+		nodeConfig := rollconf.DefaultConfig
 		nodeConfig.RootDir = t.TempDir()
 
 		newRunNodeCmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+		newRunNodeCmd.Flags().Set(rollconf.FlagRootDir, "custom/root/dir")
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
-		nodeConfig, err = ParseConfig(newRunNodeCmd, "custom/root/dir")
+		nodeConfig, err = ParseConfig(newRunNodeCmd)
 		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
@@ -207,15 +205,16 @@ func TestDefaultAggregatorValue(t *testing.T) {
 		t.Fatalf("Error: %v", err)
 	}
 
-	nodeConfig := rollconf.DefaultNodeConfig
+	nodeConfig := rollconf.DefaultConfig
 
 	newRunNodeCmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+	newRunNodeCmd.Flags().Set(rollconf.FlagRootDir, "custom/root/dir")
 
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error parsing flags: %v", err)
 	}
 
-	nodeConfig, err = ParseConfig(newRunNodeCmd, "custom/root/dir")
+	nodeConfig, err = ParseConfig(newRunNodeCmd)
 	if err != nil {
 		t.Errorf("Error parsing config: %v", err)
 	}
@@ -227,7 +226,7 @@ func TestDefaultAggregatorValue(t *testing.T) {
 // TestCentralizedAddresses verifies that when centralized service flags are provided,
 // the configuration fields in nodeConfig are updated accordingly, ensuring that mocks are skipped.
 func TestCentralizedAddresses(t *testing.T) {
-	nodeConfig := rollconf.DefaultNodeConfig
+	nodeConfig := rollconf.DefaultConfig
 
 	args := []string{
 		"start",
@@ -245,11 +244,12 @@ func TestCentralizedAddresses(t *testing.T) {
 	}
 
 	cmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+	cmd.Flags().Set(rollconf.FlagRootDir, "custom/root/dir")
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
 
-	nodeConfig, err = ParseConfig(cmd, "custom/root/dir")
+	nodeConfig, err = ParseConfig(cmd)
 	if err != nil {
 		t.Fatalf("parseConfig error: %v", err)
 	}
@@ -301,6 +301,7 @@ func newRunNodeCmd(
 
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
+	rollconf.AddGlobalFlags(cmd, "testapp")
 
 	return cmd
 }

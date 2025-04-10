@@ -16,25 +16,10 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
 
-// ValidateHomePath checks if the home path is valid and not already initialized
-func ValidateHomePath(homePath string) error {
-	if homePath == "" {
-		return fmt.Errorf("home path is required")
-	}
-
-	configFilePath := filepath.Join(homePath, rollconf.RollkitConfigYaml)
-	if _, err := os.Stat(configFilePath); err == nil {
-		return fmt.Errorf("%s file already exists in the specified directory", rollconf.RollkitConfigYaml)
-	}
-
-	return nil
-}
-
 // InitializeConfig creates and initializes the configuration with default values
 func InitializeConfig(homePath string, aggregator bool) rollconf.Config {
-	config := rollconf.DefaultNodeConfig
+	config := rollconf.DefaultConfig
 	config.RootDir = homePath
-	config.ConfigDir = homePath + "/config"
 	config.Node.Aggregator = aggregator
 	return config
 }
@@ -47,7 +32,7 @@ func InitializeSigner(config *rollconf.Config, homePath string, passphrase strin
 		}
 
 		signerDir := filepath.Join(homePath, "config")
-		if err := os.MkdirAll(signerDir, 0750); err != nil {
+		if err := os.MkdirAll(signerDir, 0o750); err != nil {
 			return nil, fmt.Errorf("failed to create signer directory: %w", err)
 		}
 
@@ -106,7 +91,7 @@ func InitializeGenesis(homePath string, chainID string, initialHeight uint64, pr
 	// If os.IsNotExist(err) is true, the file doesn't exist, so we proceed.
 
 	// Create the config directory if it doesn't exist (needed before saving genesis)
-	if err := os.MkdirAll(configDir, 0750); err != nil {
+	if err := os.MkdirAll(configDir, 0o750); err != nil {
 		return fmt.Errorf("error creating config directory: %w", err)
 	}
 
@@ -131,21 +116,12 @@ func InitializeGenesis(homePath string, chainID string, initialHeight uint64, pr
 // InitCmd initializes a new rollkit.yaml file in the current directory
 var InitCmd = &cobra.Command{
 	Use:   "init",
-	Short: fmt.Sprintf("Initialize a new %s file", rollconf.RollkitConfigYaml),
-	Long:  fmt.Sprintf("This command initializes a new %s file in the specified directory (or current directory if not specified).", rollconf.RollkitConfigYaml),
+	Short: fmt.Sprintf("Initialize rollkit config"),
+	Long:  fmt.Sprintf("This command initializes a new %s file in the specified directory (or current directory if not specified).", rollconf.ConfigName),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homePath, err := cmd.Flags().GetString(rollconf.FlagRootDir)
 		if err != nil {
 			return fmt.Errorf("error reading home flag: %w", err)
-		}
-
-		if err := ValidateHomePath(homePath); err != nil {
-			return err
-		}
-
-		// Make sure the home directory exists
-		if err := os.MkdirAll(homePath, 0750); err != nil {
-			return fmt.Errorf("error creating directory %s: %w", homePath, err)
 		}
 
 		aggregator, err := cmd.Flags().GetBool(rollconf.FlagAggregator)
@@ -154,6 +130,9 @@ var InitCmd = &cobra.Command{
 		}
 
 		config := InitializeConfig(homePath, aggregator)
+		if err := config.Validate(); err != nil {
+			return fmt.Errorf("error validating config: %w", err)
+		}
 
 		passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
 		if err != nil {
@@ -165,7 +144,7 @@ var InitCmd = &cobra.Command{
 			return err
 		}
 
-		if err := rollconf.WriteYamlConfig(config); err != nil {
+		if err := config.SaveAsYaml(); err != nil {
 			return fmt.Errorf("error writing rollkit.yaml file: %w", err)
 		}
 
@@ -187,7 +166,7 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error initializing genesis file: %w", err)
 		}
 
-		fmt.Printf("Initialized %s file in %s\n", rollconf.RollkitConfigYaml, homePath)
+		fmt.Printf("Initialized %s file in %s\n", rollconf.ConfigName, homePath)
 		return nil
 	},
 }

@@ -6,10 +6,19 @@ import (
 	"time"
 )
 
+const (
+	// ConfigDirName is the base name of the rollkit configuration file without extension.
+	ConfigDirName = "rollkit"
+	// ConfigExtension is the file extension for the configuration file without the leading dot.
+	ConfigExtension = "yaml"
+	// ConfigPath is the filename for the rollkit configuration file.
+	ConfigName = ConfigDirName + "." + ConfigExtension
+	// AppConfigDir is the directory name for the app configuration.
+	AppConfigDir = "config"
+)
+
 // DefaultRootDir returns the default root directory for rollkit
-func DefaultRootDir() string {
-	return DefaultRootDirWithName("rollkit")
-}
+var DefaultRootDir = DefaultRootDirWithName(ConfigDirName)
 
 // DefaultRootDirWithName returns the default root directory for an application,
 // based on the app name and the user's home directory
@@ -18,15 +27,15 @@ func DefaultRootDirWithName(appName string) string {
 	if err != nil {
 		return ""
 	}
+
 	return filepath.Join(home, "."+appName)
 }
 
-// DefaultNodeConfig keeps default values of NodeConfig
-var DefaultNodeConfig = Config{
-	RootDir:   DefaultRootDir(),
-	DBPath:    "data",
-	ConfigDir: "config",
-	ChainID:   "rollkit-test",
+// DefaultConfig keeps default values of NodeConfig
+var DefaultConfig = Config{
+	RootDir: DefaultRootDir,
+	DBPath:  "data",
+	ChainID: "rollkit-test",
 	P2P: P2PConfig{
 		ListenAddress: "/ip4/0.0.0.0/tcp/7676",
 		Seeds:         "",

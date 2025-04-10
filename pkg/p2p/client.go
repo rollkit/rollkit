@@ -62,7 +62,6 @@ type Client struct {
 // NewClient creates new Client object.
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
-// TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
 func NewClient(
 	conf config.Config,
 	chainID string,
@@ -76,7 +75,7 @@ func NewClient(
 	}
 
 	if conf.P2P.ListenAddress == "" {
-		conf.P2P.ListenAddress = config.DefaultNodeConfig.P2P.ListenAddress
+		conf.P2P.ListenAddress = config.DefaultConfig.P2P.ListenAddress
 	}
 
 	gater, err := conngater.NewBasicConnectionGater(ds)
@@ -150,7 +149,6 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 
 // Close gently stops Client.
 func (c *Client) Close() error {
-
 	return errors.Join(
 		c.dht.Close(),
 		c.host.Close(),

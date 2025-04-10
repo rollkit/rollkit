@@ -7,9 +7,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-var (
-	errInvalidAddress = errors.New("invalid address format, expected [protocol://][<NODE_ID>@]<IPv4>:<PORT>")
-)
+var errInvalidAddress = errors.New("invalid address format, expected [protocol://][<NODE_ID>@]<IPv4>:<PORT>")
 
 // TranslateAddresses updates conf by changing Cosmos-style addresses to Multiaddr format.
 func TranslateAddresses(conf *Config) error {
