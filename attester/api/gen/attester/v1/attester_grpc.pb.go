@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	AttesterService_SubmitBlock_FullMethodName     = "/attester.v1.AttesterService/SubmitBlock"
-	AttesterService_SubmitSignature_FullMethodName = "/attester.v1.AttesterService/SubmitSignature"
+	AttesterService_SubmitBlock_FullMethodName            = "/attester.v1.AttesterService/SubmitBlock"
+	AttesterService_SubmitSignature_FullMethodName        = "/attester.v1.AttesterService/SubmitSignature"
+	AttesterService_GetAggregatedSignature_FullMethodName = "/attester.v1.AttesterService/GetAggregatedSignature"
 )
 
 // AttesterServiceClient is the client API for AttesterService service.
@@ -32,6 +33,9 @@ type AttesterServiceClient interface {
 	SubmitBlock(ctx context.Context, in *SubmitBlockRequest, opts ...grpc.CallOption) (*SubmitBlockResponse, error)
 	// SubmitSignature is called by follower nodes to send their signature back to the leader.
 	SubmitSignature(ctx context.Context, in *SubmitSignatureRequest, opts ...grpc.CallOption) (*SubmitSignatureResponse, error)
+	// GetAggregatedSignature retrieves the collected signatures for a specific block height,
+	// if quorum has been reached.
+	GetAggregatedSignature(ctx context.Context, in *GetAggregatedSignatureRequest, opts ...grpc.CallOption) (*GetAggregatedSignatureResponse, error)
 }
 
 type attesterServiceClient struct {
@@ -60,6 +64,15 @@ func (c *attesterServiceClient) SubmitSignature(ctx context.Context, in *SubmitS
 	return out, nil
 }
 
+func (c *attesterServiceClient) GetAggregatedSignature(ctx context.Context, in *GetAggregatedSignatureRequest, opts ...grpc.CallOption) (*GetAggregatedSignatureResponse, error) {
+	out := new(GetAggregatedSignatureResponse)
+	err := c.cc.Invoke(ctx, AttesterService_GetAggregatedSignature_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AttesterServiceServer is the server API for AttesterService service.
 // All implementations must embed UnimplementedAttesterServiceServer
 // for forward compatibility
@@ -69,6 +82,9 @@ type AttesterServiceServer interface {
 	SubmitBlock(context.Context, *SubmitBlockRequest) (*SubmitBlockResponse, error)
 	// SubmitSignature is called by follower nodes to send their signature back to the leader.
 	SubmitSignature(context.Context, *SubmitSignatureRequest) (*SubmitSignatureResponse, error)
+	// GetAggregatedSignature retrieves the collected signatures for a specific block height,
+	// if quorum has been reached.
+	GetAggregatedSignature(context.Context, *GetAggregatedSignatureRequest) (*GetAggregatedSignatureResponse, error)
 	mustEmbedUnimplementedAttesterServiceServer()
 }
 
@@ -81,6 +97,9 @@ func (UnimplementedAttesterServiceServer) SubmitBlock(context.Context, *SubmitBl
 }
 func (UnimplementedAttesterServiceServer) SubmitSignature(context.Context, *SubmitSignatureRequest) (*SubmitSignatureResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitSignature not implemented")
+}
+func (UnimplementedAttesterServiceServer) GetAggregatedSignature(context.Context, *GetAggregatedSignatureRequest) (*GetAggregatedSignatureResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAggregatedSignature not implemented")
 }
 func (UnimplementedAttesterServiceServer) mustEmbedUnimplementedAttesterServiceServer() {}
 
@@ -131,6 +150,24 @@ func _AttesterService_SubmitSignature_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AttesterService_GetAggregatedSignature_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAggregatedSignatureRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AttesterServiceServer).GetAggregatedSignature(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AttesterService_GetAggregatedSignature_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AttesterServiceServer).GetAggregatedSignature(ctx, req.(*GetAggregatedSignatureRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AttesterService_ServiceDesc is the grpc.ServiceDesc for AttesterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -145,6 +182,10 @@ var AttesterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SubmitSignature",
 			Handler:    _AttesterService_SubmitSignature_Handler,
+		},
+		{
+			MethodName: "GetAggregatedSignature",
+			Handler:    _AttesterService_GetAggregatedSignature_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

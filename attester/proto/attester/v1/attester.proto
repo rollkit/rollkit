@@ -13,6 +13,10 @@ service AttesterService {
 
   // SubmitSignature is called by follower nodes to send their signature back to the leader.
   rpc SubmitSignature(SubmitSignatureRequest) returns (SubmitSignatureResponse);
+
+  // GetAggregatedSignature retrieves the collected signatures for a specific block height,
+  // if quorum has been reached.
+  rpc GetAggregatedSignature(GetAggregatedSignatureRequest) returns (GetAggregatedSignatureResponse);
 }
 
 // SubmitBlockRequest contains the details of the block to be attested.
@@ -44,6 +48,19 @@ message SubmitSignatureResponse {
   bool success = 1;       // True if the signature was received and initially processed.
                         // Final aggregation status is handled asynchronously.
   string error_message = 2; // Optional error message if processing failed immediately.
+}
+
+// GetAggregatedSignatureRequest requests the aggregated signatures for a block.
+message GetAggregatedSignatureRequest {
+  uint64 block_height = 1; // The height of the block to query.
+}
+
+// GetAggregatedSignatureResponse returns the aggregated signatures if quorum was met.
+message GetAggregatedSignatureResponse {
+  bool quorum_met = 1;     // True if the quorum threshold was met for this block height.
+  repeated bytes signatures = 2; // The list of collected signatures if quorum was met.
+                           // Empty if quorum was not met or the height is unknown.
+  string error_message = 3; // Optional error message if the query failed.
 }
 
 // BlockInfo represents the attested information for a block, stored in the FSM state.

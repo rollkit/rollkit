@@ -159,6 +159,8 @@ func TestFSM_Apply_SubmitBlock_Success_Leader(t *testing.T) {
 	logEntry := createTestLogEntry(t, height, hash[:], dataToSign)
 
 	mockAgg.On("SetBlockData", hash[:], dataToSign).Return().Once()
+	// Expect the leader to also add its own signature
+	mockAgg.On("AddSignature", height, hash[:], nodeID, mockSigner.signatureToReturn).Return(false, nil).Once()
 
 	applyResponse := fsm.Apply(logEntry)
 	_, ok := applyResponse.(*state.BlockInfo)

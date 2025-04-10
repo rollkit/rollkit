@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"bufio"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -28,18 +27,18 @@ import (
 const (
 	numFollowers       = 3
 	numNodes           = numFollowers + 1 // 1 Leader + Followers
-	baseGRPCPort       = 13000            // Base port for follower signature submission RPC
-	baseRaftPort       = 12000            // Base port for Raft communication
-	defaultWaitTime    = 15 * time.Second // Reverted from 30s - Time to wait for network stabilization / actions
-	interactionTimeout = 10 * time.Second // Timeout for gRPC calls and log searching
+	baseGRPCPort       = 13000
+	baseRaftPort       = 12000
+	defaultWaitTime    = 5 * time.Second
+	interactionTimeout = 10 * time.Second
 	testBlockHeight    = 100
 	testBlockDataStr   = "test-block-data-e2e"
-	buildDir           = "../bin" // Relative path to where 'make build' places the binary
+	buildDir           = "../bin"
 	binaryName         = "attesterd"
 	binaryPath         = buildDir + "/" + binaryName
 	leaderID           = "sequencer-0"
 	attesterIDPrefix   = "attester-"
-	logLevel           = "debug" // Use debug for E2E tests to get more info
+	logLevel           = "debug"
 	grpcDialTimeout    = 5 * time.Second
 )
 
@@ -48,13 +47,13 @@ type nodeInfo struct {
 	id       string
 	cmd      *exec.Cmd
 	cfgFile  string
-	keyFile  string // Private key file path
-	pubFile  string // Public key file path
+	keyFile  string
+	pubFile  string
 	dataDir  string
 	isLeader bool
-	logFile  *os.File // For capturing stdout/stderr
-	grpcAddr string   // gRPC address leader listens on
-	raftAddr string   // Raft address node listens on
+	logFile  *os.File
+	grpcAddr string
+	raftAddr string
 }
 
 // clusterInfo manages the set of nodes in the E2E test
@@ -390,52 +389,35 @@ func triggerBlockProposal(t *testing.T, leaderGRPCAddr string, height uint64, da
 	t.Logf("Successfully triggered block proposal for height %d via gRPC", height)
 }
 
-// checkLogForMessage searches a node's log file for a specific substring.
-// Returns true if found within the timeout, false otherwise.
-func checkLogForMessage(t *testing.T, node *nodeInfo, message string, timeout time.Duration) bool {
+// getAggregatedSignatures connects to a node and calls the GetAggregatedSignature RPC.
+func getAggregatedSignatures(t *testing.T, nodeGRPCAddr string, height uint64) *attesterv1.GetAggregatedSignatureResponse {
 	t.Helper()
-	t.Logf("Checking logs for node %s (%s) for message: '%s' (timeout: %v)", node.id, node.logFile.Name(), message, timeout)
+	t.Logf("Attempting to connect to node gRPC at %s to get aggregated signatures for height %d", nodeGRPCAddr, height)
 
-	// Use time.After for timeout instead of context
-	timeoutChan := time.After(timeout)
+	// Set up a connection to the server.
+	ctx, cancel := context.WithTimeout(context.Background(), grpcDialTimeout)
+	defer cancel()
+	_ = ctx // Explicitly ignore the context variable to satisfy the linter
+	conn, err := grpc.NewClient(nodeGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	require.NoError(t, err, "Failed to dial node gRPC server at %s", nodeGRPCAddr)
+	defer conn.Close()
 
-	ticker := time.NewTicker(500 * time.Millisecond) // Check every 500ms
-	defer ticker.Stop()
+	client := attesterv1.NewAttesterServiceClient(conn)
 
-	for {
-		select {
-		case <-timeoutChan: // Check timeout channel
-			t.Logf("Timeout waiting for message '%s' in log for node %s", message, node.id)
-			return false
-		case <-ticker.C:
-			// Re-open the file for reading as it's being written to
-			file, err := os.Open(node.logFile.Name())
-			if err != nil {
-				t.Logf("WARN: Failed to open log file %s for reading: %v", node.logFile.Name(), err)
-				continue // Skip this tick
-			}
-
-			scanner := bufio.NewScanner(file)
-			found := false
-			for scanner.Scan() {
-				if strings.Contains(scanner.Text(), message) {
-					t.Logf("Found message '%s' in log for node %s", message, node.id)
-					found = true
-					break
-				}
-			}
-			file.Close() // Close the file handle after scanning
-
-			if found {
-				return true
-			}
-
-			if err := scanner.Err(); err != nil {
-				t.Logf("WARN: Error scanning log file %s: %v", node.logFile.Name(), err)
-				// Decide if error is fatal or can be ignored
-			}
-		}
+	// Prepare request
+	req := &attesterv1.GetAggregatedSignatureRequest{
+		BlockHeight: height,
 	}
+
+	// Call GetAggregatedSignature
+	callCtx, callCancel := context.WithTimeout(context.Background(), interactionTimeout)
+	defer callCancel()
+	resp, err := client.GetAggregatedSignature(callCtx, req)
+	require.NoError(t, err, "GetAggregatedSignature RPC call failed")
+	require.NotNil(t, resp, "Received nil response from GetAggregatedSignature")
+
+	t.Logf("Received GetAggregatedSignature response for height %d: QuorumMet=%t, Signatures=%d", height, resp.QuorumMet, len(resp.Signatures))
+	return resp
 }
 
 // TestE2E_BasicAttestation runs a basic E2E scenario
@@ -466,6 +448,23 @@ func TestE2E_BasicAttestation(t *testing.T) {
 
 	// Trigger the block proposal on the leader
 	triggerBlockProposal(t, leaderNode.grpcAddr, testBlockHeight, testBlockDataStr)
+
+	// Wait a bit for propagation and aggregation
+	t.Logf("Waiting %v for attestation to complete...", defaultWaitTime)
+	time.Sleep(defaultWaitTime)
+
+	// Get the aggregated signatures from the leader
+	aggregatedSigsResp := getAggregatedSignatures(t, leaderNode.grpcAddr, testBlockHeight)
+
+	// Verify quorum was met and signatures were received
+	require.True(t, aggregatedSigsResp.QuorumMet, "Quorum should be met for height %d", testBlockHeight)
+
+	// Determine expected number of signatures based on config
+	// In this test setup, quorum is N+1 (leader + all followers)
+	expectedSigCount := numFollowers + 1
+	require.Len(t, aggregatedSigsResp.Signatures, expectedSigCount, "Expected %d aggregated signatures, got %d", expectedSigCount, len(aggregatedSigsResp.Signatures))
+
+	// Optional: Add more checks, e.g., verify the signatures themselves if public keys are known
 
 	t.Log("E2E Test Completed Successfully!")
 }

@@ -144,6 +144,22 @@ func runNode(cmd *cobra.Command, args []string) {
 			slog.Debug("Loaded public key", "attester_id", attesterID, "path", keyPath)
 		}
 		slog.Info("Successfully loaded public keys", "count", len(attesterKeys))
+
+		// Add leader's own public key to the map for the aggregator
+		leaderPubKey := signer.PublicKey()
+		if leaderPubKey != nil {
+			if len(leaderPubKey) == ed25519.PublicKeySize {
+				attesterKeys[cfg.Node.ID] = leaderPubKey
+				slog.Info("Added leader's own public key to the aggregator's known keys", "leader_id", cfg.Node.ID)
+			} else {
+				slog.Error("Leader's own public key has invalid size", "leader_id", cfg.Node.ID, "size", len(leaderPubKey))
+				os.Exit(1)
+			}
+		} else {
+			slog.Error("Failed to get leader's own public key from signer")
+			os.Exit(1)
+		}
+
 		sigAggregator, err = aggregator.NewSignatureAggregator(logger, cfg.Aggregator.QuorumThreshold, attesterKeys)
 		if err != nil {
 			slog.Error("Failed to initialize signature aggregator", "error", err)

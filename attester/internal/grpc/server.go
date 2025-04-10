@@ -226,3 +226,28 @@ func (s *AttesterServer) SubmitSignature(ctx context.Context, req *attesterv1.Su
 		Success: true, // Indicates successful reception and basic processing
 	}, nil
 }
+
+// GetAggregatedSignature retrieves the aggregated signatures for a specific block height.
+func (s *AttesterServer) GetAggregatedSignature(ctx context.Context, req *attesterv1.GetAggregatedSignatureRequest) (*attesterv1.GetAggregatedSignatureResponse, error) {
+	s.logger.Info("Received GetAggregatedSignature request", "block_height", req.BlockHeight)
+
+	if req.BlockHeight == 0 {
+		return nil, fmt.Errorf("block height cannot be zero") // Consider grpc codes.InvalidArgument
+	}
+
+	if s.aggregator == nil {
+		s.logger.Error("Aggregator is not configured in the server")
+		return nil, fmt.Errorf("internal server error: aggregator not configured") // Consider grpc codes.Internal
+	}
+
+	sigs, quorumMet := s.aggregator.GetAggregatedSignatures(req.BlockHeight)
+
+	s.logger.Debug("Aggregator returned signatures", "block_height", req.BlockHeight, "quorum_met", quorumMet, "signature_count", len(sigs))
+
+	resp := &attesterv1.GetAggregatedSignatureResponse{
+		QuorumMet:  quorumMet,
+		Signatures: sigs,
+	}
+
+	return resp, nil
+}

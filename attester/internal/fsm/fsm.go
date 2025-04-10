@@ -196,6 +196,16 @@ func (f *AttesterFSM) applySubmitBlock(logIndex uint64, req *attesterv1.SubmitBl
 	if f.isLeader {
 		if f.aggregator != nil {
 			f.aggregator.SetBlockData(info.Hash[:], info.DataToSign)
+
+			// Add leader's own signature to the aggregator
+			quorumReached, err := f.aggregator.AddSignature(info.Height, info.Hash[:], f.nodeID, signature)
+			if err != nil {
+				// Log error, but don't fail the Apply. The aggregator already logged details.
+				f.logger.Error("Failed to add leader's own signature to aggregator", append(logArgs, "error", err)...)
+			} else if quorumReached {
+				f.logger.Info("Quorum reached after adding leader's own signature", logArgs...)
+			}
+
 		} else {
 			f.logger.Error("CRITICAL: FSM is leader but aggregator is nil. This indicates an unrecoverable state.", logArgs...)
 			panic("invariant violation: aggregator is nil for leader FSM")
