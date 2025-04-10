@@ -268,7 +268,7 @@ func netAddr(ip string, port int) string {
 }
 
 // launchNode starts a node process
-func launchNode(t *testing.T, cluster *clusterInfo, node *nodeInfo) {
+func (c *clusterInfo) LaunchNode(t *testing.T, node *nodeInfo) {
 	t.Helper()
 	args := []string{
 		"--config", node.cfgFile,
@@ -278,7 +278,7 @@ func launchNode(t *testing.T, cluster *clusterInfo, node *nodeInfo) {
 		args = append(args, "--leader")
 	}
 
-	cmd := exec.Command(cluster.binaryPath, args...)
+	cmd := exec.Command(c.binaryPath, args...)
 	cmd.Stdout = node.logFile
 	cmd.Stderr = node.logFile
 
@@ -289,10 +289,10 @@ func launchNode(t *testing.T, cluster *clusterInfo, node *nodeInfo) {
 }
 
 // cleanupCluster stops nodes and removes temporary files/dirs
-func cleanupCluster(t *testing.T, cluster *clusterInfo) {
+func (c *clusterInfo) Cleanup(t *testing.T) {
 	t.Helper()
 	t.Log("Cleaning up E2E cluster...")
-	for _, node := range cluster.nodes {
+	for _, node := range c.nodes {
 		if node.cmd != nil && node.cmd.Process != nil {
 			pid := node.cmd.Process.Pid
 			t.Logf("Stopping node %s (PID: %d)...", node.id, pid)
@@ -327,13 +327,13 @@ func cleanupCluster(t *testing.T, cluster *clusterInfo) {
 			node.logFile.Close()
 		}
 	}
-	if cluster.testDir != "" {
-		t.Logf("Removing test directory: %s", cluster.testDir)
+	if c.testDir != "" {
+		t.Logf("Removing test directory: %s", c.testDir)
 		// It's useful to keep logs on failure, conditionally remove:
 		if !t.Failed() {
-			require.NoError(t, os.RemoveAll(cluster.testDir), "Failed to remove test directory")
+			require.NoError(t, os.RemoveAll(c.testDir), "Failed to remove test directory")
 		} else {
-			t.Logf("Test failed, leaving test directory for inspection: %s", cluster.testDir)
+			t.Logf("Test failed, leaving test directory for inspection: %s", c.testDir)
 		}
 	}
 	t.Log("Cleanup complete.")
@@ -404,11 +404,11 @@ func TestE2E_BasicAttestation(t *testing.T) {
 
 	cluster := setupCluster(t)
 	// Ensure cleanup happens even if the test panics or fails early
-	defer cleanupCluster(t, cluster)
+	defer cluster.Cleanup(t)
 
 	// Launch all nodes
 	for _, node := range cluster.nodes {
-		launchNode(t, cluster, node)
+		cluster.LaunchNode(t, node)
 		// Brief pause between starting nodes, might help leader election stability
 		time.Sleep(100 * time.Millisecond)
 	}
