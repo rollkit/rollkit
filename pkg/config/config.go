@@ -326,13 +326,11 @@ func Load(cmd *cobra.Command) (Config, error) {
 		return cfg, errors.Join(ErrReadYaml, fmt.Errorf("failed decoding file: %w", err))
 	}
 
-	// Unmarshal directly into Config
-	if err := v.Unmarshal(&cfg, func(c *mapstructure.DecoderConfig) {
-		c.TagName = "mapstructure"
-		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
 			mapstructure.StringToSliceHookFunc(","),
-			func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+			func(f reflect.Type, t reflect.Type, data any) (any, error) {
 				if t == reflect.TypeOf(DurationWrapper{}) && f.Kind() == reflect.String {
 					if str, ok := data.(string); ok {
 						duration, err := time.ParseDuration(str)
@@ -344,9 +342,16 @@ func Load(cmd *cobra.Command) (Config, error) {
 				}
 				return data, nil
 			},
-		)
-	}); err != nil {
-		return cfg, errors.Join(ErrReadYaml, fmt.Errorf("failed unmarshaling config: %w", err))
+		),
+		Result:           &cfg,
+		WeaklyTypedInput: true,
+	})
+	if err != nil {
+		return cfg, errors.Join(ErrReadYaml, fmt.Errorf("failed creating decoder: %w", err))
+	}
+
+	if err := decoder.Decode(v.AllSettings()); err != nil {
+		return cfg, errors.Join(ErrReadYaml, fmt.Errorf("failed decoding file: %w", err))
 	}
 
 	return cfg, nil
@@ -360,23 +365,25 @@ func bindFlags(basename string, cmd *cobra.Command, v *viper.Viper) (err error) 
 	}()
 
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		flagName := strings.TrimPrefix(f.Name, "rollkit.") // trimm the prefix from the flag name
+
 		// Environment variables can't have dashes in them, so bind them to their equivalent
 		// keys with underscores, e.g. --favorite-color to STING_FAVORITE_COLOR
-		err = v.BindEnv(f.Name, fmt.Sprintf("%s_%s", basename, strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))))
+		err = v.BindEnv(flagName, fmt.Sprintf("%s_%s", basename, strings.ToUpper(strings.ReplaceAll(flagName, "-", "_"))))
 		if err != nil {
 			panic(err)
 		}
 
-		err = v.BindPFlag(f.Name, f)
+		err = v.BindPFlag(flagName, f)
 		if err != nil {
 			panic(err)
 		}
 
 		// Apply the viper config value to the flag when the flag is not set and
 		// viper has a value.
-		if !f.Changed && v.IsSet(f.Name) {
-			val := v.Get(f.Name)
-			err = cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+		if !f.Changed && v.IsSet(flagName) {
+			val := v.Get(flagName)
+			err = cmd.Flags().Set(flagName, fmt.Sprintf("%v", val))
 			if err != nil {
 				panic(err)
 			}
