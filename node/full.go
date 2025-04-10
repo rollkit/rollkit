@@ -103,6 +103,7 @@ func newFullNode(
 		genesis.ChainID,
 		nodeConfig.Node.BlockTime.Duration,
 		logger.With("module", "Reaper"),
+		mainKV,
 	)
 
 	blockManager, err := initBlockManager(
