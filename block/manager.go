@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -998,7 +999,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		err := m.processNextDAHeader(ctx)
 		if err != nil && ctx.Err() == nil {
 			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
-			if !errors.Is(err, ErrHeightFromFutureStr) {
+			if !m.areAllErrorsHeightFromFuture(err) {
 				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 			}
 			continue
@@ -1098,6 +1099,30 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 
 func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
 	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
+}
+
+// areAllErrorsHeightFromFuture checks if all errors in a joined error are ErrHeightFromFutureStr
+func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check if the error itself is ErrHeightFromFutureStr
+	if strings.Contains(err.Error(), ErrHeightFromFutureStr.Error()) {
+		return true
+	}
+
+	// If it's a joined error, check each error recursively
+	if joinedErr, ok := err.(interface{ Unwrap() []error }); ok {
+		for _, e := range joinedErr.Unwrap() {
+			if !m.areAllErrorsHeightFromFuture(e) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
 }
 
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
