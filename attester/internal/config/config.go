@@ -11,67 +11,73 @@ import (
 
 // Added AggregatorConfig struct
 type AggregatorConfig struct {
-	QuorumThreshold int               `mapstructure:"quorum_threshold"` // Min signatures needed
-	Attesters       map[string]string `mapstructure:"attesters"`        // AttesterID -> PublicKeyFilePath
+	QuorumThreshold int               `mapstructure:"quorum_threshold" yaml:"quorum_threshold"`
+	Attesters       map[string]string `mapstructure:"attesters"        yaml:"attesters"`
 }
 
 // Added NetworkConfig struct
 type NetworkConfig struct {
 	// Addr for followers to send signatures to the leader.
-	SequencerSigEndpoint string `mapstructure:"sequencer_sig_endpoint"`
+	SequencerSigEndpoint string `mapstructure:"sequencer_sig_endpoint" yaml:"sequencer_sig_endpoint,omitempty"`
 	// Optional: Endpoint for block execution verification (if implemented)
 	// FullnodeEndpoint   string `mapstructure:"fullnode_endpoint"`
 }
 
 // Added ExecutionConfig struct
 type ExecutionConfig struct {
-	Enabled          bool   `mapstructure:"enabled"`
-	Type             string `mapstructure:"type"`              // e.g., "noop", "fullnode"
-	FullnodeEndpoint string `mapstructure:"fullnode_endpoint"` // URL for the full node RPC/API
-	Timeout          string `mapstructure:"timeout"`           // Duration string, e.g., "15s"
+	Enabled          bool   `mapstructure:"enabled"           yaml:"enabled"`
+	Type             string `mapstructure:"type"              yaml:"type"` // e.g., "noop", "fullnode"
+	FullnodeEndpoint string `mapstructure:"fullnode_endpoint" yaml:"fullnode_endpoint,omitempty"`
+	Timeout          string `mapstructure:"timeout"           yaml:"timeout"` // Duration string, e.g., "15s"
 
 	// Parsed duration (not in YAML, calculated on load)
-	parsedTimeout time.Duration
+	parsedTimeout time.Duration `mapstructure:"-" yaml:"-"` // Exclude from marshalling/unmarshalling directly
 }
 
 type Config struct {
-	Node       NodeConfig       `mapstructure:"node"`
-	Raft       RaftConfig       `mapstructure:"raft"`
-	GRPC       GRPCConfig       `mapstructure:"grpc"`
-	Signing    SigningConfig    `mapstructure:"signing"`
-	Network    NetworkConfig    `mapstructure:"network"`
-	Aggregator AggregatorConfig `mapstructure:"aggregator"`
-	Execution  ExecutionConfig  `mapstructure:"execution"`
+	Node       NodeConfig       `mapstructure:"node"       yaml:"node"`
+	Raft       RaftConfig       `mapstructure:"raft"       yaml:"raft"`
+	GRPC       GRPCConfig       `mapstructure:"grpc"       yaml:"grpc"`
+	Signing    SigningConfig    `mapstructure:"signing"    yaml:"signing"`
+	Network    NetworkConfig    `mapstructure:"network"    yaml:"network"`
+	Aggregator AggregatorConfig `mapstructure:"aggregator" yaml:"aggregator"`
+	Execution  ExecutionConfig  `mapstructure:"execution"  yaml:"execution"`
 	// Possibly LoggingConfig, etc.
 }
 
 type NodeConfig struct {
-	ID              string `mapstructure:"id"`                // Unique node ID within the RAFT cluster
-	RaftBindAddress string `mapstructure:"raft_bind_address"` // Address:Port for internal RAFT communication
+	ID              string `mapstructure:"id"                yaml:"id"`                // Unique node ID within the RAFT cluster
+	RaftBindAddress string `mapstructure:"raft_bind_address" yaml:"raft_bind_address"` // Address:Port for internal RAFT communication
+}
+
+// PeerConfig holds information about a Raft peer.
+type PeerConfig struct {
+	ID      string `yaml:"id"`
+	Address string `yaml:"address"`
 }
 
 type RaftConfig struct {
-	DataDir           string   `mapstructure:"data_dir"`           // Directory for logs, snapshots, stable store
-	Peers             []string `mapstructure:"peers"`              // List of RAFT addresses of other nodes to join (optional if using discovery)
-	BootstrapCluster  bool     `mapstructure:"bootstrap_cluster"`  // Should this node bootstrap a new cluster?
-	ElectionTimeout   string   `mapstructure:"election_timeout"`   // Duration as string, e.g., "500ms"
-	HeartbeatTimeout  string   `mapstructure:"heartbeat_timeout"`  // Duration as string, e.g., "50ms"
-	SnapshotInterval  string   `mapstructure:"snapshot_interval"`  // Duration, e.g., "2m" (Snapshot interval)
-	SnapshotThreshold uint64   `mapstructure:"snapshot_threshold"` // Number of commits to trigger snapshot
+	DataDir           string       `mapstructure:"data_dir"           yaml:"data_dir"`           // Directory for logs, snapshots, stable store
+	Peers             []PeerConfig `mapstructure:"peers"              yaml:"peers,omitempty"`    // List of RAFT peer configurations
+	BootstrapCluster  bool         `mapstructure:"bootstrap_cluster"  yaml:"bootstrap_cluster"`  // Should this node bootstrap a new cluster?
+	ElectionTimeout   string       `mapstructure:"election_timeout"   yaml:"election_timeout"`   // Duration as string, e.g., "500ms"
+	HeartbeatTimeout  string       `mapstructure:"heartbeat_timeout"  yaml:"heartbeat_timeout"`  // Duration as string, e.g., "50ms"
+	SnapshotInterval  string       `mapstructure:"snapshot_interval"  yaml:"snapshot_interval"`  // Duration, e.g., "2m" (Snapshot interval)
+	SnapshotThreshold uint64       `mapstructure:"snapshot_threshold" yaml:"snapshot_threshold"` // Number of commits to trigger snapshot
 
 	// Parsed durations (not in TOML, calculated on load)
-	parsedElectionTimeout  time.Duration
-	parsedHeartbeatTimeout time.Duration
-	parsedSnapshotInterval time.Duration
+	parsedElectionTimeout  time.Duration `mapstructure:"-" yaml:"-"`
+	parsedHeartbeatTimeout time.Duration `mapstructure:"-" yaml:"-"`
+	parsedSnapshotInterval time.Duration `mapstructure:"-" yaml:"-"`
 }
 
 type GRPCConfig struct {
-	ListenAddress string `mapstructure:"listen_address"` // Address:Port for the gRPC server
+	ListenAddress string `mapstructure:"listen_address" yaml:"listen_address,omitempty"` // Address:Port for the gRPC server
 }
 
 type SigningConfig struct {
-	PrivateKeyPath string `mapstructure:"private_key_path"` // Path to the private key file
-	Scheme         string `mapstructure:"scheme"`           // Algorithm: "ed25519" or "bls" (requires specific implementation)
+	PrivateKeyPath string `mapstructure:"private_key_path" yaml:"private_key_path"` // Path to the private key file
+	Scheme         string `mapstructure:"scheme"           yaml:"scheme"`           // Algorithm: "ed25519" or "bls" (requires specific implementation)
 }
 
 // LoadConfig loads and parses the configuration from a YAML file.
@@ -85,7 +91,7 @@ func LoadConfig(path string) (*Config, error) {
 	v.SetDefault("execution.type", "noop") // Default to no-op if enabled but type not specified
 	v.SetDefault("execution.timeout", "15s")
 	v.SetDefault("raft.election_timeout", "1s")
-	v.SetDefault("raft.heartbeat_timeout", "100ms")
+	v.SetDefault("raft.heartbeat_timeout", "500ms")
 	v.SetDefault("raft.snapshot_interval", "120s")
 	v.SetDefault("raft.snapshot_threshold", 8192)
 	v.SetDefault("signing.scheme", "ed25519") // Default signing scheme
@@ -103,9 +109,10 @@ func LoadConfig(path string) (*Config, error) {
 
 	var cfg Config
 	// Use a decode hook to parse durations and slices
+	// Update the slice hook if needed, although Viper might handle struct slices automatically
 	decodeHook := mapstructure.ComposeDecodeHookFunc(
 		mapstructure.StringToTimeDurationHookFunc(),
-		mapstructure.StringToSliceHookFunc(","), // Assumes peers are comma-separated if passed as a string
+		// mapstructure.StringToSliceHookFunc(","), // Might not be needed for struct slices
 	)
 
 	// Configure Viper to use mapstructure with the hook

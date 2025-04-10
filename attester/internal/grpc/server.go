@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	attesterv1 "github.com/rollkit/rollkit/attester/api/gen/attester/v1"
+	"github.com/rollkit/rollkit/attester/internal/fsm"
 	// Import aggregator
 )
 
@@ -25,6 +26,7 @@ type RaftNode interface {
 	State() raft.RaftState
 	Leader() raft.ServerAddress
 	Apply(cmd []byte, timeout time.Duration) raft.ApplyFuture
+	GetConfiguration() raft.ConfigurationFuture
 }
 
 // Aggregator defines the interface required from the signature aggregator.
@@ -127,39 +129,45 @@ func (s *AttesterServer) SubmitBlock(ctx context.Context, req *attesterv1.Submit
 	if len(req.DataToSign) == 0 {
 		return &attesterv1.SubmitBlockResponse{Accepted: false, ErrorMessage: "Data to sign cannot be empty"}, nil
 	}
-	// Add more specific block validation as needed (e.g., hash size)
 
-	// 3. Create and serialize log entry (using BlockInfo proto)
-	// The FSM's Apply method will need to unmarshal this BlockInfo.
-	// The signature field is intentionally left empty here; the FSM is responsible
-	// for signing *after* the log entry is committed via consensus.
-	logEntry := &attesterv1.BlockInfo{
-		Height:     req.BlockHeight,
-		Hash:       req.BlockHash,
-		DataToSign: req.DataToSign,
-		// Signature: nil, // Implicitly nil
-	}
-	logData, err := proto.Marshal(logEntry) // Use standard proto marshalling
+	// 3. Serialize the SubmitBlockRequest as expected by the FSM
+	reqData, err := proto.Marshal(req) // Marshal the incoming request
 	if err != nil {
-		s.logger.Error("Failed to marshal block info for RAFT log", "error", err)
+		s.logger.Error("Failed to marshal SubmitBlockRequest for RAFT log", "error", err)
 		return &attesterv1.SubmitBlockResponse{Accepted: false, ErrorMessage: "Internal error marshalling log data"}, nil
 	}
 
+	// Prepend the log entry type byte
+	logData := append([]byte{fsm.LogEntryTypeSubmitBlock}, reqData...)
+
+	// Log current Raft configuration before Apply
+	currentConfigFuture := s.raftNode.GetConfiguration()
+	if err := currentConfigFuture.Error(); err != nil {
+		s.logger.Error("Failed to get current raft configuration before Apply", "error", err)
+		// Decide if this should be a fatal error for the request
+	} else {
+		currentConfig := currentConfigFuture.Configuration()
+		serverInfo := make([]string, len(currentConfig.Servers))
+		for i, server := range currentConfig.Servers {
+			serverInfo[i] = fmt.Sprintf("{ID:%s Addr:%s Suffrage:%s}", server.ID, server.Address, server.Suffrage)
+		}
+		s.logger.Debug("Current Raft cluster configuration before Apply", "servers", serverInfo)
+	}
+
 	// 4. Propose the log data to RAFT via Apply
-	// TODO: Make the timeout configurable
-	applyTimeout := 10 * time.Second
+	// Set a reasonable timeout for Apply
+	applyTimeout := 20 * time.Second // Reverted from 60s
 	applyFuture := s.raftNode.Apply(logData, applyTimeout)
 
 	// 5. Wait for the Apply future to complete
 	if err := applyFuture.Error(); err != nil {
-		s.logger.Error("Failed to apply block log to RAFT cluster", "error", err)
-		// This error could mean various things: timeout, loss of leadership, FSM error, etc.
+		// Log the specific error from Apply
+		s.logger.Error("RAFT Apply failed", "block_height", req.BlockHeight, "error", err)
 		return &attesterv1.SubmitBlockResponse{Accepted: false, ErrorMessage: fmt.Sprintf("Failed to commit block via RAFT: %v", err)}, nil
 	}
 
-	// Apply was successful (committed to RAFT log and applied to FSM *locally* on the leader)
-	// The followers will apply it shortly after replication.
-	s.logger.Info("Block successfully proposed to RAFT", "block_height", req.BlockHeight)
+	// Apply was successful
+	s.logger.Info("Block successfully proposed and applied via RAFT", "block_height", req.BlockHeight)
 
 	// The response from ApplyFuture might contain data returned by the FSM's Apply method.
 	// We might not need it here, but it's available via applyFuture.Response().

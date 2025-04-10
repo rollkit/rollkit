@@ -61,37 +61,21 @@ func main() {
 	}
 }
 
+// runNode sets up and runs the attester node.
 func runNode(cmd *cobra.Command, args []string) {
-	var levelVar slog.LevelVar
-	if err := levelVar.UnmarshalText([]byte(logLevel)); err != nil {
-		// Use standard log before logger is fully setup for this specific error
-		fmt.Fprintf(os.Stderr, "Invalid log level '%s', defaulting to '%s'. Error: %v\n", logLevel, defaultLogLevel, err)
-		// Default to info level if parsing fails
-		if defaultErr := levelVar.UnmarshalText([]byte(defaultLogLevel)); defaultErr != nil {
-			// This should ideally not happen if defaultLogLevel is valid
-			fmt.Fprintf(os.Stderr, "Error setting default log level: %v\n", defaultErr)
-			os.Exit(1)
-		}
-	}
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: levelVar.Level()}))
-	slog.SetDefault(logger) // Make it the default logger
+	logger := setupLogger()
 
-	if isLeader {
-		slog.Info("Initializing attester node as LEADER...")
-	} else {
-		slog.Info("Initializing attester node as FOLLOWER...")
-	}
+	slog.Info("Initializing attester node", "role", map[bool]string{true: "LEADER", false: "FOLLOWER"}[isLeader])
 
 	// 1. Load configuration
 	slog.Info("Loading configuration", "path", configFile)
 	cfg, err := config.LoadConfig(configFile)
 	if err != nil {
 		slog.Error("Failed to load configuration", "error", err)
-		os.Exit(1) // Use os.Exit after logging error
+		os.Exit(1)
 	}
-	// TODO: Validate loaded configuration further if needed
 
-	// 2. Initialize Execution Verifier (based on config)
+	// 2. Initialize Execution Verifier
 	var execVerifier verification.ExecutionVerifier
 	if cfg.Execution.Enabled {
 		slog.Info("Execution verification enabled", "type", cfg.Execution.Type)
@@ -100,10 +84,8 @@ func runNode(cmd *cobra.Command, args []string) {
 			execVerifier = verification.NewNoOpVerifier()
 			slog.Info("Using NoOp execution verifier")
 		case "fullnode":
-			// TODO: Implement FullNodeVerifier instantiation
 			slog.Warn("FullNode execution verifier selected but not yet implemented. Disabling verification.")
-			// Set execVerifier to nil or NoOp to effectively disable it for now
-			execVerifier = nil // Or: verification.NewNoOpVerifier()
+			execVerifier = nil
 		default:
 			slog.Warn("Unknown execution verifier type specified", "type", cfg.Execution.Type, "message", "Disabling execution verification.")
 			execVerifier = nil
@@ -122,19 +104,18 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	slog.Info("Loaded signing key", "scheme", cfg.Signing.Scheme)
 
-	// Declare components needed across roles/scopes
+	// Declare components
 	var sigAggregator *aggregator.SignatureAggregator
+	var sigClient *internalgrpc.Client
 	var attesterFSM *fsm.AttesterFSM
 	var raftNode *raft.Raft
 	var transport raft.Transport
 	var grpcServer *internalgrpc.AttesterServer
-	var sigClient *internalgrpc.Client
 
+	// 4. Initialize Role-Specific Components (Aggregator or gRPC Client)
 	if isLeader {
-		// 6. Instantiate Aggregator (Leader only)
 		slog.Info("Initializing signature aggregator...")
-
-		// Validate aggregator config for leader
+		// Validate and setup Aggregator
 		if cfg.Aggregator.QuorumThreshold <= 0 {
 			slog.Error("aggregator.quorum_threshold must be positive for the leader")
 			os.Exit(1)
@@ -143,8 +124,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			slog.Error("aggregator.attesters map cannot be empty for the leader")
 			os.Exit(1)
 		}
-
-		// Load attester public keys from files specified in config
 		attesterKeys := make(map[string]ed25519.PublicKey)
 		slog.Info("Loading attester public keys...")
 		for attesterID, keyPath := range cfg.Aggregator.Attesters {
@@ -165,48 +144,25 @@ func runNode(cmd *cobra.Command, args []string) {
 			slog.Debug("Loaded public key", "attester_id", attesterID, "path", keyPath)
 		}
 		slog.Info("Successfully loaded public keys", "count", len(attesterKeys))
-
-		// Create the aggregator with loaded keys and quorum threshold from config
 		sigAggregator, err = aggregator.NewSignatureAggregator(logger, cfg.Aggregator.QuorumThreshold, attesterKeys)
 		if err != nil {
 			slog.Error("Failed to initialize signature aggregator", "error", err)
 			os.Exit(1)
 		}
-
-		// Instantiate gRPC server (NOW that raftNode exists)
-		slog.Info("Initializing gRPC server...")
-		grpcServer = internalgrpc.NewAttesterServer(raftNode, logger, sigAggregator)
-
-		// 8. Start gRPC server in a goroutine (Leader only)
-		slog.Info("Starting gRPC server...")
-		go func() {
-			listenAddr := cfg.GRPC.ListenAddress
-			if listenAddr == "" {
-				slog.Error("grpc.listen_address is required in config for the leader")
-				return
-			}
-			slog.Info("gRPC server listening", "address", listenAddr)
-			if err := grpcServer.Start(listenAddr); err != nil {
-				slog.Error("Failed to start gRPC server", "error", err)
-			}
-		}()
 	} else {
-		// Instantiate Signature Client (Follower only)
 		slog.Info("Initializing signature client...")
+		// Validate and setup gRPC Client
 		if cfg.Network.SequencerSigEndpoint == "" {
 			slog.Error("network.sequencer_sig_endpoint is required in config for followers")
 			os.Exit(1)
 		}
-		// Use background context with timeout for initial connection
 		clientCtx, clientCancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer clientCancel() // Ensure context is cancelled eventually
-
-		sigClient, err = internalgrpc.NewClient(clientCtx, cfg.Network.SequencerSigEndpoint, logger) // Corrected constructor name
+		defer clientCancel()
+		sigClient, err = internalgrpc.NewClient(clientCtx, cfg.Network.SequencerSigEndpoint, logger)
 		if err != nil {
 			slog.Error("Failed to initialize signature client", "error", err)
 			os.Exit(1)
 		}
-		// Defer closing the client connection
 		defer func() {
 			if err := sigClient.Close(); err != nil {
 				slog.Error("Error closing signature client", "error", err)
@@ -214,68 +170,98 @@ func runNode(cmd *cobra.Command, args []string) {
 		}()
 	}
 
-	// 4. Instantiate FSM (Pass node ID, isLeader flag, aggregator, client, and verifier)
-	slog.Info("Initializing FSM", "data_dir", cfg.Raft.DataDir, "node_id", cfg.Node.ID, "is_leader", isLeader)
+	// 5. Instantiate FSM
+	slog.Info("Initializing FSM", "node_id", cfg.Node.ID, "is_leader", isLeader)
 	attesterFSM, err = fsm.NewAttesterFSM(logger, signer, cfg.Node.ID, isLeader, sigAggregator, sigClient, execVerifier)
 	if err != nil {
 		slog.Error("Failed to initialize FSM", "error", err)
 		os.Exit(1)
 	}
 
-	// 5. Instantiate RAFT node (Pass the FSM)
+	// 6. Instantiate RAFT node (Requires FSM)
 	slog.Info("Initializing RAFT node...")
 	raftNode, transport, err = internalraft.NewRaftNode(cfg, attesterFSM, logger)
 	if err != nil {
 		slog.Error("Failed to initialize RAFT node", "error", err)
 		os.Exit(1)
 	}
-	defer func() {
-		if tcpTransport, ok := transport.(io.Closer); ok {
-			slog.Debug("Closing RAFT transport...")
-			if err := tcpTransport.Close(); err != nil {
-				slog.Error("Error closing RAFT transport", "error", err)
-			}
-		} else {
-			slog.Warn("RAFT transport does not implement io.Closer, cannot close automatically")
-		}
-	}()
 
+	// 7. Initialize and Start gRPC Server (Leader only, requires RAFT node)
 	if isLeader {
-		// 8. Start gRPC server in a goroutine (Leader only)
-		slog.Info("Starting gRPC server...")
+		slog.Info("Initializing gRPC server...", "address", cfg.GRPC.ListenAddress)
+		grpcServer = internalgrpc.NewAttesterServer(raftNode, logger, sigAggregator)
+
+		slog.Info("Starting gRPC server in background...")
 		go func() {
 			listenAddr := cfg.GRPC.ListenAddress
 			if listenAddr == "" {
 				slog.Error("grpc.listen_address is required in config for the leader")
 				return
 			}
-			slog.Info("gRPC server listening", "address", listenAddr)
+			slog.Info("gRPC server goroutine starting", "address", listenAddr)
 			if err := grpcServer.Start(listenAddr); err != nil {
-				slog.Error("Failed to start gRPC server", "error", err)
+				slog.Error("gRPC server failed to start or encountered error", "error", err)
 			}
+			slog.Info("gRPC server goroutine finished")
 		}()
 	}
 
-	// 9. Handle graceful shutdown (Renumbered)
+	// --- Node is running ---
+
+	// 8. Handle graceful shutdown
 	slog.Info("Attester node running. Press Ctrl+C to exit.")
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	<-sigChan // Block until a signal is received
+	<-sigChan // Block until signal
 
 	slog.Info("Shutting down...")
 
-	// Shutdown logic for gRPC (leader) and Raft
-	if isLeader && grpcServer != nil {
-		slog.Info("Stopping gRPC server...")
-		grpcServer.Stop() // Call Stop on our server instance
-	}
+	// Orderly shutdown sequence
+
+	// Shutdown Raft first to stop processing new entries
 	if raftNode != nil {
 		slog.Info("Shutting down RAFT node...")
 		if err := raftNode.Shutdown().Error(); err != nil {
 			slog.Error("Error shutting down RAFT node", "error", err)
 		}
+		slog.Info("RAFT node shutdown complete.")
 	}
 
+	// Close Raft transport after Raft node is shut down
+	if tcpTransport, ok := transport.(io.Closer); ok {
+		slog.Debug("Closing RAFT transport...")
+		if err := tcpTransport.Close(); err != nil {
+			slog.Error("Error closing RAFT transport", "error", err)
+		} else {
+			slog.Debug("RAFT transport closed.")
+		}
+	} else if transport != nil {
+		slog.Warn("RAFT transport does not implement io.Closer, cannot close automatically")
+	}
+
+	// Shutdown gRPC server (if leader) after Raft to stop accepting new requests
+	if isLeader && grpcServer != nil {
+		slog.Info("Stopping gRPC server...")
+		grpcServer.Stop() // Assuming this blocks until stopped
+		slog.Info("gRPC server stopped.")
+	}
+
+	// Close gRPC client connection (if follower) - already deferred
+
 	slog.Info("Shutdown complete.")
+}
+
+func setupLogger() *slog.Logger {
+	var levelVar slog.LevelVar
+	if err := levelVar.UnmarshalText([]byte(logLevel)); err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid log level '%s', defaulting to '%s'. Error: %v\n", logLevel, defaultLogLevel, err)
+		if defaultErr := levelVar.UnmarshalText([]byte(defaultLogLevel)); defaultErr != nil {
+			fmt.Fprintf(os.Stderr, "Error setting default log level: %v\n", defaultErr)
+			os.Exit(1)
+		}
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: levelVar.Level()}))
+	slog.SetDefault(logger)
+	return logger
 }
