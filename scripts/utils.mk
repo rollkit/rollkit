@@ -7,7 +7,7 @@ deps:
 .PHONY: deps
 
 tidy-all:
-	@go run scripts/tidy/go-mod-tidy-all.go
+	@go run -tags=tidy scripts/tidy.go
 .PHONY: tidy-all
 
 ## lint: Run linters golangci-lint and markdownlint.
