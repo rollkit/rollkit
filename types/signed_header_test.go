@@ -8,8 +8,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 )
 
 func TestSignedHeader(t *testing.T) {
@@ -99,9 +97,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
 			if shouldRecomputeCommit {
-				noopSigner, err := noopsigner.NewNoopSigner(privKey)
-				require.NoError(t, err)
-				signature, err := GetSignature(preparedHeader.Header, noopSigner)
+				signature, err := GetSignature(preparedHeader.Header, privKey)
 				require.NoError(t, err)
 				preparedHeader.Signature = signature
 			}
@@ -215,9 +211,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
 			if shouldRecomputeCommit {
-				noopSigner, err := noopsigner.NewNoopSigner(privKey)
-				require.NoError(t, err)
-				signature, err := GetSignature(preparedHeader.Header, noopSigner)
+				signature, err := GetSignature(preparedHeader.Header, privKey)
 				require.NoError(t, err)
 				preparedHeader.Signature = signature
 			}

@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
@@ -49,7 +48,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 	pubKey1, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	require.NoError(err)
-	signer1, err := noopsigner.NewNoopSignerFromPubKey(pubKey1.GetPublic())
+	signer1, err := NewSigner(pubKey1.GetPublic())
 	require.NoError(err)
 
 	cases := []struct {

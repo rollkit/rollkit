@@ -14,6 +14,7 @@ import (
 	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/rollkit/go-sequencing"
@@ -26,7 +27,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/queue"
 	"github.com/rollkit/rollkit/pkg/signer"
-	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
@@ -180,26 +180,29 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			}}
 
 		var signature types.Signature
+		var pubKey crypto.PubKey
 		// The signer is only provided in aggregator nodes. This enables the creation of a signed genesis header,
 		// which includes a public key and a cryptographic signature for the header.
 		// In a full node (non-aggregator), the signer will be nil, and only an unsigned genesis header will be initialized locally.
 		if signer != nil {
-			signature, err = types.GetSignature(header, signer)
+			pubKey, err = signer.GetPublic()
+			if err != nil {
+				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
+			}
+
+			signature, err = getSignature(header, signer)
 			if err != nil {
 				return types.State{}, fmt.Errorf("failed to get header signature: %w", err)
-			}
-		} else {
-			// If the signer is not provided, create a noop signer from the proposer address
-			signer, err = noopsigner.NewNoopSignerFromAddress(genesis.ProposerAddress)
-			if err != nil {
-				return types.State{}, fmt.Errorf("failed to create noop signer: %w", err)
 			}
 		}
 
 		err = store.SaveBlockData(ctx,
 			&types.SignedHeader{
-				Header:    header,
-				Signer:    signer,
+				Header: header,
+				Signer: types.Signer{
+					PubKey:  pubKey,
+					Address: genesis.ProposerAddress,
+				},
 				Signature: signature,
 			},
 			&types.Data{},
@@ -899,7 +902,6 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 				}
 				// early validation to reject junk headers
 				if !m.isUsingExpectedCentralizedSequencer(header) {
-					fmt.Println("not using expected sequencer 1")
 					continue
 				}
 				m.logger.Debug("header retrieved from p2p header sync", "headerHeight", header.Height(), "daHeight", daHeight)
@@ -1110,7 +1112,7 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 }
 
 func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
-	return types.GetSignature(header, m.proposerKey)
+	return getSignature(header, m.proposerKey)
 }
 
 func (m *Manager) getTxsFromBatch() (*BatchData, error) {
@@ -1515,6 +1517,11 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	data := batchData.Data
 	batchdata := convertBatchDataToBytes(data)
 
+	key, err := m.proposerKey.GetPublic()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get proposer public key: %w", err)
+	}
+
 	// check that the proposer address is the same as the genesis proposer address
 	address, err := m.proposerKey.GetAddress()
 	if err != nil {
@@ -1542,7 +1549,10 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			ProposerAddress: m.genesis.ProposerAddress,
 		},
 		Signature: *lastSignature,
-		Signer:    m.proposerKey,
+		Signer: types.Signer{
+			PubKey:  key,
+			Address: m.genesis.ProposerAddress,
+		},
 	}
 
 	blockData := &types.Data{
@@ -1654,4 +1664,12 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 	}
 
 	return result, nil
+}
+
+func getSignature(header types.Header, proposerKey signer.Signer) (types.Signature, error) {
+	b, err := header.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return proposerKey.Sign(b)
 }

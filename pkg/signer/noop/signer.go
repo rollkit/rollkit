@@ -33,33 +33,6 @@ func NewNoopSigner(privKey crypto.PrivKey) (signer.Signer, error) {
 	return sig, nil
 }
 
-// NewNoopSignerFromPubKey creates a new signer from a public key.
-// The returned signer can't be used to sign messages.
-func NewNoopSignerFromPubKey(pubKey crypto.PubKey) (signer.Signer, error) {
-	sig := &NoopSigner{
-		pubKey: pubKey,
-	}
-
-	if pubKey == nil {
-		return sig, nil
-	}
-
-	address, err := getAddress(sig.pubKey)
-	if err != nil {
-		return nil, err
-	}
-	sig.address = address
-
-	return sig, nil
-}
-
-// NewNoopSignerFromAddress creates a new signer from an address.
-func NewNoopSignerFromAddress(address []byte) (signer.Signer, error) {
-	return &NoopSigner{
-		address: address,
-	}, nil
-}
-
 // Sign implements the Signer interface by signing the message with the Ed25519 private key.
 func (n *NoopSigner) Sign(message []byte) ([]byte, error) {
 	if n.privKey == nil {

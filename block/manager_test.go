@@ -354,11 +354,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 // invalidateBlockHeader results in a block header that produces a marshalling error
 func invalidateBlockHeader(header *types.SignedHeader) {
-	noopSigner, err := noopsigner.NewNoopSignerFromPubKey(&crypto.Ed25519PublicKey{})
-	if err != nil {
-		panic(err)
-	}
-	header.Signer = noopSigner
+	header.Signer.PubKey = &crypto.Ed25519PublicKey{}
 }
 
 func Test_isProposer(t *testing.T) {
