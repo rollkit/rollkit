@@ -16,6 +16,8 @@ type ExecutionVerifier interface {
 	VerifyExecution(ctx context.Context, height uint64, hash state.BlockHash, blockData []byte) error
 }
 
+var _ ExecutionVerifier = (*NoOpVerifier)(nil)
+
 // NoOpVerifier is an implementation that performs no verification.
 type NoOpVerifier struct{}
 
@@ -28,6 +30,3 @@ func (v *NoOpVerifier) VerifyExecution(ctx context.Context, height uint64, hash 
 func NewNoOpVerifier() *NoOpVerifier {
 	return &NoOpVerifier{}
 }
-
-// Ensure NoOpVerifier implements ExecutionVerifier at compile time.
-var _ ExecutionVerifier = (*NoOpVerifier)(nil)
