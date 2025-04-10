@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"os"
 
@@ -140,7 +141,8 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			} else {
 				basedDA = coreda.NewDummyDA(100_000, 0, 0)
 			}
-			basedDALC := da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, []byte(basedNamespace), nil, logger)
+			nsBytes, err := hex.DecodeString(basedNamespace)
+			basedDALC := da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, nsBytes, nil, logger)
 
 			sequencer, err := based.NewSequencer(
 				logger,

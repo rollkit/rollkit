@@ -158,7 +158,6 @@ func (s *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 	lastDAHeight := s.daStartHeight
 	nextDAHeight := s.daStartHeight
 
-	fmt.Println("nextDAHeight", nextDAHeight, "req is nil?", (req.LastBatchData == nil), req.LastBatchData)
 	if len(req.LastBatchData) > 0 {
 		lastDAHeight = s.lastDAHeight(req.LastBatchData)
 		nextDAHeight = lastDAHeight + 1
@@ -270,10 +269,11 @@ func (s *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Bat
 	attempt := 0
 
 	// Store initial values to be able to reset or compare later
-	initialGasPrice, err := s.dalc.GasPrice(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial gas price: %w", err)
-	}
+	// initialGasPrice, err := s.dalc.GasPrice(ctx)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to get initial gas price: %w", err)
+	// }
+	initialGasPrice := -1.0
 	initialMaxBlobSize, err := s.dalc.MaxBlobSize(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get initial max blob size: %w", err)
@@ -293,10 +293,11 @@ daSubmitRetryLoop:
 		// Attempt to submit the batch to the DA layer
 		res := s.dalc.Submit(ctx, currentBatch.Transactions, maxBlobSize, gasPrice)
 
-		gasMultiplier, err := s.dalc.GasMultiplier(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get gas multiplier: %w", err)
-		}
+		// gasMultiplier, err := s.dalc.GasMultiplier(ctx)
+		// if err != nil {
+		// 	return fmt.Errorf("failed to get gas multiplier: %w", err)
+		// }
+		gasMultiplier := 1.1
 
 		switch res.Code {
 		case coreda.StatusSuccess:
