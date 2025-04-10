@@ -5,11 +5,13 @@ import (
 	"path/filepath"
 
 	"cosmossdk.io/log"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
+	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/store"
@@ -22,7 +24,17 @@ var RunCmd = &cobra.Command{
 	Aliases: []string{"node", "run"},
 	Short:   "Run the testapp node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logger := log.NewLogger(os.Stdout)
+		opts := []log.Option{}
+		logLevel, _ := cmd.Flags().GetString(config.FlagLogLevel)
+		if logLevel != "" {
+			zl, err := zerolog.ParseLevel(logLevel)
+			if err != nil {
+				return err
+			}
+			opts = append(opts, log.LevelOption(zl))
+		}
+
+		logger := log.NewLogger(os.Stdout, opts...)
 
 		// Create test implementations
 		// TODO: we need to start the executor http server
@@ -57,7 +69,7 @@ var RunCmd = &cobra.Command{
 			datastore,
 			dummyDA,
 			[]byte(nodeConfig.DA.Namespace),
-			[]byte(nodeConfig.Node.SequencerRollupID),
+			[]byte(nodeConfig.ChainID),
 			nodeConfig.Node.BlockTime.Duration,
 			singleMetrics,
 			nodeConfig.Node.Aggregator,
