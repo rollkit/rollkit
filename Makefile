@@ -58,7 +58,6 @@ lint: vet
 	@goreleaser check
 	@echo "--> Running actionlint"
 	@actionlint
-
 .PHONY: lint
 
 ## fmt: Run fixes for linters.
@@ -111,14 +110,14 @@ proto-lint:
 VERSION := $(shell git describe --tags --abbrev=0)
 GITSHA := $(shell git rev-parse --short HEAD)
 LDFLAGS := \
-	-X github.com/rollkit/rollkit/cmd/rollkit/commands.Version=$(VERSION) \
-	-X github.com/rollkit/rollkit/cmd/rollkit/commands.GitSHA=$(GITSHA)
+	-X github.com/rollkit/rollkit/pkg/cmd.Version=$(VERSION) \
+	-X github.com/rollkit/rollkit/pkg/cmd.GitSHA=$(GITSHA)
 
 
 ## install: Install rollkit CLI
 install:
 	@echo "--> Installing Testapp CLI"
-	@go install -ldflags "$(LDFLAGS)" ./rollups/testapp
+	@cd rollups/testapp && go install -ldflags "$(LDFLAGS)" .
 	@echo "--> Testapp CLI Installed!"
 	@echo "    Check the version with: testapp version"
 	@echo "    Check the binary with: which testapp"
@@ -128,7 +127,7 @@ install:
 build:
 	@echo "--> Building Testapp CLI"
 	@mkdir -p $(CURDIR)/build
-	@go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp ./rollups/testapp
+	@cd rollups/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp .
 	@echo "--> Testapp CLI Built!"
 	@echo "    Check the version with: rollups/testapp version"
 	@echo "    Check the binary with: $(CURDIR)/rollups/testapp"

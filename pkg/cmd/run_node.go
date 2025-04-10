@@ -90,6 +90,7 @@ func SetupLogger(config rollconf.LogConfig) log.Logger {
 
 // StartNode handles the node startup logic
 func StartNode(
+	logger log.Logger,
 	cmd *cobra.Command,
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
@@ -99,10 +100,9 @@ func StartNode(
 	datastore datastore.Batching,
 	nodeConfig rollconf.Config,
 ) error {
+
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
-
-	logger := SetupLogger(nodeConfig.Log)
 
 	//create a new remote signer
 	var signer signer.Signer

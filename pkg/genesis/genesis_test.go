@@ -29,35 +29,45 @@ func TestNewGenesis(t *testing.T) {
 	assert.Equal(t, appState, genesis.AppState)
 
 	// Test that NewGenesis validates and panics on invalid input
-	assert.Panics(t, func() {
-		NewGenesis(
-			"", // Empty chain ID should cause panic
-			1,
-			validTime,
-			proposerAddress,
-			appState,
-		)
-	})
+	genesis = NewGenesis(
+		"", // Empty chain ID should cause panic
+		1,
+		validTime,
+		proposerAddress,
+		appState,
+	)
+	err := genesis.Validate()
+	assert.Error(t, err)
 
-	assert.Panics(t, func() {
-		NewGenesis(
-			"test-chain",
-			0, // Zero initial height should cause panic
-			validTime,
-			proposerAddress,
-			appState,
-		)
-	})
+	genesis = NewGenesis(
+		"test-chain",
+		0, // Zero initial height should cause panic
+		validTime,
+		proposerAddress,
+		appState,
+	)
+	err = genesis.Validate()
+	assert.Error(t, err)
 
-	assert.Panics(t, func() {
-		NewGenesis(
-			"test-chain",
-			1,
-			time.Time{}, // Zero time should cause panic
-			proposerAddress,
-			appState,
-		)
-	})
+	genesis = NewGenesis(
+		"test-chain",
+		1,
+		time.Time{}, // Zero time should cause panic
+		proposerAddress,
+		appState,
+	)
+	err = genesis.Validate()
+	assert.Error(t, err)
+
+	genesis = NewGenesis(
+		"test-chain",
+		1,
+		validTime,
+		nil, // Nil proposer address should cause panic
+		appState,
+	)
+	err = genesis.Validate()
+	assert.Error(t, err)
 }
 
 func TestGenesis_Validate(t *testing.T) {

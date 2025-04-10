@@ -16,6 +16,7 @@ To load completions for every new session, execute once:
 
 You will need to start a new shell for this setup to take effect.
 
+
 ```
 testapp completion fish [flags]
 ```
@@ -30,12 +31,12 @@ testapp completion fish [flags]
 ### Options inherited from parent commands
 
 ```
-      --home string         Root directory for application data (default "HOME/.testapp")
-      --log.format string   Set the log format (text, json) (default "plain")
-      --log.level string    Set the log level (debug, info, warn, error) (default "info")
-      --log.trace           Enable stack traces in error logs
+      --home string                 Root directory for application data (default "HOME/.testapp")
+      --rollkit.log.format string   Set the log format (text, json) (default "text")
+      --rollkit.log.level string    Set the log level (debug, info, warn, error) (default "info")
+      --rollkit.log.trace           Enable stack traces in error logs
 ```
 
 ### SEE ALSO
 
-* [testapp completion](testapp_completion.md)  - Generate the autocompletion script for the specified shell
+* [testapp completion](testapp_completion.md)	 - Generate the autocompletion script for the specified shell

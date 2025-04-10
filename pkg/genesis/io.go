@@ -35,10 +35,6 @@ func LoadGenesis(genesisPath string) (Genesis, error) {
 
 // SaveGenesis saves the genesis state to the specified file path
 func SaveGenesis(genesis Genesis, genesisPath string) error {
-	if err := genesis.Validate(); err != nil {
-		return fmt.Errorf("invalid genesis state: %w", err)
-	}
-
 	// Validate and clean the file path
 	cleanPath := filepath.Clean(genesisPath)
 
