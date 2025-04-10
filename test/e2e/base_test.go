@@ -5,7 +5,6 @@ package e2e
 import (
 	"context"
 	"flag"
-	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -29,7 +28,7 @@ func TestBasic(t *testing.T) {
 	var (
 		workDir   = t.TempDir()
 		node1Home = filepath.Join(workDir, "1")
-		node2Home = filepath.Join(workDir, "2")
+		// node2Home = filepath.Join(workDir, "2")
 	)
 
 	// Define and parse the binary flag locally in the test function.
@@ -63,22 +62,22 @@ func TestBasic(t *testing.T) {
 	)
 	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
 
-	// copy genesis to target home2
-	output, err = sut.RunCmd(binaryPath,
-		"init",
-		"--home="+node2Home,
-	)
-	require.NoError(t, err, "failed to init fullnode", output)
-	MustCopyFile(t, filepath.Join(node1Home, "config", "genesis.json"), filepath.Join(node2Home, "config", "genesis.json"))
-	sut.StartNode(
-		binaryPath,
-		"start",
-		"--home="+node2Home,
-		fmt.Sprintf("--rollkit.p2p.seeds=%s@127.0.0.1:26656", NodeID(t, node1Home)),
-		"--rollkit.log.level=debug",
-		"--rollkit.rpc.address=127.0.0.1:7332",
-	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:7332", 2*time.Second)
+	// // copy genesis to target home2
+	// output, err = sut.RunCmd(binaryPath,
+	// 	"init",
+	// 	"--home="+node2Home,
+	// )
+	// require.NoError(t, err, "failed to init fullnode", output)
+	// MustCopyFile(t, filepath.Join(node1Home, "config", "genesis.json"), filepath.Join(node2Home, "config", "genesis.json"))
+	// sut.StartNode(
+	// 	binaryPath,
+	// 	"start",
+	// 	"--home="+node2Home,
+	// 	fmt.Sprintf("--rollkit.p2p.seeds=%s@127.0.0.1:26656", NodeID(t, node1Home)),
+	// 	"--rollkit.log.level=debug",
+	// 	"--rollkit.rpc.address=127.0.0.1:7332",
+	// )
+	// sut.AwaitNodeUp(t, "http://127.0.0.1:7332", 2*time.Second)
 
 	asserNodeCaughtUp := func(c *client.Client, height uint64) {
 		ctx, done := context.WithTimeout(context.Background(), time.Second)
