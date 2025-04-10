@@ -1,6 +1,6 @@
 module github.com/rollkit/rollkit/da
 
-go 1.24.0
+go 1.24.1
 
 replace github.com/rollkit/rollkit/core => ../core
 
