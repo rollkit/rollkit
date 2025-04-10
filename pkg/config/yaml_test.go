@@ -49,7 +49,6 @@ func TestYamlConfigOperations(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a temporary directory for each test case
 			tempDir := t.TempDir()
 
 			// Setup the test case and write the initial config
@@ -58,8 +57,10 @@ func TestYamlConfigOperations(t *testing.T) {
 			// Read the config
 			cmd := &cobra.Command{Use: "test"}
 			AddFlags(cmd)
-			AddGlobalFlags(cmd, "test")
-			cmd.Flags().Set(FlagRootDir, tempDir)
+			AddGlobalFlags(cmd, "")
+			args := []string{"--home=" + tempDir}
+			cmd.SetArgs(args)
+			cmd.ParseFlags(args)
 
 			cfg, err := Load(cmd)
 			require.NoError(t, err)

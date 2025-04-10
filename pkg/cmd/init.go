@@ -129,8 +129,8 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error reading aggregator flag: %w", err)
 		}
 
-		config := InitializeConfig(homePath, aggregator)
-		if err := config.Validate(); err != nil {
+		cfg := InitializeConfig(homePath, aggregator)
+		if err := cfg.Validate(); err != nil {
 			return fmt.Errorf("error validating config: %w", err)
 		}
 
@@ -139,12 +139,12 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error reading passphrase flag: %w", err)
 		}
 
-		proposerAddress, err := InitializeSigner(&config, homePath, passphrase)
+		proposerAddress, err := InitializeSigner(&cfg, homePath, passphrase)
 		if err != nil {
 			return err
 		}
 
-		if err := config.SaveAsYaml(); err != nil {
+		if err := cfg.SaveAsYaml(); err != nil {
 			return fmt.Errorf("error writing rollkit.yaml file: %w", err)
 		}
 
@@ -152,11 +152,8 @@ var InitCmd = &cobra.Command{
 			return err
 		}
 
-		// Get chain ID or use default
-		chainID, err := cmd.Flags().GetString(rollconf.FlagChainID)
-		if err != nil {
-			return fmt.Errorf("error reading chain ID flag: %w", err)
-		}
+		// get chain ID or use default
+		chainID, _ := cmd.Flags().GetString(rollconf.FlagChainID)
 		if chainID == "" {
 			chainID = "rollkit-test"
 		}
@@ -166,7 +163,7 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error initializing genesis file: %w", err)
 		}
 
-		fmt.Printf("Initialized %s file in %s\n", rollconf.ConfigName, homePath)
+		cmd.Printf("Successfully initialized config file at %s\n", cfg.ConfigPath())
 		return nil
 	},
 }

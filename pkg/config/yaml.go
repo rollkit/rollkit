@@ -33,7 +33,7 @@ var ErrReadYaml = fmt.Errorf("reading %s", ConfigName)
 
 // SaveAsYaml saves the current configuration to a YAML file.
 func (c *Config) SaveAsYaml() error {
-	configPath := filepath.Join(DefaultConfig.RootDir, AppConfigDir, ConfigName)
+	configPath := c.ConfigPath()
 	if err := os.MkdirAll(filepath.Dir(configPath), 0o750); err != nil {
 		return fmt.Errorf("could not create directory %q: %w", filepath.Dir(configPath), err)
 	}

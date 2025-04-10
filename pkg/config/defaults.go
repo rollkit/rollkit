@@ -7,22 +7,26 @@ import (
 )
 
 const (
-	// ConfigDirName is the base name of the rollkit configuration file without extension.
-	ConfigDirName = "rollkit"
+	// ConfigFileName is the base name of the rollkit configuration file without extension.
+	ConfigFileName = "rollkit"
 	// ConfigExtension is the file extension for the configuration file without the leading dot.
 	ConfigExtension = "yaml"
 	// ConfigPath is the filename for the rollkit configuration file.
-	ConfigName = ConfigDirName + "." + ConfigExtension
+	ConfigName = ConfigFileName + "." + ConfigExtension
 	// AppConfigDir is the directory name for the app configuration.
 	AppConfigDir = "config"
 )
 
 // DefaultRootDir returns the default root directory for rollkit
-var DefaultRootDir = DefaultRootDirWithName(ConfigDirName)
+var DefaultRootDir = DefaultRootDirWithName(ConfigFileName)
 
 // DefaultRootDirWithName returns the default root directory for an application,
 // based on the app name and the user's home directory
 func DefaultRootDirWithName(appName string) string {
+	if appName == "" {
+		appName = ConfigFileName
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""

@@ -218,11 +218,17 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("root directory cannot be empty")
 	}
 
-	if err := os.MkdirAll(c.RootDir, 0o750); err != nil {
-		return fmt.Errorf("could not create directory %q: %w", c.RootDir, err)
+	fullDir := filepath.Dir(c.ConfigPath())
+	if err := os.MkdirAll(fullDir, 0o750); err != nil {
+		return fmt.Errorf("could not create directory %q: %w", fullDir, err)
 	}
 
 	return nil
+}
+
+// ConfigPath returns the path to the configuration file.
+func (c *Config) ConfigPath() string {
+	return filepath.Join(c.RootDir, AppConfigDir, ConfigName)
 }
 
 // AddGlobalFlags registers the basic configuration flags that are common across applications.
@@ -244,7 +250,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagChainID, def.ChainID, "chain ID")
 
 	// Node configuration flags
-	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
+	cmd.Flags().Bool(FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLight, def.Node.Light, "run light client")
 	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime.Duration, "block time (for aggregator mode)")
 	cmd.Flags().String(FlagTrustedHash, def.Node.TrustedHash, "initial trusted hash to start the header exchange service")
@@ -300,16 +306,18 @@ func Load(cmd *cobra.Command) (Config, error) {
 		home = DefaultRootDir
 	}
 
+	cfg := DefaultConfig
+	cfg.RootDir = home
+
 	v := viper.New()
-	v.SetConfigName(ConfigDirName)
+	v.SetConfigName(ConfigFileName)
 	v.SetConfigType(ConfigExtension)
 	v.AddConfigPath(filepath.Join(home, AppConfigDir))
+	v.AddConfigPath(filepath.Join(home, AppConfigDir, ConfigName))
+	v.SetConfigFile(filepath.Join(home, AppConfigDir, ConfigName))
 	v.BindPFlags(cmd.Flags())
 	v.BindPFlags(cmd.PersistentFlags())
 	v.AutomaticEnv()
-
-	cfg := DefaultConfig
-	cfg.RootDir = filepath.Dir(v.ConfigFileUsed())
 
 	// get the executable name
 	executableName, err := os.Executable()
@@ -321,10 +329,10 @@ func Load(cmd *cobra.Command) (Config, error) {
 		return cfg, err
 	}
 
-	// Read the configuration file
-	if err := v.ReadInConfig(); err != nil {
-		return cfg, errors.Join(ErrReadYaml, fmt.Errorf("failed decoding file: %w", err))
-	}
+	// read the configuration file
+	// if the configuration file does not exist, we ignore the error
+	// it will use the defaults
+	_ = v.ReadInConfig()
 
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
@@ -351,7 +359,7 @@ func Load(cmd *cobra.Command) (Config, error) {
 	}
 
 	if err := decoder.Decode(v.AllSettings()); err != nil {
-		return cfg, errors.Join(ErrReadYaml, fmt.Errorf("failed decoding file: %w", err))
+		return cfg, errors.Join(ErrReadYaml, fmt.Errorf("failed decoding viper: %w", err))
 	}
 
 	return cfg, nil
