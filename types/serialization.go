@@ -8,7 +8,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rollkit/rollkit/pkg/signer/noop"
-
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
