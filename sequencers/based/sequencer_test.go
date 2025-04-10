@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-
+	ds "github.com/ipfs/go-datastore"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
@@ -14,16 +14,21 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSequencer_SubmitRollupBatchTxs_Valid(t *testing.T) {
+func newTestSequencer(t *testing.T) *based.Sequencer {
 	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
 	daClient := da.NewDAClient(dummyDA, 1.0, 1.5, []byte("ns"), nil, log.NewNopLogger())
-	rollupID := []byte("rollup1")
-	sequencer, err := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, rollupID, 0, 2)
+	store := ds.NewMapDatastore()
+	seq, err := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, []byte("rollup1"), 0, 2, store)
 	assert.NoError(t, err)
+	return seq
+}
+
+func TestSequencer_SubmitRollupBatchTxs_Valid(t *testing.T) {
+	sequencer := newTestSequencer(t)
 
 	batch := &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}
 	resp, err := sequencer.SubmitRollupBatchTxs(context.Background(), coresequencer.SubmitRollupBatchTxsRequest{
-		RollupId: rollupID,
+		RollupId: []byte("rollup1"),
 		Batch:    batch,
 	})
 
@@ -32,9 +37,7 @@ func TestSequencer_SubmitRollupBatchTxs_Valid(t *testing.T) {
 }
 
 func TestSequencer_SubmitRollupBatchTxs_InvalidRollup(t *testing.T) {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
-	daClient := da.NewDAClient(dummyDA, 1.0, 1.5, []byte("ns"), nil, log.NewNopLogger())
-	sequencer, _ := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, []byte("rollup1"), 0, 2)
+	sequencer := newTestSequencer(t)
 
 	batch := &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1")}}
 	resp, err := sequencer.SubmitRollupBatchTxs(context.Background(), coresequencer.SubmitRollupBatchTxsRequest{
@@ -46,11 +49,8 @@ func TestSequencer_SubmitRollupBatchTxs_InvalidRollup(t *testing.T) {
 }
 
 func TestSequencer_GetNextBatch_OnlyPendingQueue(t *testing.T) {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
-	daClient := da.NewDAClient(dummyDA, 1.0, 1.5, []byte("ns"), nil, log.NewNopLogger())
-	sequencer, _ := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, []byte("rollup1"), 0, 2)
+	sequencer := newTestSequencer(t)
 
-	// Push pending txs
 	timestamp := time.Now()
 	sequencer.AddToPendingTxs([][]byte{[]byte("tx1")}, [][]byte{[]byte("id1")}, timestamp)
 
@@ -61,19 +61,15 @@ func TestSequencer_GetNextBatch_OnlyPendingQueue(t *testing.T) {
 }
 
 func TestSequencer_GetNextBatch_FromDALayer(t *testing.T) {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
-	daClient := da.NewDAClient(dummyDA, 1.0, 1.5, []byte("ns"), nil, log.NewNopLogger())
-	sequencer, _ := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, []byte("rollup1"), 0, 5)
-
+	sequencer := newTestSequencer(t)
 	ctx := context.Background()
-	// Submit some blobs directly to the dummy DA
+
 	blobs := []coreda.Blob{[]byte("tx2"), []byte("tx3")}
-	_, err := dummyDA.Submit(ctx, blobs, 1.0, []byte("ns"), nil)
+	_, err := sequencer.DA.Submit(ctx, blobs, 1.0, []byte("ns"))
 	assert.NoError(t, err)
 
 	resp, err := sequencer.GetNextBatch(ctx, coresequencer.GetNextBatchRequest{
-		RollupId:      []byte("rollup1"),
-		LastBatchData: nil,
+		RollupId: []byte("rollup1"),
 	})
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, len(resp.Batch.Transactions), 1)
@@ -81,11 +77,11 @@ func TestSequencer_GetNextBatch_FromDALayer(t *testing.T) {
 }
 
 func TestSequencer_GetNextBatch_InvalidRollup(t *testing.T) {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
-	daClient := da.NewDAClient(dummyDA, 1.0, 1.5, []byte("ns"), nil, log.NewNopLogger())
-	sequencer, _ := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, []byte("rollup1"), 0, 5)
+	sequencer := newTestSequencer(t)
 
-	resp, err := sequencer.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: []byte("invalid")})
+	resp, err := sequencer.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{
+		RollupId: []byte("invalid"),
+	})
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 }
@@ -93,18 +89,17 @@ func TestSequencer_GetNextBatch_InvalidRollup(t *testing.T) {
 func TestSequencer_GetNextBatch_ExceedsMaxDrift(t *testing.T) {
 	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
 	daClient := da.NewDAClient(dummyDA, 1.0, 1.5, []byte("ns"), nil, log.NewNopLogger())
-	sequencer, _ := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, []byte("rollup1"), 0, 0) // no drift allowed
+	store := ds.NewMapDatastore()
+	sequencer, err := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, []byte("rollup1"), 0, 0, store)
+	assert.NoError(t, err)
 
 	ctx := context.Background()
-	blobs := []coreda.Blob{[]byte("tx4")}
-	_, err := dummyDA.Submit(ctx, blobs, 1.0, []byte("ns"), nil)
+	_, err = dummyDA.Submit(ctx, []coreda.Blob{[]byte("tx4")}, 1.0, []byte("ns"))
 	assert.NoError(t, err)
 
 	resp, err := sequencer.GetNextBatch(ctx, coresequencer.GetNextBatchRequest{
-		RollupId:      []byte("rollup1"),
-		LastBatchData: nil,
+		RollupId: []byte("rollup1"),
 	})
-	// Should return only pending txs or none because it cannot go beyond height drift 0
 	assert.NoError(t, err)
 	if resp != nil {
 		assert.LessOrEqual(t, len(resp.Batch.Transactions), 1)
@@ -112,54 +107,40 @@ func TestSequencer_GetNextBatch_ExceedsMaxDrift(t *testing.T) {
 }
 
 func TestSequencer_VerifyBatch_Success(t *testing.T) {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
-	daClient := da.NewDAClient(dummyDA, 1.0, 1.5, []byte("ns"), nil, log.NewNopLogger())
-	sequencer, err := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, []byte("rollup1"), 0, 2)
-	assert.NoError(t, err)
+	sequencer := newTestSequencer(t)
 
 	ctx := context.Background()
-	blobs := []coreda.Blob{[]byte("tx1")}
-	ids, err := dummyDA.Submit(ctx, blobs, 1.0, []byte("ns"), nil)
+	ids, err := sequencer.DA.Submit(ctx, []coreda.Blob{[]byte("tx1")}, 1.0, []byte("ns"))
 	assert.NoError(t, err)
 
 	resp, err := sequencer.VerifyBatch(ctx, coresequencer.VerifyBatchRequest{
 		RollupId:  []byte("rollup1"),
 		BatchData: ids,
 	})
-
 	assert.NoError(t, err)
 	assert.True(t, resp.Status)
 }
 
 func TestSequencer_VerifyBatch_InvalidRollup(t *testing.T) {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
-	daClient := da.NewDAClient(dummyDA, 1.0, 1.5, []byte("ns"), nil, log.NewNopLogger())
-	sequencer, _ := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, []byte("rollup1"), 0, 2)
+	sequencer := newTestSequencer(t)
 
 	ctx := context.Background()
 	resp, err := sequencer.VerifyBatch(ctx, coresequencer.VerifyBatchRequest{
 		RollupId:  []byte("invalid"),
 		BatchData: [][]byte{[]byte("someID")},
 	})
-
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 }
 
 func TestSequencer_VerifyBatch_InvalidProof(t *testing.T) {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
-	daClient := da.NewDAClient(dummyDA, 1.0, 1.5, []byte("ns"), nil, log.NewNopLogger())
-	sequencer, err := based.NewSequencer(log.NewNopLogger(), dummyDA, daClient, []byte("rollup1"), 0, 2)
-	assert.NoError(t, err)
+	sequencer := newTestSequencer(t)
 
 	ctx := context.Background()
-	// Use random ID that has no proof in DummyDA
-	batchID := []byte("invalid")
 	resp, err := sequencer.VerifyBatch(ctx, coresequencer.VerifyBatchRequest{
 		RollupId:  []byte("rollup1"),
-		BatchData: [][]byte{batchID},
+		BatchData: [][]byte{[]byte("invalid")},
 	})
-
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 }

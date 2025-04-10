@@ -144,6 +144,11 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			nsBytes, err := hex.DecodeString(basedNamespace)
 			basedDALC := da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, nsBytes, nil, logger)
 
+			datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "based")
+			if err != nil {
+				panic(err)
+			}
+
 			sequencer, err := based.NewSequencer(
 				logger,
 				basedDA,
@@ -151,6 +156,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				[]byte("rollkit-test"),
 				basedStartHeight,
 				basedMaxHeightDrift,
+				datastore,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create based sequencer: %w", err)
@@ -166,11 +172,6 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			os.Args = filteredArgs
 
 			nodeKey, err := key.LoadNodeKey(nodeConfig.ConfigDir)
-			if err != nil {
-				panic(err)
-			}
-
-			datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "based")
 			if err != nil {
 				panic(err)
 			}

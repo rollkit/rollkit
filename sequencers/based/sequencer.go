@@ -3,12 +3,14 @@ package based
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"cosmossdk.io/log"
 
+	datastore "github.com/ipfs/go-datastore"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 )
@@ -20,10 +22,15 @@ var (
 	batchTime         = 1 * time.Second
 )
 
-const DefaultMaxBlobSize uint64 = 1_500_000
+const (
+	DefaultMaxBlobSize uint64 = 1_500_000
+	dsPendingTxsKey           = "/sequencer/pendingTxs"
+)
 
-var ErrInvalidRollupId = errors.New("invalid rollup id")
-var ErrInvalidMaxBytes = errors.New("invalid max bytes")
+var (
+	ErrInvalidRollupId = errors.New("invalid rollup id")
+	ErrInvalidMaxBytes = errors.New("invalid max bytes")
+)
 
 type TxsWithTimestamp struct {
 	Txs       [][]byte
@@ -31,54 +38,70 @@ type TxsWithTimestamp struct {
 	Timestamp time.Time
 }
 
-type TxsWithTimestamps []TxsWithTimestamp
-
-// Push adds a new TxsWithTimestamp to the TxsWithTimestamps slice.
-func (t *TxsWithTimestamps) Push(txs [][]byte, ids [][]byte, timestamp time.Time) {
-	*t = append(*t, TxsWithTimestamp{Txs: txs, IDs: ids, Timestamp: timestamp})
+type PersistentPendingTxs struct {
+	store datastore.Batching
+	list  []TxsWithTimestamp
 }
 
-// Pull removes and returns the first TxsWithTimestamp from the TxsWithTimestamps slice.
-// If the slice is empty, it returns nil and a zero-value TxsWithTimestamp.
-func (t *TxsWithTimestamps) Pull() (TxsWithTimestamp, bool) {
-	if len(*t) == 0 {
-		return TxsWithTimestamp{}, false
+func NewPersistentPendingTxs(store datastore.Batching) (*PersistentPendingTxs, error) {
+	pt := &PersistentPendingTxs{store: store, list: []TxsWithTimestamp{}}
+	if err := pt.Load(); err != nil && err != datastore.ErrNotFound {
+		return nil, err
 	}
-	first := (*t)[0]
-	*t = (*t)[1:]
-	return first, true
+	return pt, nil
 }
 
-// PopUpToMaxBytes pops transactions from TxsWithTimestamps up to the specified maxBytes.
-// It returns the popped transactions and the total size in bytes.
-func (t *TxsWithTimestamps) PopUpToMaxBytes(maxBytes uint64) ([][]byte, [][]byte, uint64, time.Time) {
+func (pt *PersistentPendingTxs) Push(txs [][]byte, ids [][]byte, timestamp time.Time) error {
+	pt.list = append(pt.list, TxsWithTimestamp{Txs: txs, IDs: ids, Timestamp: timestamp})
+	return pt.Save()
+}
+
+func (pt *PersistentPendingTxs) PopUpToMaxBytes(maxBytes uint64) ([][]byte, [][]byte, uint64, time.Time) {
 	var (
 		poppedTxs [][]byte
 		ids       [][]byte
 		totalSize uint64
-		timestamp time.Time
+		timestamp time.Time = time.Now()
 	)
-	// set the timestamp to sequencer time, until we find a timestamp from the base layer
-	timestamp = time.Now()
 
-	for len(*t) > 0 {
-		first := (*t)[0]
+	for len(pt.list) > 0 {
+		first := pt.list[0]
 		timestamp = first.Timestamp
 		for i, tx := range first.Txs {
 			txSize := uint64(len(tx))
 			if totalSize+txSize > maxBytes {
-				// Push remaining transactions to the front of the queue
-				*t = append([]TxsWithTimestamp{{Txs: first.Txs[i:], IDs: first.IDs[i:], Timestamp: first.Timestamp}}, (*t)...)
+				pt.list[0] = TxsWithTimestamp{
+					Txs:       first.Txs[i:],
+					IDs:       first.IDs[i:],
+					Timestamp: first.Timestamp,
+				}
+				pt.Save()
 				return poppedTxs, ids, totalSize, timestamp
 			}
 			poppedTxs = append(poppedTxs, tx)
 			ids = append(ids, first.IDs[i])
 			totalSize += txSize
 		}
-		*t = (*t)[1:]
+		pt.list = pt.list[1:]
 	}
-
+	pt.Save()
 	return poppedTxs, ids, totalSize, timestamp
+}
+
+func (pt *PersistentPendingTxs) Save() error {
+	data, err := json.Marshal(pt.list)
+	if err != nil {
+		return err
+	}
+	return pt.store.Put(context.Background(), datastore.NewKey(dsPendingTxsKey), data)
+}
+
+func (pt *PersistentPendingTxs) Load() error {
+	data, err := pt.store.Get(context.Background(), datastore.NewKey(dsPendingTxsKey))
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, &pt.list)
 }
 
 var _ coresequencer.Sequencer = &Sequencer{}
@@ -87,9 +110,9 @@ type Sequencer struct {
 	logger         log.Logger
 	maxHeightDrift uint64
 	rollupId       []byte
-	da             coreda.DA
+	DA             coreda.DA
 	dalc           coreda.Client
-	pendingTxs     TxsWithTimestamps
+	pendingTxs     *PersistentPendingTxs
 	daStartHeight  uint64
 }
 
@@ -100,17 +123,21 @@ func NewSequencer(
 	rollupId []byte,
 	daStartHeight uint64,
 	maxHeightDrift uint64,
+	ds datastore.Batching,
 ) (*Sequencer, error) {
-	s := &Sequencer{
+	pending, err := NewPersistentPendingTxs(ds)
+	if err != nil {
+		return nil, err
+	}
+	return &Sequencer{
 		logger:         logger,
 		maxHeightDrift: maxHeightDrift,
 		rollupId:       rollupId,
-		da:             da,
+		DA:             da,
 		dalc:           dalc,
 		daStartHeight:  daStartHeight,
-		pendingTxs:     TxsWithTimestamps{},
-	}
-	return s, nil
+		pendingTxs:     pending,
+	}, nil
 }
 
 // AddToPendingTxs adds transactions to the pending queue.
@@ -219,13 +246,13 @@ func (s *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 		return nil, fmt.Errorf("failed to get namespace: %w", err)
 	}
 	// get the proofs
-	proofs, err := s.da.GetProofs(ctx, req.BatchData, namespace)
+	proofs, err := s.DA.GetProofs(ctx, req.BatchData, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proofs: %w", err)
 	}
 
 	// verify the proof
-	valid, err := s.da.Validate(ctx, req.BatchData, proofs, namespace)
+	valid, err := s.DA.Validate(ctx, req.BatchData, proofs, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate proof: %w", err)
 	}
