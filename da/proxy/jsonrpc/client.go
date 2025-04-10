@@ -20,15 +20,16 @@ type Module interface {
 // API defines the jsonrpc service module API
 type API struct {
 	Internal struct {
-		MaxBlobSize   func(ctx context.Context) (uint64, error)                                      `perm:"read"`
-		Get           func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Blob, error)           `perm:"read"`
-		GetIDs        func(ctx context.Context, height uint64, ns []byte) (*da.GetIDsResult, error)  `perm:"read"`
-		GetProofs     func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Proof, error)          `perm:"read"`
-		Commit        func(ctx context.Context, blobs []da.Blob, ns []byte) ([]da.Commitment, error) `perm:"read"`
-		Validate      func(context.Context, []da.ID, []da.Proof, []byte) ([]bool, error)             `perm:"read"`
-		Submit        func(context.Context, []da.Blob, float64, []byte, []byte) ([]da.ID, error)     `perm:"write"`
-		GasMultiplier func(context.Context) (float64, error)                                         `perm:"read"`
-		GasPrice      func(context.Context) (float64, error)                                         `perm:"read"`
+		MaxBlobSize       func(ctx context.Context) (uint64, error)                                      `perm:"read"`
+		Get               func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Blob, error)           `perm:"read"`
+		GetIDs            func(ctx context.Context, height uint64, ns []byte) (*da.GetIDsResult, error)  `perm:"read"`
+		GetProofs         func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Proof, error)          `perm:"read"`
+		Commit            func(ctx context.Context, blobs []da.Blob, ns []byte) ([]da.Commitment, error) `perm:"read"`
+		Validate          func(context.Context, []da.ID, []da.Proof, []byte) ([]bool, error)             `perm:"read"`
+		Submit            func(context.Context, []da.Blob, float64, []byte) ([]da.ID, error)             `perm:"write"`
+		SubmitWithOptions func(context.Context, []da.Blob, float64, []byte, []byte) ([]da.ID, error)     `perm:"write"`
+		GasMultiplier     func(context.Context) (float64, error)                                         `perm:"read"`
+		GasPrice          func(context.Context) (float64, error)                                         `perm:"read"`
 	}
 }
 
@@ -63,8 +64,13 @@ func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, ns
 }
 
 // Submit submits the Blobs to Data Availability layer.
-func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
-	return api.Internal.Submit(ctx, blobs, gasPrice, ns, options)
+func (api *API) SubmitWithOptions(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
+	return api.Internal.SubmitWithOptions(ctx, blobs, gasPrice, ns, options)
+}
+
+// Submit submits the Blobs to Data Availability layer.
+func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte) ([]da.ID, error) {
+	return api.Internal.Submit(ctx, blobs, gasPrice, ns)
 }
 
 func (api *API) GasMultiplier(ctx context.Context) (float64, error) {

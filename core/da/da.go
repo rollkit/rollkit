@@ -29,7 +29,10 @@ type DA interface {
 	//
 	// This method is synchronous. Upon successful submission to Data Availability layer, it returns the IDs identifying blobs
 	// in DA.
-	Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, error)
+	Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte) ([]ID, error)
+
+	// SubmitWithOptions submits the Blobs to Data Availability layer with additional options.
+	SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, error)
 
 	// Validate validates Commitments against the corresponding Proofs. This should be possible without retrieving the Blobs.
 	Validate(ctx context.Context, ids []ID, proofs []Proof, namespace []byte) ([]bool, error)

@@ -431,7 +431,7 @@ func (_c *MockDA_MaxBlobSize_Call) RunAndReturn(run func(context.Context) (uint6
 }
 
 // Submit provides a mock function with given fields: ctx, blobs, gasPrice, namespace, options
-func (_m *MockDA) Submit(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte, options []byte) ([][]byte, error) {
+func (_m *MockDA) SubmitWithOptions(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte, options []byte) ([][]byte, error) {
 	ret := _m.Called(ctx, blobs, gasPrice, namespace, options)
 
 	if len(ret) == 0 {
@@ -453,6 +453,36 @@ func (_m *MockDA) Submit(ctx context.Context, blobs [][]byte, gasPrice float64, 
 
 	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, float64, []byte, []byte) error); ok {
 		r1 = rf(ctx, blobs, gasPrice, namespace, options)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Submit provides a mock function with given fields: ctx, blobs, gasPrice, namespace, options
+func (_m *MockDA) Submit(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte) ([][]byte, error) {
+	ret := _m.Called(ctx, blobs, gasPrice, namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Submit")
+	}
+
+	var r0 [][]byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte) ([][]byte, error)); ok {
+		return rf(ctx, blobs, gasPrice, namespace)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte) [][]byte); ok {
+		r0 = rf(ctx, blobs, gasPrice, namespace)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([][]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, float64, []byte) error); ok {
+		r1 = rf(ctx, blobs, gasPrice, namespace)
 	} else {
 		r1 = ret.Error(1)
 	}
