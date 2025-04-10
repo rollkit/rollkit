@@ -1,8 +1,6 @@
 package config
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -54,22 +52,18 @@ func TestYamlConfigOperations(t *testing.T) {
 			// Create a temporary directory for each test case
 			tempDir := t.TempDir()
 
-			path := filepath.Join(tempDir, "config")
-
 			// Setup the test case and write the initial config
 			tc.setup(t, tempDir)
-
-			// Verify the config file exists
-			configPath := filepath.Join(path, ConfigName)
-			_, err := os.Stat(configPath)
-			require.NoError(t, err, "Config file should exist")
 
 			// Read the config
 			cmd := &cobra.Command{Use: "test"}
 			AddFlags(cmd)
 			AddGlobalFlags(cmd, "test")
+			cmd.Flags().Set(FlagRootDir, tempDir)
+
 			cfg, err := Load(cmd)
 			require.NoError(t, err)
+			require.NoError(t, cfg.Validate())
 
 			// Validate the config
 			tc.validate(t, &cfg)

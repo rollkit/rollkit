@@ -232,7 +232,7 @@ func AddGlobalFlags(cmd *cobra.Command, defaultHome string) {
 	cmd.PersistentFlags().String(FlagLogLevel, DefaultConfig.Log.Level, "Set the log level (debug, info, warn, error)")
 	cmd.PersistentFlags().String(FlagLogFormat, DefaultConfig.Log.Format, "Set the log format (text, json)")
 	cmd.PersistentFlags().Bool(FlagLogTrace, DefaultConfig.Log.Trace, "Enable stack traces in error logs")
-	cmd.PersistentFlags().String(FlagRootDir, DefaultRootDir, "Root directory for application data")
+	cmd.PersistentFlags().String(FlagRootDir, DefaultRootDirWithName(defaultHome), "Root directory for application data")
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.

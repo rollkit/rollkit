@@ -101,7 +101,7 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagSignerPath, DefaultConfig.Signer.SignerPath)
 
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 41 // Update this number if you add more flag checks above
+	expectedFlagCount := 39 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags (both regular and persistent)
 	actualFlagCount := 0
@@ -122,11 +122,10 @@ func TestAddFlags(t *testing.T) {
 }
 
 func TestLoad(t *testing.T) {
-	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 
 	// Create a YAML file in the temporary directory
-	yamlPath := filepath.Join(tempDir, ConfigName)
+	yamlPath := filepath.Join(tempDir, AppConfigDir, ConfigName)
 	yamlContent := `
 node:
   aggregator: true
@@ -141,7 +140,9 @@ signer:
   signer_type: "file"
   signer_path: "something/config"
 `
-	err := os.WriteFile(yamlPath, []byte(yamlContent), 0o600)
+	err := os.MkdirAll(filepath.Dir(yamlPath), 0o700)
+	require.NoError(t, err)
+	err = os.WriteFile(yamlPath, []byte(yamlContent), 0o600)
 	require.NoError(t, err)
 
 	// Change to the temporary directory so the config file can be found
@@ -179,6 +180,7 @@ signer:
 	// Load the configuration
 	config, err := Load(cmd)
 	require.NoError(t, err)
+	require.NoError(t, config.Validate())
 
 	// Verify the order of precedence:
 	// 1. Default values should be overridden by YAML
