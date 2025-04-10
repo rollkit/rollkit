@@ -63,11 +63,9 @@ func TestLoadSigner_KeyFileNotFound(t *testing.T) {
 
 	_, err := LoadSigner(signingCfg)
 	require.Error(t, err, "LoadSigner should fail if key file does not exist")
-	// Consider checking for os.ErrNotExist if more specific error checking is needed
 }
 
 func TestLoadSigner_InvalidKeySize(t *testing.T) {
-	// Create a file with content that is not the correct ed25519 private key size
 	invalidKeyBytes := []byte("too short")
 	keyPath := createDummyFileWithContent(t, "invalid_key.priv", invalidKeyBytes)
 
@@ -82,7 +80,7 @@ func TestLoadSigner_InvalidKeySize(t *testing.T) {
 }
 
 func TestLoadSigner_UnknownScheme(t *testing.T) {
-	_, _, keyPath := createTempEd25519KeyFile(t) // Key content doesn't matter here
+	_, _, keyPath := createTempEd25519KeyFile(t)
 
 	signingCfg := config.SigningConfig{
 		PrivateKeyPath: keyPath,
@@ -105,15 +103,12 @@ func TestEd25519Signer_SignAndVerify(t *testing.T) {
 	require.NoError(t, err, "Sign should not produce an error")
 	require.NotEmpty(t, signature, "Signature should not be empty")
 
-	// Verify the signature using the original public key
 	verified := ed25519.Verify(pubKey, message, signature)
 	assert.True(t, verified, "Signature should be verifiable with the correct public key")
 
-	// Verify using the signer's public key method
 	verifiedWithSignerPub := ed25519.Verify(signer.PublicKey(), message, signature)
 	assert.True(t, verifiedWithSignerPub, "Signature should be verifiable with the signer's public key")
 
-	// Tamper with the message and verify failure
 	incorrectMessage := []byte("incorrect message")
 	verifiedIncorrect := ed25519.Verify(pubKey, incorrectMessage, signature)
 	assert.False(t, verifiedIncorrect, "Signature verification should fail for incorrect message")

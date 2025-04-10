@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"os"
 
-	// Reference the config package within the same module
 	"github.com/rollkit/rollkit/attester/internal/config"
 )
 
 // Signer defines the interface for signing data.
 type Signer interface {
 	Sign(data []byte) ([]byte, error)
-	PublicKey() []byte // Returns the raw bytes of the public key
-	Scheme() string    // Returns the name of the scheme (e.g., "ed25519")
+	PublicKey() []byte
+	Scheme() string
 }
 
 // Ed25519Signer implements the Signer interface for Ed25519.
