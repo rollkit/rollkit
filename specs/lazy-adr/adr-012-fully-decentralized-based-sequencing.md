@@ -138,6 +138,16 @@ All rollup full nodes:
 - Apply the rule deterministically
 - Execute batches to update state
 
+Without forkchoice parameters, full nodes cannot independently produce identical rollup blocks (i.e., matching state roots or headers), as they wouldn’t know how to consistently form batches—specifically, how many transactions to include per batch. The maxHeightDrift parameter addresses this by enabling progress when the maxBytes threshold isn’t met, without relying on global time synchronization. Relying on timestamps could lead to inconsistencies due to clock drift between nodes, so using L1-based timestamps or heights provides a reliable and deterministic reference for batching.
+
+### Rollup Light Clients
+
+Rollup light clients (once implemented) are not expected to re-execute transactions to derive rollup headers. Instead, they will perform verification only. These clients will typically receive headers either:
+	•	via the p2p network along with accompanying proofs, or
+	•	from a connected full node, in which case they will still require validity proofs for the received headers.
+
+This design ensures that rollup light clients remain lightweight and efficient, relying on cryptographic proofs rather than execution to validate the rollup state.
+
 ### Data Structures
 - Blob index: to track rollup blobs by height and timestamp
 - Batch metadata: includes L1 timestamps, blob IDs, and state roots
