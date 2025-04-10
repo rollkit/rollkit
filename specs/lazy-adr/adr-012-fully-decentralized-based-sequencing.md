@@ -6,6 +6,7 @@
 - 2025-04-09: Added optional UX optimization where full nodes can relay user rollup txs to base layer
 - 2025-04-09: Added rationale for VerifyBatch utility in fully decentralized setup
 - 2025-04-09: Reworded forkchoice rule to use maxHeightDrift instead of time-based maxLatency
+- 2025-04-10: Added Relaying Costs and Fee Compensation via EVM
 
 ## Context
 
@@ -157,6 +158,22 @@ In fully decentralized based sequencing, full nodes do not need VerifyBatch to p
 * Testing: Developers and test frameworks can validate batch formation correctness and execution determinism using VerifyBatch.
 
 In all of these cases, VerifyBatch acts as a stateless, replayable re-computation check using base-layer data and rollup rules.
+
+### Relaying Costs and Fee Compensation via EVM
+
+In a fully decentralized based sequencing architecture, users may choose to submit their rollup transactions directly to the base layer (e.g., Celestia) or rely on full nodes to relay the transactions on their behalf. When full nodes act as relayers, they are responsible for covering the base layer data availability (DA) fees. To make this economically viable and decentralized, the protocol must include a mechanism to compensate these full nodes for their relaying service—ideally without modifying the EVM or execution engine.
+
+To achieve this, we leverage existing EVM transaction fee mechanisms and Engine API standards. Specifically, we utilize the suggestedFeeRecipient field in the engine_forkchoiceUpdatedV3 call. This field is included in the PayloadAttributes sent by the consensus client (Rollkit) to the execution client (reth) when proposing a new block payload. By setting suggestedFeeRecipient to the full node’s address, we instruct the execution engine to assign the transaction priority fees (tip) and base fees to the relaying full node when the payload is created.
+
+The user transaction itself includes a maxFeePerGas and maxPriorityFeePerGas—standard EIP-1559 fields. These fees are used as usual by the execution engine during payload construction. Since the full node is named as the fee recipient, it directly receives the gas fees when the transaction is executed, effectively covering its cost of DA submission on the user’s behalf. This approach requires no changes to the EVM engine, remains backward compatible with Ethereum infrastructure, and aligns incentives for honest full nodes to participate in relaying and batching.
+
+This design ensures:
+* Fee accountability: Users pay for DA inclusion via standard gas fees.
+* Node neutrality: Any full node can relay a transaction and get compensated.
+* No execution-layer changes: Works with unmodified reth/op-geth clients.
+* Security: Users retain flexibility to either self-submit or rely on decentralized relayers.
+
+Additional enhancements like dynamic fee markets, relayer reputation, or rollup-native incentives can be layered atop this base mechanism in the future.
 
 ### Efficiency
 - Deterministic block production without overhead of consensus
