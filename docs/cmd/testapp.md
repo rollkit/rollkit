@@ -24,5 +24,6 @@ If the --home flag is not specified, the rollkit command will create a folder "~
 * [testapp completion](testapp_completion.md)	 - Generate the autocompletion script for the specified shell
 * [testapp docs-gen](testapp_docs-gen.md)	 - Generate documentation for rollkit CLI
 * [testapp init](testapp_init.md)	 - Initialize a new rollkit.yaml file
+* [testapp node-info](testapp_node-info.md)	 - Get information about a running node via RPC
 * [testapp start](testapp_start.md)	 - Run the testapp node
 * [testapp version](testapp_version.md)	 - Show version info
