@@ -147,7 +147,6 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig, chainID string) (*SignedH
 		Header: GetRandomHeader(chainID),
 		Signer: signer,
 	}
-
 	signedHeader.Header.BaseHeader.Height = config.Height
 	signedHeader.Header.DataHash = config.DataHash
 	signedHeader.Header.ProposerAddress = signer.Address
@@ -184,7 +183,6 @@ func GetFirstSignedHeader(privkey crypto.PrivKey, chainID string) (*SignedHeader
 	if err != nil {
 		return nil, err
 	}
-
 	header := Header{
 		BaseHeader: BaseHeader{
 			Height:  1,

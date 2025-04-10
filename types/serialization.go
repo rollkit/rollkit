@@ -70,7 +70,6 @@ func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &pb.SignedHeader{
 		Header:    sh.Header.ToProto(),
 		Signature: sh.Signature[:],
@@ -95,7 +94,6 @@ func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 		if err != nil {
 			return err
 		}
-
 		sh.Signer = Signer{
 			Address: other.Signer.Address,
 			PubKey:  pubKey,

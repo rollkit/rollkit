@@ -111,7 +111,6 @@ func TestStoreLoad(t *testing.T) {
 					assert.NoError(err)
 					assert.NotNil(header)
 					assert.NotNil(data)
-
 					assert.Equal(expectedHeader, header)
 					assert.Equal(expectedData, data)
 

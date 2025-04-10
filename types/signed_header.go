@@ -118,7 +118,6 @@ func (sh *SignedHeader) ValidateBasic() error {
 	if !verified {
 		return ErrSignatureVerificationFailed
 	}
-
 	return nil
 }
 
