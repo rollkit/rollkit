@@ -23,7 +23,7 @@ require (
 	connectrpc.com/grpcreflect v1.3.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bytedance/sonic v1.13.1 // indirect
+	github.com/bytedance/sonic v1.13.2 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/celestiaorg/go-header v0.6.4 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0 // indirect
