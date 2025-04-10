@@ -49,7 +49,7 @@ func TestParseFlags(t *testing.T) {
 
 		// P2P flags
 		"--rollkit.p2p.listen_address", "tcp://127.0.0.1:27000",
-		"--rollkit.p2p.seeds", "node1@127.0.0.1:27001,node2@127.0.0.1:27002",
+		"--rollkit.p2p.peers", "node1@127.0.0.1:27001,node2@127.0.0.1:27002",
 		"--rollkit.p2p.blocked_peers", "node3@127.0.0.1:27003,node4@127.0.0.1:27004",
 		"--rollkit.p2p.allowed_peers", "node5@127.0.0.1:27005,node6@127.0.0.1:27006",
 
@@ -69,9 +69,6 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.node.light",
 		"--rollkit.node.max_pending_blocks", "100",
 		"--rollkit.node.trusted_hash", "abcdef1234567890",
-		"--rollkit.node.sequencer_address", "seq@127.0.0.1:27007",
-		"--rollkit.node.sequencer_rollup_id", "test-rollup",
-		"--rollkit.node.executor_address", "exec@127.0.0.1:27008",
 		"--rollkit.da.submit_options", "custom-options",
 
 		// Instrumentation flags
@@ -115,7 +112,7 @@ func TestParseFlags(t *testing.T) {
 
 		// P2P fields
 		{"ListenAddress", nodeConfig.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
-		{"Seeds", nodeConfig.P2P.Peers, "node1@127.0.0.1:27001,node2@127.0.0.1:27002"},
+		{"Peers", nodeConfig.P2P.Peers, "node1@127.0.0.1:27001,node2@127.0.0.1:27002"},
 		{"BlockedPeers", nodeConfig.P2P.BlockedPeers, "node3@127.0.0.1:27003,node4@127.0.0.1:27004"},
 		{"AllowedPeers", nodeConfig.P2P.AllowedPeers, "node5@127.0.0.1:27005,node6@127.0.0.1:27006"},
 
@@ -229,8 +226,6 @@ func TestCentralizedAddresses(t *testing.T) {
 	args := []string{
 		"start",
 		"--rollkit.da.address=http://central-da:26657",
-		"--rollkit.node.sequencer_address=central-seq:26659",
-		"--rollkit.node.sequencer_rollup_id=centralrollup",
 	}
 
 	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
