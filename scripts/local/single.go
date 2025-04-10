@@ -116,23 +116,49 @@ func main() {
 		}
 
 		// Get node ID for peer connections (for non-zero nodes)
-		if i == 0 {
+		if i == 0 && *numNodes > 1 {
 			// Get node ID of the first node to use for peer connections
-			nodeIdCmd := exec.Command(appPath, "tendermint", "show-node-id", fmt.Sprintf("--home=%s", nodeHome))
-			nodeIdBytes, err := nodeIdCmd.Output()
+			nodeIdCmd := exec.Command(appPath, "node-info", fmt.Sprintf("--home=%s", nodeHome))
+			nodeInfoOutput, err := nodeIdCmd.CombinedOutput()
 			if err != nil {
-				log.Fatalf("Failed to get node ID for node %d: %v", i, err)
+				log.Fatalf("Failed to get node info for node %d: %v", i, err)
 			}
-			nodeId := strings.TrimSpace(string(nodeIdBytes))
-			nodeIds = append(nodeIds, nodeId)
-			log.Printf("Node %d ID: %s", i, nodeId)
+
+			// Parse the output to extract the full address
+			nodeInfoStr := string(nodeInfoOutput)
+			lines := strings.Split(nodeInfoStr, "\n")
+			var nodeAddress string
+
+			for _, line := range lines {
+				if strings.Contains(line, "🔗 Full Address:") {
+					// Extract the address part (after the color code)
+					parts := strings.Split(line, "Full Address:")
+					if len(parts) >= 2 {
+						// Clean up ANSI color codes and whitespace
+						cleanAddr := strings.TrimSpace(parts[1])
+						// Remove potential ANSI color codes
+						cleanAddr = strings.TrimPrefix(cleanAddr, "\033[1;32m")
+						cleanAddr = strings.TrimSuffix(cleanAddr, "\033[0m")
+						cleanAddr = strings.TrimSpace(cleanAddr)
+						nodeAddress = cleanAddr
+						break
+					}
+				}
+			}
+
+			if nodeAddress == "" {
+				log.Fatalf("Could not extract node address from output: %s", nodeInfoStr)
+			}
+
+			nodeIds = append(nodeIds, nodeAddress)
+			log.Printf("Node %d Full Address: %s", i, nodeAddress)
 		}
 
 		// Build peer list for non-zero nodes
 		var peerList string
 		if i > 0 && len(nodeIds) > 0 {
-			// Format is <node_id>@<ip>:<port>
-			peerList = fmt.Sprintf("%s@127.0.0.1:%d", nodeIds[0], baseP2PPort)
+			// Use the full address directly since it already includes ID and IP:port
+			peerList = nodeIds[0]
 		}
 
 		// Start the node
@@ -142,7 +168,7 @@ func main() {
 			"--rollkit.da.address=http://localhost:7980",
 			fmt.Sprintf("--rollkit.node.aggregator=%t", isAggregator),
 			"--rollkit.signer.passphrase=12345678",
-			fmt.Sprintf("--rollkit.p2p.listen_address=tcp://0.0.0.0:%d", p2pPort),
+			fmt.Sprintf("--rollkit.p2p.listen_address=/ip4/0.0.0.0/tcp/%d", p2pPort),
 			fmt.Sprintf("--rollkit.rpc.address=tcp://0.0.0.0:%d", rpcPort),
 		}
 
@@ -197,6 +223,15 @@ func main() {
 		time.Sleep(1 * time.Second)
 	}
 
+	// remove all node home directories
+	for i := 0; i < *numNodes; i++ {
+		nodeHome := fmt.Sprintf("./testapp_home_node%d", i)
+		if err := os.RemoveAll(nodeHome); err != nil {
+			log.Printf("Failed to remove node home directory %s: %v", nodeHome, err)
+		} else {
+			log.Printf("Removed node home directory %s", nodeHome)
+		}
+	}
 	log.Println("Cleanup complete")
 }
 
