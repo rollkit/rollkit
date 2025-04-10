@@ -70,7 +70,7 @@ const (
 
 	// FlagP2PListenAddress is a flag for specifying the P2P listen address
 	FlagP2PListenAddress = "rollkit.p2p.listen_address"
-	// FlagP2PPeers is a flag for specifying the P2P seeds
+	// FlagP2PPeers is a flag for specifying the P2P peers
 	FlagP2PPeers = "rollkit.p2p.peers"
 	// FlagP2PBlockedPeers is a flag for specifying the P2P blocked peers
 	FlagP2PBlockedPeers = "rollkit.p2p.blocked_peers"
