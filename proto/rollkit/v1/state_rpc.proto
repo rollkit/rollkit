@@ -13,7 +13,7 @@ service StoreService {
   rpc GetBlock(GetBlockRequest) returns (GetBlockResponse) {}
 
   // GetState returns the current state
-  rpc GetState(GetStateRequest) returns (GetStateResponse) {}
+  rpc GetState(google.protobuf.Empty) returns (GetStateResponse) {}
 
   // GetMetadata returns metadata for a specific key
   rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse) {}
@@ -37,11 +37,6 @@ message GetBlockRequest {
 // GetBlockResponse defines the response for retrieving a block
 message GetBlockResponse {
   Block block = 1;
-}
-
-// GetStateRequest defines the request for retrieving the current state
-message GetStateRequest {
-  // Empty request
 }
 
 // GetStateResponse defines the response for retrieving the current state

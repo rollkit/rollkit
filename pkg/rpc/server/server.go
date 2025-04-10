@@ -90,7 +90,7 @@ func (s *StoreServer) GetBlock(
 // GetState implements the GetState RPC method
 func (s *StoreServer) GetState(
 	ctx context.Context,
-	req *connect.Request[pb.GetStateRequest],
+	req *connect.Request[emptypb.Empty],
 ) (*connect.Response[pb.GetStateResponse], error) {
 	state, err := s.store.GetState(ctx)
 	if err != nil {
@@ -135,11 +135,11 @@ func (s *StoreServer) GetMetadata(
 // P2PServer implements the P2PService defined in the proto file
 type P2PServer struct {
 	// Add dependencies needed for P2P functionality
-	peerManager p2p.PeerManager
+	peerManager p2p.P2PRPC
 }
 
 // NewP2PServer creates a new P2PServer instance
-func NewP2PServer(peerManager p2p.PeerManager) *P2PServer {
+func NewP2PServer(peerManager p2p.P2PRPC) *P2PServer {
 	return &P2PServer{
 		peerManager: peerManager,
 	}
@@ -182,7 +182,6 @@ func (p *P2PServer) GetNetInfo(
 	pbNetInfo := &pb.NetInfo{
 		Id:            netInfo.ID,
 		ListenAddress: netInfo.ListenAddress,
-		// ConnectedPeers: netInfo.ConnectedPeers,
 	}
 
 	return connect.NewResponse(&pb.GetNetInfoResponse{
@@ -191,7 +190,7 @@ func (p *P2PServer) GetNetInfo(
 }
 
 // NewServiceHandler creates a new HTTP handler for both Store and P2P services
-func NewServiceHandler(store store.Store, peerManager p2p.PeerManager) (http.Handler, error) {
+func NewServiceHandler(store store.Store, peerManager p2p.P2PRPC) (http.Handler, error) {
 	storeServer := NewStoreServer(store)
 	p2pServer := NewP2PServer(peerManager)
 
