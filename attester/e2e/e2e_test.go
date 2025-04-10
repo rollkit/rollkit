@@ -69,7 +69,6 @@ type clusterInfo struct {
 func setupCluster(t *testing.T) *clusterInfo {
 	t.Helper()
 
-	// 1. Create base temporary directory for this test run
 	testDir, err := os.MkdirTemp("", "attester_e2e_test_*")
 	require.NoError(t, err, "Failed to create base temp dir")
 	t.Logf("Created base test directory: %s", testDir)
@@ -78,46 +77,43 @@ func setupCluster(t *testing.T) *clusterInfo {
 	keysDir := filepath.Join(testDir, "keys")
 	configsDir := filepath.Join(testDir, "configs")
 	logsDir := filepath.Join(testDir, "logs")
-	buildDir := filepath.Join(testDir, "bin") // Directory for the compiled binary
+	buildDir := filepath.Join(testDir, "bin")
 	require.NoError(t, os.Mkdir(keysDir, 0755))
 	require.NoError(t, os.Mkdir(configsDir, 0755))
 	require.NoError(t, os.Mkdir(logsDir, 0755))
-	require.NoError(t, os.Mkdir(buildDir, 0755)) // Create build directory
+	require.NoError(t, os.Mkdir(buildDir, 0755))
 
-	// 2. Compile the attesterd binary
+	// Compile the attesterd binary
 	sourcePath := "../cmd/attesterd" // Adjust if the source path is different
 	compiledBinaryPath := filepath.Join(buildDir, binaryName)
 	t.Logf("Compiling attesterd binary from %s to %s", sourcePath, compiledBinaryPath)
 	cmd := exec.Command("go", "build", "-o", compiledBinaryPath, sourcePath)
-	cmd.Stdout = os.Stdout // Optional: show build output
-	cmd.Stderr = os.Stderr // Optional: show build errors
 	err = cmd.Run()
 	require.NoError(t, err, "Failed to compile attesterd binary")
 	t.Logf("Successfully compiled attesterd binary.")
 
-	// Ensure the compiled binary exists
 	_, err = os.Stat(compiledBinaryPath)
 	require.NoError(t, err, "Compiled attesterd binary not found at %s", compiledBinaryPath)
 
 	cluster := &clusterInfo{
 		nodes:      make(map[string]*nodeInfo, numNodes),
-		allNodes:   make([]*nodeInfo, 0, numNodes), // Initialize slice
+		allNodes:   make([]*nodeInfo, 0, numNodes),
 		keysDir:    keysDir,
 		configsDir: configsDir,
 		logsDir:    logsDir,
 		testDir:    testDir,
-		binaryPath: compiledBinaryPath, // Use the newly compiled binary path
+		binaryPath: compiledBinaryPath,
 	}
 
-	// 3. Generate Keys and Configs for all nodes
+	// Generate Keys and Configs for all nodes
 	attesterPubKeys := make(map[string]string) // For leader's aggregator config
 
-	// Generate leader info first
+	// Generate leader info
 	leaderNode := generateNodeConfigAndKey(t, cluster, leaderID, 0, true)
 	leaderNode.raftAddr = netAddr("127.0.0.1", baseRaftPort+0)
 	leaderNode.grpcAddr = netAddr("127.0.0.1", baseGRPCPort+0)
 	cluster.nodes[leaderID] = leaderNode
-	cluster.allNodes = append(cluster.allNodes, leaderNode) // Add to list
+	cluster.allNodes = append(cluster.allNodes, leaderNode)
 
 	// Generate follower info
 	for i := 0; i < numFollowers; i++ {
@@ -126,20 +122,18 @@ func setupCluster(t *testing.T) *clusterInfo {
 		followerNode := generateNodeConfigAndKey(t, cluster, nodeID, nodeIndex, false)
 		followerNode.raftAddr = netAddr("127.0.0.1", baseRaftPort+nodeIndex)
 		cluster.nodes[nodeID] = followerNode
-		cluster.allNodes = append(cluster.allNodes, followerNode) // Add to list
+		cluster.allNodes = append(cluster.allNodes, followerNode)
 		attesterPubKeys[nodeID] = followerNode.pubFile
 	}
 
-	// 4. Write config files (now that all peers and keys are known)
-	// Pass the full cluster.allNodes list to createNodeConfig
+	// Write config files
 	leaderConfig := createNodeConfig(t, cluster.nodes[leaderID], cluster.allNodes, attesterPubKeys)
 	writeConfigFile(t, cluster.nodes[leaderID].cfgFile, leaderConfig)
 
 	for i := 0; i < numFollowers; i++ {
 		nodeID := fmt.Sprintf("%s%d", attesterIDPrefix, i)
 		followerNode := cluster.nodes[nodeID]
-		// Pass the full cluster.allNodes list to createNodeConfig
-		followerConfig := createNodeConfig(t, followerNode, cluster.allNodes, nil) // Followers don't need attester pubkeys
+		followerConfig := createNodeConfig(t, followerNode, cluster.allNodes, nil) // Followers don't need attester pubkeys in their config
 		writeConfigFile(t, followerNode.cfgFile, followerConfig)
 	}
 
@@ -150,23 +144,20 @@ func setupCluster(t *testing.T) *clusterInfo {
 // generateNodeConfigAndKey prepares files/dirs for a single node
 func generateNodeConfigAndKey(t *testing.T, cluster *clusterInfo, nodeID string, nodeIndex int, isLeader bool) *nodeInfo {
 	t.Helper()
-	// Paths
+
 	privKeyPath := filepath.Join(cluster.keysDir, fmt.Sprintf("%s.key", nodeID))
 	pubKeyPath := filepath.Join(cluster.keysDir, fmt.Sprintf("%s.pub", nodeID))
 	cfgFilePath := filepath.Join(cluster.configsDir, fmt.Sprintf("%s.yaml", nodeID))
 	dataDirPath := filepath.Join(cluster.testDir, "data", nodeID)
 	logFilePath := filepath.Join(cluster.logsDir, fmt.Sprintf("%s.log", nodeID))
 
-	// Create data dir
 	require.NoError(t, os.MkdirAll(dataDirPath, 0755), "Failed to create data dir for %s", nodeID)
 
-	// Generate Keys
 	pubKey, privKey, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err, "Failed to generate key for %s", nodeID)
 	require.NoError(t, os.WriteFile(privKeyPath, privKey, 0600), "Failed to write private key for %s", nodeID)
 	require.NoError(t, os.WriteFile(pubKeyPath, pubKey, 0644), "Failed to write public key for %s", nodeID)
 
-	// Create log file
 	logFile, err := os.Create(logFilePath)
 	require.NoError(t, err, "Failed to create log file for %s", nodeID)
 
@@ -182,14 +173,12 @@ func generateNodeConfigAndKey(t *testing.T, cluster *clusterInfo, nodeID string,
 }
 
 // createNodeConfig creates the config structure for a node
-// Takes the target node and the list of all nodes in the cluster
 func createNodeConfig(t *testing.T, targetNode *nodeInfo, allClusterNodes []*nodeInfo, attesterPubKeys map[string]string) *attesterconfig.Config {
 	t.Helper()
 
-	// Build the list of peers (excluding the target node itself)
 	peers := make([]attesterconfig.PeerConfig, 0, len(allClusterNodes)-1)
 	for _, node := range allClusterNodes {
-		if node.id != targetNode.id { // Exclude self
+		if node.id != targetNode.id {
 			peers = append(peers, attesterconfig.PeerConfig{
 				ID:      node.id,
 				Address: node.raftAddr,
@@ -208,25 +197,25 @@ func createNodeConfig(t *testing.T, targetNode *nodeInfo, allClusterNodes []*nod
 			BootstrapCluster:  targetNode.isLeader,
 			ElectionTimeout:   "1s",
 			HeartbeatTimeout:  "500ms",
-			SnapshotInterval:  "30s",
-			SnapshotThreshold: 100,
+			SnapshotInterval:  "30s", // Faster snapshots for testing
+			SnapshotThreshold: 100,   // Lower threshold for testing
 		},
 		Signing: attesterconfig.SigningConfig{
 			PrivateKeyPath: targetNode.keyFile,
 			Scheme:         "ed25519",
 		},
 		Network: attesterconfig.NetworkConfig{
-			SequencerSigEndpoint: "",
+			SequencerSigEndpoint: "", // Set below if follower
 		},
 		GRPC: attesterconfig.GRPCConfig{
-			ListenAddress: "",
+			ListenAddress: "", // Set below if leader
 		},
 		Aggregator: attesterconfig.AggregatorConfig{
-			QuorumThreshold: 0,
-			Attesters:       nil,
+			QuorumThreshold: 0,   // Set below if leader
+			Attesters:       nil, // Set below if leader
 		},
 		Execution: attesterconfig.ExecutionConfig{
-			Enabled: false,
+			Enabled: false, // Keep verification disabled for basic E2E
 			Type:    "noop",
 			Timeout: "5s",
 		},
@@ -235,18 +224,17 @@ func createNodeConfig(t *testing.T, targetNode *nodeInfo, allClusterNodes []*nod
 	// Role-specific settings
 	if targetNode.isLeader {
 		cfg.GRPC.ListenAddress = targetNode.grpcAddr
-		// Quorum calculation should depend on the number of *attesters* specified in the config map, not necessarily numFollowers
-		// Let's assume for now the aggregator map contains all intended followers.
+		// Quorum calculation requires N+1 signatures (leader + all configured followers)
 		if len(attesterPubKeys) > 0 {
-			cfg.Aggregator.QuorumThreshold = len(attesterPubKeys) + 1 // Require all configured attestors + leader = N+1
+			cfg.Aggregator.QuorumThreshold = len(attesterPubKeys) + 1
 		} else {
-			cfg.Aggregator.QuorumThreshold = 1 // Only leader if no attestors configured (adjust logic as needed)
+			// If no attestors are configured for the leader, quorum is just the leader itself.
+			cfg.Aggregator.QuorumThreshold = 1
 			t.Logf("WARN: Leader %s configured with no attestors in Aggregator.Attesters map. Setting quorum to 1.", targetNode.id)
 		}
 		cfg.Aggregator.Attesters = attesterPubKeys
 	} else {
-		// Follower needs leader's GRPC address
-		// Find the leader node to get its GRPC address
+		// Follower needs leader's GRPC address to send signatures
 		var leaderGrpcAddr string
 		for _, node := range allClusterNodes {
 			if node.isLeader {
@@ -255,9 +243,10 @@ func createNodeConfig(t *testing.T, targetNode *nodeInfo, allClusterNodes []*nod
 			}
 		}
 		if leaderGrpcAddr == "" {
+			// This should not happen if setupCluster is correct
 			t.Fatalf("Could not find leader node to set SequencerSigEndpoint for follower %s", targetNode.id)
 		}
-		cfg.Network.SequencerSigEndpoint = leaderGrpcAddr // Use actual leader's gRPC address
+		cfg.Network.SequencerSigEndpoint = leaderGrpcAddr
 	}
 
 	return &cfg
@@ -271,10 +260,10 @@ func writeConfigFile(t *testing.T, path string, cfg *attesterconfig.Config) {
 	require.NoError(t, os.WriteFile(path, data, 0644), "Failed to write config file %s", path)
 }
 
-// netAddr constructs a simple network address (adjust if using hostnames/docker)
+// netAddr constructs a simple network address
 func netAddr(ip string, port int) string {
 	// For local testing, assume localhost resolves or use 127.0.0.1
-	// In more complex setups (docker), this might need service discovery/hostnames
+	// In more complex setups (e.g., docker), this might need service discovery/hostnames
 	return fmt.Sprintf("%s:%d", ip, port)
 }
 
@@ -291,7 +280,7 @@ func launchNode(t *testing.T, cluster *clusterInfo, node *nodeInfo) {
 
 	cmd := exec.Command(cluster.binaryPath, args...)
 	cmd.Stdout = node.logFile
-	cmd.Stderr = node.logFile // Capture both stdout and stderr
+	cmd.Stderr = node.logFile
 
 	err := cmd.Start()
 	require.NoError(t, err, "Failed to start node %s", node.id)
@@ -355,17 +344,12 @@ func triggerBlockProposal(t *testing.T, leaderGRPCAddr string, height uint64, da
 	t.Helper()
 	t.Logf("Attempting to connect to leader gRPC at %s to trigger proposal for height %d", leaderGRPCAddr, height)
 
-	// Set up a connection to the server.
-	ctx, cancel := context.WithTimeout(context.Background(), grpcDialTimeout)
-	defer cancel()
-	_ = ctx // Explicitly ignore the context variable to satisfy the linter
 	conn, err := grpc.NewClient(leaderGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	require.NoError(t, err, "Failed to dial leader gRPC server at %s", leaderGRPCAddr)
 	defer conn.Close()
 
 	client := attesterv1.NewAttesterServiceClient(conn)
 
-	// Prepare request
 	// Generate a dummy hash for the test block
 	hashBytes := sha256.Sum256([]byte(data))
 	req := &attesterv1.SubmitBlockRequest{
@@ -374,7 +358,6 @@ func triggerBlockProposal(t *testing.T, leaderGRPCAddr string, height uint64, da
 		DataToSign:  []byte(data),
 	}
 
-	// Call SubmitBlock
 	callCtx, callCancel := context.WithTimeout(context.Background(), interactionTimeout)
 	defer callCancel()
 	resp, err := client.SubmitBlock(callCtx, req)
@@ -390,7 +373,6 @@ func getAggregatedSignatures(t *testing.T, nodeGRPCAddr string, height uint64) *
 	t.Helper()
 	t.Logf("Attempting to connect to node gRPC at %s to get aggregated signatures for height %d", nodeGRPCAddr, height)
 
-	// Set up a connection to the server.
 	ctx, cancel := context.WithTimeout(context.Background(), grpcDialTimeout)
 	defer cancel()
 	_ = ctx // Explicitly ignore the context variable to satisfy the linter
@@ -400,12 +382,10 @@ func getAggregatedSignatures(t *testing.T, nodeGRPCAddr string, height uint64) *
 
 	client := attesterv1.NewAttesterServiceClient(conn)
 
-	// Prepare request
 	req := &attesterv1.GetAggregatedSignatureRequest{
 		BlockHeight: height,
 	}
 
-	// Call GetAggregatedSignature
 	callCtx, callCancel := context.WithTimeout(context.Background(), interactionTimeout)
 	defer callCancel()
 	resp, err := client.GetAggregatedSignature(callCtx, req)
