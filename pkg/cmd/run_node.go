@@ -19,7 +19,6 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/node"
-	"github.com/rollkit/rollkit/pkg/config"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -121,7 +120,7 @@ func StartNode(
 
 	metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
-	genesisPath := filepath.Join(config.AppConfigDir, "genesis.json")
+	genesisPath := filepath.Join(filepath.Dir(nodeConfig.ConfigPath()), "genesis.json")
 	genesis, err := genesispkg.LoadGenesis(genesisPath)
 	if err != nil {
 		return fmt.Errorf("failed to load genesis: %w", err)
