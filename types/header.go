@@ -8,10 +8,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-header"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
-	v1 "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // Hash is a 32-byte array which is used to represent a hash result.
@@ -121,23 +117,6 @@ func (h *Header) ValidateBasic() error {
 	}
 
 	return nil
-}
-
-// Vote returns a vote for the header.
-func (h *Header) Vote() ([]byte, error) {
-	v := &v1.Vote{
-		ChainId:          h.ChainID(),
-		Height:           h.Height(),
-		BlockIdHash:      h.Hash(),
-		ValidatorAddress: h.ProposerAddress,
-		Timestamp:        timestamppb.New(h.Time()),
-	}
-
-	bz, err := proto.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-	return bz, nil
 }
 
 var _ header.Header[*Header] = &Header{}

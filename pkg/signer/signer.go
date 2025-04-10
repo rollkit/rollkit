@@ -11,4 +11,7 @@ type Signer interface {
 
 	// GetPublic returns the public key paired with this private key.
 	GetPublic() (crypto.PubKey, error)
+
+	// GetAddress returns the address of the signer.
+	GetAddress() ([]byte, error)
 }

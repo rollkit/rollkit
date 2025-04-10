@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -111,6 +112,14 @@ func TestStoreLoad(t *testing.T) {
 					assert.NoError(err)
 					assert.NotNil(header)
 					assert.NotNil(data)
+
+					// replace the signer with a pubkey only signer in the expected header
+					pubkey, err := expectedHeader.Signer.GetPublic()
+					require.NoError(err)
+					noopSigner, err := noopsigner.NewNoopSignerFromPubKey(pubkey)
+					require.NoError(err)
+					expectedHeader.Signer = noopSigner
+
 					assert.Equal(expectedHeader, header)
 					assert.Equal(expectedData, data)
 

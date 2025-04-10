@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/go-header"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -97,9 +98,11 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
 			if shouldRecomputeCommit {
-				signature, err := GetSignature(preparedHeader.Header, privKey)
+				noopSigner, err := noopsigner.NewNoopSigner(privKey)
 				require.NoError(t, err)
-				preparedHeader.Signature = *signature
+				signature, err := GetSignature(preparedHeader.Header, noopSigner)
+				require.NoError(t, err)
+				preparedHeader.Signature = signature
 			}
 
 			err := trusted.Verify(preparedHeader)
@@ -211,9 +214,11 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
 			if shouldRecomputeCommit {
-				signature, err := GetSignature(preparedHeader.Header, privKey)
+				noopSigner, err := noopsigner.NewNoopSigner(privKey)
 				require.NoError(t, err)
-				preparedHeader.Signature = *signature
+				signature, err := GetSignature(preparedHeader.Header, noopSigner)
+				require.NoError(t, err)
+				preparedHeader.Signature = signature
 			}
 
 			err := preparedHeader.ValidateBasic()

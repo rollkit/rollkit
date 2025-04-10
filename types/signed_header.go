@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
+
+	"github.com/rollkit/rollkit/pkg/signer"
 )
 
 var (
@@ -23,7 +25,7 @@ type SignedHeader struct {
 	Header
 	// Note: This is backwards compatible as ABCI exported types are not affected.
 	Signature Signature
-	Signer    Signer
+	Signer    signer.Signer
 }
 
 // New creates a new SignedHeader.
@@ -102,18 +104,26 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	// Check that the proposer address in the signed header matches the proposer address in the validator set
-	if !bytes.Equal(sh.ProposerAddress, sh.Signer.Address) {
+	signerAddress, err := sh.Signer.GetAddress()
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(sh.ProposerAddress, signerAddress) {
 		return ErrProposerAddressMismatch
 	}
 
 	signature := sh.Signature
 
-	vote, err := sh.Header.Vote()
+	bz, err := sh.Header.MarshalBinary()
 	if err != nil {
 		return err
 	}
 
-	verified, err := sh.Signer.PubKey.Verify(vote, signature)
+	pubkey, err := sh.Signer.GetPublic()
+	if err != nil {
+		return err
+	}
+	verified, err := pubkey.Verify(bz, signature)
 	if err != nil {
 		return err
 	}

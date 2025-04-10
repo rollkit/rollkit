@@ -2,7 +2,6 @@ package types
 
 import (
 	cryptoRand "crypto/rand"
-	"errors"
 	"math/rand"
 	"time"
 
@@ -10,30 +9,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/signer"
+	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
 const DefaultSigningKeyType = "ed25519"
-
-// ValidatorConfig carries all necessary state for generating a Validator
-type ValidatorConfig struct {
-	PrivKey     crypto.PrivKey
-	VotingPower int64
-}
-
-// GetValidatorSetCustom returns a validator set based on the provided validatorConfig.
-func GetValidatorSetCustom(config ValidatorConfig) (Signer, error) {
-	if config.PrivKey == nil {
-		panic(errors.New("private key is nil"))
-	}
-	pubKey := config.PrivKey.GetPublic()
-
-	signer, err := NewSigner(pubKey)
-	if err != nil {
-		return Signer{}, err
-	}
-	return signer, nil
-}
 
 // BlockConfig carries all necessary state for block generation
 type BlockConfig struct {
@@ -159,7 +140,7 @@ func GetRandomSignedHeader(chainID string) (*SignedHeader, crypto.PrivKey, error
 
 // GetRandomSignedHeaderCustom creates a signed header based on the provided HeaderConfig.
 func GetRandomSignedHeaderCustom(config *HeaderConfig, chainID string) (*SignedHeader, error) {
-	signer, err := NewSigner(config.PrivKey.GetPublic())
+	signer, err := noopsigner.NewNoopSigner(config.PrivKey)
 	if err != nil {
 		return nil, err
 	}
@@ -168,17 +149,23 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig, chainID string) (*SignedH
 		Header: GetRandomHeader(chainID),
 		Signer: signer,
 	}
-	signedHeader.Header.BaseHeader.Height = config.Height
-	signedHeader.Header.DataHash = config.DataHash
-	signedHeader.Header.ProposerAddress = signer.Address
-	signedHeader.Header.ValidatorHash = signer.Address
-	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10
 
-	signature, err := GetSignature(signedHeader.Header, config.PrivKey)
+	signerAddress, err := signer.GetAddress()
 	if err != nil {
 		return nil, err
 	}
-	signedHeader.Signature = *signature
+
+	signedHeader.Header.BaseHeader.Height = config.Height
+	signedHeader.Header.DataHash = config.DataHash
+	signedHeader.Header.ProposerAddress = signerAddress
+	signedHeader.Header.ValidatorHash = signerAddress
+	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10
+
+	signature, err := GetSignature(signedHeader.Header, signer)
+	if err != nil {
+		return nil, err
+	}
+	signedHeader.Signature = signature
 	return signedHeader, nil
 }
 
@@ -190,20 +177,26 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey crypto.PrivKe
 		Signer: signedHeader.Signer,
 	}
 
-	signature, err := GetSignature(newSignedHeader.Header, privKey)
+	signature, err := GetSignature(newSignedHeader.Header, signedHeader.Signer)
 	if err != nil {
 		return nil, err
 	}
-	newSignedHeader.Signature = *signature
+	newSignedHeader.Signature = signature
 	return newSignedHeader, nil
 }
 
 // GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
 func GetFirstSignedHeader(privkey crypto.PrivKey, chainID string) (*SignedHeader, error) {
-	signer, err := NewSigner(privkey.GetPublic())
+	signer, err := noopsigner.NewNoopSigner(privkey)
 	if err != nil {
 		return nil, err
 	}
+
+	signerAddress, err := signer.GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
 	header := Header{
 		BaseHeader: BaseHeader{
 			Height:  1,
@@ -218,17 +211,17 @@ func GetFirstSignedHeader(privkey crypto.PrivKey, chainID string) (*SignedHeader
 		LastCommitHash:  GetRandomBytes(32),
 		DataHash:        GetRandomBytes(32),
 		AppHash:         make([]byte, 32),
-		ProposerAddress: signer.Address,
+		ProposerAddress: signerAddress,
 	}
 	signedHeader := SignedHeader{
 		Header: header,
 		Signer: signer,
 	}
-	signature, err := GetSignature(header, privkey)
+	signature, err := GetSignature(header, signer)
 	if err != nil {
 		return nil, err
 	}
-	signedHeader.Signature = *signature
+	signedHeader.Signature = signature
 	return &signedHeader, nil
 }
 
@@ -239,7 +232,12 @@ func GetGenesisWithPrivkey(chainID string) (genesis.Genesis, crypto.PrivKey, cry
 		panic(err)
 	}
 
-	signer, err := NewSigner(pubKey)
+	signer, err := noopsigner.NewNoopSigner(privKey)
+	if err != nil {
+		panic(err)
+	}
+
+	signerAddress, err := signer.GetAddress()
 	if err != nil {
 		panic(err)
 	}
@@ -248,7 +246,7 @@ func GetGenesisWithPrivkey(chainID string) (genesis.Genesis, crypto.PrivKey, cry
 		chainID,
 		1,
 		time.Now().UTC(),
-		signer.Address,
+		signerAddress,
 		nil,
 	), privKey, pubKey
 }
@@ -270,17 +268,12 @@ func GetRandomBytes(n uint) []byte {
 }
 
 // GetSignature returns a signature from the given private key over the given header
-func GetSignature(header Header, privKey crypto.PrivKey) (*Signature, error) {
-	consensusVote, err := header.Vote()
+func GetSignature(header Header, proposerKey signer.Signer) (Signature, error) {
+	b, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	sign, err := privKey.Sign(consensusVote)
-	if err != nil {
-		return nil, err
-	}
-	signature := Signature(sign)
-	return &signature, nil
+	return proposerKey.Sign(b)
 }
 
 func getBlockDataWith(nTxs int) *Data {

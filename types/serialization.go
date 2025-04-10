@@ -1,9 +1,13 @@
 package types
 
 import (
+	"fmt"
+
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/rollkit/rollkit/pkg/signer/noop"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
@@ -58,7 +62,8 @@ func (d *Data) UnmarshalBinary(data []byte) error {
 
 // ToProto converts SignedHeader into protobuf representation and returns it.
 func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
-	if sh.Signer.PubKey == nil {
+	if sh.Signer == nil {
+		fmt.Println("signer is nil")
 		return &pb.SignedHeader{
 			Header:    sh.Header.ToProto(),
 			Signature: sh.Signature[:],
@@ -66,21 +71,43 @@ func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
 		}, nil
 	}
 
-	pubKey, err := crypto.MarshalPublicKey(sh.Signer.PubKey)
+	pubkey, err := sh.Signer.GetPublic()
+	if err != nil {
+		fmt.Println("error getting public key", err)
+		return nil, err
+	}
+
+	if pubkey == nil {
+		fmt.Println("pubkey is nil")
+		return &pb.SignedHeader{
+			Header:    sh.Header.ToProto(),
+			Signature: sh.Signature[:],
+			Signer:    &pb.Signer{},
+		}, nil
+	}
+
+	pubKey, err := crypto.MarshalPublicKey(pubkey)
 	if err != nil {
 		return nil, err
 	}
+
+	signerAddress, err := sh.Signer.GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
 	return &pb.SignedHeader{
 		Header:    sh.Header.ToProto(),
 		Signature: sh.Signature[:],
 		Signer: &pb.Signer{
-			Address: sh.Signer.Address,
+			Address: signerAddress,
 			PubKey:  pubKey,
 		},
 	}, nil
 }
 
-// FromProto fills SignedHeader with data from protobuf representation.
+// FromProto fills SignedHeader with data from protobuf representation. The contained
+// Signer can only be used to verify signatures, not to sign messages.
 func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 	err := sh.Header.FromProto(other.Header)
 	if err != nil {
@@ -93,10 +120,13 @@ func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 		if err != nil {
 			return err
 		}
-		sh.Signer = Signer{
-			Address: other.Signer.Address,
-			PubKey:  pubKey,
+
+		sig, err := noop.NewNoopSignerFromPubKey(pubKey)
+		if err != nil {
+			return err
 		}
+
+		sh.Signer = sig
 	}
 	return nil
 }
