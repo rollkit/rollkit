@@ -43,7 +43,7 @@ vet:
 ## mock-gen: generate mocks of external (commetbft) types
 mock-gen:
 	@echo "-> Generating mocks"
-	mockery --output da/mocks --srcpkg github.com/rollkit/rollkit/core/da --name DA
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/store --name Store
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/p2p --name P2PRPC
+	mockery --output da/mocks --srcpkg github.com/rollkit/rollkit/core/da --name DA --filename="dac.go"
+	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/store --name Store --filename="store.go"
+	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/p2p --name P2PRPC --filename="p2p.go"
 .PHONY: mock-gen
