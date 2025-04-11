@@ -140,11 +140,14 @@ All rollup full nodes:
 
 Without forkchoice parameters, full nodes cannot independently produce identical rollup blocks (i.e., matching state roots or headers), as they wouldn’t know how to consistently form batches—specifically, how many transactions to include per batch. The maxHeightDrift parameter addresses this by enabling progress when the maxBytes threshold isn’t met, without relying on global time synchronization. Relying on timestamps could lead to inconsistencies due to clock drift between nodes, so using L1-based timestamps or heights provides a reliable and deterministic reference for batching.
 
+#### Configurable Forkchoice rule
+By default, the based sequencing supports max bytes along with max height drift as the forkchoice rule; however, this can be made configurable to support different forkchoice strategies, such as prioritizing highest to lowest fee-paying transactions, earliest submitted transactions, application-specific prioritization, or even hybrid strategies that balance throughput, latency, and economic incentives, allowing rollup operators to customize batch construction policies according to their needs.
+
 ### Rollup Light Clients
 
 Rollup light clients (once implemented) are not expected to re-execute transactions to derive rollup headers. Instead, they will perform verification only. These clients will typically receive headers either:
-	•	via the p2p network along with accompanying proofs, or
-	•	from a connected full node, in which case they will still require validity proofs for the received headers.
+* via the p2p network along with accompanying proofs, or
+* from a connected full node, in which case they will still require validity proofs for the received headers.
 
 This design ensures that rollup light clients remain lightweight and efficient, relying on cryptographic proofs rather than execution to validate the rollup state.
 
