@@ -46,6 +46,7 @@ func TestBasic(t *testing.T) {
 	output, err := sut.RunCmd(binaryPath,
 		"init",
 		"--home="+node1Home,
+		"--chain_id=testing",
 		"--rollkit.node.aggregator",
 		"--rollkit.signer.passphrase="+aggregatorPass,
 	)
@@ -55,6 +56,7 @@ func TestBasic(t *testing.T) {
 	sut.StartNode(binaryPath,
 		"start",
 		"--home="+node1Home,
+		"--chain_id=testing",
 		"--rollkit.node.aggregator",
 		"--rollkit.signer.passphrase="+aggregatorPass,
 		"--rollkit.node.block_time=5ms",

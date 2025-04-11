@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/rollkit/rollkit/pkg/config"
 	rpc "github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
 )
 
@@ -20,13 +19,7 @@ var NodeInfoCmd = &cobra.Command{
 	Short: "Get information about a running node via RPC",
 	Long:  "This command retrieves the node information via RPC from a running node in the specified directory (or current directory if not specified).",
 	RunE: func(cmd *cobra.Command, args []string) error {
-
-		homePath, err := cmd.Flags().GetString(config.FlagRootDir)
-		if err != nil {
-			return fmt.Errorf("error reading home flag: %w", err)
-		}
-
-		nodeConfig, err := ParseConfig(cmd, homePath)
+		nodeConfig, err := ParseConfig(cmd)
 		if err != nil {
 			return fmt.Errorf("error parsing config: %w", err)
 		}

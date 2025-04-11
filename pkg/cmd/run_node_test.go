@@ -24,7 +24,7 @@ import (
 	filesigner "github.com/rollkit/rollkit/pkg/signer/file"
 )
 
-func createTestComponents(ctx context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.Signer, *p2p.Client, datastore.Batching) {
+func createTestComponents(_ context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.Signer, *p2p.Client, datastore.Batching) {
 	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
@@ -85,19 +85,16 @@ func TestParseFlags(t *testing.T) {
 		t.Fatalf("Error: %v", err)
 	}
 
-	nodeConfig := rollconf.DefaultNodeConfig
+	nodeConfig := rollconf.DefaultConfig
 	nodeConfig.RootDir = t.TempDir()
 
 	newRunNodeCmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
-
-	// Register root flags to be able to use --home flag
-	rollconf.AddGlobalFlags(newRunNodeCmd, "testapp")
-
+	_ = newRunNodeCmd.Flags().Set(rollconf.FlagRootDir, "custom/root/dir")
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error: %v", err)
 	}
 
-	nodeConfig, err = ParseConfig(newRunNodeCmd, "custom/root/dir")
+	nodeConfig, err = ParseConfig(newRunNodeCmd)
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
@@ -169,16 +166,17 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 			t.Fatalf("Error: %v", err)
 		}
 
-		nodeConfig := rollconf.DefaultNodeConfig
+		nodeConfig := rollconf.DefaultConfig
 		nodeConfig.RootDir = t.TempDir()
 
 		newRunNodeCmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+		_ = newRunNodeCmd.Flags().Set(rollconf.FlagRootDir, "custom/root/dir")
 
 		if err := newRunNodeCmd.ParseFlags(args); err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
-		nodeConfig, err = ParseConfig(newRunNodeCmd, "custom/root/dir")
+		nodeConfig, err = ParseConfig(newRunNodeCmd)
 		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
@@ -192,36 +190,59 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 // TestDefaultAggregatorValue verifies that the default value of Aggregator is true
 // when no flag is specified
 func TestDefaultAggregatorValue(t *testing.T) {
-	// Create a new command without specifying any flags
-	args := []string{"start"}
-	executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
-
-	nodeKey, err := key.GenerateNodeKey()
-	if err != nil {
-		t.Fatalf("Error: %v", err)
+	testCases := []struct {
+		name     string
+		expected bool
+	}{
+		{"DefaultAggregatorTrue", true},
+		{"DefaultAggregatorFalse", false},
 	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			executor, sequencer, dac, keyProvider, p2pClient, ds := createTestComponents(context.Background(), t)
 
-	nodeConfig := rollconf.DefaultNodeConfig
+			nodeKey, err := key.GenerateNodeKey()
+			if err != nil {
+				t.Fatalf("Error: %v", err)
+			}
 
-	newRunNodeCmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+			nodeConfig := rollconf.DefaultConfig
 
-	if err := newRunNodeCmd.ParseFlags(args); err != nil {
-		t.Errorf("Error parsing flags: %v", err)
+			newRunNodeCmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+			_ = newRunNodeCmd.Flags().Set(rollconf.FlagRootDir, "custom/root/dir")
+
+			// Create a new command without specifying any flags
+			var args []string
+			if tc.expected {
+				args = []string{"start", "--rollkit.node.aggregator"}
+			} else {
+				args = []string{"start", "--rollkit.node.aggregator=false"}
+			}
+
+			if err := newRunNodeCmd.ParseFlags(args); err != nil {
+				t.Errorf("Error parsing flags: %v", err)
+			}
+
+			nodeConfig, err = ParseConfig(newRunNodeCmd)
+			if err != nil {
+				t.Errorf("Error parsing config: %v", err)
+			}
+
+			if tc.expected {
+				// Verify that Aggregator is true by default
+				assert.True(t, nodeConfig.Node.Aggregator, "Expected Aggregator to be true by default")
+			} else {
+				// Verify that Aggregator is false when explicitly set
+				assert.False(t, nodeConfig.Node.Aggregator)
+			}
+		})
 	}
-
-	nodeConfig, err = ParseConfig(newRunNodeCmd, "custom/root/dir")
-	if err != nil {
-		t.Errorf("Error parsing config: %v", err)
-	}
-
-	// Verify that Aggregator is true by default
-	assert.False(t, nodeConfig.Node.Aggregator, "Expected Aggregator to be false by default")
 }
 
 // TestCentralizedAddresses verifies that when centralized service flags are provided,
 // the configuration fields in nodeConfig are updated accordingly, ensuring that mocks are skipped.
 func TestCentralizedAddresses(t *testing.T) {
-	nodeConfig := rollconf.DefaultNodeConfig
+	nodeConfig := rollconf.DefaultConfig
 
 	args := []string{
 		"start",
@@ -237,11 +258,12 @@ func TestCentralizedAddresses(t *testing.T) {
 	}
 
 	cmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
+	_ = cmd.Flags().Set(rollconf.FlagRootDir, "custom/root/dir")
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
 
-	nodeConfig, err = ParseConfig(cmd, "custom/root/dir")
+	nodeConfig, err = ParseConfig(cmd)
 	if err != nil {
 		t.Fatalf("parseConfig error: %v", err)
 	}
@@ -249,7 +271,6 @@ func TestCentralizedAddresses(t *testing.T) {
 	if nodeConfig.DA.Address != "http://central-da:26657" {
 		t.Errorf("Expected nodeConfig.Rollkit.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.DA.Address)
 	}
-
 }
 
 // newRunNodeCmd returns the command that allows the CLI to start a node.
@@ -285,6 +306,7 @@ func newRunNodeCmd(
 
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
+	rollconf.AddGlobalFlags(cmd, "")
 
 	return cmd
 }

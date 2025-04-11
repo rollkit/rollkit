@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDefaultNodeConfig(t *testing.T) {
+func TestDefaultConfig(t *testing.T) {
 	// Test that default config has expected values
-	def := DefaultNodeConfig
+	def := DefaultConfig
 	assert.Equal(t, "data", def.DBPath)
 	assert.Equal(t, false, def.Node.Aggregator)
 	assert.Equal(t, false, def.Node.Light)
-	assert.Equal(t, DefaultNodeConfig.DA.Address, def.DA.Address)
+	assert.Equal(t, DefaultConfig.DA.Address, def.DA.Address)
 	assert.Equal(t, "", def.DA.AuthToken)
 	assert.Equal(t, float64(-1), def.DA.GasPrice)
 	assert.Equal(t, float64(0), def.DA.GasMultiplier)
@@ -49,34 +49,33 @@ func TestAddFlags(t *testing.T) {
 	persistentFlags := cmd.PersistentFlags()
 
 	// Test specific flags
-	assertFlagValue(t, flags, FlagDBPath, DefaultNodeConfig.DBPath)
-	assertFlagValue(t, flags, FlagChainConfigDir, DefaultNodeConfig.ConfigDir)
+	assertFlagValue(t, flags, FlagDBPath, DefaultConfig.DBPath)
 
 	// Node flags
-	assertFlagValue(t, flags, FlagAggregator, DefaultNodeConfig.Node.Aggregator)
-	assertFlagValue(t, flags, FlagLight, DefaultNodeConfig.Node.Light)
-	assertFlagValue(t, flags, FlagBlockTime, DefaultNodeConfig.Node.BlockTime.Duration)
-	assertFlagValue(t, flags, FlagTrustedHash, DefaultNodeConfig.Node.TrustedHash)
-	assertFlagValue(t, flags, FlagLazyAggregator, DefaultNodeConfig.Node.LazyAggregator)
-	assertFlagValue(t, flags, FlagMaxPendingBlocks, DefaultNodeConfig.Node.MaxPendingBlocks)
-	assertFlagValue(t, flags, FlagLazyBlockTime, DefaultNodeConfig.Node.LazyBlockTime.Duration)
+	assertFlagValue(t, flags, FlagAggregator, DefaultConfig.Node.Aggregator)
+	assertFlagValue(t, flags, FlagLight, DefaultConfig.Node.Light)
+	assertFlagValue(t, flags, FlagBlockTime, DefaultConfig.Node.BlockTime.Duration)
+	assertFlagValue(t, flags, FlagTrustedHash, DefaultConfig.Node.TrustedHash)
+	assertFlagValue(t, flags, FlagLazyAggregator, DefaultConfig.Node.LazyAggregator)
+	assertFlagValue(t, flags, FlagMaxPendingBlocks, DefaultConfig.Node.MaxPendingBlocks)
+	assertFlagValue(t, flags, FlagLazyBlockTime, DefaultConfig.Node.LazyBlockTime.Duration)
 
 	// DA flags
-	assertFlagValue(t, flags, FlagDAAddress, DefaultNodeConfig.DA.Address)
-	assertFlagValue(t, flags, FlagDAAuthToken, DefaultNodeConfig.DA.AuthToken)
-	assertFlagValue(t, flags, FlagDABlockTime, DefaultNodeConfig.DA.BlockTime.Duration)
-	assertFlagValue(t, flags, FlagDAGasPrice, DefaultNodeConfig.DA.GasPrice)
-	assertFlagValue(t, flags, FlagDAGasMultiplier, DefaultNodeConfig.DA.GasMultiplier)
-	assertFlagValue(t, flags, FlagDAStartHeight, DefaultNodeConfig.DA.StartHeight)
-	assertFlagValue(t, flags, FlagDANamespace, DefaultNodeConfig.DA.Namespace)
-	assertFlagValue(t, flags, FlagDASubmitOptions, DefaultNodeConfig.DA.SubmitOptions)
-	assertFlagValue(t, flags, FlagDAMempoolTTL, DefaultNodeConfig.DA.MempoolTTL)
+	assertFlagValue(t, flags, FlagDAAddress, DefaultConfig.DA.Address)
+	assertFlagValue(t, flags, FlagDAAuthToken, DefaultConfig.DA.AuthToken)
+	assertFlagValue(t, flags, FlagDABlockTime, DefaultConfig.DA.BlockTime.Duration)
+	assertFlagValue(t, flags, FlagDAGasPrice, DefaultConfig.DA.GasPrice)
+	assertFlagValue(t, flags, FlagDAGasMultiplier, DefaultConfig.DA.GasMultiplier)
+	assertFlagValue(t, flags, FlagDAStartHeight, DefaultConfig.DA.StartHeight)
+	assertFlagValue(t, flags, FlagDANamespace, DefaultConfig.DA.Namespace)
+	assertFlagValue(t, flags, FlagDASubmitOptions, DefaultConfig.DA.SubmitOptions)
+	assertFlagValue(t, flags, FlagDAMempoolTTL, DefaultConfig.DA.MempoolTTL)
 
 	// P2P flags
-	assertFlagValue(t, flags, FlagP2PListenAddress, DefaultNodeConfig.P2P.ListenAddress)
-	assertFlagValue(t, flags, FlagP2PPeers, DefaultNodeConfig.P2P.Peers)
-	assertFlagValue(t, flags, FlagP2PBlockedPeers, DefaultNodeConfig.P2P.BlockedPeers)
-	assertFlagValue(t, flags, FlagP2PAllowedPeers, DefaultNodeConfig.P2P.AllowedPeers)
+	assertFlagValue(t, flags, FlagP2PListenAddress, DefaultConfig.P2P.ListenAddress)
+	assertFlagValue(t, flags, FlagP2PPeers, DefaultConfig.P2P.Peers)
+	assertFlagValue(t, flags, FlagP2PBlockedPeers, DefaultConfig.P2P.BlockedPeers)
+	assertFlagValue(t, flags, FlagP2PAllowedPeers, DefaultConfig.P2P.AllowedPeers)
 
 	// Instrumentation flags
 	instrDef := DefaultInstrumentationConfig()
@@ -87,20 +86,20 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagPprofListenAddr, instrDef.PprofListenAddr)
 
 	// Logging flags (in persistent flags)
-	assertFlagValue(t, persistentFlags, FlagLogLevel, DefaultNodeConfig.Log.Level)
+	assertFlagValue(t, persistentFlags, FlagLogLevel, DefaultConfig.Log.Level)
 	assertFlagValue(t, persistentFlags, FlagLogFormat, "text")
 	assertFlagValue(t, persistentFlags, FlagLogTrace, false)
 
 	// Signer flags
 	assertFlagValue(t, flags, FlagSignerPassphrase, "")
 	assertFlagValue(t, flags, FlagSignerType, "file")
-	assertFlagValue(t, flags, FlagSignerPath, DefaultNodeConfig.Signer.SignerPath)
+	assertFlagValue(t, flags, FlagSignerPath, DefaultConfig.Signer.SignerPath)
 
 	// RPC flags
-	assertFlagValue(t, flags, FlagRPCAddress, DefaultNodeConfig.RPC.Address)
+	assertFlagValue(t, flags, FlagRPCAddress, DefaultConfig.RPC.Address)
 
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 37 // Update this number if you add more flag checks above
+	expectedFlagCount := 35 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags (both regular and persistent)
 	actualFlagCount := 0
@@ -120,12 +119,11 @@ func TestAddFlags(t *testing.T) {
 	)
 }
 
-func TestLoadNodeConfig(t *testing.T) {
-	// Create a temporary directory for the test
+func TestLoad(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create a YAML file in the temporary directory
-	yamlPath := filepath.Join(tempDir, RollkitConfigYaml)
+	yamlPath := filepath.Join(tempDir, AppConfigDir, ConfigName)
 	yamlContent := `
 node:
   aggregator: true
@@ -140,7 +138,9 @@ signer:
   signer_type: "file"
   signer_path: "something/config"
 `
-	err := os.WriteFile(yamlPath, []byte(yamlContent), 0600)
+	err := os.MkdirAll(filepath.Dir(yamlPath), 0o700)
+	require.NoError(t, err)
+	err = os.WriteFile(yamlPath, []byte(yamlContent), 0o600)
 	require.NoError(t, err)
 
 	// Change to the temporary directory so the config file can be found
@@ -162,9 +162,11 @@ signer:
 	// Create a command with flags
 	cmd := &cobra.Command{Use: "test"}
 	AddFlags(cmd)
+	AddGlobalFlags(cmd, "test") // Add basic flags first
 
 	// Set some flags that should override YAML values
 	flagArgs := []string{
+		"--home", tempDir,
 		"--rollkit.node.block_time", "10s",
 		"--rollkit.da.address", "http://flag-da:26657",
 		"--rollkit.node.light", "true", // This is not in YAML, should be set from flag
@@ -175,8 +177,9 @@ signer:
 	require.NoError(t, err)
 
 	// Load the configuration
-	config, err := LoadNodeConfig(cmd, tempDir)
+	config, err := Load(cmd)
 	require.NoError(t, err)
+	require.NoError(t, config.Validate())
 
 	// Verify the order of precedence:
 	// 1. Default values should be overridden by YAML
@@ -190,7 +193,7 @@ signer:
 	assert.Equal(t, true, config.Node.Light, "Light should be set from flag")
 
 	// 4. Values not in flags or YAML should remain as default
-	assert.Equal(t, DefaultNodeConfig.DA.BlockTime.Duration, config.DA.BlockTime.Duration, "DABlockTime should remain as default")
+	assert.Equal(t, DefaultConfig.DA.BlockTime.Duration, config.DA.BlockTime.Duration, "DABlockTime should remain as default")
 
 	// 5. Signer values should be set from flags
 	assert.Equal(t, "file", config.Signer.SignerType, "SignerType should be set from flag")

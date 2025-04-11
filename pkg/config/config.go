@@ -1,15 +1,15 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -23,8 +23,6 @@ const (
 	FlagRootDir = "home"
 	// FlagDBPath is a flag for specifying the database path
 	FlagDBPath = "rollkit.db_path"
-	// FlagChainConfigDir is a flag for specifying the chain config directory
-	FlagChainConfigDir = "config_dir"
 	// FlagChainID is a flag for specifying the chain ID
 	FlagChainID = "chain_id"
 
@@ -116,31 +114,12 @@ const (
 	FlagRPCAddress = "rollkit.rpc.address"
 )
 
-// DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
-// needed for YAML marshalling/unmarshalling especially for time.Duration
-type DurationWrapper struct {
-	time.Duration
-}
-
-// MarshalText implements encoding.TextMarshaler to format the duration as text
-func (d DurationWrapper) MarshalText() ([]byte, error) {
-	return []byte(d.String()), nil
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler to parse the duration from text
-func (d *DurationWrapper) UnmarshalText(text []byte) error {
-	var err error
-	d.Duration, err = time.ParseDuration(string(text))
-	return err
-}
-
 // Config stores Rollkit configuration.
 type Config struct {
 	// Base configuration
-	RootDir   string `mapstructure:"-" yaml:"-" comment:"Root directory where rollkit files are located"`
-	DBPath    string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
-	ConfigDir string `mapstructure:"config_dir" yaml:"config_dir" comment:"Directory containing the rollup chain configuration"`
-	ChainID   string `mapstructure:"chain_id" yaml:"chain_id" comment:"Chain ID for the rollup"`
+	RootDir string `mapstructure:"-" yaml:"-" comment:"Root directory where rollkit files are located"`
+	DBPath  string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
+	ChainID string `mapstructure:"chain_id" yaml:"chain_id" comment:"Chain ID for the rollup"`
 	// P2P configuration
 	P2P P2PConfig `mapstructure:"p2p" yaml:"p2p"`
 
@@ -213,33 +192,51 @@ type SignerConfig struct {
 	SignerPath string `mapstructure:"signer_path" yaml:"signer_path" comment:"Path to the signer file or address"`
 }
 
-// AddGlobalFlags registers the basic configuration flags that are common across applications
-// This includes logging configuration and root directory settings
-func AddGlobalFlags(cmd *cobra.Command, appName string) {
-	cmd.PersistentFlags().String(FlagLogLevel, DefaultNodeConfig.Log.Level, "Set the log level (debug, info, warn, error)")
-	cmd.PersistentFlags().String(FlagLogFormat, DefaultNodeConfig.Log.Format, "Set the log format (text, json)")
-	cmd.PersistentFlags().Bool(FlagLogTrace, DefaultNodeConfig.Log.Trace, "Enable stack traces in error logs")
-	cmd.PersistentFlags().String(FlagRootDir, DefaultRootDirWithName(appName), "Root directory for application data")
-}
-
 // RPCConfig contains all RPC server configuration parameters
 type RPCConfig struct {
 	Address string `mapstructure:"address" yaml:"address" comment:"Address to bind the RPC server to (host:port). Default: 127.0.0.1:7331"`
 }
 
+// Validate ensures that the root directory exists.
+// It creates the directory if it does not exist.
+func (c *Config) Validate() error {
+	if c.RootDir == "" {
+		return fmt.Errorf("root directory cannot be empty")
+	}
+
+	fullDir := filepath.Dir(c.ConfigPath())
+	if err := os.MkdirAll(fullDir, 0o750); err != nil {
+		return fmt.Errorf("could not create directory %q: %w", fullDir, err)
+	}
+
+	return nil
+}
+
+// ConfigPath returns the path to the configuration file.
+func (c *Config) ConfigPath() string {
+	return filepath.Join(c.RootDir, AppConfigDir, ConfigName)
+}
+
+// AddGlobalFlags registers the basic configuration flags that are common across applications.
+// This includes logging configuration and root directory settings.
+// It should be used in apps that do not already define their logger and home flag.
+func AddGlobalFlags(cmd *cobra.Command, defaultHome string) {
+	cmd.PersistentFlags().String(FlagLogLevel, DefaultConfig.Log.Level, "Set the log level (debug, info, warn, error)")
+	cmd.PersistentFlags().String(FlagLogFormat, DefaultConfig.Log.Format, "Set the log format (text, json)")
+	cmd.PersistentFlags().Bool(FlagLogTrace, DefaultConfig.Log.Trace, "Enable stack traces in error logs")
+	cmd.PersistentFlags().String(FlagRootDir, DefaultRootDirWithName(defaultHome), "Root directory for application data")
+}
+
 // AddFlags adds Rollkit specific configuration options to cobra Command.
 func AddFlags(cmd *cobra.Command) {
-	def := DefaultNodeConfig
-
-	// Add CI flag for testing
-	cmd.Flags().Bool("ci", false, "run node for ci testing")
+	def := DefaultConfig
 
 	// Add base flags
 	cmd.Flags().String(FlagDBPath, def.DBPath, "path for the node database")
-	cmd.Flags().String(FlagChainConfigDir, def.ConfigDir, "directory containing chain configuration files")
 	cmd.Flags().String(FlagChainID, def.ChainID, "chain ID")
+
 	// Node configuration flags
-	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
+	cmd.Flags().Bool(FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLight, def.Node.Light, "run light client")
 	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime.Duration, "block time (for aggregator mode)")
 	cmd.Flags().String(FlagTrustedHash, def.Node.TrustedHash, "initial trusted hash to start the header exchange service")
@@ -281,73 +278,49 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagSignerPassphrase, "", "passphrase for the signer (required for file signer and if aggregator is enabled)")
 }
 
-// LoadNodeConfig loads the node configuration in the following order of precedence:
+// Load loads the node configuration in the following order of precedence:
 // 1. DefaultNodeConfig() (lowest priority)
 // 2. YAML configuration file
 // 3. Command line flags (highest priority)
-func LoadNodeConfig(cmd *cobra.Command, home string) (Config, error) {
-	// Create a new Viper instance to avoid conflicts with any global Viper
+func Load(cmd *cobra.Command) (Config, error) {
+	home, _ := cmd.Flags().GetString(FlagRootDir)
+	if home == "" {
+		home = DefaultRootDir
+	}
+
+	cfg := DefaultConfig
+	cfg.RootDir = home
+
 	v := viper.New()
+	v.SetConfigName(ConfigFileName)
+	v.SetConfigType(ConfigExtension)
+	v.AddConfigPath(filepath.Join(home, AppConfigDir))
+	v.AddConfigPath(filepath.Join(home, AppConfigDir, ConfigName))
+	v.SetConfigFile(filepath.Join(home, AppConfigDir, ConfigName))
+	_ = v.BindPFlags(cmd.Flags())
+	_ = v.BindPFlags(cmd.PersistentFlags())
+	v.AutomaticEnv()
 
-	// 1. Start with default configuration generated by the function
-	//    and set defaults in Viper
-	config := DefaultNodeConfig
-	setDefaultsInViper(v, config)
-
-	// Get the RootDir from flags *first* to ensure correct search paths
-	// If the flag is not set, it will use the default value already in 'config'
-	rootDirFromFlag, _ := cmd.Flags().GetString(FlagRootDir) // Ignore error, default is fine if flag not present
-	if rootDirFromFlag != "" {
-		config.RootDir = rootDirFromFlag // Update our config struct temporarily for path setting
+	// get the executable name
+	executableName, err := os.Executable()
+	if err != nil {
+		return cfg, err
 	}
 
-	// 2. Try to load YAML configuration from various locations
-	// First try using the current directory
-	v.SetConfigName(ConfigBaseName)  // e.g., "rollkit"
-	v.SetConfigType(ConfigExtension) // e.g., "yaml"
-
-	// Check if RootDir is determined (either default or from flag)
-	if config.RootDir != "" {
-		// Search directly in the determined root directory first
-		v.AddConfigPath(home)
-		// Then search in the default config subdirectory within that root directory
-		v.AddConfigPath(filepath.Join(home, config.ConfigDir)) // DefaultConfigDir is likely "config"
+	if err := bindFlags(path.Base(executableName), cmd, v); err != nil {
+		return cfg, err
 	}
 
-	// Try to read the config file
-	if err := v.ReadInConfig(); err != nil {
-		// If it's not a "file not found" error, return the error
-		var configFileNotFound viper.ConfigFileNotFoundError
-		if !errors.As(err, &configFileNotFound) {
-			return config, fmt.Errorf("error reading YAML configuration: %w", err)
-		}
-		// Otherwise, just continue with defaults
-	} else {
-		// Config file found, log it
-		fmt.Printf("Using config file: %s\n", v.ConfigFileUsed())
-	}
+	// read the configuration file
+	// if the configuration file does not exist, we ignore the error
+	// it will use the defaults
+	_ = v.ReadInConfig()
 
-	// 3. Bind command line flags
-	var flagErrs error
-	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		// Always trim the rollkit prefix if it exists
-		flagName := strings.TrimPrefix(f.Name, "rollkit.")
-		if err := v.BindPFlag(flagName, f); err != nil {
-			flagErrs = multierror.Append(flagErrs, err)
-		}
-	})
-	if flagErrs != nil {
-		return config, fmt.Errorf("unable to bind flags: %w", flagErrs)
-	}
-
-	// 4. Unmarshal everything from Viper into the config struct
-	// viper.Unmarshal will respect the precedence: defaults < yaml < flags
-	if err := v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
-		c.TagName = "mapstructure"
-		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
 			mapstructure.StringToSliceHookFunc(","),
-			func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+			func(f reflect.Type, t reflect.Type, data any) (any, error) {
 				if t == reflect.TypeOf(DurationWrapper{}) && f.Kind() == reflect.String {
 					if str, ok := data.(string); ok {
 						duration, err := time.ParseDuration(str)
@@ -359,28 +332,53 @@ func LoadNodeConfig(cmd *cobra.Command, home string) (Config, error) {
 				}
 				return data, nil
 			},
-		)
-	}); err != nil {
-		return config, fmt.Errorf("unable to decode configuration: %w", err)
+		),
+		Result:           &cfg,
+		WeaklyTypedInput: true,
+	})
+	if err != nil {
+		return cfg, errors.Join(ErrReadYaml, fmt.Errorf("failed creating decoder: %w", err))
 	}
 
-	return config, nil
+	if err := decoder.Decode(v.AllSettings()); err != nil {
+		return cfg, errors.Join(ErrReadYaml, fmt.Errorf("failed decoding viper: %w", err))
+	}
+
+	return cfg, nil
 }
 
-// setDefaultsInViper sets all the default values from NodeConfig into Viper
-func setDefaultsInViper(v *viper.Viper, config Config) {
-	// This function needs to marshal the config to a map and set defaults
-	// Example implementation sketch (might need refinement based on struct tags):
-	configMap := make(map[string]interface{})
-	data, _ := json.Marshal(config) // Using JSON temporarily, mapstructure might be better
-	err := json.Unmarshal(data, &configMap)
-	if err != nil {
-		fmt.Println("error unmarshalling config", err)
-	}
+func bindFlags(basename string, cmd *cobra.Command, v *viper.Viper) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("bindFlags failed: %v", r)
+		}
+	}()
 
-	for key, value := range configMap {
-		v.SetDefault(key, value)
-	}
-	// Note: A proper implementation would recursively handle nested structs
-	// and potentially use mapstructure tags used elsewhere in the loading process.
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		flagName := strings.TrimPrefix(f.Name, "rollkit.") // trimm the prefix from the flag name
+
+		// Environment variables can't have dashes in them, so bind them to their equivalent
+		// keys with underscores, e.g. --favorite-color to STING_FAVORITE_COLOR
+		err = v.BindEnv(flagName, fmt.Sprintf("%s_%s", basename, strings.ToUpper(strings.ReplaceAll(flagName, "-", "_"))))
+		if err != nil {
+			panic(err)
+		}
+
+		err = v.BindPFlag(flagName, f)
+		if err != nil {
+			panic(err)
+		}
+
+		// Apply the viper config value to the flag when the flag is not set and
+		// viper has a value.
+		if !f.Changed && v.IsSet(flagName) {
+			val := v.Get(flagName)
+			err = cmd.Flags().Set(flagName, fmt.Sprintf("%v", val))
+			if err != nil {
+				panic(err)
+			}
+		}
+	})
+
+	return err
 }

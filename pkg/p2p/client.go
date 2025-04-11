@@ -74,7 +74,7 @@ func NewClient(
 	}
 
 	if conf.P2P.ListenAddress == "" {
-		conf.P2P.ListenAddress = config.DefaultNodeConfig.P2P.ListenAddress
+		conf.P2P.ListenAddress = config.DefaultConfig.P2P.ListenAddress
 	}
 
 	gater, err := conngater.NewBasicConnectionGater(ds)
@@ -148,7 +148,6 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 
 // Close gently stops Client.
 func (c *Client) Close() error {
-
 	return errors.Join(
 		c.dht.Close(),
 		c.host.Close(),
