@@ -21,7 +21,7 @@ import (
 
 const (
 	numFollowers       = 3
-	numNodes           = numFollowers + 1 // 1 Leader + Followers
+	numNodes           = numFollowers + 1
 	baseGRPCPort       = 13000
 	baseRaftPort       = 12000
 	binaryName         = "attesterd"
@@ -78,24 +78,21 @@ func (c *Cluster) AddNodes(t *testing.T, numFollowers int) map[string]string {
 	t.Helper()
 	attesterPubKeys := make(map[string]string)
 
-	// Generate leader info
-	leaderNode := c.generateNode(t, leaderID, 0, true)
+	leaderNode := c.generateNode(t, leaderID, true)
 	leaderNode.raftAddr = netAddr("127.0.0.1", baseRaftPort+0)
 	leaderNode.grpcAddr = netAddr("127.0.0.1", baseGRPCPort+0)
 	c.nodes[leaderID] = leaderNode
 	c.allNodes = append(c.allNodes, leaderNode)
 
-	// Generate follower info
 	for i := 0; i < numFollowers; i++ {
 		nodeID := fmt.Sprintf("%s%d", attesterIDPrefix, i)
-		nodeIndex := i + 1 // 0 is leader
-		followerNode := c.generateNode(t, nodeID, nodeIndex, false)
+		nodeIndex := i + 1
+		followerNode := c.generateNode(t, nodeID, false)
 		followerNode.raftAddr = netAddr("127.0.0.1", baseRaftPort+nodeIndex)
-		// Followers don't listen on gRPC, but assign port for potential future use/consistency
 		followerNode.grpcAddr = netAddr("127.0.0.1", baseGRPCPort+nodeIndex)
 		c.nodes[nodeID] = followerNode
 		c.allNodes = append(c.allNodes, followerNode)
-		attesterPubKeys[nodeID] = followerNode.pubFile // Collect pubkey for leader config
+		attesterPubKeys[nodeID] = followerNode.pubFile
 	}
 
 	t.Logf("Generated keys and node info for %d nodes", len(c.allNodes))
@@ -108,18 +105,16 @@ func (c *Cluster) GenerateAndWriteConfigs(t *testing.T, attesterPubKeys map[stri
 	t.Helper()
 	t.Logf("Generating and writing configuration files...")
 
-	// Write leader config
-	leaderNode := c.nodes[leaderID] // Assume leaderID is accessible or passed
+	leaderNode := c.nodes[leaderID]
 	if leaderNode == nil {
 		t.Fatalf("Leader node (%s) not found in cluster nodes map", leaderID)
 	}
 	leaderConfig := createNodeConfig(t, leaderNode, c.allNodes, attesterPubKeys)
 	writeConfigFile(t, leaderNode.cfgFile, leaderConfig)
 
-	// Write follower configs
 	for _, node := range c.allNodes {
 		if !node.isLeader {
-			followerConfig := createNodeConfig(t, node, c.allNodes, nil) // Followers don't need attester pubkeys
+			followerConfig := createNodeConfig(t, node, c.allNodes, nil)
 			writeConfigFile(t, node.cfgFile, followerConfig)
 		}
 	}
@@ -128,7 +123,7 @@ func (c *Cluster) GenerateAndWriteConfigs(t *testing.T, attesterPubKeys map[stri
 
 // generateNode is an internal helper for AddNodes.
 // It prepares files/dirs and generates keys for a single node.
-func (c *Cluster) generateNode(t *testing.T, nodeID string, nodeIndex int, isLeader bool) *nodeInfo {
+func (c *Cluster) generateNode(t *testing.T, nodeID string, isLeader bool) *nodeInfo {
 	t.Helper()
 
 	privKeyPath := filepath.Join(c.keysDir, fmt.Sprintf("%s.key", nodeID))
@@ -155,7 +150,6 @@ func (c *Cluster) generateNode(t *testing.T, nodeID string, nodeIndex int, isLea
 		dataDir:  dataDirPath,
 		isLeader: isLeader,
 		logFile:  logFile,
-		// Raft/gRPC addresses are assigned in AddNodes
 	}
 }
 
@@ -184,44 +178,40 @@ func createNodeConfig(t *testing.T, targetNode *nodeInfo, allClusterNodes []*nod
 			BootstrapCluster:  targetNode.isLeader,
 			ElectionTimeout:   "1s",
 			HeartbeatTimeout:  "500ms",
-			SnapshotInterval:  "30s", // Faster snapshots for testing
-			SnapshotThreshold: 100,   // Lower threshold for testing
+			SnapshotInterval:  "30s",
+			SnapshotThreshold: 100,
 		},
 		Signing: attesterconfig.SigningConfig{
 			PrivateKeyPath: targetNode.keyFile,
 			Scheme:         "ed25519",
 		},
 		Network: attesterconfig.NetworkConfig{
-			SequencerSigEndpoint: "", // Set below if follower
+			SequencerSigEndpoint: "",
 		},
 		GRPC: attesterconfig.GRPCConfig{
-			ListenAddress: "", // Set below if leader
+			ListenAddress: "",
 		},
 		Aggregator: attesterconfig.AggregatorConfig{
-			QuorumThreshold: 0,   // Set below if leader
-			Attesters:       nil, // Set below if leader
+			QuorumThreshold: 0,
+			Attesters:       nil,
 		},
 		Execution: attesterconfig.ExecutionConfig{
-			Enabled: false, // Keep verification disabled for basic E2E
+			Enabled: false,
 			Type:    "noop",
 			Timeout: "5s",
 		},
 	}
 
-	// Role-specific settings
 	if targetNode.isLeader {
 		cfg.GRPC.ListenAddress = targetNode.grpcAddr
-		// Quorum calculation requires N+1 signatures (leader + all configured followers)
 		if len(attesterPubKeys) > 0 {
 			cfg.Aggregator.QuorumThreshold = len(attesterPubKeys) + 1
 		} else {
-			// If no attestors are configured for the leader, quorum is just the leader itself.
 			cfg.Aggregator.QuorumThreshold = 1
 			t.Logf("WARN: Leader %s configured with no attestors in Aggregator.Attesters map. Setting quorum to 1.", targetNode.id)
 		}
 		cfg.Aggregator.Attesters = attesterPubKeys
 	} else {
-		// Follower needs leader's GRPC address to send signatures
 		var leaderGrpcAddr string
 		for _, node := range allClusterNodes {
 			if node.isLeader {
@@ -230,7 +220,6 @@ func createNodeConfig(t *testing.T, targetNode *nodeInfo, allClusterNodes []*nod
 			}
 		}
 		if leaderGrpcAddr == "" {
-			// This should not happen if setupCluster is correct
 			t.Fatalf("Could not find leader node to set SequencerSigEndpoint for follower %s", targetNode.id)
 		}
 		cfg.Network.SequencerSigEndpoint = leaderGrpcAddr
@@ -249,8 +238,6 @@ func writeConfigFile(t *testing.T, path string, cfg *attesterconfig.Config) {
 
 // netAddr constructs a simple network address
 func netAddr(ip string, port int) string {
-	// For local testing, assume localhost resolves or use 127.0.0.1
-	// In more complex setups (e.g., docker), this might need service discovery/hostnames
 	return fmt.Sprintf("%s:%d", ip, port)
 }
 
@@ -283,12 +270,9 @@ func (c *Cluster) Cleanup(t *testing.T) {
 		if node.cmd != nil && node.cmd.Process != nil {
 			pid := node.cmd.Process.Pid
 			t.Logf("Stopping node %s (PID: %d)...", node.id, pid)
-			// Send SIGTERM first
 			if err := node.cmd.Process.Signal(os.Interrupt); err != nil {
-				// Log error but proceed to Kill if Signal fails
 				t.Logf("WARN: Failed to send SIGTERM to %s (PID: %d): %v. Attempting Kill.", node.id, pid, err)
 			}
-			// Give some time for graceful shutdown
 			done := make(chan error, 1)
 			go func() {
 				_, err := node.cmd.Process.Wait()
@@ -303,7 +287,6 @@ func (c *Cluster) Cleanup(t *testing.T) {
 				}
 			case err := <-done:
 				if err != nil {
-					// Process exited with an error, log it
 					t.Logf("INFO: Node %s (PID: %d) exited with error: %v", node.id, pid, err)
 				} else {
 					t.Logf("INFO: Node %s (PID: %d) exited gracefully.", node.id, pid)
@@ -316,7 +299,6 @@ func (c *Cluster) Cleanup(t *testing.T) {
 	}
 	if c.testDir != "" {
 		t.Logf("Removing test directory: %s", c.testDir)
-		// It's useful to keep logs on failure, conditionally remove:
 		if !t.Failed() {
 			require.NoError(t, os.RemoveAll(c.testDir), "Failed to remove test directory")
 		} else {
@@ -332,7 +314,6 @@ func (c *Cluster) LaunchAllNodes(t *testing.T) {
 	t.Logf("Launching all %d nodes...", len(c.allNodes))
 	for _, node := range c.allNodes {
 		c.LaunchNode(t, node)
-		// Brief pause between starting nodes, might help leader election stability
 		time.Sleep(100 * time.Millisecond)
 	}
 	t.Logf("All nodes launched.")
@@ -343,11 +324,9 @@ func (c *Cluster) GetLeaderNode(t *testing.T) *nodeInfo {
 	t.Helper()
 	leaderNode, ok := c.nodes[leaderID] // Use the leaderID constant
 	if !ok || leaderNode == nil {
-		// This indicates a setup problem, fail fast.
 		t.Fatalf("Leader node with ID '%s' not found in cluster nodes map", leaderID)
 	}
 	if !leaderNode.isLeader {
-		// This also indicates a setup problem.
 		t.Fatalf("Node '%s' found but is not marked as leader", leaderID)
 	}
 	require.NotEmpty(t, leaderNode.grpcAddr, "Leader node '%s' found but has no gRPC address assigned", leaderID)
@@ -404,15 +383,12 @@ func setupCluster(t *testing.T) *Cluster {
 
 	testDir, keysDir, configsDir, logsDir, buildDir := createTestDirs(t)
 
-	// Compile the attesterd binary (using constant from this file)
 	compiledBinaryPath := compileBinary(t, buildDir, binaryName)
 
 	cluster := NewCluster(t, testDir, keysDir, configsDir, logsDir, compiledBinaryPath)
 
-	// Add Nodes (Leader and Followers) (using constant from this file)
 	attesterPubKeys := cluster.AddNodes(t, numFollowers)
 
-	// Generate configs (using constant from this file)
 	cluster.GenerateAndWriteConfigs(t, attesterPubKeys)
 
 	t.Logf("Cluster setup complete for %d nodes in %s", len(cluster.allNodes), testDir) // Using numNodes constant implicitly via NewCluster
@@ -497,8 +473,7 @@ func (c *Cluster) VerifyQuorumMet(t *testing.T, resp *attesterv1.GetAggregatedSi
 	t.Helper()
 	require.True(t, resp.QuorumMet, "Quorum flag should be set for height %d", height)
 
-	// Determine expected number of signatures based on cluster configuration
-	expectedSigCount := numFollowers + 1 // Leader + all followers
+	expectedSigCount := numFollowers + 1
 	require.Len(t, resp.Signatures, expectedSigCount, "Expected %d aggregated signatures for height %d, got %d", expectedSigCount, height, len(resp.Signatures))
 	t.Logf("Quorum check successful for height %d: QuorumMet=%t, Signatures=%d (Expected=%d)", height, resp.QuorumMet, len(resp.Signatures), expectedSigCount)
 }
@@ -512,8 +487,7 @@ func (c *Cluster) VerifySignatures(t *testing.T, resp *attesterv1.GetAggregatedS
 	expectedSigCount := numFollowers + 1 // Leader + all followers
 	require.Len(t, resp.Signatures, expectedSigCount, "Signature count mismatch in VerifySignatures for height %d (Expected %d, Got %d)", height, expectedSigCount, len(resp.Signatures))
 
-	// Load all expected public keys
-	expectedPubKeys := make(map[string]ed25519.PublicKey) // Map node ID to PublicKey
+	expectedPubKeys := make(map[string]ed25519.PublicKey)
 	for _, node := range c.allNodes {
 		require.NotEmpty(t, node.pubFile, "Public key file path is empty for node ID '%s'", node.id)
 		pubKeyBytes, err := os.ReadFile(node.pubFile)
@@ -540,16 +514,14 @@ func (c *Cluster) VerifySignatures(t *testing.T, resp *attesterv1.GetAggregatedS
 				usedKeys[nodeID] = true
 				foundValidKey = true
 				verifiedSignaturesCount++
-				break // Found a valid key for this signature, move to the next signature
+				break
 			}
 		}
 		if !foundValidKey {
-			// If a signature cannot be verified by any *available* expected public key, fail.
 			require.FailNow(t, fmt.Sprintf("Signature #%d could not be verified by any available expected public key for height %d", i+1, height))
 		}
 	}
 
-	// Final check: Ensure the number of verified signatures matches the expected count
 	require.Equal(t, expectedSigCount, verifiedSignaturesCount, "Number of successfully verified signatures (%d) does not match expected count (%d) for height %d", verifiedSignaturesCount, expectedSigCount, height)
 
 	t.Logf("All %d individual signatures verified successfully against unique expected public keys for height %d.", verifiedSignaturesCount, height)
