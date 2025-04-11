@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -189,6 +190,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			if err != nil {
 				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
 			}
+
 			signature, err = getSignature(header, signer)
 			if err != nil {
 				return types.State{}, fmt.Errorf("failed to get header signature: %w", err)
@@ -997,7 +999,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		err := m.processNextDAHeader(ctx)
 		if err != nil && ctx.Err() == nil {
 			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
-			if !errors.Is(err, ErrHeightFromFutureStr) {
+			if !m.areAllErrorsHeightFromFuture(err) {
 				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 			}
 			continue
@@ -1099,6 +1101,30 @@ func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader
 	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 
+// areAllErrorsHeightFromFuture checks if all errors in a joined error are ErrHeightFromFutureStr
+func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check if the error itself is ErrHeightFromFutureStr
+	if strings.Contains(err.Error(), ErrHeightFromFutureStr.Error()) {
+		return true
+	}
+
+	// If it's a joined error, check each error recursively
+	if joinedErr, ok := err.(interface{ Unwrap() []error }); ok {
+		for _, e := range joinedErr.Unwrap() {
+			if !m.areAllErrorsHeightFromFuture(e) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
+}
+
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
 	var err error
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
@@ -1112,14 +1138,6 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 
 func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 	return getSignature(header, m.proposerKey)
-}
-
-func getSignature(header types.Header, proposerKey signer.Signer) (types.Signature, error) {
-	b, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return proposerKey.Sign(b)
 }
 
 func (m *Manager) getTxsFromBatch() (*BatchData, error) {
@@ -1523,10 +1541,21 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	data := batchData.Data
 	batchdata := convertBatchDataToBytes(data)
+
 	key, err := m.proposerKey.GetPublic()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get proposer public key: %w", err)
 	}
+
+	// check that the proposer address is the same as the genesis proposer address
+	address, err := m.proposerKey.GetAddress()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get proposer address: %w", err)
+	}
+	if !bytes.Equal(m.genesis.ProposerAddress, address) {
+		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
+	}
+
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
@@ -1660,4 +1689,12 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 	}
 
 	return result, nil
+}
+
+func getSignature(header types.Header, proposerKey signer.Signer) (types.Signature, error) {
+	b, err := header.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return proposerKey.Sign(b)
 }

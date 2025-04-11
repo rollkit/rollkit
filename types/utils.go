@@ -2,7 +2,6 @@ package types
 
 import (
 	cryptoRand "crypto/rand"
-	"errors"
 	"math/rand"
 	"time"
 
@@ -14,26 +13,6 @@ import (
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
 const DefaultSigningKeyType = "ed25519"
-
-// ValidatorConfig carries all necessary state for generating a Validator
-type ValidatorConfig struct {
-	PrivKey     crypto.PrivKey
-	VotingPower int64
-}
-
-// GetValidatorSetCustom returns a validator set based on the provided validatorConfig.
-func GetValidatorSetCustom(config ValidatorConfig) (Signer, error) {
-	if config.PrivKey == nil {
-		panic(errors.New("private key is nil"))
-	}
-	pubKey := config.PrivKey.GetPublic()
-
-	signer, err := NewSigner(pubKey)
-	if err != nil {
-		return Signer{}, err
-	}
-	return signer, nil
-}
 
 // BlockConfig carries all necessary state for block generation
 type BlockConfig struct {
@@ -178,7 +157,7 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig, chainID string) (*SignedH
 	if err != nil {
 		return nil, err
 	}
-	signedHeader.Signature = *signature
+	signedHeader.Signature = signature
 	return signedHeader, nil
 }
 
@@ -194,7 +173,7 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey crypto.PrivKe
 	if err != nil {
 		return nil, err
 	}
-	newSignedHeader.Signature = *signature
+	newSignedHeader.Signature = signature
 	return newSignedHeader, nil
 }
 
@@ -228,7 +207,7 @@ func GetFirstSignedHeader(privkey crypto.PrivKey, chainID string) (*SignedHeader
 	if err != nil {
 		return nil, err
 	}
-	signedHeader.Signature = *signature
+	signedHeader.Signature = signature
 	return &signedHeader, nil
 }
 
@@ -239,7 +218,7 @@ func GetGenesisWithPrivkey(chainID string) (genesis.Genesis, crypto.PrivKey, cry
 		panic(err)
 	}
 
-	signer, err := NewSigner(pubKey)
+	signer, err := NewSigner(privKey.GetPublic())
 	if err != nil {
 		panic(err)
 	}
@@ -270,17 +249,12 @@ func GetRandomBytes(n uint) []byte {
 }
 
 // GetSignature returns a signature from the given private key over the given header
-func GetSignature(header Header, privKey crypto.PrivKey) (*Signature, error) {
-	consensusVote, err := header.Vote()
+func GetSignature(header Header, proposerKey crypto.PrivKey) (Signature, error) {
+	b, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	sign, err := privKey.Sign(consensusVote)
-	if err != nil {
-		return nil, err
-	}
-	signature := Signature(sign)
-	return &signature, nil
+	return proposerKey.Sign(b)
 }
 
 func getBlockDataWith(nTxs int) *Data {

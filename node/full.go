@@ -184,22 +184,13 @@ func initBlockManager(
 	gasPrice float64,
 	gasMultiplier float64,
 ) (*block.Manager, error) {
-
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
-
-	rollGen := genesispkg.NewGenesis(
-		genesis.ChainID,
-		genesis.InitialHeight,
-		genesis.GenesisDAStartHeight,
-		genesis.ProposerAddress,
-		nil,
-	)
 
 	blockManager, err := block.NewManager(
 		ctx,
 		signer,
 		nodeConfig,
-		rollGen,
+		genesis,
 		store,
 		exec,
 		sequencer,

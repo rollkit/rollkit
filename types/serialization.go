@@ -80,7 +80,8 @@ func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
 	}, nil
 }
 
-// FromProto fills SignedHeader with data from protobuf representation.
+// FromProto fills SignedHeader with data from protobuf representation. The contained
+// Signer can only be used to verify signatures, not to sign messages.
 func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 	err := sh.Header.FromProto(other.Header)
 	if err != nil {
