@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"io"
 
 	"github.com/rollkit/rollkit/attester/internal/aggregator"
 	internalgrpc "github.com/rollkit/rollkit/attester/internal/grpc"
@@ -48,26 +47,8 @@ func (ln *LeaderNode) Stop() {
 		ln.logger.Info("gRPC server stopped.")
 	}
 
-	// Shutdown Raft
-	if ln.raftNode != nil {
-		ln.logger.Info("Shutting down RAFT node...")
-		if err := ln.raftNode.Shutdown().Error(); err != nil {
-			ln.logger.Error("Error shutting down RAFT node", "error", err)
-		}
-		ln.logger.Info("RAFT node shutdown complete.")
-	}
-
-	// Close Raft transport
-	if tcpTransport, ok := ln.transport.(io.Closer); ok {
-		ln.logger.Debug("Closing RAFT transport...")
-		if err := tcpTransport.Close(); err != nil {
-			ln.logger.Error("Error closing RAFT transport", "error", err)
-		} else {
-			ln.logger.Debug("RAFT transport closed.")
-		}
-	} else if ln.transport != nil {
-		ln.logger.Warn("RAFT transport does not implement io.Closer, cannot close automatically")
-	}
+	// Stop common components (Raft node and transport)
+	ln.commonNode.Stop()
 
 	ln.logger.Info("LeaderNode stopped.")
 }

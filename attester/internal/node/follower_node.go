@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"io"
 
 	internalgrpc "github.com/rollkit/rollkit/attester/internal/grpc"
 )
@@ -14,7 +13,7 @@ type FollowerNode struct {
 
 func (fn *FollowerNode) Start(ctx context.Context) error {
 	fn.logger.Info("FollowerNode started.")
-	// No background processes needed for follower currently
+
 	return nil
 }
 
@@ -22,7 +21,6 @@ func (fn *FollowerNode) Start(ctx context.Context) error {
 func (fn *FollowerNode) Stop() {
 	fn.logger.Info("Stopping FollowerNode...")
 
-	// Close gRPC client connection first
 	if fn.sigClient != nil {
 		fn.logger.Info("Closing signature client connection...")
 		if err := fn.sigClient.Close(); err != nil {
@@ -32,26 +30,7 @@ func (fn *FollowerNode) Stop() {
 		}
 	}
 
-	// Shutdown Raft
-	if fn.raftNode != nil {
-		fn.logger.Info("Shutting down RAFT node...")
-		if err := fn.raftNode.Shutdown().Error(); err != nil {
-			fn.logger.Error("Error shutting down RAFT node", "error", err)
-		}
-		fn.logger.Info("RAFT node shutdown complete.")
-	}
-
-	// Close Raft transport
-	if tcpTransport, ok := fn.transport.(io.Closer); ok {
-		fn.logger.Debug("Closing RAFT transport...")
-		if err := tcpTransport.Close(); err != nil {
-			fn.logger.Error("Error closing RAFT transport", "error", err)
-		} else {
-			fn.logger.Debug("RAFT transport closed.")
-		}
-	} else if fn.transport != nil {
-		fn.logger.Warn("RAFT transport does not implement io.Closer, cannot close automatically")
-	}
+	fn.commonNode.Stop()
 
 	fn.logger.Info("FollowerNode stopped.")
 }

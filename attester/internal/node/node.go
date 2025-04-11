@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"time"
@@ -35,7 +36,29 @@ type commonNode struct {
 	transport raft.Transport
 }
 
-// --- Node Factory ---
+// Stop gracefully shuts down the common components (Raft node and transport).
+func (cn *commonNode) Stop() {
+	// Shutdown Raft
+	if cn.raftNode != nil {
+		cn.logger.Info("Shutting down RAFT node...")
+		if err := cn.raftNode.Shutdown().Error(); err != nil {
+			cn.logger.Error("Error shutting down RAFT node", "error", err)
+		}
+		cn.logger.Info("RAFT node shutdown complete.")
+	}
+
+	// Close Raft transport
+	if tcpTransport, ok := cn.transport.(io.Closer); ok {
+		cn.logger.Debug("Closing RAFT transport...")
+		if err := tcpTransport.Close(); err != nil {
+			cn.logger.Error("Error closing RAFT transport", "error", err)
+		} else {
+			cn.logger.Debug("RAFT transport closed.")
+		}
+	} else if cn.transport != nil {
+		cn.logger.Warn("RAFT transport does not implement io.Closer, cannot close automatically")
+	}
+}
 
 // NewNode creates either a LeaderNode or a FollowerNode based on the provided configuration and leader status.
 func NewNode(cfg *config.Config, logger *slog.Logger, isLeader bool) (NodeLifecycle, error) {
@@ -81,21 +104,18 @@ func NewNode(cfg *config.Config, logger *slog.Logger, isLeader bool) (NodeLifecy
 		logger.Info("Signature client initialized", "endpoint", cfg.Network.SequencerSigEndpoint)
 	}
 
-	// 4. Setup FSM
 	logger.Info("Initializing FSM", "node_id", cfg.Node.ID, "is_leader", isLeader)
 	attesterFSM, err := setupFSM(logger, signer, cfg.Node.ID, isLeader, sigAggregator, sigClient, execVerifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize FSM: %w", err)
 	}
 
-	// 5. Setup RAFT
 	logger.Info("Initializing RAFT node...")
 	raftNode, transport, err := setupRaft(cfg, attesterFSM, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize RAFT node: %w", err)
 	}
 
-	// Create common node components
 	cNode := commonNode{
 		logger:    logger,
 		cfg:       cfg,
@@ -106,7 +126,6 @@ func NewNode(cfg *config.Config, logger *slog.Logger, isLeader bool) (NodeLifecy
 		transport: transport,
 	}
 
-	// 6. Construct and Return Leader or Follower Node
 	if isLeader {
 		logger.Info("Initializing gRPC server components for leader...")
 		if cfg.GRPC.ListenAddress == "" {
@@ -130,8 +149,6 @@ func NewNode(cfg *config.Config, logger *slog.Logger, isLeader bool) (NodeLifecy
 		return follower, nil
 	}
 }
-
-// --- Helper Functions (Unexported) ---
 
 // loadAttesterKeys loads public keys for the leader's signature aggregator.
 func loadAttesterKeys(cfg *config.Config, signer signing.Signer, logger *slog.Logger) (map[string]ed25519.PublicKey, error) {
