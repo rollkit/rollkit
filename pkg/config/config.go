@@ -44,12 +44,6 @@ const (
 	FlagMaxPendingBlocks = "rollkit.node.max_pending_blocks"
 	// FlagLazyBlockTime is a flag for specifying the maximum interval between blocks in lazy aggregation mode
 	FlagLazyBlockTime = "rollkit.node.lazy_block_time"
-	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
-	FlagSequencerAddress = "rollkit.node.sequencer_address"
-	// FlagSequencerRollupID is a flag for specifying the sequencer middleware rollup ID
-	FlagSequencerRollupID = "rollkit.node.sequencer_rollup_id"
-	// FlagExecutorAddress is a flag for specifying the sequencer middleware address
-	FlagExecutorAddress = "rollkit.node.executor_address"
 
 	// Data Availability configuration flags
 
@@ -76,8 +70,8 @@ const (
 
 	// FlagP2PListenAddress is a flag for specifying the P2P listen address
 	FlagP2PListenAddress = "rollkit.p2p.listen_address"
-	// FlagP2PSeeds is a flag for specifying the P2P seeds
-	FlagP2PSeeds = "rollkit.p2p.seeds"
+	// FlagP2PPeers is a flag for specifying the P2P peers
+	FlagP2PPeers = "rollkit.p2p.peers"
 	// FlagP2PBlockedPeers is a flag for specifying the P2P blocked peers
 	FlagP2PBlockedPeers = "rollkit.p2p.blocked_peers"
 	// FlagP2PAllowedPeers is a flag for specifying the P2P allowed peers
@@ -120,8 +114,6 @@ const (
 
 	// FlagRPCAddress is a flag for specifying the RPC server address
 	FlagRPCAddress = "rollkit.rpc.address"
-	// FlagRPCPort is a flag for specifying the RPC server port
-	FlagRPCPort = "rollkit.rpc.port"
 )
 
 // DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
@@ -198,11 +190,6 @@ type NodeConfig struct {
 
 	// Header configuration
 	TrustedHash string `mapstructure:"trusted_hash" yaml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis. When provided, the node will fetch the corresponding header/block from peers using this hash and use it as a starting point for synchronization. If not provided, the node will attempt to fetch the genesis block instead."`
-
-	// Sequencer configuration
-	SequencerAddress  string `mapstructure:"sequencer_address" yaml:"sequencer_address" comment:"Address of the sequencer middleware (host:port). The sequencer is responsible for ordering transactions in the rollup. If not specified, a mock sequencer will be started at this address. Default: localhost:50051."`
-	SequencerRollupID string `mapstructure:"sequencer_rollup_id" yaml:"sequencer_rollup_id" comment:"Unique identifier for the rollup chain used by the sequencer. This ID is used to identify the specific rollup when submitting transactions to and retrieving batches from the sequencer. If not specified, the chain ID from genesis will be used. Default: mock-rollup."`
-	ExecutorAddress   string `mapstructure:"executor_address" yaml:"executor_address" comment:"Address of the executor middleware (host:port). The executor is responsible for processing transactions and maintaining the state of the rollup. Used for connecting to an external execution environment. Default: localhost:40041."`
 }
 
 // LogConfig contains all logging configuration parameters
@@ -215,7 +202,7 @@ type LogConfig struct {
 // P2PConfig contains all peer-to-peer networking configuration parameters
 type P2PConfig struct {
 	ListenAddress string `mapstructure:"listen_address" yaml:"listen_address" comment:"Address to listen for incoming connections (host:port)"`
-	Seeds         string `mapstructure:"seeds" yaml:"seeds" comment:"Comma separated list of seed nodes to connect to"`
+	Peers         string `mapstructure:"peers" yaml:"peers" comment:"Comma separated list of peers to connect to"`
 	BlockedPeers  string `mapstructure:"blocked_peers" yaml:"blocked_peers" comment:"Comma separated list of peer IDs to block from connecting"`
 	AllowedPeers  string `mapstructure:"allowed_peers" yaml:"allowed_peers" comment:"Comma separated list of peer IDs to allow connections from"`
 }
@@ -237,8 +224,7 @@ func AddGlobalFlags(cmd *cobra.Command, appName string) {
 
 // RPCConfig contains all RPC server configuration parameters
 type RPCConfig struct {
-	Address string `mapstructure:"address" yaml:"address" comment:"Address to bind the RPC server to (host). Default: tcp://0.0.0.0"`
-	Port    uint16 `mapstructure:"port" yaml:"port" comment:"Port to bind the RPC server to. Default: 26657"`
+	Address string `mapstructure:"address" yaml:"address" comment:"Address to bind the RPC server to (host:port). Default: 127.0.0.1:7331"`
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
@@ -260,9 +246,6 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "produce blocks only when transactions are available or after lazy block time")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "maximum blocks pending DA confirmation before pausing block production (0 for no limit)")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime.Duration, "maximum interval between blocks in lazy aggregation mode")
-	cmd.Flags().String(FlagSequencerAddress, def.Node.SequencerAddress, "sequencer middleware address (host:port)")
-	cmd.Flags().String(FlagSequencerRollupID, def.Node.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
-	cmd.Flags().String(FlagExecutorAddress, def.Node.ExecutorAddress, "executor middleware address (host:port)")
 
 	// Data Availability configuration flags
 	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")
@@ -277,13 +260,12 @@ func AddFlags(cmd *cobra.Command) {
 
 	// P2P configuration flags
 	cmd.Flags().String(FlagP2PListenAddress, def.P2P.ListenAddress, "P2P listen address (host:port)")
-	cmd.Flags().String(FlagP2PSeeds, def.P2P.Seeds, "Comma separated list of seed nodes to connect to")
+	cmd.Flags().String(FlagP2PPeers, def.P2P.Peers, "Comma separated list of seed nodes to connect to")
 	cmd.Flags().String(FlagP2PBlockedPeers, def.P2P.BlockedPeers, "Comma separated list of nodes to ignore")
 	cmd.Flags().String(FlagP2PAllowedPeers, def.P2P.AllowedPeers, "Comma separated list of nodes to whitelist")
 
 	// RPC configuration flags
-	cmd.Flags().String(FlagRPCAddress, def.RPC.Address, "RPC server address (host)")
-	cmd.Flags().Uint16(FlagRPCPort, def.RPC.Port, "RPC server port")
+	cmd.Flags().String(FlagRPCAddress, def.RPC.Address, "RPC server address (host:port)")
 
 	// Instrumentation configuration flags
 	instrDef := DefaultInstrumentationConfig()

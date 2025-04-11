@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 	rpc "github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
@@ -12,20 +13,28 @@ import (
 
 // Client is the client for the StoreService
 type Client struct {
-	client rpc.StoreServiceClient
+	storeClient rpc.StoreServiceClient
+	p2pClient   rpc.P2PServiceClient
 }
 
 // NewStoreClient creates a new StoreClient
 func NewClient(baseURL string) *Client {
 	httpClient := http.DefaultClient
-	client := rpc.NewStoreServiceClient(
+	storeClient := rpc.NewStoreServiceClient(
+		httpClient,
+		baseURL,
+		connect.WithGRPC(),
+	)
+
+	p2pClient := rpc.NewP2PServiceClient(
 		httpClient,
 		baseURL,
 		connect.WithGRPC(),
 	)
 
 	return &Client{
-		client: client,
+		storeClient: storeClient,
+		p2pClient:   p2pClient,
 	}
 }
 
@@ -37,7 +46,7 @@ func (c *Client) GetBlockByHeight(ctx context.Context, height uint64) (*pb.Block
 		},
 	})
 
-	resp, err := c.client.GetBlock(ctx, req)
+	resp, err := c.storeClient.GetBlock(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +62,7 @@ func (c *Client) GetBlockByHash(ctx context.Context, hash []byte) (*pb.Block, er
 		},
 	})
 
-	resp, err := c.client.GetBlock(ctx, req)
+	resp, err := c.storeClient.GetBlock(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +72,8 @@ func (c *Client) GetBlockByHash(ctx context.Context, hash []byte) (*pb.Block, er
 
 // GetState returns the current state
 func (c *Client) GetState(ctx context.Context) (*pb.State, error) {
-	req := connect.NewRequest(&pb.GetStateRequest{})
-	resp, err := c.client.GetState(ctx, req)
+	req := connect.NewRequest(&emptypb.Empty{})
+	resp, err := c.storeClient.GetState(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -78,10 +87,32 @@ func (c *Client) GetMetadata(ctx context.Context, key string) ([]byte, error) {
 		Key: key,
 	})
 
-	resp, err := c.client.GetMetadata(ctx, req)
+	resp, err := c.storeClient.GetMetadata(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	return resp.Msg.Value, nil
+}
+
+// GetPeerInfo returns information about the connected peers
+func (c *Client) GetPeerInfo(ctx context.Context) ([]*pb.PeerInfo, error) {
+	req := connect.NewRequest(&emptypb.Empty{})
+	resp, err := c.p2pClient.GetPeerInfo(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Msg.Peers, nil
+}
+
+// GetNetInfo returns information about the network
+func (c *Client) GetNetInfo(ctx context.Context) (*pb.NetInfo, error) {
+	req := connect.NewRequest(&emptypb.Empty{})
+	resp, err := c.p2pClient.GetNetInfo(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Msg.NetInfo, nil
 }

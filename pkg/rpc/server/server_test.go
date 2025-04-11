@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -87,7 +88,7 @@ func TestGetState(t *testing.T) {
 	server := NewStoreServer(mockStore)
 
 	// Call GetState
-	req := connect.NewRequest(&pb.GetStateRequest{})
+	req := connect.NewRequest(&emptypb.Empty{})
 	resp, err := server.GetState(context.Background(), req)
 
 	// Assert expectations
