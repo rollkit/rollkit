@@ -13,7 +13,7 @@ import (
 	"github.com/rollkit/rollkit/attester/internal/aggregator"
 )
 
-// Helper function to generate ed25519 key pairs for testing
+// generateTestKeys creates ed25519 key pairs for testing.
 func generateTestKeys(t *testing.T, count int) (map[string]ed25519.PublicKey, map[string]ed25519.PrivateKey) {
 	t.Helper()
 	pubKeys := make(map[string]ed25519.PublicKey)
@@ -29,7 +29,7 @@ func generateTestKeys(t *testing.T, count int) (map[string]ed25519.PublicKey, ma
 }
 
 func TestNewSignatureAggregator(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil)) // Use stdout for test visibility if needed
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	pubKeys, _ := generateTestKeys(t, 3)
 
 	testCases := []struct {
@@ -106,22 +106,14 @@ func TestAddSignature_Success_NoQuorum(t *testing.T) {
 	attesterID := "attester-0"
 	privKey := privKeys[attesterID]
 
-	// Pre-set the data the aggregator needs to verify against
 	agg.SetBlockData(blockHash, dataToSign)
 
-	// Sign the data
 	signature := ed25519.Sign(privKey, dataToSign)
 
-	// Add the signature
 	quorumReached, err := agg.AddSignature(blockHeight, blockHash, attesterID, signature)
 
-	// Assertions
 	require.NoError(t, err)
 	require.False(t, quorumReached, "Quorum should not be reached with only 1 signature")
-
-	// Verify internal state (optional, depends if needed)
-	// _, sigExists := agg.GetAggregatedSignatures(blockHeight)
-	// require.False(t, sigExists, "GetAggregatedSignatures should return false before quorum")
 }
 
 func TestAddSignature_QuorumReached(t *testing.T) {
@@ -136,22 +128,18 @@ func TestAddSignature_QuorumReached(t *testing.T) {
 	blockHash := []byte("block_hash_11")
 	dataToSign := []byte("some data for block 11")
 
-	// Pre-set the data for verification
 	agg.SetBlockData(blockHash, dataToSign)
 
-	// Add first signature (attester-0)
 	sig0 := ed25519.Sign(privKeys["attester-0"], dataToSign)
 	quorumReached0, err0 := agg.AddSignature(blockHeight, blockHash, "attester-0", sig0)
 	require.NoError(t, err0)
 	require.False(t, quorumReached0, "Quorum should not be reached after 1st signature")
 
-	// Add second signature (attester-1) - Quorum should be met
 	sig1 := ed25519.Sign(privKeys["attester-1"], dataToSign)
 	quorumReached1, err1 := agg.AddSignature(blockHeight, blockHash, "attester-1", sig1)
 	require.NoError(t, err1)
 	require.True(t, quorumReached1, "Quorum should be reached after 2nd signature")
 
-	// (Optional) Add third signature (attester-2) - Quorum should remain met
 	sig2 := ed25519.Sign(privKeys["attester-2"], dataToSign)
 	quorumReached2, err2 := agg.AddSignature(blockHeight, blockHash, "attester-2", sig2)
 	require.NoError(t, err2)
@@ -161,10 +149,9 @@ func TestAddSignature_QuorumReached(t *testing.T) {
 // TestAddSignature_Errors covers various error scenarios for AddSignature.
 func TestAddSignature_Errors(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	pubKeys, privKeys := generateTestKeys(t, 2) // Generate keys for known attestors
+	pubKeys, privKeys := generateTestKeys(t, 2)
 	quorum := 2
 
-	// Common data used across tests
 	blockHeight := uint64(13)
 	blockHash := []byte("block_hash_13")
 	dataToSign := []byte("correct data for block 13")
@@ -199,14 +186,13 @@ func TestAddSignature_Errors(t *testing.T) {
 				agg.SetBlockData(blockHash, dataToSign)
 				return agg
 			},
-			attesterID:     "unknown-attester", // This ID is not in pubKeys
+			attesterID:     "unknown-attester",
 			signature:      validSignature,
 			expectedErrMsg: "unknown attester ID",
 		},
 		{
 			name: "BlockDataNotAvailable",
 			setupAggregator: func(t *testing.T) *aggregator.SignatureAggregator {
-				// Setup aggregator WITHOUT calling SetBlockData for blockHash
 				agg, err := aggregator.NewSignatureAggregator(logger, quorum, pubKeys)
 				require.NoError(t, err)
 				return agg
@@ -216,19 +202,18 @@ func TestAddSignature_Errors(t *testing.T) {
 			expectedErrMsg: "data not available",
 		},
 		{
-			name: "InvalidPublicKeySizeInMap", // Edge case: if map somehow contains invalid key
+			name: "InvalidPublicKeySizeInMap",
 			setupAggregator: func(t *testing.T) *aggregator.SignatureAggregator {
 				invalidKeys := map[string]ed25519.PublicKey{
 					"bad-key-attester": []byte{1, 2, 3}, // Invalid size
 				}
 				agg, err := aggregator.NewSignatureAggregator(logger, quorum, invalidKeys)
 				require.NoError(t, err) // Constructor doesn't check key size
-				// Need to set block data, although verification will fail before using it
 				agg.SetBlockData(blockHash, dataToSign)
 				return agg
 			},
 			attesterID:     "bad-key-attester",
-			signature:      validSignature, // Signature itself doesn't matter here
+			signature:      validSignature,
 			expectedErrMsg: "invalid public key size",
 		},
 	}
@@ -246,7 +231,6 @@ func TestAddSignature_Errors(t *testing.T) {
 			require.ErrorContains(t, err, tc.expectedErrMsg)
 			require.False(t, quorumReached)
 
-			// Verify no signatures were actually stored for this height
 			sigs, ok := agg.GetAggregatedSignatures(blockHeight)
 			require.False(t, ok)
 			require.Empty(t, sigs)
@@ -270,24 +254,20 @@ func TestAddSignature_DuplicateSignature(t *testing.T) {
 	agg.SetBlockData(blockHash, dataToSign)
 	signature := ed25519.Sign(privKey, dataToSign)
 
-	// Add the signature for the first time
 	quorumReached1, err1 := agg.AddSignature(blockHeight, blockHash, attesterID, signature)
 	require.NoError(t, err1)
 	require.False(t, quorumReached1, "Quorum should not be reached after 1st signature")
 
-	// Try adding the exact same signature again
 	quorumReached2, err2 := agg.AddSignature(blockHeight, blockHash, attesterID, signature)
 
-	// Assert: No error, quorum status should be same as after the first call
 	require.NoError(t, err2, "Adding a duplicate signature should not return an error")
 	require.False(t, quorumReached2, "Quorum status should not change after duplicate")
 
-	// Verify only one signature is stored
 	sigs, ok := agg.GetAggregatedSignatures(blockHeight)
 	require.False(t, ok, "GetAggregatedSignatures should still return false (quorum not met)")
 	require.Len(t, sigs, 0, "Signature list should be empty as quorum is not met")
 
-	// --- Test duplicate after quorum reached ---
+	// Test duplicate after quorum reached
 	blockHeight2 := uint64(15)
 	blockHash2 := []byte("block_hash_15")
 	dataToSign2 := []byte("some data for block 15")
@@ -301,12 +281,10 @@ func TestAddSignature_DuplicateSignature(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, qReached1, "Quorum should be reached")
 
-	// Add duplicate for attester-1
 	qReachedDup, errDup := agg.AddSignature(blockHeight2, blockHash2, "attester-1", sig1)
 	require.NoError(t, errDup, "Adding duplicate after quorum should not error")
 	require.True(t, qReachedDup, "Quorum should remain true after duplicate")
 
-	// Verify still only 2 signatures are stored
 	sigs2, ok2 := agg.GetAggregatedSignatures(blockHeight2)
 	require.True(t, ok2, "GetAggregatedSignatures should return true after quorum")
 	require.Len(t, sigs2, 2, "Should only have 2 signatures despite duplicate add")
@@ -329,14 +307,11 @@ func TestGetAggregatedSignatures(t *testing.T) {
 	dataPartial := []byte("data block 21")
 	agg.SetBlockData(blockHashPartial, dataPartial)
 
-	// Signatures for the block that will reach quorum
 	sigQuorum0 := ed25519.Sign(privKeys["attester-0"], dataQuorum)
 	sigQuorum1 := ed25519.Sign(privKeys["attester-1"], dataQuorum)
 
-	// Signature for the block that won't reach quorum
 	sigPartial0 := ed25519.Sign(privKeys["attester-0"], dataPartial)
 
-	// Add signatures
 	_, err = agg.AddSignature(blockHeightQuorum, blockHashQuorum, "attester-0", sigQuorum0)
 	require.NoError(t, err)
 	_, err = agg.AddSignature(blockHeightQuorum, blockHashQuorum, "attester-1", sigQuorum1)
@@ -387,7 +362,6 @@ func TestIsQuorumReached(t *testing.T) {
 	dataToSign2 := []byte("data for block 21")
 	agg.SetBlockData(blockHash2, dataToSign2)
 
-	// Initial state: No quorum for either block
 	require.False(t, agg.IsQuorumReached(blockHeight1))
 	require.False(t, agg.IsQuorumReached(blockHeight2))
 	sigs1, ok1 := agg.GetAggregatedSignatures(blockHeight1)
@@ -397,7 +371,6 @@ func TestIsQuorumReached(t *testing.T) {
 	require.False(t, ok2)
 	require.Nil(t, sigs2)
 
-	// Add signatures for block 1 until quorum is met
 	for i := 0; i < quorum; i++ {
 		attesterID := fmt.Sprintf("attester-%d", i)
 		sig := ed25519.Sign(privKeys[attesterID], dataToSign1)
@@ -410,17 +383,14 @@ func TestIsQuorumReached(t *testing.T) {
 			require.True(t, justMetQuorum, "Quorum should be met now for block 1")
 			require.True(t, agg.IsQuorumReached(blockHeight1), "IsQuorumReached should be true after reaching quorum for block 1")
 		}
-		// Check block 2 remains unaffected
 		require.False(t, agg.IsQuorumReached(blockHeight2), "Block 2 quorum status should not change")
 	}
 
-	// Verify state after quorum for block 1
 	require.True(t, agg.IsQuorumReached(blockHeight1))
 	sigs1After, ok1After := agg.GetAggregatedSignatures(blockHeight1)
 	require.True(t, ok1After)
 	require.Len(t, sigs1After, quorum)
 
-	// Add more signatures for block 1 (should not change quorum state)
 	attesterIDExtra := fmt.Sprintf("attester-%d", quorum) // Next attester
 	sigExtra := ed25519.Sign(privKeys[attesterIDExtra], dataToSign1)
 	metAgain, addErrExtra := agg.AddSignature(blockHeight1, blockHash1, attesterIDExtra, sigExtra)
@@ -430,7 +400,6 @@ func TestIsQuorumReached(t *testing.T) {
 	require.True(t, ok1Extra)
 	require.Len(t, sigs1Extra, quorum+1)
 
-	// Check duplicate signature for block 1 doesn't break anything
 	attesterIDRepeat := "attester-0"
 	sigRepeat := ed25519.Sign(privKeys[attesterIDRepeat], dataToSign1)
 	metRepeat, addErrRepeat := agg.AddSignature(blockHeight1, blockHash1, attesterIDRepeat, sigRepeat)
@@ -438,7 +407,6 @@ func TestIsQuorumReached(t *testing.T) {
 	require.True(t, metRepeat, "AddSignature should return true for duplicate after quorum")
 	require.True(t, agg.IsQuorumReached(blockHeight1), "IsQuorumReached should remain true after duplicate")
 
-	// Now add signatures for block 2 until quorum
 	for i := 0; i < quorum; i++ {
 		attesterID := fmt.Sprintf("attester-%d", i)
 		sig := ed25519.Sign(privKeys[attesterID], dataToSign2)
@@ -454,7 +422,6 @@ func TestIsQuorumReached(t *testing.T) {
 		require.True(t, agg.IsQuorumReached(blockHeight1), "Block 1 quorum should remain true") // Verify block 1 state persists
 	}
 
-	// Final check for block 2
 	require.True(t, agg.IsQuorumReached(blockHeight2))
 	sigs2After, ok2After := agg.GetAggregatedSignatures(blockHeight2)
 	require.True(t, ok2After)
