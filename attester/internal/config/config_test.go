@@ -82,16 +82,6 @@ signing:
 	assert.Equal(t, "127.0.0.1:9001", cfg.GRPC.ListenAddress)
 	assert.Equal(t, dummyKeyPath, cfg.Signing.PrivateKeyPath)
 	assert.Equal(t, "ed25519", cfg.Signing.Scheme)
-
-	// Assertions for new sections (assuming defaults or example values were set)
-	// Add specific values to the validYaml if testing non-defaults
-	// assert.Equal(t, "http://sequencer:1234", cfg.Network.SequencerSigEndpoint) // Example if set in YAML
-	// assert.Equal(t, 2, cfg.Aggregator.QuorumThreshold) // Example if set in YAML
-	// assert.Equal(t, map[string]string{"attester1": "addr1"}, cfg.Aggregator.Attesters) // Example if set in YAML
-	// assert.True(t, cfg.Execution.Enabled) // Example if set in YAML
-	// assert.Equal(t, "fullnode", cfg.Execution.Type) // Example if set in YAML
-	// assert.Equal(t, "http://fullnode:5678", cfg.Execution.FullnodeEndpoint) // Example if set in YAML
-	// assert.Equal(t, 5*time.Second, cfg.Execution.Timeout) // Example if set in YAML
 }
 
 func TestLoadConfig_DefaultsApplied(t *testing.T) {
@@ -147,157 +137,91 @@ func TestLoadConfig_FileNotFound(t *testing.T) {
 	require.Error(t, err, "LoadConfig should fail if config file doesn't exist")
 }
 
-func TestLoadConfig_InvalidYaml(t *testing.T) {
-	invalidYaml := `
+func TestLoadConfig_ValidationErrors(t *testing.T) {
+	dummyKeyPath := createDummyFile(t, "key.pem")
+	// Create a dummy file to test the PrivateKeyNotFound case
+	invalidKeyPath := "/path/to/nonexistent/key.pem"
+
+	tests := []struct {
+		name                string
+		yamlContent         string
+		expectErrorContains string
+	}{
+		{
+			name: "Invalid YAML Syntax",
+			yamlContent: `
 node:
   id: "bad-yaml"
  raft_bind_address: "-" # Bad indentation
-`
-	tmpConfigFile := createTempConfigFile(t, invalidYaml)
-
-	_, err := LoadConfig(tmpConfigFile)
-	require.Error(t, err, "LoadConfig should fail for invalid YAML syntax")
-}
-
-func TestLoadConfig_MissingRequiredField_NodeID(t *testing.T) {
-	dummyKeyPath := createDummyFile(t, "key.pem")
-	missingNodeID := `
-node:
-  raft_bind_address: "127.0.0.1:8001"
-
-raft:
-  data_dir: "/tmp/data"
-  election_timeout: "1s"
-  heartbeat_timeout: "100ms"
-  snapshot_interval: "1m"
-  snapshot_threshold: 10
-
-grpc:
-  listen_address: "127.0.0.1:9001"
-
-signing:
-  private_key_path: "` + dummyKeyPath + `"
-  scheme: "ed25519"
-`
-	tmpConfigFile := createTempConfigFile(t, missingNodeID)
-	_, err := LoadConfig(tmpConfigFile)
-	require.Error(t, err, "LoadConfig should fail if node.id is missing")
-	assert.Contains(t, err.Error(), "node.id is required", "Error message should indicate missing node.id")
-}
-
-func TestLoadConfig_MissingRequiredField_SigningKeyPath(t *testing.T) {
-	missingKeyPath := `
-node:
-  id: "node1"
-  raft_bind_address: "127.0.0.1:8001"
-
-raft:
-  data_dir: "/tmp/data"
-  election_timeout: "1s"
-  heartbeat_timeout: "100ms"
-  snapshot_interval: "1m"
-  snapshot_threshold: 10
-
-grpc:
-  listen_address: "127.0.0.1:9001"
-
-signing:
-  scheme: "ed25519"
-`
-	tmpConfigFile := createTempConfigFile(t, missingKeyPath)
-	_, err := LoadConfig(tmpConfigFile)
-	require.Error(t, err, "LoadConfig should fail if signing.private_key_path is missing")
-	assert.Contains(t, err.Error(), "signing.private_key_path is required", "Error message should indicate missing key path")
-}
-
-func TestLoadConfig_MissingRequiredField_RaftDataDir(t *testing.T) {
-	dummyKeyPath := createDummyFile(t, "key.pem")
-	missingDataDir := `
-node:
-  id: "node1"
-  raft_bind_address: "127.0.0.1:8001"
-
-raft:
-  election_timeout: "1s"
-  heartbeat_timeout: "100ms"
-  snapshot_interval: "1m"
-  snapshot_threshold: 10
-
-grpc:
-  listen_address: "127.0.0.1:9001"
-
-signing:
-  private_key_path: "` + dummyKeyPath + `"
-  scheme: "ed25519"
-`
-	tmpConfigFile := createTempConfigFile(t, missingDataDir)
-	_, err := LoadConfig(tmpConfigFile)
-	require.Error(t, err, "LoadConfig should fail if raft.data_dir is missing")
-	assert.Contains(t, err.Error(), "raft.data_dir is required", "Error message should indicate missing data dir")
-}
-
-func TestLoadConfig_InvalidDuration(t *testing.T) {
-	dummyKeyPath := createDummyFile(t, "key.pem")
-	invalidDuration := `
-node:
-  id: "node1"
-  raft_bind_address: "127.0.0.1:8001"
-
-raft:
-  data_dir: "/tmp/data"
-  election_timeout: "not-a-duration" # Invalid value
-  heartbeat_timeout: "100ms"
-  snapshot_interval: "1m"
-  snapshot_threshold: 10
-
-grpc:
-  listen_address: "127.0.0.1:9001"
-
-signing:
-  private_key_path: "` + dummyKeyPath + `"
-  scheme: "ed25519"
-`
-	tmpConfigFile := createTempConfigFile(t, invalidDuration)
-	_, err := LoadConfig(tmpConfigFile)
-	require.Error(t, err, "LoadConfig should fail for invalid duration string")
-	assert.Contains(t, err.Error(), "failed to unmarshal config", "Error message should indicate unmarshal failure due to duration")
-}
-
-func TestLoadConfig_PrivateKeyNotFound(t *testing.T) {
-	missingKeyPath := `
-node:
-  id: "node1"
-  raft_bind_address: "127.0.0.1:8001"
-
-raft:
-  data_dir: "/tmp/data"
-  election_timeout: "1s"
-  heartbeat_timeout: "100ms"
-  snapshot_interval: "1m"
-  snapshot_threshold: 10
-
-grpc:
-  listen_address: "127.0.0.1:9001"
-
-signing:
-  private_key_path: "/path/to/nonexistent/key.pem" # Key file does not exist
-  scheme: "ed25519"
-`
-	tmpConfigFile := createTempConfigFile(t, missingKeyPath)
-	_, err := LoadConfig(tmpConfigFile)
-	require.Error(t, err, "LoadConfig should fail if private key file does not exist")
-	assert.Contains(t, err.Error(), "signing private key file not found", "Error message should indicate missing key file")
-}
-
-func TestLoadConfig_InvalidRaftDurations(t *testing.T) {
-	dummyKeyPath := createDummyFile(t, "key.pem")
-	tests := []struct {
-		name        string
-		yamlContent string
-		expectError string
-	}{
+`,
+			expectErrorContains: "failed to read config file", // Viper error on read
+		},
 		{
-			name: "Negative Election Timeout",
+			name: "Missing Required Field - Node ID",
+			yamlContent: `
+node:
+  raft_bind_address: "127.0.0.1:8001"
+raft:
+  data_dir: "/tmp/data"
+signing:
+  private_key_path: "` + dummyKeyPath + `"
+`,
+			expectErrorContains: "node.id is required",
+		},
+		{
+			name: "Missing Required Field - Signing Key Path",
+			yamlContent: `
+node:
+  id: "node1"
+  raft_bind_address: "127.0.0.1:8001"
+raft:
+  data_dir: "/tmp/data"
+signing:
+  scheme: "ed25519"
+`,
+			expectErrorContains: "signing.private_key_path is required",
+		},
+		{
+			name: "Missing Required Field - Raft Data Dir",
+			yamlContent: `
+node:
+  id: "node1"
+  raft_bind_address: "127.0.0.1:8001"
+signing:
+  private_key_path: "` + dummyKeyPath + `"
+`,
+			expectErrorContains: "raft.data_dir is required",
+		},
+		{
+			name: "Invalid Duration Format",
+			yamlContent: `
+node:
+  id: "node1"
+  raft_bind_address: "127.0.0.1:8001"
+raft:
+  data_dir: "/tmp/data"
+  election_timeout: "not-a-duration" 
+signing:
+  private_key_path: "` + dummyKeyPath + `"
+`,
+			expectErrorContains: "failed to unmarshal config", // mapstructure error on duration parse
+		},
+		{
+			name: "Private Key File Not Found",
+			yamlContent: `
+node:
+  id: "node1"
+  raft_bind_address: "127.0.0.1:8001"
+raft:
+  data_dir: "/tmp/data"
+signing:
+  private_key_path: "` + invalidKeyPath + `" 
+scheme: "ed25519"
+`,
+			expectErrorContains: "signing private key file not found",
+		},
+		{
+			name: "Negative Raft Election Timeout",
 			yamlContent: `
 node:
   id: "node1"
@@ -309,11 +233,11 @@ raft:
   snapshot_interval: "1m"
 signing:
   private_key_path: "` + dummyKeyPath + `"
-`, // grpc and others omitted for brevity, relying on defaults/validation order
-			expectError: "raft.election_timeout must be a positive duration",
+`,
+			expectErrorContains: "raft.election_timeout must be a positive duration",
 		},
 		{
-			name: "Zero Heartbeat Timeout",
+			name: "Zero Raft Heartbeat Timeout",
 			yamlContent: `
 node:
   id: "node1"
@@ -326,10 +250,10 @@ raft:
 signing:
   private_key_path: "` + dummyKeyPath + `"
 `,
-			expectError: "raft.heartbeat_timeout must be a positive duration",
+			expectErrorContains: "raft.heartbeat_timeout must be a positive duration",
 		},
 		{
-			name: "Non-positive Snapshot Interval",
+			name: "Non-positive Raft Snapshot Interval",
 			yamlContent: `
 node:
   id: "node1"
@@ -342,27 +266,8 @@ raft:
 signing:
   private_key_path: "` + dummyKeyPath + `"
 `,
-			expectError: "raft.snapshot_interval must be a positive duration",
+			expectErrorContains: "raft.snapshot_interval must be a positive duration",
 		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			tmpConfigFile := createTempConfigFile(t, tc.yamlContent)
-			_, err := LoadConfig(tmpConfigFile)
-			require.Error(t, err, "LoadConfig should fail for invalid raft duration")
-			assert.Contains(t, err.Error(), tc.expectError, "Error message mismatch")
-		})
-	}
-}
-
-func TestLoadConfig_InvalidExecutionConfig(t *testing.T) {
-	dummyKeyPath := createDummyFile(t, "key.pem")
-	tests := []struct {
-		name        string
-		yamlContent string
-		expectError string
-	}{
 		{
 			name: "Execution type fullnode, endpoint missing",
 			yamlContent: `
@@ -378,7 +283,7 @@ execution:
   type: "fullnode"
   # fullnode_endpoint: is missing
 `,
-			expectError: "execution.fullnode_endpoint is required when execution.type is 'fullnode'",
+			expectErrorContains: "execution.fullnode_endpoint is required when execution.type is 'fullnode'",
 		},
 		{
 			name: "Execution enabled, timeout zero",
@@ -395,7 +300,7 @@ execution:
   type: "noop"
   timeout: "0s"
 `,
-			expectError: "execution.timeout must be a positive duration when execution is enabled",
+			expectErrorContains: "execution.timeout must be a positive duration when execution is enabled",
 		},
 		{
 			name: "Execution enabled, timeout negative",
@@ -412,7 +317,7 @@ execution:
   type: "noop"
   timeout: "-5s"
 `,
-			expectError: "execution.timeout must be a positive duration when execution is enabled",
+			expectErrorContains: "execution.timeout must be a positive duration when execution is enabled",
 		},
 	}
 
@@ -420,8 +325,9 @@ execution:
 		t.Run(tc.name, func(t *testing.T) {
 			tmpConfigFile := createTempConfigFile(t, tc.yamlContent)
 			_, err := LoadConfig(tmpConfigFile)
-			require.Error(t, err, "LoadConfig should fail for invalid execution config")
-			assert.Contains(t, err.Error(), tc.expectError, "Error message mismatch")
+
+			require.Error(t, err, "LoadConfig should fail for this case")
+			assert.Contains(t, err.Error(), tc.expectErrorContains, "Error message mismatch")
 		})
 	}
 }
