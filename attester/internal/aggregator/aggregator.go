@@ -5,10 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	// Internal packages that might be needed:
-	// "github.com/rollkit/rollkit/attester/internal/config"
-	// "github.com/rollkit/rollkit/attester/internal/state"
-	// "github.com/rollkit/rollkit/attester/internal/signing" // Might not be needed directly now
 )
 
 // SignatureAggregator collects signatures from attestors for specific blocks.
@@ -60,7 +56,6 @@ func (a *SignatureAggregator) SetBlockData(blockHash []byte, dataToSign []byte) 
 	}
 	a.blockData[blockHashStr] = dataToSign
 	a.logger.Debug("Stored data to sign for block", "block_hash", blockHashStr, "data_len", len(dataToSign))
-	// TODO: Consider pruning old blockData entries
 }
 
 // AddSignature validates and adds a signature for a given block height and attester.
@@ -77,8 +72,6 @@ func (a *SignatureAggregator) AddSignature(blockHeight uint64, blockHash []byte,
 	}
 	a.logger.Debug("Attempting to add signature", logArgs...)
 
-	// --- Signature Verification ---
-	// 1. Get the public key for the attesterID.
 	pubKey, exists := a.attesterKeys[attesterID]
 	if !exists {
 		return false, fmt.Errorf("unknown attester ID: %s", attesterID)
@@ -88,7 +81,6 @@ func (a *SignatureAggregator) AddSignature(blockHeight uint64, blockHash []byte,
 			attesterID, ed25519.PublicKeySize, len(pubKey))
 	}
 
-	// 2. Get the expected data that was signed for this blockHash.
 	expectedDataToSign, dataExists := a.blockData[blockHashStr]
 	if !dataExists {
 		// Data hasn't been set yet by the FSM. Cannot verify yet.
@@ -98,7 +90,6 @@ func (a *SignatureAggregator) AddSignature(blockHeight uint64, blockHash []byte,
 		return false, fmt.Errorf("cannot verify signature for block %s, data not available", blockHashStr)
 	}
 
-	// 3. Verify the signature.
 	verified := ed25519.Verify(pubKey, expectedDataToSign, signature)
 	if !verified {
 		a.logger.Warn("Invalid signature received", logArgs...)
@@ -106,26 +97,22 @@ func (a *SignatureAggregator) AddSignature(blockHeight uint64, blockHash []byte,
 	}
 	a.logger.Debug("Signature verified successfully", logArgs...)
 
-	// Initialize map for the block height if it doesn't exist
 	if _, ok := a.signatures[blockHeight]; !ok {
 		a.signatures[blockHeight] = make(map[string][]byte)
 	}
 
-	// Check if signature from this attester already exists for this block
 	if _, exists := a.signatures[blockHeight][attesterID]; exists {
 		a.logger.Warn("Duplicate signature received", logArgs...)
 		quorumReached := len(a.signatures[blockHeight]) >= a.quorumThreshold
 		return quorumReached, nil
 	}
 
-	// Store the validated signature
 	a.signatures[blockHeight][attesterID] = signature
 	a.logger.Info("Validated signature added successfully",
 		append(logArgs,
 			"signatures_count", len(a.signatures[blockHeight]),
 			"quorum_threshold", a.quorumThreshold)...)
 
-	// Check if quorum is now met and update status if needed
 	currentlyMet := len(a.signatures[blockHeight]) >= a.quorumThreshold
 	if currentlyMet && !a.quorumReached[blockHeight] {
 		a.quorumReached[blockHeight] = true
@@ -142,12 +129,10 @@ func (a *SignatureAggregator) GetAggregatedSignatures(blockHeight uint64) ([][]b
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	// Check if quorum was ever reached for this height
 	if !a.quorumReached[blockHeight] {
 		return nil, false
 	}
 
-	// Quorum was reached, retrieve the signatures
 	sigsForHeight, exists := a.signatures[blockHeight]
 	if !exists {
 		// This should ideally not happen if quorumReached is true, but check for safety
@@ -155,14 +140,10 @@ func (a *SignatureAggregator) GetAggregatedSignatures(blockHeight uint64) ([][]b
 		return nil, false
 	}
 
-	// Collect signatures
 	collectedSigs := make([][]byte, 0, len(sigsForHeight))
 	for _, sig := range sigsForHeight {
 		collectedSigs = append(collectedSigs, sig)
 	}
-
-	// Optionally sort the signatures for deterministic output?
-	// sort.Slice(collectedSigs, func(i, j int) bool { ... })
 
 	return collectedSigs, true
 }
