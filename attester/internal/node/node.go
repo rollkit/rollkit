@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"time"
@@ -20,15 +19,10 @@ import (
 	"github.com/rollkit/rollkit/attester/internal/verification"
 )
 
-// --- Node Lifecycle Interface ---
-
-// NodeLifecycle defines the common interface for starting and stopping attester nodes.
 type NodeLifecycle interface {
 	Start(ctx context.Context) error
 	Stop()
 }
-
-// --- Common Node Components ---
 
 // commonNode holds components shared between Leader and Follower nodes.
 type commonNode struct {
@@ -41,141 +35,18 @@ type commonNode struct {
 	transport raft.Transport
 }
 
-// --- Leader Node ---
-
-// LeaderNode represents an attester node operating as the RAFT leader.
-// It manages the signature aggregator and the gRPC server.
-type LeaderNode struct {
-	commonNode
-	sigAggregator *aggregator.SignatureAggregator
-	grpcServer    *internalgrpc.AttesterServer
-}
-
-// Start begins the LeaderNode's operation, primarily by starting the gRPC server.
-func (ln *LeaderNode) Start(ctx context.Context) error {
-	ln.logger.Info("Starting gRPC server in background...", "address", ln.cfg.GRPC.ListenAddress)
-	go func() {
-		listenAddr := ln.cfg.GRPC.ListenAddress
-		if listenAddr == "" {
-			// This check should ideally be caught during NewNode validation.
-			ln.logger.Error("grpc.listen_address is required in config for the leader (error in Start goroutine)")
-			// Consider implementing better error propagation if needed.
-			return
-		}
-		ln.logger.Info("gRPC server goroutine starting", "address", listenAddr)
-		if err := ln.grpcServer.Start(listenAddr); err != nil {
-			// Handle error appropriately, e.g., log, signal main thread, etc.
-			ln.logger.Error("gRPC server failed to start or encountered error", "error", err)
-		}
-		ln.logger.Info("gRPC server goroutine finished")
-	}()
-	return nil // Assume synchronous start errors handled in NewNode
-}
-
-// Stop gracefully shuts down the LeaderNode components.
-func (ln *LeaderNode) Stop() {
-	ln.logger.Info("Stopping LeaderNode...")
-
-	// Shutdown gRPC server first to stop accepting new requests
-	if ln.grpcServer != nil {
-		ln.logger.Info("Stopping gRPC server...")
-		ln.grpcServer.Stop() // Assuming this blocks until stopped
-		ln.logger.Info("gRPC server stopped.")
-	}
-
-	// Shutdown Raft
-	if ln.raftNode != nil {
-		ln.logger.Info("Shutting down RAFT node...")
-		if err := ln.raftNode.Shutdown().Error(); err != nil {
-			ln.logger.Error("Error shutting down RAFT node", "error", err)
-		}
-		ln.logger.Info("RAFT node shutdown complete.")
-	}
-
-	// Close Raft transport
-	if tcpTransport, ok := ln.transport.(io.Closer); ok {
-		ln.logger.Debug("Closing RAFT transport...")
-		if err := tcpTransport.Close(); err != nil {
-			ln.logger.Error("Error closing RAFT transport", "error", err)
-		} else {
-			ln.logger.Debug("RAFT transport closed.")
-		}
-	} else if ln.transport != nil {
-		ln.logger.Warn("RAFT transport does not implement io.Closer, cannot close automatically")
-	}
-
-	ln.logger.Info("LeaderNode stopped.")
-}
-
-// --- Follower Node ---
-
-// FollowerNode represents an attester node operating as a RAFT follower.
-// It manages the gRPC client connection to the leader.
-type FollowerNode struct {
-	commonNode
-	sigClient *internalgrpc.Client
-}
-
-// Start begins the FollowerNode's operation.
-func (fn *FollowerNode) Start(ctx context.Context) error {
-	fn.logger.Info("FollowerNode started.")
-	// No background processes needed for follower currently
-	return nil
-}
-
-// Stop gracefully shuts down the FollowerNode components.
-func (fn *FollowerNode) Stop() {
-	fn.logger.Info("Stopping FollowerNode...")
-
-	// Close gRPC client connection first
-	if fn.sigClient != nil {
-		fn.logger.Info("Closing signature client connection...")
-		if err := fn.sigClient.Close(); err != nil {
-			fn.logger.Error("Error closing signature client", "error", err)
-		} else {
-			fn.logger.Info("Signature client connection closed.")
-		}
-	}
-
-	// Shutdown Raft
-	if fn.raftNode != nil {
-		fn.logger.Info("Shutting down RAFT node...")
-		if err := fn.raftNode.Shutdown().Error(); err != nil {
-			fn.logger.Error("Error shutting down RAFT node", "error", err)
-		}
-		fn.logger.Info("RAFT node shutdown complete.")
-	}
-
-	// Close Raft transport
-	if tcpTransport, ok := fn.transport.(io.Closer); ok {
-		fn.logger.Debug("Closing RAFT transport...")
-		if err := tcpTransport.Close(); err != nil {
-			fn.logger.Error("Error closing RAFT transport", "error", err)
-		} else {
-			fn.logger.Debug("RAFT transport closed.")
-		}
-	} else if fn.transport != nil {
-		fn.logger.Warn("RAFT transport does not implement io.Closer, cannot close automatically")
-	}
-
-	fn.logger.Info("FollowerNode stopped.")
-}
-
 // --- Node Factory ---
 
 // NewNode creates either a LeaderNode or a FollowerNode based on the provided configuration and leader status.
 func NewNode(cfg *config.Config, logger *slog.Logger, isLeader bool) (NodeLifecycle, error) {
-	// 1. Setup Verifier
 	execVerifier := setupVerifier(cfg.Execution, logger)
 
-	// 2. Setup Signer
 	signer, err := setupSigner(cfg.Signing, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set up signer: %w", err)
 	}
 	logger.Info("Loaded signing key", "scheme", cfg.Signing.Scheme)
 
-	// 3. Setup Role-Specific Components (Aggregator or Client)
 	var sigAggregator *aggregator.SignatureAggregator
 	var sigClient *internalgrpc.Client
 
