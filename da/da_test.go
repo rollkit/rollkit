@@ -33,7 +33,7 @@ const (
 
 func TestMockDAErrors(t *testing.T) {
 	t.Run("submit_timeout", func(t *testing.T) {
-		mockDA := &mocks.MockDA{}
+		mockDA := &mocks.DA{}
 		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.NewTestLogger(t))
 		blobs := make([]coreda.Blob, 1)
 		blobs[0] = make([]byte, 1234)
@@ -57,7 +57,7 @@ func TestMockDAErrors(t *testing.T) {
 		assert.Contains(resp.Message, ErrContextDeadline.Error(), "should return context timeout error")
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
-		mockDA := &mocks.MockDA{}
+		mockDA := &mocks.DA{}
 		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.NewTestLogger(t))
 		// Set up the mock to return an error for MaxBlobSize
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(0), errors.New("unable to get DA max blob size"))
@@ -69,7 +69,7 @@ func TestMockDAErrors(t *testing.T) {
 		assert.ErrorContains(err, "unable to get DA max blob size", "should return max blob size error")
 	})
 	t.Run("tx_too_large", func(t *testing.T) {
-		mockDA := &mocks.MockDA{}
+		mockDA := &mocks.DA{}
 		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.NewTestLogger(t))
 		blobs := make([]coreda.Blob, 1)
 		blobs[0] = make([]byte, 1234)

@@ -33,11 +33,9 @@ func TestDefaultNodeConfig(t *testing.T) {
 	assert.Equal(t, false, def.Node.LazyAggregator)
 	assert.Equal(t, 60*time.Second, def.Node.LazyBlockTime.Duration)
 	assert.Equal(t, "", def.Node.TrustedHash)
-	assert.Equal(t, def.Node.SequencerAddress, def.Node.SequencerAddress)
-	assert.Equal(t, def.Node.SequencerRollupID, def.Node.SequencerRollupID)
-	assert.Equal(t, def.Node.ExecutorAddress, def.Node.ExecutorAddress)
 	assert.Equal(t, "file", def.Signer.SignerType)
 	assert.Equal(t, "config", def.Signer.SignerPath)
+	assert.Equal(t, "127.0.0.1:7331", def.RPC.Address)
 }
 
 func TestAddFlags(t *testing.T) {
@@ -62,9 +60,6 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagLazyAggregator, DefaultNodeConfig.Node.LazyAggregator)
 	assertFlagValue(t, flags, FlagMaxPendingBlocks, DefaultNodeConfig.Node.MaxPendingBlocks)
 	assertFlagValue(t, flags, FlagLazyBlockTime, DefaultNodeConfig.Node.LazyBlockTime.Duration)
-	assertFlagValue(t, flags, FlagSequencerAddress, DefaultNodeConfig.Node.SequencerAddress)
-	assertFlagValue(t, flags, FlagSequencerRollupID, DefaultNodeConfig.Node.SequencerRollupID)
-	assertFlagValue(t, flags, FlagExecutorAddress, DefaultNodeConfig.Node.ExecutorAddress)
 
 	// DA flags
 	assertFlagValue(t, flags, FlagDAAddress, DefaultNodeConfig.DA.Address)
@@ -79,7 +74,7 @@ func TestAddFlags(t *testing.T) {
 
 	// P2P flags
 	assertFlagValue(t, flags, FlagP2PListenAddress, DefaultNodeConfig.P2P.ListenAddress)
-	assertFlagValue(t, flags, FlagP2PSeeds, DefaultNodeConfig.P2P.Seeds)
+	assertFlagValue(t, flags, FlagP2PPeers, DefaultNodeConfig.P2P.Peers)
 	assertFlagValue(t, flags, FlagP2PBlockedPeers, DefaultNodeConfig.P2P.BlockedPeers)
 	assertFlagValue(t, flags, FlagP2PAllowedPeers, DefaultNodeConfig.P2P.AllowedPeers)
 
@@ -101,8 +96,11 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagSignerType, "file")
 	assertFlagValue(t, flags, FlagSignerPath, DefaultNodeConfig.Signer.SignerPath)
 
+	// RPC flags
+	assertFlagValue(t, flags, FlagRPCAddress, DefaultNodeConfig.RPC.Address)
+
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 41 // Update this number if you add more flag checks above
+	expectedFlagCount := 37 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags (both regular and persistent)
 	actualFlagCount := 0
@@ -170,6 +168,7 @@ signer:
 		"--rollkit.node.block_time", "10s",
 		"--rollkit.da.address", "http://flag-da:26657",
 		"--rollkit.node.light", "true", // This is not in YAML, should be set from flag
+		"--rollkit.rpc.address", "127.0.0.1:7332",
 	}
 	cmd.SetArgs(flagArgs)
 	err = cmd.ParseFlags(flagArgs)
@@ -196,6 +195,8 @@ signer:
 	// 5. Signer values should be set from flags
 	assert.Equal(t, "file", config.Signer.SignerType, "SignerType should be set from flag")
 	assert.Equal(t, "something/config", config.Signer.SignerPath, "SignerPath should be set from flag")
+
+	assert.Equal(t, "127.0.0.1:7332", config.RPC.Address, "RPCAddress should be set from flag")
 }
 
 func assertFlagValue(t *testing.T, flags *pflag.FlagSet, name string, expectedValue interface{}) {
