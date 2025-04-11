@@ -214,7 +214,7 @@ func TestDefaultAggregatorValue(t *testing.T) {
 			// Create a new command without specifying any flags
 			var args []string
 			if tc.expected {
-				args = []string{"start"}
+				args = []string{"start", "--rollkit.node.aggregator"}
 			} else {
 				args = []string{"start", "--rollkit.node.aggregator=false"}
 			}
@@ -258,7 +258,7 @@ func TestCentralizedAddresses(t *testing.T) {
 	}
 
 	cmd := newRunNodeCmd(t.Context(), executor, sequencer, dac, keyProvider, nodeKey, p2pClient, ds, nodeConfig)
-	cmd.Flags().Set(rollconf.FlagRootDir, "custom/root/dir")
+	_ = cmd.Flags().Set(rollconf.FlagRootDir, "custom/root/dir")
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}

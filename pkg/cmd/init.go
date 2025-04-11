@@ -108,7 +108,7 @@ func InitializeGenesis(homePath string, chainID string, initialHeight uint64, pr
 // InitCmd initializes a new rollkit.yaml file in the current directory
 var InitCmd = &cobra.Command{
 	Use:   "init",
-	Short: fmt.Sprintf("Initialize rollkit config"),
+	Short: "Initialize rollkit config",
 	Long:  fmt.Sprintf("This command initializes a new %s file in the specified directory (or current directory if not specified).", rollconf.ConfigName),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homePath, err := cmd.Flags().GetString(rollconf.FlagRootDir)
