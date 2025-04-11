@@ -23,8 +23,9 @@ var (
 )
 
 const (
-	DefaultMaxBlobSize uint64 = 1_500_000
-	dsPendingTxsKey           = "/sequencer/pendingTxs"
+	DefaultMaxBlobSize     uint64 = 1_500_000
+	dsPendingTxsKey               = "/sequencer/pendingTxs"
+	dsLastScannedHeightKey        = "/sequencer/lastScannedDAHeight"
 )
 
 var (
@@ -114,6 +115,7 @@ type Sequencer struct {
 	dalc           coreda.Client
 	pendingTxs     *PersistentPendingTxs
 	daStartHeight  uint64
+	store          datastore.Batching
 }
 
 func NewSequencer(
@@ -137,6 +139,7 @@ func NewSequencer(
 		dalc:           dalc,
 		daStartHeight:  daStartHeight,
 		pendingTxs:     pending,
+		store:          ds,
 	}, nil
 }
 
@@ -183,17 +186,26 @@ func (s *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 
 	// try to fetch more txs from the based layer
 	lastDAHeight := s.daStartHeight
-	nextDAHeight := s.daStartHeight
+	lastScannedHeightRaw, err := s.store.Get(ctx, datastore.NewKey(dsLastScannedHeightKey))
+	if err == nil {
+		var scanned uint64
+		_ = json.Unmarshal(lastScannedHeightRaw, &scanned)
+		lastDAHeight = scanned
+	}
+	nextDAHeight := lastDAHeight
 
 	if len(req.LastBatchData) > 0 {
-		lastDAHeight = s.lastDAHeight(req.LastBatchData)
-		nextDAHeight = lastDAHeight + 1
+		scanned := s.lastDAHeight(req.LastBatchData)
+		if scanned > lastDAHeight {
+			lastDAHeight = scanned
+			nextDAHeight = lastDAHeight + 1
+		}
 	}
 OuterLoop:
 	for size < maxBytes {
 		// if we have exceeded maxHeightDrift, stop fetching more transactions
 		if nextDAHeight > lastDAHeight+s.maxHeightDrift {
-			s.logger.Debug("exceeded max latency, stopping fetching more transactions")
+			s.logger.Debug("exceeded max height drift, stopping fetching more transactions")
 			break OuterLoop
 		}
 		// fetch the next batch of transactions from DA
@@ -230,6 +242,10 @@ OuterLoop:
 		"size", size,
 		"timestamp", resp.Timestamp,
 	)
+
+	// Persist last scanned height
+	s.store.Put(ctx, datastore.NewKey(dsLastScannedHeightKey), []byte(fmt.Sprintf("%d", nextDAHeight)))
+
 	if len(resp.Batch.Transactions) == 0 {
 		return nil, nil
 	}
