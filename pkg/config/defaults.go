@@ -42,18 +42,15 @@ var DefaultConfig = Config{
 	ChainID: "rollkit-test",
 	P2P: P2PConfig{
 		ListenAddress: "/ip4/0.0.0.0/tcp/7676",
-		Seeds:         "",
+		Peers:         "",
 	},
 	Node: NodeConfig{
-		Aggregator:        false,
-		BlockTime:         DurationWrapper{1 * time.Second},
-		LazyAggregator:    false,
-		LazyBlockTime:     DurationWrapper{60 * time.Second},
-		Light:             false,
-		TrustedHash:       "",
-		SequencerAddress:  "localhost:50051",
-		SequencerRollupID: "mock-rollup",
-		ExecutorAddress:   "localhost:40041",
+		Aggregator:     false,
+		BlockTime:      DurationWrapper{1 * time.Second},
+		LazyAggregator: false,
+		LazyBlockTime:  DurationWrapper{60 * time.Second},
+		Light:          false,
+		TrustedHash:    "",
 	},
 	DA: DAConfig{
 		Address:       "http://localhost:7980",
@@ -72,7 +69,6 @@ var DefaultConfig = Config{
 		SignerPath: "config",
 	},
 	RPC: RPCConfig{
-		Address: "127.0.0.1",
-		Port:    7331,
+		Address: "127.0.0.1:7331",
 	},
 }

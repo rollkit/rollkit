@@ -8,8 +8,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
-	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/da/proxy"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -45,9 +45,19 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		// Create DA client with dummy DA
-		dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-		dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
+		daJrpc, err := proxy.NewClient(nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		if err != nil {
+			panic(err)
+		}
+
+		dac := da.NewDAClient(
+			daJrpc,
+			nodeConfig.DA.GasPrice,
+			nodeConfig.DA.GasMultiplier,
+			[]byte(nodeConfig.DA.Namespace),
+			[]byte(nodeConfig.DA.SubmitOptions),
+			logger,
+		)
 
 		nodeKey, err := key.LoadNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 		if err != nil {
@@ -67,7 +77,7 @@ var RunCmd = &cobra.Command{
 		sequencer, err := single.NewSequencer(
 			logger,
 			datastore,
-			dummyDA,
+			daJrpc,
 			[]byte(nodeConfig.DA.Namespace),
 			[]byte(nodeConfig.ChainID),
 			nodeConfig.Node.BlockTime.Duration,
@@ -78,7 +88,7 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		p2pClient, err := p2p.NewClient(nodeConfig, "testapp", nodeKey, datastore, logger, p2p.NopMetrics())
+		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, p2p.NopMetrics())
 		if err != nil {
 			return err
 		}

@@ -114,12 +114,13 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 
 		client, err := NewClient(
 			config.Config{
+				ChainID: conf[i].chainID,
 				RootDir: tempDir,
 				P2P: config.P2PConfig{
-					Seeds: seeds[i],
+					Peers: seeds[i],
 				},
 			},
-			conf[i].chainID,
+
 			nodeKey,
 			sync.MutexWrap(datastore.NewMapDatastore()),
 			logger,

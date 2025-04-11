@@ -34,20 +34,16 @@ testapp init [flags]
       --rollkit.instrumentation.prometheus_listen_addr string   Prometheus metrics listen address (default ":26660")
       --rollkit.node.aggregator                                 run node in aggregator mode
       --rollkit.node.block_time duration                        block time (for aggregator mode) (default 1s)
-      --rollkit.node.executor_address string                    executor middleware address (host:port) (default "localhost:40041")
       --rollkit.node.lazy_aggregator                            produce blocks only when transactions are available or after lazy block time
       --rollkit.node.lazy_block_time duration                   maximum interval between blocks in lazy aggregation mode (default 1m0s)
       --rollkit.node.light                                      run light client
       --rollkit.node.max_pending_blocks uint                    maximum blocks pending DA confirmation before pausing block production (0 for no limit)
-      --rollkit.node.sequencer_address string                   sequencer middleware address (host:port) (default "localhost:50051")
-      --rollkit.node.sequencer_rollup_id string                 sequencer middleware rollup ID (default: mock-rollup) (default "mock-rollup")
       --rollkit.node.trusted_hash string                        initial trusted hash to start the header exchange service
       --rollkit.p2p.allowed_peers string                        Comma separated list of nodes to whitelist
       --rollkit.p2p.blocked_peers string                        Comma separated list of nodes to ignore
       --rollkit.p2p.listen_address string                       P2P listen address (host:port) (default "/ip4/0.0.0.0/tcp/7676")
-      --rollkit.p2p.seeds string                                Comma separated list of seed nodes to connect to
-      --rollkit.rpc.address string                              RPC server address (host) (default "127.0.0.1")
-      --rollkit.rpc.port uint16                                 RPC server port (default 7331)
+      --rollkit.p2p.peers string                                Comma separated list of seed nodes to connect to
+      --rollkit.rpc.address string                              RPC server address (host:port) (default "127.0.0.1:7331")
       --rollkit.signer.passphrase string                        passphrase for the signer (required for file signer and if aggregator is enabled)
       --rollkit.signer.path string                              path to the signer file or address (default "config")
       --rollkit.signer.type string                              type of signer to use (file, grpc) (default "file")
