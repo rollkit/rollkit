@@ -297,8 +297,8 @@ func Load(cmd *cobra.Command) (Config, error) {
 	v.AddConfigPath(filepath.Join(home, AppConfigDir))
 	v.AddConfigPath(filepath.Join(home, AppConfigDir, ConfigName))
 	v.SetConfigFile(filepath.Join(home, AppConfigDir, ConfigName))
-	v.BindPFlags(cmd.Flags())
-	v.BindPFlags(cmd.PersistentFlags())
+	_ = v.BindPFlags(cmd.Flags())
+	_ = v.BindPFlags(cmd.PersistentFlags())
 	v.AutomaticEnv()
 
 	// get the executable name

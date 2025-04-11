@@ -60,7 +60,7 @@ func TestYamlConfigOperations(t *testing.T) {
 			AddGlobalFlags(cmd, "")
 			args := []string{"--home=" + tempDir}
 			cmd.SetArgs(args)
-			cmd.ParseFlags(args)
+			require.NoError(t, cmd.ParseFlags(args))
 
 			cfg, err := Load(cmd)
 			require.NoError(t, err)
