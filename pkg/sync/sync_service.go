@@ -372,7 +372,7 @@ func (syncService *SyncService[H]) getChainID() string {
 func (syncService *SyncService[H]) getPeerIDs() []peer.ID {
 	peerIDs := syncService.p2p.PeerIDs()
 	if !syncService.conf.Node.Aggregator {
-		peerIDs = append(peerIDs, getSeedNodes(syncService.conf.P2P.Seeds, syncService.logger)...)
+		peerIDs = append(peerIDs, getSeedNodes(syncService.conf.P2P.Peers, syncService.logger)...)
 	}
 	return peerIDs
 }

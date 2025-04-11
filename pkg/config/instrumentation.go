@@ -54,11 +54,6 @@ func DefaultInstrumentationConfig() *InstrumentationConfig {
 	}
 }
 
-// TestInstrumentationConfig returns a default configuration for test environments.
-func TestInstrumentationConfig() *InstrumentationConfig {
-	return DefaultInstrumentationConfig()
-}
-
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
 // returns an error if any check fails.
 func (cfg *InstrumentationConfig) ValidateBasic() error {
@@ -82,7 +77,8 @@ func (cfg *InstrumentationConfig) IsPprofEnabled() bool {
 // If PprofListenAddr is empty, it returns the default pprof port ":6060".
 func (cfg *InstrumentationConfig) GetPprofListenAddr() string {
 	if cfg.PprofListenAddr == "" {
-		return ":6060"
+		return DefaultInstrumentationConfig().PprofListenAddr
 	}
+
 	return cfg.PprofListenAddr
 }

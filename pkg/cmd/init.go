@@ -16,29 +16,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
 
-// ValidateHomePath checks if the home path is valid and not already initialized
-func ValidateHomePath(homePath string) error {
-	if homePath == "" {
-		return fmt.Errorf("home path is required")
-	}
-
-	configFilePath := filepath.Join(homePath, rollconf.RollkitConfigYaml)
-	if _, err := os.Stat(configFilePath); err == nil {
-		return fmt.Errorf("%s file already exists in the specified directory", rollconf.RollkitConfigYaml)
-	}
-
-	return nil
-}
-
-// InitializeConfig creates and initializes the configuration with default values
-func InitializeConfig(homePath string, aggregator bool) rollconf.Config {
-	config := rollconf.DefaultNodeConfig
-	config.RootDir = homePath
-	config.ConfigDir = homePath + "/config"
-	config.Node.Aggregator = aggregator
-	return config
-}
-
 // InitializeSigner sets up the signer configuration and creates necessary files
 func InitializeSigner(config *rollconf.Config, homePath string, passphrase string) ([]byte, error) {
 	if config.Signer.SignerType == "file" && config.Node.Aggregator {
@@ -47,7 +24,7 @@ func InitializeSigner(config *rollconf.Config, homePath string, passphrase strin
 		}
 
 		signerDir := filepath.Join(homePath, "config")
-		if err := os.MkdirAll(signerDir, 0750); err != nil {
+		if err := os.MkdirAll(signerDir, 0o750); err != nil {
 			return nil, fmt.Errorf("failed to create signer directory: %w", err)
 		}
 
@@ -97,7 +74,7 @@ func InitializeGenesis(homePath string, chainID string, initialHeight uint64, pr
 	// Check if the genesis file already exists
 	if _, err := os.Stat(genesisPath); err == nil {
 		// File exists, return successfully without overwriting
-		fmt.Printf("Genesis file already exists: %s\n", genesisPath)
+		fmt.Printf("Genesis file already exists at %s: skipping...\n", genesisPath)
 		return nil
 	} else if !os.IsNotExist(err) {
 		// An error other than "not exist" occurred (e.g., permissions)
@@ -106,7 +83,7 @@ func InitializeGenesis(homePath string, chainID string, initialHeight uint64, pr
 	// If os.IsNotExist(err) is true, the file doesn't exist, so we proceed.
 
 	// Create the config directory if it doesn't exist (needed before saving genesis)
-	if err := os.MkdirAll(configDir, 0750); err != nil {
+	if err := os.MkdirAll(configDir, 0o750); err != nil {
 		return fmt.Errorf("error creating config directory: %w", err)
 	}
 
@@ -131,21 +108,12 @@ func InitializeGenesis(homePath string, chainID string, initialHeight uint64, pr
 // InitCmd initializes a new rollkit.yaml file in the current directory
 var InitCmd = &cobra.Command{
 	Use:   "init",
-	Short: fmt.Sprintf("Initialize a new %s file", rollconf.RollkitConfigYaml),
-	Long:  fmt.Sprintf("This command initializes a new %s file in the specified directory (or current directory if not specified).", rollconf.RollkitConfigYaml),
+	Short: "Initialize rollkit config",
+	Long:  fmt.Sprintf("This command initializes a new %s file in the specified directory (or current directory if not specified).", rollconf.ConfigName),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homePath, err := cmd.Flags().GetString(rollconf.FlagRootDir)
 		if err != nil {
 			return fmt.Errorf("error reading home flag: %w", err)
-		}
-
-		if err := ValidateHomePath(homePath); err != nil {
-			return err
-		}
-
-		// Make sure the home directory exists
-		if err := os.MkdirAll(homePath, 0750); err != nil {
-			return fmt.Errorf("error creating directory %s: %w", homePath, err)
 		}
 
 		aggregator, err := cmd.Flags().GetBool(rollconf.FlagAggregator)
@@ -153,19 +121,25 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error reading aggregator flag: %w", err)
 		}
 
-		config := InitializeConfig(homePath, aggregator)
+		// ignore error, as we are creating a new config
+		// we use load in order to parse all the flags
+		cfg, _ := rollconf.Load(cmd)
+		cfg.Node.Aggregator = aggregator
+		if err := cfg.Validate(); err != nil {
+			return fmt.Errorf("error validating config: %w", err)
+		}
 
 		passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
 		if err != nil {
 			return fmt.Errorf("error reading passphrase flag: %w", err)
 		}
 
-		proposerAddress, err := InitializeSigner(&config, homePath, passphrase)
+		proposerAddress, err := InitializeSigner(&cfg, homePath, passphrase)
 		if err != nil {
 			return err
 		}
 
-		if err := rollconf.WriteYamlConfig(config); err != nil {
+		if err := cfg.SaveAsYaml(); err != nil {
 			return fmt.Errorf("error writing rollkit.yaml file: %w", err)
 		}
 
@@ -173,11 +147,8 @@ var InitCmd = &cobra.Command{
 			return err
 		}
 
-		// Get chain ID or use default
-		chainID, err := cmd.Flags().GetString(rollconf.FlagChainID)
-		if err != nil {
-			return fmt.Errorf("error reading chain ID flag: %w", err)
-		}
+		// get chain ID or use default
+		chainID, _ := cmd.Flags().GetString(rollconf.FlagChainID)
 		if chainID == "" {
 			chainID = "rollkit-test"
 		}
@@ -187,7 +158,7 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("error initializing genesis file: %w", err)
 		}
 
-		fmt.Printf("Initialized %s file in %s\n", rollconf.RollkitConfigYaml, homePath)
+		cmd.Printf("Successfully initialized config file at %s\n", cfg.ConfigPath())
 		return nil
 	},
 }

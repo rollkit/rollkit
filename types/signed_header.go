@@ -106,18 +106,15 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return ErrProposerAddressMismatch
 	}
 
-	signature := sh.Signature
-
-	vote, err := sh.Header.Vote()
+	bz, err := sh.Header.MarshalBinary()
 	if err != nil {
 		return err
 	}
 
-	verified, err := sh.Signer.PubKey.Verify(vote, signature)
+	verified, err := sh.Signer.PubKey.Verify(bz, sh.Signature)
 	if err != nil {
 		return err
 	}
-
 	if !verified {
 		return ErrSignatureVerificationFailed
 	}

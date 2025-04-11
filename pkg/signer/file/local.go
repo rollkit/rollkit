@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -272,6 +273,14 @@ func (s *FileSystemSigner) GetPublic() (crypto.PubKey, error) {
 	return s.publicKey, nil
 }
 
+// GetAddress returns the address of the signer
+func (s *FileSystemSigner) GetAddress() ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return getAddress(s.publicKey)
+}
+
 // deriveKeyArgon2 uses Argon2id for key derivation
 func deriveKeyArgon2(passphrase, salt []byte, keyLen uint32) []byte {
 	// Using some default parameters:
@@ -302,4 +311,15 @@ func zeroBytes(b []byte) {
 	for i := range b {
 		b[i] = 0
 	}
+}
+
+// getAddress returns the Ed25519 address of the signer.
+func getAddress(pubKey crypto.PubKey) ([]byte, error) {
+	bz, err := pubKey.Raw()
+	if err != nil {
+		return nil, err
+	}
+
+	address := sha256.Sum256(bz)
+	return address[:], nil
 }

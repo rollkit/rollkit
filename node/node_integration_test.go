@@ -52,6 +52,8 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
 	require.NoError(s.T(), err)
 
+	config.ChainID = genesis.ChainID
+
 	s.seqSrv = startMockSequencerServerGRPC(MockSequencerAddress)
 	require.NotNil(s.T(), s.seqSrv)
 
@@ -63,7 +65,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		PrivKey: genesisValidatorKey,
 		PubKey:  genesisValidatorKey.GetPublic(),
 	}
-	p2pClient, err := p2p.NewClient(config, genesis.ChainID, nodeKey, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
+	p2pClient, err := p2p.NewClient(config, nodeKey, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
 	require.NoError(s.T(), err)
 
 	err = InitFiles(config.RootDir)

@@ -184,22 +184,13 @@ func initBlockManager(
 	gasPrice float64,
 	gasMultiplier float64,
 ) (*block.Manager, error) {
-
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
-
-	rollGen := genesispkg.NewGenesis(
-		genesis.ChainID,
-		genesis.InitialHeight,
-		genesis.GenesisDAStartHeight,
-		genesis.ProposerAddress,
-		nil,
-	)
 
 	blockManager, err := block.NewManager(
 		ctx,
 		signer,
 		nodeConfig,
-		rollGen,
+		genesis,
 		store,
 		exec,
 		sequencer,
@@ -358,14 +349,13 @@ func (n *FullNode) Run(ctx context.Context) error {
 	}
 
 	// Start RPC server
-	rpcAddr := fmt.Sprintf("%s:%d", n.nodeConfig.RPC.Address, n.nodeConfig.RPC.Port)
-	handler, err := rpcserver.NewStoreServiceHandler(n.Store)
+	handler, err := rpcserver.NewServiceHandler(n.Store, n.p2pClient)
 	if err != nil {
 		return fmt.Errorf("error creating RPC handler: %w", err)
 	}
 
 	n.rpcServer = &http.Server{
-		Addr:         rpcAddr,
+		Addr:         n.nodeConfig.RPC.Address,
 		Handler:      handler,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
@@ -378,7 +368,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 		}
 	}()
 
-	n.Logger.Info("Started RPC server", "addr", rpcAddr)
+	n.Logger.Info("Started RPC server", "addr", n.nodeConfig.RPC.Address)
 
 	n.Logger.Info("starting P2P client")
 	err = n.p2pClient.Start(ctx)

@@ -11,7 +11,7 @@ When implementing your own application, it's your responsibility to provide the 
 To install and test the application, you can use the following command:
 
 ```bash
-make install
+go build .
 ```
 
 This will build and install all necessary dependencies for running the test application.
