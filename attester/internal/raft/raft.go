@@ -28,10 +28,10 @@ const (
 func NewRaftNode(cfg *config.Config, fsm raft.FSM, logger *slog.Logger) (*raft.Raft, raft.Transport, error) {
 	raftConfig := raft.DefaultConfig()
 	raftConfig.LocalID = raft.ServerID(cfg.Node.ID)
-	raftConfig.ElectionTimeout = parseDuration(cfg.Raft.ElectionTimeout, defaultElectionTimeout)
-	raftConfig.HeartbeatTimeout = parseDuration(cfg.Raft.HeartbeatTimeout, defaultHeartbeatTimeout)
+	raftConfig.ElectionTimeout = cfg.Raft.ElectionTimeout
+	raftConfig.HeartbeatTimeout = cfg.Raft.HeartbeatTimeout
 	raftConfig.CommitTimeout = 100 * time.Millisecond // Example value, adjust as needed
-	raftConfig.SnapshotInterval = parseDuration(cfg.Raft.SnapshotInterval, defaultRaftTimeout)
+	raftConfig.SnapshotInterval = cfg.Raft.SnapshotInterval
 	raftConfig.SnapshotThreshold = cfg.Raft.SnapshotThreshold
 
 	raftHclogLevel := determineRaftLogLevel(logger)
@@ -163,19 +163,6 @@ func NewRaftNode(cfg *config.Config, fsm raft.FSM, logger *slog.Logger) (*raft.R
 	}
 
 	return r, transport, nil
-}
-
-// parseDuration parses a duration string, returning default if parsing fails or string is empty.
-func parseDuration(durationStr string, defaultVal time.Duration) time.Duration {
-	if durationStr == "" {
-		return defaultVal
-	}
-	d, err := time.ParseDuration(durationStr)
-	if err != nil {
-		slog.Warn("Failed to parse duration string, using default", "duration_string", durationStr, "default", defaultVal, "error", err)
-		return defaultVal
-	}
-	return d
 }
 
 // determineRaftLogLevel maps slog levels to hclog levels.

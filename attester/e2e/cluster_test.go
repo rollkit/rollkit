@@ -176,9 +176,9 @@ func createNodeConfig(t *testing.T, targetNode *nodeInfo, allClusterNodes []*nod
 			DataDir:           targetNode.dataDir,
 			Peers:             peers,
 			BootstrapCluster:  targetNode.isLeader,
-			ElectionTimeout:   "1s",
-			HeartbeatTimeout:  "500ms",
-			SnapshotInterval:  "30s",
+			ElectionTimeout:   1 * time.Second,
+			HeartbeatTimeout:  500 * time.Millisecond,
+			SnapshotInterval:  30 * time.Second,
 			SnapshotThreshold: 100,
 		},
 		Signing: attesterconfig.SigningConfig{
@@ -198,7 +198,7 @@ func createNodeConfig(t *testing.T, targetNode *nodeInfo, allClusterNodes []*nod
 		Execution: attesterconfig.ExecutionConfig{
 			Enabled: false,
 			Type:    "noop",
-			Timeout: "5s",
+			Timeout: 5 * time.Second,
 		},
 	}
 

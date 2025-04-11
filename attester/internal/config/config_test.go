@@ -75,12 +75,9 @@ signing:
 	}
 	assert.Equal(t, expectedPeers, cfg.Raft.Peers)
 	assert.False(t, cfg.Raft.BootstrapCluster)
-	assert.Equal(t, "600ms", cfg.Raft.ElectionTimeout)                   // Check original string
-	assert.Equal(t, 600*time.Millisecond, cfg.Raft.GetElectionTimeout()) // Check parsed duration
-	assert.Equal(t, "60ms", cfg.Raft.HeartbeatTimeout)
-	assert.Equal(t, 60*time.Millisecond, cfg.Raft.GetHeartbeatTimeout())
-	assert.Equal(t, "3m", cfg.Raft.SnapshotInterval)
-	assert.Equal(t, 3*time.Minute, cfg.Raft.GetSnapshotInterval())
+	assert.Equal(t, 600*time.Millisecond, cfg.Raft.ElectionTimeout) // Check parsed duration directly
+	assert.Equal(t, 60*time.Millisecond, cfg.Raft.HeartbeatTimeout) // Check parsed duration directly
+	assert.Equal(t, 3*time.Minute, cfg.Raft.SnapshotInterval)       // Check parsed duration directly
 	assert.Equal(t, uint64(1000), cfg.Raft.SnapshotThreshold)
 	assert.Equal(t, "127.0.0.1:9001", cfg.GRPC.ListenAddress)
 	assert.Equal(t, dummyKeyPath, cfg.Signing.PrivateKeyPath)
@@ -207,7 +204,7 @@ signing:
 	tmpConfigFile := createTempConfigFile(t, invalidDuration)
 	_, err := LoadConfig(tmpConfigFile)
 	require.Error(t, err, "LoadConfig should fail for invalid duration string")
-	assert.Contains(t, err.Error(), "invalid raft.election_timeout", "Error message should indicate invalid duration")
+	assert.Contains(t, err.Error(), "failed to unmarshal config", "Error message should indicate unmarshal failure due to duration")
 }
 
 func TestLoadConfig_PrivateKeyNotFound(t *testing.T) {
