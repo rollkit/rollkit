@@ -54,18 +54,29 @@ var NodeInfoCmd = &cobra.Command{
 
 		// Print node information with better formatting
 		netInfo := resp.Msg.NetInfo
-		nodeAddress := fmt.Sprintf("%s/p2p/%s", netInfo.ListenAddress, netInfo.Id)
+		nodeID := netInfo.Id // Store Node ID separately
 
 		fmt.Println("\n" + strings.Repeat("=", 50))
-		fmt.Println("📊 NODE INFORMATION") // Also get peer information
+		fmt.Println("📊 NODE INFORMATION")
 		fmt.Println(strings.Repeat("=", 50))
-		fmt.Printf("🆔 Node ID:      \033[1;36m%s\033[0m\n", netInfo.Id)
-		fmt.Printf("📡 Listen Addr:  \033[1;36m%s\033[0m\n", netInfo.ListenAddress)
-		fmt.Printf("🔗 Full Address: \033[1;32m%s\033[0m\n", nodeAddress)
+		fmt.Printf("🆔 Node ID:      \033[1;36m%s\033[0m\n", nodeID) // Print Node ID once
+
+		// Iterate through all listen addresses
+		if len(netInfo.ListenAddresses) > 1 {
+			fmt.Println("📡 Listen Addrs:")
+			for i, addr := range netInfo.ListenAddresses {
+				fullAddress := fmt.Sprintf("%s/p2p/%s", addr, nodeID)
+				fmt.Printf("   [%d] Addr: \033[1;36m%s\033[0m\n", i+1, addr)
+				fmt.Printf("       Full: \033[1;32m%s\033[0m\n", fullAddress)
+			}
+		} else {
+			fmt.Println("📡 Listen Addrs: \033[3;33mNone found\033[0m") // Handle case with no addresses
+		}
+
 		fmt.Println(strings.Repeat("-", 50))
 		// Also get peer information
 		peerResp, err := p2pClient.GetPeerInfo(
-			context.Background(), // Print connected peers
+			context.Background(),
 			connect.NewRequest(&emptypb.Empty{}),
 		)
 		if err != nil {

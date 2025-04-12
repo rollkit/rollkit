@@ -406,34 +406,94 @@ func (n *FullNode) Run(ctx context.Context) error {
 	n.Logger.Info("halting full node...")
 	n.Logger.Info("shutting down full node sub services...")
 
-	err = errors.Join(
-		n.p2pClient.Close(),
-		n.hSyncService.Stop(ctx),
-		n.dSyncService.Stop(ctx),
-	)
-
 	// Use a timeout context to ensure shutdown doesn't hang
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	if n.prometheusSrv != nil {
-		err = errors.Join(err, n.prometheusSrv.Shutdown(shutdownCtx))
-	}
+	var multiErr error // Use a multierror variable
 
-	if n.pprofSrv != nil {
-		err = errors.Join(err, n.pprofSrv.Shutdown(shutdownCtx))
-	}
-
-	if n.rpcServer != nil {
-		err = errors.Join(err, n.rpcServer.Shutdown(shutdownCtx))
-	}
-
-	err = errors.Join(err, n.Store.Close())
+	// Stop P2P Client
+	err = n.p2pClient.Close()
 	if err != nil {
-		n.Logger.Error("errors while stopping node:", "errors", err)
+		n.Logger.Error("error closing P2P client", "error", err)
+		multiErr = errors.Join(multiErr, fmt.Errorf("closing P2P client: %w", err))
 	}
 
-	return ctx.Err()
+	// Stop Header Sync Service
+	err = n.hSyncService.Stop(shutdownCtx)
+	if err != nil {
+		// Log context canceled errors at a lower level if desired, or handle specific non-cancel errors
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			n.Logger.Error("error stopping header sync service", "error", err)
+		} else {
+			n.Logger.Debug("header sync service stop context ended", "reason", err) // Log cancellation as debug
+		}
+		// Still include the error in multiErr for completeness if needed
+		multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
+	}
+
+	// Stop Data Sync Service
+	err = n.dSyncService.Stop(shutdownCtx)
+	if err != nil {
+		// Log context canceled errors at a lower level if desired, or handle specific non-cancel errors
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			n.Logger.Error("error stopping data sync service", "error", err)
+		} else {
+			n.Logger.Debug("data sync service stop context ended", "reason", err) // Log cancellation as debug
+		}
+		// Still include the error in multiErr for completeness if needed
+		multiErr = errors.Join(multiErr, fmt.Errorf("stopping data sync service: %w", err))
+	}
+
+	// Shutdown Prometheus Server
+	if n.prometheusSrv != nil {
+		err = n.prometheusSrv.Shutdown(shutdownCtx)
+		// http.ErrServerClosed is expected on graceful shutdown
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			n.Logger.Error("error shutting down Prometheus server", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down Prometheus server: %w", err))
+		}
+	}
+
+	// Shutdown Pprof Server
+	if n.pprofSrv != nil {
+		err = n.pprofSrv.Shutdown(shutdownCtx)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			n.Logger.Error("error shutting down pprof server", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down pprof server: %w", err))
+		}
+	}
+
+	// Shutdown RPC Server
+	if n.rpcServer != nil {
+		err = n.rpcServer.Shutdown(shutdownCtx)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			n.Logger.Error("error shutting down RPC server", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down RPC server: %w", err))
+		}
+	}
+
+	// Ensure Store.Close is called last to maximize chance of data flushing
+	err = n.Store.Close()
+	if err != nil {
+		// Store.Close() might log internally, but log here too for context
+		n.Logger.Error("error closing store", "error", err)
+		multiErr = errors.Join(multiErr, fmt.Errorf("closing store: %w", err))
+	}
+
+	// Log final status
+	if multiErr != nil {
+		n.Logger.Error("errors encountered while stopping node", "errors", multiErr)
+	} else {
+		n.Logger.Info("full node halted successfully")
+	}
+
+	// Return the original context error if it exists (e.g., context cancelled)
+	// or the combined shutdown error if the context cancellation was clean.
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return multiErr // Return shutdown errors if context was okay
 }
 
 // GetGenesis returns entire genesis doc.

@@ -319,15 +319,18 @@ func NewManager(
 		return nil, err
 	}
 
-	// If lastBatchHash is not set, retrieve the last batch hash from store
-	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
-	if err != nil {
-		logger.Error("error while retrieving last batch hash", "error", err)
-	}
+	var lastBatchData [][]byte
+	if s.LastBlockHeight != 0 {
+		// If lastBatchHash is not set, retrieve the last batch hash from store
+		lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
+		if err != nil {
+			logger.Error("error while retrieving last batch hash", "error", err)
+		}
 
-	lastBatchData, err := bytesToBatchData(lastBatchDataBytes)
-	if err != nil {
-		logger.Error("error while converting last batch hash", "error", err)
+		lastBatchData, err = bytesToBatchData(lastBatchDataBytes)
+		if err != nil {
+			logger.Error("error while converting last batch hash", "error", err)
+		}
 	}
 
 	agg := &Manager{

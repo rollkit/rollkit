@@ -204,7 +204,7 @@ func TestClientGetNetInfo(t *testing.T) {
 	// Create test data
 	netInfo := p2p.NetworkInfo{
 		ID:            "node1",
-		ListenAddress: "0.0.0.0:26656",
+		ListenAddress: []string{"0.0.0.0:26656"},
 	}
 
 	// Setup mock expectations
@@ -220,6 +220,6 @@ func TestClientGetNetInfo(t *testing.T) {
 	// Assert expectations
 	require.NoError(t, err)
 	require.Equal(t, "node1", resultNetInfo.Id)
-	require.Equal(t, "0.0.0.0:26656", resultNetInfo.ListenAddress)
+	require.Equal(t, "0.0.0.0:26656", resultNetInfo.ListenAddresses[0])
 	mockP2P.AssertExpectations(t)
 }

@@ -374,9 +374,15 @@ func (c *Client) GetPeers() ([]peer.AddrInfo, error) {
 }
 
 func (c *Client) GetNetworkInfo() (NetworkInfo, error) {
+	var addrs []string
+	for _, a := range c.host.Addrs() {
+		addr := fmt.Sprintf("%s/p2p/%s", a, c.host.ID())
+		addrs = append(addrs, addr)
+	}
+
 	return NetworkInfo{
 		ID:             c.host.ID().String(),
-		ListenAddress:  c.conf.ListenAddress,
+		ListenAddress:  addrs,
 		ConnectedPeers: c.PeerIDs(),
 	}, nil
 }

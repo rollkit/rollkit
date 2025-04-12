@@ -38,7 +38,7 @@ message NetInfo {
   // Network ID
   string id = 1;
   // Listen address
-  string listen_address = 2;
+  repeated string listen_addresses = 2;
   // List of connected peers
   repeated string connected_peers = 3;
 }

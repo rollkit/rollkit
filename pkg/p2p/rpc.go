@@ -13,6 +13,6 @@ type P2PRPC interface {
 // NetworkInfo represents network information
 type NetworkInfo struct {
 	ID             string
-	ListenAddress  string
+	ListenAddress  []string
 	ConnectedPeers []peer.ID
 }
