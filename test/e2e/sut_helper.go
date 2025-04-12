@@ -71,7 +71,8 @@ func (s *SystemUnderTest) StartNode(cmd string, args ...string) {
 	c.Dir = WorkDir
 	s.watchLogs(c)
 
-	require.NoError(s.t, c.Start())
+	err := c.Start()
+	require.NoError(s.t, err)
 
 	// cleanup when stopped
 	s.awaitProcessCleanup(c)
