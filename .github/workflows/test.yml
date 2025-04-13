@@ -35,7 +35,7 @@ jobs:
           file: ./coverage.txt
 
   test_single_sequencer:
-    name: Run Unit Tests
+    name: Run Single Sequencer Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,10 +44,10 @@ jobs:
         with:
           go-version-file: ./go.mod
       - name: Run unit test
-        run: cd sequencer/single && go test ./...
+        run: cd sequencers/single && go test ./...
 
   test_da:
-    name: Run Unit Tests
+    name: Run DA Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
