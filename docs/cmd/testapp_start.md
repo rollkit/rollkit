@@ -10,8 +10,6 @@ testapp start [flags]
 
 ```
       --chain_id string                                         chain ID (default "rollkit-test")
-      --ci                                                      run node for ci testing
-      --config_dir string                                       directory containing chain configuration files (default "config")
   -h, --help                                                    help for start
       --rollkit.da.address string                               DA address (host:port) (default "http://localhost:7980")
       --rollkit.da.auth_token string                            DA auth token
