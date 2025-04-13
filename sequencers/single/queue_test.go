@@ -9,8 +9,11 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	dssync "github.com/ipfs/go-datastore/sync"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // createTestBatch creates a batch with dummy transactions for testing
@@ -280,6 +283,91 @@ func TestLoad(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLoad_WithMixedData(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+
+	// Use a raw datastore to manually insert mixed data
+	rawDB := dssync.MutexWrap(ds.NewMapDatastore())
+	queuePrefix := "/batches/" // Define a specific prefix for the queue
+
+	// Create the BatchQueue using the raw DB and the prefix
+	bq := NewBatchQueue(rawDB, queuePrefix)
+	require.NotNil(bq)
+
+	// 1. Add valid batch data under the correct prefix
+	validBatch1 := createTestBatch(t, 3)
+	hash1, err := validBatch1.Hash()
+	require.NoError(err)
+	pbBatch1 := &pb.Batch{Txs: validBatch1.Transactions}
+	encodedBatch1, err := proto.Marshal(pbBatch1)
+	require.NoError(err)
+	err = rawDB.Put(ctx, ds.NewKey(queuePrefix+string(hash1)), encodedBatch1)
+	require.NoError(err)
+
+	validBatch2 := createTestBatch(t, 5)
+	hash2, err := validBatch2.Hash()
+	require.NoError(err)
+	pbBatch2 := &pb.Batch{Txs: validBatch2.Transactions}
+	encodedBatch2, err := proto.Marshal(pbBatch2)
+	require.NoError(err)
+	err = rawDB.Put(ctx, ds.NewKey(queuePrefix+string(hash2)), encodedBatch2)
+	require.NoError(err)
+
+	// 3. Add data outside the queue's prefix
+	otherDataKey1 := ds.NewKey("/other/data")
+	err = rawDB.Put(ctx, otherDataKey1, []byte("some other data"))
+	require.NoError(err)
+	otherDataKey2 := ds.NewKey("root_data") // No prefix slash
+	err = rawDB.Put(ctx, otherDataKey2, []byte("more data"))
+	require.NoError(err)
+
+	// Ensure all data is initially present in the raw DB
+	initialKeys := map[string]bool{
+		queuePrefix + string(hash1): true,
+		queuePrefix + string(hash2): true,
+		otherDataKey1.String():      true,
+		otherDataKey2.String():      true,
+	}
+	q := query.Query{}
+	results, err := rawDB.Query(ctx, q)
+	require.NoError(err)
+	count := 0
+	for res := range results.Next() {
+		require.NoError(res.Error)
+		_, ok := initialKeys[res.Key]
+		require.True(ok, "Unexpected key found before load: %s", res.Key)
+		count++
+	}
+	results.Close()
+	require.Equal(len(initialKeys), count, "Initial data count mismatch")
+
+	// Call Load
+	loadErr := bq.Load(ctx)
+	// The current implementation prints errors but continues, so we expect no error return
+	require.NoError(loadErr, "Load returned an unexpected error")
+
+	// Verify queue contains only the valid batches
+	require.Equal(2, len(bq.queue), "Queue should contain only the 2 valid batches")
+	// Check hashes to be sure (order might vary depending on datastore query)
+	loadedHashes := make(map[string]bool)
+	for _, batch := range bq.queue {
+		h, _ := batch.Hash()
+		loadedHashes[string(h)] = true
+	}
+	require.True(loadedHashes[string(hash1)], "Valid batch 1 not found in queue")
+	require.True(loadedHashes[string(hash2)], "Valid batch 2 not found in queue")
+
+	// Verify data outside the prefix remains untouched in the raw DB
+	val, err := rawDB.Get(ctx, otherDataKey1)
+	require.NoError(err)
+	require.Equal([]byte("some other data"), val)
+	val, err = rawDB.Get(ctx, otherDataKey2)
+	require.NoError(err)
+	require.Equal([]byte("more data"), val)
+
 }
 
 func TestConcurrency(t *testing.T) {

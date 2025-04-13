@@ -20,18 +20,18 @@ func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
 
 // BatchQueue implements a persistent queue for transaction batches
 type BatchQueue struct {
-	queue []coresequencer.Batch
-	mu    sync.Mutex
-	// the datastore to store the batches
-	// it is closed by the process which passes it in
-	db ds.Batching
+	queue  []coresequencer.Batch
+	mu     sync.Mutex
+	db     ds.Batching
+	prefix string // Store the prefix used for this queue
 }
 
 // NewBatchQueue creates a new TransactionQueue
 func NewBatchQueue(db ds.Batching, prefix string) *BatchQueue {
 	return &BatchQueue{
-		queue: make([]coresequencer.Batch, 0),
-		db:    newPrefixKV(db, prefix),
+		queue:  make([]coresequencer.Batch, 0),
+		db:     newPrefixKV(db, prefix),
+		prefix: prefix, // Store the prefix
 	}
 }
 
@@ -99,8 +99,11 @@ func (bq *BatchQueue) Load(ctx context.Context) error {
 	// Clear the current queue
 	bq.queue = make([]coresequencer.Batch, 0)
 
-	// List all entries from the datastore
-	results, err := bq.db.Query(ctx, query.Query{})
+	// List all entries from the datastore using the correct prefix
+	q := query.Query{
+		Prefix: bq.prefix, // Use the stored prefix for filtering
+	}
+	results, err := bq.db.Query(ctx, q)
 	if err != nil {
 		return err
 	}
@@ -108,11 +111,17 @@ func (bq *BatchQueue) Load(ctx context.Context) error {
 
 	// Load each batch
 	for result := range results.Next() {
+		if result.Error != nil {
+			fmt.Printf("Error reading entry from datastore with prefix '%s': %v\n", bq.prefix, result.Error)
+			continue // Skip this entry
+		}
 		pbBatch := &pb.Batch{}
 		err := proto.Unmarshal(result.Value, pbBatch)
 		if err != nil {
-			fmt.Printf("Error decoding batch: %v\n", err)
-			continue
+			keyStr := result.Key // Key already has prefix stripped by PrefixTransform
+			// Log the key along with the error for better debugging
+			fmt.Printf("Error decoding batch for key '%s' (prefix '%s'): %v. Attempting to delete entry.\n", keyStr, bq.prefix, err)
+			continue // Skip corrupted entry
 		}
 		bq.queue = append(bq.queue, coresequencer.Batch{Transactions: pbBatch.Txs})
 	}
