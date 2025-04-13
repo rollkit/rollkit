@@ -51,7 +51,7 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch coresequencer.Batch) e
 		return err
 	}
 
-	// First write to WAL for durability
+	// First write to DB for durability
 	if err := bq.db.Put(ctx, ds.NewKey(string(hash)), encodedBatch); err != nil {
 		return err
 	}
