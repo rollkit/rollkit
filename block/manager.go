@@ -1187,11 +1187,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	} else {
 		lastSignature, err = m.store.GetSignature(ctx, height)
 		if err != nil {
-			return fmt.Errorf("error while loading last commit: %w", err)
+			return fmt.Errorf("error while loading last commit: %w, height: %d", err, height)
 		}
 		lastHeader, lastData, err := m.store.GetBlockData(ctx, height)
 		if err != nil {
-			return fmt.Errorf("error while loading last block: %w", err)
+			return fmt.Errorf("error while loading last block: %w, height: %d", err, height)
 		}
 		lastHeaderHash = lastHeader.Hash()
 		lastDataHash = lastData.Hash()
