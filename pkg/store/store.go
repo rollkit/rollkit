@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"os" // Import os package
+	"fmt" // Import os package
 	"strconv"
 
-	logger "cosmossdk.io/log" // Import logger
+	// Import logger
 	ds "github.com/ipfs/go-datastore"
 	"google.golang.org/protobuf/proto"
 
@@ -24,7 +23,6 @@ var (
 	statePrefix     = "s"
 	metaPrefix      = "m"
 	heightPrefix    = "t"
-	storeLogger     = logger.NewLogger(os.Stdout).With("module", "store") // Add a logger instance
 )
 
 // DefaultStore is a default store implmementation.
@@ -43,14 +41,7 @@ func New(ds ds.Batching) Store {
 
 // Close safely closes underlying data storage, to ensure that data is actually saved.
 func (s *DefaultStore) Close() error {
-	storeLogger.Info("Attempting to close the store...") // Add log message
-	err := s.db.Close()
-	if err != nil {
-		storeLogger.Error("Failed to close the store", "error", err) // Log error on failure
-	} else {
-		storeLogger.Info("Store closed successfully.") // Log success
-	}
-	return err
+	return s.db.Close()
 }
 
 // SetHeight sets the height saved in the Store if it is higher than the existing height
