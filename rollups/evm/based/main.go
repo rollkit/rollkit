@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"cosmossdk.io/log"
 
@@ -107,7 +108,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger := log.NewLogger(os.Stdout)
 
-			nodeConfig, err := rollcmd.ParseConfig(cmd, homePath)
+			nodeConfig, err := rollcmd.ParseConfig(cmd)
 			if err != nil {
 				panic(err)
 			}
@@ -171,12 +172,12 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			}
 			os.Args = filteredArgs
 
-			nodeKey, err := key.LoadNodeKey(nodeConfig.ConfigDir)
+			nodeKey, err := key.LoadNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 			if err != nil {
-				panic(err)
+				return err
 			}
 
-			p2pClient, err := p2p.NewClient(nodeConfig, "based", nodeKey, datastore, logger, p2p.NopMetrics())
+			p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, p2p.NopMetrics())
 			if err != nil {
 				panic(err)
 			}

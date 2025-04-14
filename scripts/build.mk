@@ -33,6 +33,16 @@ build-da:
 	@echo "    Check the binary with: $(CURDIR)/rollups/local-da"
 .PHONY: build-da
 
+## based: build based CLI
+based:
+	@echo "--> Building Based CLI"
+	@mkdir -p $(CURDIR)/build
+	@go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/based ./rollups/evm/based
+	@echo "--> Based CLI Built!"
+	@echo "    Check the version with: ./build/based version"
+	@echo "    Check the binary with: $(CURDIR)/build/based"
+.PHONY: based
+
 ## clean: clean and build
 clean: 
 	@echo "--> Cleaning Testapp CLI"
