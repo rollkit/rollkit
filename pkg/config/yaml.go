@@ -8,140 +8,45 @@ import (
 	"time"
 
 	"github.com/goccy/go-yaml"
-	"github.com/mitchellh/mapstructure"
-	"github.com/spf13/viper"
 )
 
-// ConfigBaseName is the base name of the rollkit configuration file without extension.
-const ConfigBaseName = "rollkit"
+// DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
+// needed for YAML marshalling/unmarshalling especially for time.Duration
+type DurationWrapper struct {
+	time.Duration
+}
 
-// ConfigExtension is the file extension for the configuration file without the leading dot.
-const ConfigExtension = "yaml"
+// MarshalText implements encoding.TextMarshaler to format the duration as text
+func (d DurationWrapper) MarshalText() ([]byte, error) {
+	return []byte(d.String()), nil
+}
 
-// RollkitConfigYaml is the filename for the rollkit configuration file.
-const RollkitConfigYaml = ConfigBaseName + "." + ConfigExtension
+// UnmarshalText implements encoding.TextUnmarshaler to parse the duration from text
+func (d *DurationWrapper) UnmarshalText(text []byte) error {
+	var err error
+	d.Duration, err = time.ParseDuration(string(text))
+	return err
+}
 
 // ErrReadYaml is the error returned when reading the rollkit.yaml file fails.
-var ErrReadYaml = fmt.Errorf("reading %s", RollkitConfigYaml)
+var ErrReadYaml = fmt.Errorf("reading %s", ConfigName)
 
-// ReadYaml reads the YAML configuration from the rollkit.yaml file and returns the parsed Config.
-// If dir is provided, it will look for the config file in that directory.
-func ReadYaml(dir string) (config Config, err error) {
-	// Configure Viper to search for the configuration file
-	v := viper.New()
-	v.SetConfigName(ConfigBaseName)
-	v.SetConfigType(ConfigExtension)
-
-	if dir != "" {
-		// If a directory is provided, look for the config file there
-		v.AddConfigPath(dir)
-	} else {
-		// Otherwise, search for the configuration file in the current directory and its parents
-		startDir, err := os.Getwd()
-		if err != nil {
-			err = fmt.Errorf("%w: getting current dir: %w", ErrReadYaml, err)
-			return config, err
-		}
-
-		configPath, err := findConfigFile(startDir)
-		if err != nil {
-			err = fmt.Errorf("%w: %w", ErrReadYaml, err)
-			return config, err
-		}
-
-		v.SetConfigFile(configPath)
+// SaveAsYaml saves the current configuration to a YAML file.
+func (c *Config) SaveAsYaml() error {
+	configPath := c.ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o750); err != nil {
+		return fmt.Errorf("could not create directory %q: %w", filepath.Dir(configPath), err)
 	}
 
-	// Set default values
-	config = DefaultNodeConfig
-
-	// Read the configuration file
-	if err = v.ReadInConfig(); err != nil {
-		err = fmt.Errorf("%w decoding file: %w", ErrReadYaml, err)
-		return
-	}
-
-	// Unmarshal directly into Config
-	if err = v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
-		c.TagName = "mapstructure"
-		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
-			mapstructure.StringToTimeDurationHookFunc(),
-			mapstructure.StringToSliceHookFunc(","),
-			func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
-				if t == reflect.TypeOf(DurationWrapper{}) && f.Kind() == reflect.String {
-					if str, ok := data.(string); ok {
-						duration, err := time.ParseDuration(str)
-						if err != nil {
-							return nil, err
-						}
-						return DurationWrapper{Duration: duration}, nil
-					}
-				}
-				return data, nil
-			},
-		)
-	}); err != nil {
-		err = fmt.Errorf("%w unmarshaling config: %w", ErrReadYaml, err)
-		return
-	}
-
-	// Set the root directory
-	if dir != "" {
-		config.RootDir = dir
-	} else {
-		config.RootDir = filepath.Dir(v.ConfigFileUsed())
-	}
-
-	// Add configPath to ConfigDir if it is a relative path
-	if config.ConfigDir != "" && !filepath.IsAbs(config.ConfigDir) {
-		config.ConfigDir = filepath.Join(config.RootDir, config.ConfigDir)
-	}
-
-	return
-}
-
-// findConfigFile searches for the rollkit.yaml file starting from the given
-// directory and moving up the directory tree. It returns the full path to
-// the rollkit.yaml file or an error if it was not found.
-func findConfigFile(startDir string) (string, error) {
-	dir := startDir
-	for {
-		configPath := filepath.Join(dir, RollkitConfigYaml)
-		if _, err := os.Stat(configPath); err == nil {
-			return configPath, nil
-		}
-
-		parentDir := filepath.Dir(dir)
-		if parentDir == dir {
-			break
-		}
-		dir = parentDir
-	}
-	return "", fmt.Errorf("no %s found", RollkitConfigYaml)
-}
-
-// WriteYamlConfig writes the YAML configuration to the rollkit.yaml file.
-// It ensures the directory exists and writes the configuration with proper permissions.
-func WriteYamlConfig(config Config) error {
-	// Configure the output file
-	configPath := filepath.Join(config.RootDir, "config", RollkitConfigYaml)
-
-	// Ensure the directory exists
-	if err := os.MkdirAll(filepath.Dir(configPath), 0750); err != nil {
-		return err
-	}
-
-	// Marshal the config to YAML with comments
+	// helper function to add comments
 	yamlCommentMap := yaml.CommentMap{}
-
-	// Helper function to add comments
 	addComment := func(path string, comment string) {
 		yamlCommentMap[path] = []*yaml.Comment{
-			yaml.HeadComment(comment),
+			yaml.HeadComment(" " + comment), // add a space for better formatting
 		}
 	}
 
-	// Helper function to process struct fields recursively
+	// helper function to process struct fields recursively
 	var processFields func(t reflect.Type, prefix string)
 	processFields = func(t reflect.Type, prefix string) {
 		for i := 0; i < t.NumField(); i++ {
@@ -185,67 +90,13 @@ func WriteYamlConfig(config Config) error {
 		}
 	}
 
-	// Process the Config struct
+	// process structs fields and comments
 	processFields(reflect.TypeOf(Config{}), "")
 
-	data, err := yaml.MarshalWithOptions(config, yaml.WithComment(yamlCommentMap))
+	data, err := yaml.MarshalWithOptions(c, yaml.WithComment(yamlCommentMap))
 	if err != nil {
 		return fmt.Errorf("error marshaling YAML data: %w", err)
 	}
 
-	// Write the YAML data to the file
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
-		return fmt.Errorf("error writing %s file: %w", RollkitConfigYaml, err)
-	}
-
-	return nil
-}
-
-// EnsureRoot ensures that the root directory exists.
-func EnsureRoot(rootDir string) error {
-	if rootDir == "" {
-		return fmt.Errorf("root directory cannot be empty")
-	}
-
-	if err := os.MkdirAll(rootDir, 0750); err != nil {
-		return fmt.Errorf("could not create directory %q: %w", rootDir, err)
-	}
-
-	return nil
-}
-
-// CreateInitialConfig creates the initial config file with default values and optional customizations.
-// It will:
-// 1. Create the root directory if it doesn't exist
-// 2. Look for a chain config directory
-// 3. Create a config file with default values and any found values
-// 4. Apply any customizations provided
-func CreateInitialConfig(rootDir string, opts ...func(*Config)) error {
-	// Ensure root directory exists
-	if err := os.MkdirAll(rootDir, 0750); err != nil {
-		return fmt.Errorf("error creating directory %s: %w", rootDir, err)
-	}
-
-	// Check if config file already exists
-	configPath := filepath.Join(rootDir, "config", RollkitConfigYaml)
-	if _, err := os.Stat(configPath); err == nil {
-		return fmt.Errorf("%s file already exists in %s", RollkitConfigYaml, rootDir)
-	}
-
-	// Create config with default values
-	config := DefaultNodeConfig
-	config.RootDir = rootDir
-
-	// Apply any customizations
-	for _, opt := range opts {
-		opt(&config)
-	}
-
-	// Write the config file
-	if err := WriteYamlConfig(config); err != nil {
-		return fmt.Errorf("error writing %s file: %w", RollkitConfigYaml, err)
-	}
-
-	fmt.Printf("Created %s file in %s\n", RollkitConfigYaml, rootDir)
-	return nil
+	return os.WriteFile(configPath, data, 0o600)
 }

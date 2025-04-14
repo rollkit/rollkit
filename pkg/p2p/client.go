@@ -62,10 +62,8 @@ type Client struct {
 // NewClient creates new Client object.
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
-// TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
 func NewClient(
 	conf config.Config,
-	chainID string,
 	nodeKey *key.NodeKey,
 	ds datastore.Datastore,
 	logger log.Logger,
@@ -76,7 +74,7 @@ func NewClient(
 	}
 
 	if conf.P2P.ListenAddress == "" {
-		conf.P2P.ListenAddress = config.DefaultNodeConfig.P2P.ListenAddress
+		conf.P2P.ListenAddress = config.DefaultConfig.P2P.ListenAddress
 	}
 
 	gater, err := conngater.NewBasicConnectionGater(ds)
@@ -92,7 +90,7 @@ func NewClient(
 		conf:    conf.P2P,
 		gater:   gater,
 		privKey: nodeKey.PrivKey,
-		chainID: chainID,
+		chainID: conf.ChainID,
 		logger:  logger,
 		metrics: metrics,
 	}, nil
@@ -150,7 +148,6 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 
 // Close gently stops Client.
 func (c *Client) Close() error {
-
 	return errors.Join(
 		c.dht.Close(),
 		c.host.Close(),
@@ -201,10 +198,10 @@ func (c *Client) Peers() []PeerConnection {
 	res := make([]PeerConnection, 0, len(conns))
 	for _, conn := range conns {
 		pc := PeerConnection{
-			NodeInfo: DefaultNodeInfo{
-				ListenAddr:    c.conf.ListenAddress,
-				Network:       c.chainID,
-				DefaultNodeID: conn.RemotePeer().String(),
+			NodeInfo: NodeInfo{
+				ListenAddr: c.conf.ListenAddress,
+				Network:    c.chainID,
+				NodeID:     conn.RemotePeer().String(),
 			},
 			IsOutbound: conn.Stat().Direction == network.DirOutbound,
 			RemoteIP:   conn.RemoteMultiaddr().String(),
@@ -224,17 +221,17 @@ func (c *Client) listen() (host.Host, error) {
 }
 
 func (c *Client) setupDHT(ctx context.Context) error {
-	seedNodes := c.parseAddrInfoList(c.conf.Seeds)
-	if len(seedNodes) == 0 {
+	peers := c.parseAddrInfoList(c.conf.Peers)
+	if len(peers) == 0 {
 		c.logger.Info("no seed nodes - only listening for connections")
 	}
 
-	for _, sa := range seedNodes {
+	for _, sa := range peers {
 		c.logger.Debug("seed node", "addr", sa)
 	}
 
 	var err error
-	c.dht, err = dht.New(ctx, c.host, dht.Mode(dht.ModeServer), dht.BootstrapPeers(seedNodes...))
+	c.dht, err = dht.New(ctx, c.host, dht.Mode(dht.ModeServer), dht.BootstrapPeers(peers...))
 	if err != nil {
 		return fmt.Errorf("failed to create DHT: %w", err)
 	}
@@ -361,4 +358,25 @@ func (c *Client) parseAddrInfoList(addrInfoStr string) []peer.AddrInfo {
 // For now, chainID is used.
 func (c *Client) getNamespace() string {
 	return c.chainID
+}
+
+func (c *Client) GetPeers() ([]peer.AddrInfo, error) {
+	peerCh, err := c.disc.FindPeers(context.Background(), c.getNamespace(), cdiscovery.Limit(peerLimit))
+	if err != nil {
+		return nil, err
+	}
+
+	var peers []peer.AddrInfo
+	for peer := range peerCh {
+		peers = append(peers, peer)
+	}
+	return peers, nil
+}
+
+func (c *Client) GetNetworkInfo() (NetworkInfo, error) {
+	return NetworkInfo{
+		ID:             c.host.ID().String(),
+		ListenAddress:  c.conf.ListenAddress,
+		ConnectedPeers: c.PeerIDs(),
+	}, nil
 }

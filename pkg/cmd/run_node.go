@@ -27,18 +27,15 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
 
-func ParseConfig(cmd *cobra.Command, home string) (rollconf.Config, error) {
-	// Load configuration with the correct order of precedence:
-	// DefaultNodeConfig -> Yaml -> Flags
-	var err error
-	nodeConfig, err := rollconf.LoadNodeConfig(cmd, home)
+// ParseConfig is an helpers that loads the node configuration and validates it.
+func ParseConfig(cmd *cobra.Command) (rollconf.Config, error) {
+	nodeConfig, err := rollconf.Load(cmd)
 	if err != nil {
 		return rollconf.Config{}, fmt.Errorf("failed to load node config: %w", err)
 	}
 
-	// Validate the root directory
-	if err := rollconf.EnsureRoot(nodeConfig.RootDir); err != nil {
-		return rollconf.Config{}, fmt.Errorf("failed to ensure root directory: %w", err)
+	if err := nodeConfig.Validate(); err != nil {
+		return rollconf.Config{}, fmt.Errorf("failed to validate node config: %w", err)
 	}
 
 	return nodeConfig, nil
@@ -100,11 +97,10 @@ func StartNode(
 	datastore datastore.Batching,
 	nodeConfig rollconf.Config,
 ) error {
-
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
-	//create a new remote signer
+	// create a new remote signer
 	var signer signer.Signer
 	if nodeConfig.Signer.SignerType == "file" && nodeConfig.Node.Aggregator {
 		passphrase, err := cmd.Flags().GetString(rollconf.FlagSignerPassphrase)
@@ -124,7 +120,7 @@ func StartNode(
 
 	metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
-	genesisPath := filepath.Join(nodeConfig.ConfigDir, "genesis.json")
+	genesisPath := filepath.Join(filepath.Dir(nodeConfig.ConfigPath()), "genesis.json")
 	genesis, err := genesispkg.LoadGenesis(genesisPath)
 	if err != nil {
 		return fmt.Errorf("failed to load genesis: %w", err)

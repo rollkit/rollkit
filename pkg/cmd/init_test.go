@@ -27,7 +27,7 @@ func TestInitCommand(t *testing.T) {
 	require.NoError(t, os.Chdir(dir))
 
 	// Remove any existing rollkit.yaml files in the test directory
-	configPath := filepath.Join(dir, "config", rollconf.RollkitConfigYaml)
+	configPath := filepath.Join(dir, "config", rollconf.ConfigName)
 	_ = os.Remove(configPath) // Ignore error if file doesn't exist
 
 	// Create a new test-specific command
@@ -50,13 +50,10 @@ func TestInitCommand(t *testing.T) {
 	err = cmd.Execute()
 	require.NoError(t, err)
 
-	// Verify the file was created
-	_, err = os.Stat(configPath)
-	require.NoError(t, err)
-
 	// Verify the config can be read
-	_, err = rollconf.ReadYaml(filepath.Join(dir, "config"))
+	cfg, err := rollconf.Load(cmd)
 	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
 
 	// Read the file content directly to verify the YAML structure
 	//nolint:gosec // This is a test file and we control the input

@@ -30,8 +30,8 @@ func TestTranslateAddresses(t *testing.T) {
 		},
 		{
 			"valid seed address",
-			Config{P2P: P2PConfig{Seeds: validCosmos + "," + validCosmos}},
-			Config{P2P: P2PConfig{Seeds: validRollkit + "," + validRollkit}},
+			Config{P2P: P2PConfig{Peers: validCosmos + "," + validCosmos}},
+			Config{P2P: P2PConfig{Peers: validRollkit + "," + validRollkit}},
 			"",
 		},
 		{
@@ -42,7 +42,7 @@ func TestTranslateAddresses(t *testing.T) {
 		},
 		{
 			"invalid seed address",
-			Config{P2P: P2PConfig{Seeds: validCosmos + "," + invalidCosmos}},
+			Config{P2P: P2PConfig{Peers: validCosmos + "," + invalidCosmos}},
 			Config{},
 			errInvalidAddress.Error(),
 		},

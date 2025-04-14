@@ -7,9 +7,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-var (
-	errInvalidAddress = errors.New("invalid address format, expected [protocol://][<NODE_ID>@]<IPv4>:<PORT>")
-)
+var errInvalidAddress = errors.New("invalid address format, expected [protocol://][<NODE_ID>@]<IPv4>:<PORT>")
 
 // TranslateAddresses updates conf by changing Cosmos-style addresses to Multiaddr format.
 func TranslateAddresses(conf *Config) error {
@@ -21,7 +19,7 @@ func TranslateAddresses(conf *Config) error {
 		conf.P2P.ListenAddress = addr.String()
 	}
 
-	seeds := strings.Split(conf.P2P.Seeds, ",")
+	seeds := strings.Split(conf.P2P.Peers, ",")
 	for i, seed := range seeds {
 		if seed != "" {
 			addr, err := GetMultiAddr(seed)
@@ -31,7 +29,7 @@ func TranslateAddresses(conf *Config) error {
 			seeds[i] = addr.String()
 		}
 	}
-	conf.P2P.Seeds = strings.Join(seeds, ",")
+	conf.P2P.Peers = strings.Join(seeds, ",")
 
 	return nil
 }

@@ -34,12 +34,14 @@ func TestClientStartup(t *testing.T) {
 	}{
 		{"blank_config", config.Config{
 			RootDir: tempDir,
+			ChainID: "TestChain",
 		}},
 		{"peer_whitelisting", config.Config{
+			ChainID: "TestChain",
 			RootDir: tempDir,
 			P2P: config.P2PConfig{
 				ListenAddress: "",
-				Seeds:         "",
+				Peers:         "",
 				BlockedPeers:  "",
 				AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
 			},
@@ -48,10 +50,11 @@ func TestClientStartup(t *testing.T) {
 		{
 			"peer_blacklisting",
 			config.Config{
+				ChainID: "TestChain",
 				RootDir: tempDir,
 				P2P: config.P2PConfig{
 					ListenAddress: "",
-					Seeds:         "",
+					Peers:         "",
 					BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
 					AllowedPeers:  "",
 				},
@@ -61,7 +64,7 @@ func TestClientStartup(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			client, err := NewClient(testCase.conf, "TestChain", nodeKey,
+			client, err := NewClient(testCase.conf, nodeKey,
 				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLogger(t), NopMetrics())
 			assert.NoError(err)
 			assert.NotNil(client)
@@ -165,8 +168,7 @@ func TestSeedStringParsing(t *testing.T) {
 			require.NoError(err)
 
 			client, err := NewClient(
-				config.Config{RootDir: tempDir},
-				"TestNetwork",
+				config.Config{RootDir: tempDir, ChainID: "TestChain"},
 				nodeKey,
 				dssync.MutexWrap(datastore.NewMapDatastore()),
 				logger,

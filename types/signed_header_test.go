@@ -99,7 +99,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 			if shouldRecomputeCommit {
 				signature, err := GetSignature(preparedHeader.Header, privKey)
 				require.NoError(t, err)
-				preparedHeader.Signature = *signature
+				preparedHeader.Signature = signature
 			}
 
 			err := trusted.Verify(preparedHeader)
@@ -213,7 +213,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 			if shouldRecomputeCommit {
 				signature, err := GetSignature(preparedHeader.Header, privKey)
 				require.NoError(t, err)
-				preparedHeader.Signature = *signature
+				preparedHeader.Signature = signature
 			}
 
 			err := preparedHeader.ValidateBasic()
