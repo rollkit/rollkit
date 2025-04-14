@@ -71,6 +71,7 @@ func TestBasic(t *testing.T) {
 	// Init the second node (full node)
 	output, err = sut.RunCmd(binaryPath,
 		"init",
+		"--chain_id=testing",
 		"--home="+node2Home,
 	)
 	require.NoError(t, err, "failed to init fullnode", output)
@@ -80,17 +81,17 @@ func TestBasic(t *testing.T) {
 
 	// Start the full node
 	node2RPC := "127.0.0.1:7332"
-	node1P2PAddr := fmt.Sprintf("%s@127.0.0.1:26656", NodeID(t, node1Home))
+	node2P2P := "/ip4/0.0.0.0/tcp/7676"
 	sut.StartNode(
 		binaryPath,
 		"start",
 		"--home="+node2Home,
-		fmt.Sprintf("--rollkit.p2p.peers=%s", node1P2PAddr), // Use the constructed P2P address
 		"--rollkit.log.level=debug",
-		fmt.Sprintf("--rollkit.rpc.address=%s", node2RPC), // Use the variable
+		"--rollkit.p2p.listen_address="+node2P2P,
+		fmt.Sprintf("--rollkit.rpc.address=%s", node2RPC),
 	)
 
-	sut.AwaitNodeUp(t, "http://"+node2RPC, 5*time.Second) // Increased timeout slightly
+	sut.AwaitNodeUp(t, "http://"+node2RPC, 5*time.Second)
 	t.Logf("Full node (node 2) is up.")
 
 	asserNodeCaughtUp := func(c *client.Client, height uint64) {
