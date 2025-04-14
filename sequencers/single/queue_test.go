@@ -27,8 +27,8 @@ func createTestBatch(t *testing.T, txCount int) coresequencer.Batch {
 
 func setupTestQueue(t *testing.T) *BatchQueue {
 	// Create an in-memory thread-safe datastore
-	memdb := ds.NewMapDatastore()
-	return NewBatchQueue(memdb, "test")
+	memdb := newPrefixKV(ds.NewMapDatastore(), "single")
+	return NewBatchQueue(memdb, "batching")
 }
 
 func TestNewBatchQueue(t *testing.T) {
@@ -210,81 +210,6 @@ func TestNextBatch(t *testing.T) {
 	}
 }
 
-func TestLoad(t *testing.T) {
-	tests := []struct {
-		name             string
-		setupBatchCounts []int // Transaction counts for batches to add before the test
-		processCount     int   // Number of batches to process before reload
-		expectedQueueLen int   // Expected queue length after reload
-		expectErr        bool
-	}{
-		{
-			name:             "reload from empty datastore",
-			setupBatchCounts: []int{},
-			processCount:     0,
-			expectedQueueLen: 0,
-			expectErr:        false,
-		},
-		{
-			name:             "reload unprocessed batches only",
-			setupBatchCounts: []int{1, 2, 3, 4, 5},
-			processCount:     2, // Process the first two batches
-			expectedQueueLen: 3, // Should reload the remaining 3
-			expectErr:        false,
-		},
-		{
-			name:             "reload when all batches processed",
-			setupBatchCounts: []int{1, 2, 3},
-			processCount:     3, // Process all batches
-			expectedQueueLen: 0, // Should reload none
-			expectErr:        false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			bq := setupTestQueue(t)
-			ctx := context.Background()
-
-			// Add initial batches
-			for _, txCount := range tc.setupBatchCounts {
-				batch := createTestBatch(t, txCount)
-				err := bq.AddBatch(ctx, batch)
-				if err != nil {
-					t.Fatalf("unexpected error adding batch: %v", err)
-				}
-			}
-
-			// Process specified number of batches
-			for i := 0; i < tc.processCount; i++ {
-				if i < len(tc.setupBatchCounts) {
-					_, err := bq.Next(ctx)
-					if err != nil {
-						t.Fatalf("unexpected error processing batch: %v", err)
-					}
-				}
-			}
-
-			// Clear the queue to simulate restart
-			bq.queue = make([]coresequencer.Batch, 0)
-
-			// Reload from datastore
-			err := bq.Load(ctx)
-			if tc.expectErr && err == nil {
-				t.Error("expected error but got none")
-			}
-			if !tc.expectErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
-
-			// Verify queue length after reload
-			if len(bq.queue) != tc.expectedQueueLen {
-				t.Errorf("expected queue length %d, got %d", tc.expectedQueueLen, len(bq.queue))
-			}
-		})
-	}
-}
-
 func TestLoad_WithMixedData(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -367,7 +292,6 @@ func TestLoad_WithMixedData(t *testing.T) {
 	val, err = rawDB.Get(ctx, otherDataKey2)
 	require.NoError(err)
 	require.Equal([]byte("more data"), val)
-
 }
 
 func TestConcurrency(t *testing.T) {

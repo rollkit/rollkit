@@ -8,8 +8,9 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"google.golang.org/protobuf/proto"
+
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
@@ -23,7 +24,7 @@ type BatchQueue struct {
 	queue  []coresequencer.Batch
 	mu     sync.Mutex
 	db     ds.Batching
-	prefix string // Store the prefix used for this queue
+	prefix string
 }
 
 // NewBatchQueue creates a new TransactionQueue
@@ -31,7 +32,7 @@ func NewBatchQueue(db ds.Batching, prefix string) *BatchQueue {
 	return &BatchQueue{
 		queue:  make([]coresequencer.Batch, 0),
 		db:     newPrefixKV(db, prefix),
-		prefix: prefix, // Store the prefix
+		prefix: prefix,
 	}
 }
 
@@ -110,6 +111,7 @@ func (bq *BatchQueue) Load(ctx context.Context) error {
 	defer results.Close()
 
 	// Load each batch
+	fmt.Println(results, "results")
 	for result := range results.Next() {
 		if result.Error != nil {
 			fmt.Printf("Error reading entry from datastore with prefix '%s': %v\n", bq.prefix, result.Error)
@@ -118,8 +120,7 @@ func (bq *BatchQueue) Load(ctx context.Context) error {
 		pbBatch := &pb.Batch{}
 		err := proto.Unmarshal(result.Value, pbBatch)
 		if err != nil {
-			fmt.Printf("Error decoding batch for key '%s' (prefix '%s'): %v. Attempting to delete entry.\n", result.Key, bq.prefix, err)
-			continue
+			return fmt.Errorf("Error decoding batch for key '%s' (prefix '%s'): %v. Attempting to delete entry.\n", result.Key, bq.prefix, err)
 		}
 		bq.queue = append(bq.queue, coresequencer.Batch{Transactions: pbBatch.Txs})
 	}
