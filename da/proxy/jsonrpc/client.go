@@ -68,7 +68,7 @@ func (api *API) GetIDs(ctx context.Context, height uint64, ns []byte) (*da.GetID
 	if err != nil {
 		clientLog.Error("RPC call failed", "method", "GetIDs", "error", err)
 	} else {
-		clientLog.Debug("RPC call successful", "method", "GetIDs", "num_ids_returned", len(res.IDs))
+		clientLog.Debug("RPC call successful", "method", "GetIDs")
 	}
 	return res, err
 }

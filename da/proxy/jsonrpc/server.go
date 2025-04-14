@@ -59,7 +59,7 @@ func (l *loggingDA) GetIDs(ctx context.Context, height uint64, ns []byte) (*da.G
 	if err != nil {
 		l.logger.Error("RPC call failed", "method", "GetIDs", "error", err)
 	} else {
-		l.logger.Debug("RPC call successful", "method", "GetIDs", "num_ids_returned", len(res.IDs))
+		l.logger.Debug("RPC call successful", "method", "GetIDs")
 	}
 	return res, err
 }
