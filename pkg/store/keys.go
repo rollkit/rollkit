@@ -6,6 +6,16 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+const (
+	// LastSubmittedHeightKey is the key used for persisting the last submitted height in store.
+	LastSubmittedHeightKey = "last submitted"
+	// DAIncludedHeightKey is the key used for persisting the da included height in store.
+	DAIncludedHeightKey = "d"
+
+	// LastBatchDataKey is the key used for persisting the last batch data in store.
+	LastBatchDataKey = "l"
+)
+
 func getHeaderKey(height uint64) string {
 	return GenerateKey([]string{headerPrefix, strconv.FormatUint(height, 10)})
 }
