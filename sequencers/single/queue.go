@@ -38,6 +38,9 @@ func NewBatchQueue(db ds.Batching, prefix string) *BatchQueue {
 
 // AddBatch adds a new transaction to the queue and writes it to the WAL
 func (bq *BatchQueue) AddBatch(ctx context.Context, batch coresequencer.Batch) error {
+	bq.mu.Lock()
+	defer bq.mu.Unlock()
+
 	hash, err := batch.Hash()
 	if err != nil {
 		return err
@@ -58,9 +61,7 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch coresequencer.Batch) e
 	}
 
 	// Then add to in-memory queue
-	bq.mu.Lock()
 	bq.queue = append(bq.queue, batch)
-	bq.mu.Unlock()
 
 	return nil
 }
@@ -111,7 +112,6 @@ func (bq *BatchQueue) Load(ctx context.Context) error {
 	defer results.Close()
 
 	// Load each batch
-	fmt.Println(results, "results")
 	for result := range results.Next() {
 		if result.Error != nil {
 			fmt.Printf("Error reading entry from datastore with prefix '%s': %v\n", bq.prefix, result.Error)
