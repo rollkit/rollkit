@@ -73,10 +73,6 @@ func NewClient(
 		return nil, fmt.Errorf("rootDir is required")
 	}
 
-	if conf.P2P.ListenAddress == "" {
-		conf.P2P.ListenAddress = config.DefaultConfig.P2P.ListenAddress
-	}
-
 	gater, err := conngater.NewBasicConnectionGater(ds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection gater: %w", err)
