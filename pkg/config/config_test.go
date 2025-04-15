@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -132,8 +133,6 @@ node:
 da:
   address: "http://yaml-da:26657"
 
-config_dir: "config"
-
 signer:
   signer_type: "file"
   signer_path: "something/config"
@@ -200,6 +199,81 @@ signer:
 	assert.Equal(t, "something/config", config.Signer.SignerPath, "SignerPath should be set from flag")
 
 	assert.Equal(t, "127.0.0.1:7332", config.RPC.Address, "RPCAddress should be set from flag")
+}
+
+func TestLoadFromViper(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a YAML file in the temporary directory
+	yamlPath := filepath.Join(tempDir, AppConfigDir, ConfigName)
+	yamlContent := `
+node:
+  aggregator: true
+  block_time: "5s"
+
+da:
+  address: "http://yaml-da:26657"
+
+signer:
+  signer_type: "file"
+  signer_path: "something/config"
+`
+	err := os.MkdirAll(filepath.Dir(yamlPath), 0o700)
+	require.NoError(t, err)
+	err = os.WriteFile(yamlPath, []byte(yamlContent), 0o600)
+	require.NoError(t, err)
+
+	// Create a command to load the configs
+	cmd := &cobra.Command{Use: "test"}
+	AddFlags(cmd)
+	AddGlobalFlags(cmd, "test-app")
+
+	// Set some flags through the command line
+	cmd.SetArgs([]string{
+		"--home=" + tempDir,
+		"--rollkit.da.gas_price=0.5",
+		"--rollkit.node.lazy_aggregator=true",
+	})
+	err = cmd.Execute()
+	require.NoError(t, err)
+
+	// Load configuration using the standard Load method
+	cfgFromLoad, err := Load(cmd)
+	require.NoError(t, err)
+
+	// Now create a Viper instance with the same flags
+	v := viper.New()
+	v.Set(FlagRootDir, tempDir)
+	v.Set("rollkit.da.gas_price", "0.5")
+	v.Set("rollkit.node.lazy_aggregator", true)
+
+	// Load configuration using the new LoadFromViper method
+	cfgFromViper, err := LoadFromViper(v)
+	require.NoError(t, err)
+
+	// Compare the results - they should be identical
+	require.Equal(t, cfgFromLoad.RootDir, cfgFromViper.RootDir, "RootDir should match")
+	require.Equal(t, cfgFromLoad.DA.GasPrice, cfgFromViper.DA.GasPrice, "DA.GasPrice should match")
+	require.Equal(t, cfgFromLoad.Node.LazyAggregator, cfgFromViper.Node.LazyAggregator, "Node.LazyAggregator should match")
+	require.Equal(t, cfgFromLoad.Node.Aggregator, cfgFromViper.Node.Aggregator, "Node.Aggregator should match")
+	require.Equal(t, cfgFromLoad.Node.BlockTime, cfgFromViper.Node.BlockTime, "Node.BlockTime should match")
+	require.Equal(t, cfgFromLoad.DA.Address, cfgFromViper.DA.Address, "DA.Address should match")
+	require.Equal(t, cfgFromLoad.Signer.SignerType, cfgFromViper.Signer.SignerType, "Signer.SignerType should match")
+	require.Equal(t, cfgFromLoad.Signer.SignerPath, cfgFromViper.Signer.SignerPath, "Signer.SignerPath should match")
+
+	// Test that the new LoadFromViper properly handles YAML file loading
+	v = viper.New()
+	v.Set(FlagRootDir, tempDir)
+
+	cfgFromViper, err = LoadFromViper(v)
+	require.NoError(t, err)
+
+	// Check that the values from the YAML file were loaded
+	require.True(t, cfgFromViper.Node.Aggregator, "Node.Aggregator should be true from YAML")
+	require.Equal(t, "5s", cfgFromViper.Node.BlockTime.String(), "Node.BlockTime should be 5s from YAML")
+	require.Equal(t, "http://yaml-da:26657", cfgFromViper.DA.Address, "DA.Address should match YAML")
+	require.Equal(t, "file", cfgFromViper.Signer.SignerType, "Signer.SignerType should match YAML")
+	require.Equal(t, "something/config", cfgFromViper.Signer.SignerPath, "Signer.SignerPath should match YAML")
 }
 
 func assertFlagValue(t *testing.T, flags *pflag.FlagSet, name string, expectedValue interface{}) {
