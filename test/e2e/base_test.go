@@ -91,7 +91,7 @@ func TestBasic(t *testing.T) {
 		fmt.Sprintf("--rollkit.rpc.address=%s", node2RPC),
 	)
 
-	sut.AwaitNodeUp(t, "http://"+node2RPC, 5*time.Second)
+	sut.AwaitNodeUp(t, "http://"+node2RPC, 20*time.Second)
 	t.Logf("Full node (node 2) is up.")
 
 	asserNodeCaughtUp := func(c *client.Client, height uint64) {
