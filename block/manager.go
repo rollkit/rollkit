@@ -1184,7 +1184,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		fmt.Printf("%s (%6d): Calling GetTxs\n", time.Now().Format(time.StampMilli), newHeight)
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
 			m.logger.Error("failed to get txs from executor", "err", err)
@@ -1244,7 +1243,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// set the signature to current block's signed header
 		header.Signature = signature
 
-		m.logger.Debug("header validation", "error", header.ValidateBasic())
+		if err := header.ValidateBasic(); err != nil {
+			// TODO(tzdybal): I think this is could be even a panic, because if this happens, header is FUBAR
+			m.logger.Error("header validation error", "error", err)
+		}
 
 		err = m.store.SaveBlockData(ctx, header, data, &signature)
 		if err != nil {
@@ -1568,7 +1570,6 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
-	fmt.Printf("%s (%6d): Calling ExecuteTxs\n", time.Now().Format(time.StampMilli), lastState.LastBlockHeight+1)
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
 		return types.State{}, err
