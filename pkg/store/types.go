@@ -41,6 +41,12 @@ type Store interface {
 	// GetMetadata returns values stored for given key with SetMetadata.
 	GetMetadata(ctx context.Context, key string) ([]byte, error)
 
+	// DeleteBlock removes the block header, data, signature, and index entry for the given height.
+	DeleteBlock(ctx context.Context, height uint64) error
+
+	// Rollback rolls back the store to the specified target height.
+	Rollback(ctx context.Context, currentHeight, targetHeight uint64) error
+
 	// Close safely closes underlying data storage, to ensure that data is actually saved.
 	Close() error
 }

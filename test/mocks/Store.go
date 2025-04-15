@@ -33,6 +33,24 @@ func (_m *Store) Close() error {
 	return r0
 }
 
+// DeleteBlock provides a mock function with given fields: ctx, height
+func (_m *Store) DeleteBlock(ctx context.Context, height uint64) error {
+	ret := _m.Called(ctx, height)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteBlock")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) error); ok {
+		r0 = rf(ctx, height)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetBlockByHash provides a mock function with given fields: ctx, hash
 func (_m *Store) GetBlockByHash(ctx context.Context, hash []byte) (*types.SignedHeader, *types.Data, error) {
 	ret := _m.Called(ctx, hash)
@@ -255,6 +273,24 @@ func (_m *Store) Height(ctx context.Context) (uint64, error) {
 	}
 
 	return r0, r1
+}
+
+// Rollback provides a mock function with given fields: ctx, currentHeight, targetHeight
+func (_m *Store) Rollback(ctx context.Context, currentHeight uint64, targetHeight uint64) error {
+	ret := _m.Called(ctx, currentHeight, targetHeight)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Rollback")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) error); ok {
+		r0 = rf(ctx, currentHeight, targetHeight)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // SaveBlockData provides a mock function with given fields: ctx, header, data, signature

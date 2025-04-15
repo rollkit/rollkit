@@ -64,12 +64,6 @@ const (
 
 	// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
 	headerInChLength = 10000
-
-	// DAIncludedHeightKey is the key used for persisting the da included height in store.
-	DAIncludedHeightKey = "d"
-
-	// LastBatchDataKey is the key used for persisting the last batch data in store.
-	LastBatchDataKey = "l"
 )
 
 var (
@@ -252,7 +246,7 @@ func NewManager(
 	proposerKey signer.Signer,
 	config config.Config,
 	genesis genesis.Genesis,
-	store store.Store,
+	st store.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dalc coreda.Client,
@@ -263,13 +257,13 @@ func NewManager(
 	gasPrice float64,
 	gasMultiplier float64,
 ) (*Manager, error) {
-	s, err := getInitialState(ctx, genesis, proposerKey, store, exec, logger)
+	s, err := getInitialState(ctx, genesis, proposerKey, st, exec, logger)
 	if err != nil {
 		logger.Error("error while getting initial state", "error", err)
 		return nil, err
 	}
 	//set block height in store
-	err = store.SetHeight(ctx, s.LastBlockHeight)
+	err = st.SetHeight(ctx, s.LastBlockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -314,13 +308,13 @@ func NewManager(
 		return nil, err
 	}
 
-	pendingHeaders, err := NewPendingHeaders(store, logger)
+	pendingHeaders, err := NewPendingHeaders(st, logger)
 	if err != nil {
 		return nil, err
 	}
 
 	// If lastBatchHash is not set, retrieve the last batch hash from store
-	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
+	lastBatchDataBytes, err := st.GetMetadata(ctx, store.LastBatchDataKey)
 	if err != nil {
 		logger.Error("error while retrieving last batch hash", "error", err)
 	}
@@ -335,7 +329,7 @@ func NewManager(
 		config:      config,
 		genesis:     genesis,
 		lastState:   s,
-		store:       store,
+		store:       st,
 		dalc:        dalc,
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
@@ -394,7 +388,7 @@ func (m *Manager) GetLastState() types.State {
 
 func (m *Manager) init(ctx context.Context) {
 	// initialize da included height
-	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
+	if height, err := m.store.GetMetadata(ctx, store.DAIncludedHeightKey); err == nil && len(height) == 8 {
 		m.daIncludedHeight.Store(binary.BigEndian.Uint64(height))
 	}
 }
@@ -408,7 +402,7 @@ func (m *Manager) setDAIncludedHeight(ctx context.Context, newHeight uint64) err
 		if m.daIncludedHeight.CompareAndSwap(currentHeight, newHeight) {
 			heightBytes := make([]byte, 8)
 			binary.BigEndian.PutUint64(heightBytes, newHeight)
-			return m.store.SetMetadata(ctx, DAIncludedHeightKey, heightBytes)
+			return m.store.SetMetadata(ctx, store.DAIncludedHeightKey, heightBytes)
 		}
 	}
 	return nil
@@ -529,7 +523,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 				m.bq.Add(BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData})
 				if len(res.Batch.Transactions) != 0 {
 					h := convertBatchDataToBytes(res.BatchData)
-					if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
+					if err := m.store.SetMetadata(ctx, store.LastBatchDataKey, h); err != nil {
 						m.logger.Error("error while setting last batch hash", "error", err)
 					}
 					m.lastBatchData = res.BatchData

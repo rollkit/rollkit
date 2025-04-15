@@ -24,6 +24,7 @@ func main() {
 		rollcmd.VersionCmd,
 		rollcmd.NodeInfoCmd,
 		rollcmd.StoreUnsafeCleanCmd,
+		rollcmd.StoreRollbackCmd, // Add the new rollback command here
 		initCmd,
 	)
 
