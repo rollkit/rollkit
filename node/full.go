@@ -392,7 +392,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 		go n.headerPublishLoop(ctx)
 		go n.dataPublishLoop(ctx)
 	} else {
-		//go n.blockManager.RetrieveLoop(ctx)
+		go n.blockManager.RetrieveLoop(ctx)
 		go n.blockManager.HeaderStoreRetrieveLoop(ctx)
 		go n.blockManager.DataStoreRetrieveLoop(ctx)
 		go n.blockManager.SyncLoop(ctx)

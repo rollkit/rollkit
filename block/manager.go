@@ -1195,7 +1195,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 
 		m.logger.Debug("Submitting transaction to sequencer",
-			"txCount", len(execTxs), "rollupId", m.genesis.ChainID)
+			"txCount", len(execTxs))
 		_, err = m.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
 			RollupId: sequencing.RollupId(m.genesis.ChainID),
 			Batch:    &coresequencer.Batch{Transactions: execTxs},

@@ -2,15 +2,17 @@ package main
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	evm "github.com/rollkit/go-execution-evm"
-	"github.com/rollkit/rollkit/core/execution"
 	"os"
+	"path/filepath"
 
 	"cosmossdk.io/log"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
+	evm "github.com/rollkit/go-execution-evm"
+
 	coreda "github.com/rollkit/rollkit/core/da"
+	"github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
@@ -42,7 +44,7 @@ var RunCmd = &cobra.Command{
 		logger := log.NewLogger(os.Stdout)
 		dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
 
-		nodeKey, err := key.LoadNodeKey(nodeConfig.ConfigPath())
+		nodeKey, err := key.LoadNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 		if err != nil {
 			panic(err)
 		}
