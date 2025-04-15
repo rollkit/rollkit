@@ -489,37 +489,6 @@ func (m *Manager) GetExecutor() coreexecutor.Executor {
 	return m.exec
 }
 
-// BatchRetrieveLoop is responsible for retrieving batches from the sequencer.
-func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
-	m.logger.Info("Starting BatchRetrieveLoop")
-	batchTimer := time.NewTimer(0)
-	defer batchTimer.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-batchTimer.C:
-			start := time.Now()
-
-			// TODO(tzdybal): FIXIT!
-			//err := m.retrieveBatch(ctx)
-			err := ErrNoBatch
-			if err != nil {
-				m.logger.Error("error while retrieving batch", "error", err)
-			}
-
-			// Always reset timer
-			elapsed := time.Since(start)
-			remainingSleep := m.config.Node.BlockTime.Duration - elapsed
-			if remainingSleep < 0 {
-				remainingSleep = 0
-			}
-			batchTimer.Reset(remainingSleep)
-		}
-	}
-}
-
 func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 	m.logger.Debug("Attempting to retrieve next batch",
 		"chainID", m.genesis.ChainID,
@@ -603,30 +572,61 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		select {
 		case <-ctx.Done():
 			return
-		// the m.bq.notifyCh channel is signalled when batch becomes available in the batch queue
-		// TODO(tzdybal): FIXIT!
-		//case _, ok := <-m.bq.NotifyCh():
-		//	if ok && !m.buildingBlock {
-		//		// set the buildingBlock flag to prevent multiple calls to reset the time
-		//		m.buildingBlock = true
-		//		// Reset the block timer based on the block time.
-		//		blockTimer.Reset(m.getRemainingSleep(start))
-		//	}
-		//	continue
 		case <-lazyTimer.C:
+			// lazyTimer is used to signal when a block should be built in
+			// lazy mode to signal that the chain is still live during long
+			// periods of inactivity.
+			// On lazyTimer, we build a block no matter what.
+			m.buildingBlock = true
+			start = time.Now()
+			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
+				m.logger.Error("error while publishing block", "error", err)
+			}
+			// unset the buildingBlocks flag
+			m.buildingBlock = false
+			lazyTimer.Reset(m.getRemainingSleep(start))
 		case <-blockTimer.C:
+			// On blockTimer, retrieve transactions from executor.
+			// A block will be built only if there are transactions.
+
+			// Get transactions from executor
+			txs, err := m.exec.GetTxs(ctx)
+			if err != nil {
+				m.logger.Error("error while getting transactions", "error", err)
+				continue
+			} else if len(txs) == 0 {
+				m.logger.Debug("No transactions in lazy mode - skipping block production")
+				continue
+			}
+
+			// If there are transactions, submit them to sequencer and start building next block
+			// Batch will be retrieved from sequencer in publishBlock (as usual).
+			m.buildingBlock = true
+			req := coresequencer.SubmitRollupBatchTxsRequest{
+				RollupId: []byte(m.genesis.ChainID),
+				Batch: &coresequencer.Batch{
+					Transactions: txs,
+				},
+			}
+			_, err = m.sequencer.SubmitRollupBatchTxs(ctx, req)
+			if err != nil {
+				m.logger.Error("error while submitting transactions to sequencer", "error", err)
+				continue
+			}
+
+			// Define the start time for the block production period
+			start = time.Now()
+			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
+				m.logger.Error("error while publishing block", "error", err)
+			}
+			// unset the buildingBlocks flag
+			m.buildingBlock = false
+
+			// reset both timers
+			remainingSleep := m.getRemainingSleep(start)
+			lazyTimer.Reset(remainingSleep)
+			blockTimer.Reset(remainingSleep)
 		}
-		// Define the start time for the block production period
-		start = time.Now()
-		if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
-			m.logger.Error("error while publishing block", "error", err)
-		}
-		// unset the buildingBlocks flag
-		m.buildingBlock = false
-		// Reset the lazyTimer to produce a block even if there
-		// are no transactions as a way to signal that the chain
-		// is still live.
-		lazyTimer.Reset(m.getRemainingSleep(start))
 	}
 }
 
