@@ -25,7 +25,15 @@ func TestNewSequencer(t *testing.T) {
 	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0)
 	metrics, _ := NopMetrics()
 	db := ds.NewMapDatastore()
-	seq, err := NewSequencer(log.NewNopLogger(), db, dummyDA, []byte("namespace"), []byte("rollup1"), 10*time.Second, metrics, false)
+	seq, err := NewSequencer(
+		log.NewNopLogger(),
+		db,
+		dummyDA,
+		[]byte("namespace"),
+		[]byte("rollup1"),
+		10*time.Second,
+		metrics,
+		false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
@@ -54,7 +62,16 @@ func TestSequencer_SubmitRollupBatchTxs(t *testing.T) {
 	metrics, _ := NopMetrics()
 	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0)
 	db := ds.NewMapDatastore()
-	seq, err := NewSequencer(log.NewNopLogger(), db, dummyDA, []byte("namespace"), []byte("rollup1"), 10*time.Second, metrics, false)
+	rollupId := []byte("rollup1")
+	seq, err := NewSequencer(
+		log.NewNopLogger(),
+		db,
+		dummyDA,
+		[]byte("namespace"),
+		rollupId,
+		10*time.Second,
+		metrics,
+		false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
@@ -66,7 +83,6 @@ func TestSequencer_SubmitRollupBatchTxs(t *testing.T) {
 	}()
 
 	// Test with initial rollup ID
-	rollupId := []byte("rollup1")
 	tx := []byte("transaction1")
 
 	res, err := seq.SubmitRollupBatchTxs(context.Background(), coresequencer.SubmitRollupBatchTxsRequest{RollupId: rollupId, Batch: &coresequencer.Batch{Transactions: [][]byte{tx}}})
@@ -76,9 +92,6 @@ func TestSequencer_SubmitRollupBatchTxs(t *testing.T) {
 	if res == nil {
 		t.Fatal("Expected response to not be nil")
 	}
-
-	// Wait for the transaction to be processed
-	time.Sleep(2 * time.Second)
 
 	// Verify the transaction was added
 	nextBatchresp, err := seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: rollupId})
