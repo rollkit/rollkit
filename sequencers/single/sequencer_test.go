@@ -2,10 +2,8 @@ package single
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -37,7 +35,7 @@ func TestNewSequencer(t *testing.T) {
 		t.Fatal("Expected sequencer to not be nil")
 	}
 
-	if seq.bq == nil {
+	if seq.queue == nil {
 		t.Fatal("Expected batch queue to not be nil")
 	}
 	if seq.dalc == nil {
@@ -102,10 +100,8 @@ func TestSequencer_GetNextBatch_NoLastBatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 
 	seq := &Sequencer{
-		bq:          NewBatchQueue(db, "pending"),
-		sbq:         NewBatchQueue(db, "submitted"),
-		seenBatches: sync.Map{},
-		rollupId:    []byte("rollup"),
+		queue:    NewBatchQueue(db, "batches"),
+		rollupId: []byte("rollup"),
 	}
 	defer func() {
 		err := db.Close()
@@ -138,10 +134,10 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 	db := ds.NewMapDatastore()
 
 	seq := &Sequencer{
-		bq:          NewBatchQueue(db, "pending"),
-		sbq:         NewBatchQueue(db, "submitted"),
-		seenBatches: sync.Map{},
-		rollupId:    []byte("rollup"),
+		logger:           log.NewNopLogger(),
+		queue:            NewBatchQueue(db, "batches"),
+		daSubmissionChan: make(chan coresequencer.Batch, 100),
+		rollupId:         []byte("rollup"),
 	}
 	defer func() {
 		err := db.Close()
@@ -151,7 +147,7 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 	}()
 
 	// Add mock batch to the BatchQueue
-	err := seq.sbq.AddBatch(context.Background(), *mockBatch)
+	err := seq.queue.AddBatch(context.Background(), *mockBatch)
 	if err != nil {
 		t.Fatalf("Failed to add batch: %v", err)
 	}
@@ -177,10 +173,8 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get batch hash: %v", err)
 	}
-	// Ensure the batch hash was added to seenBatches
-	_, exists := seq.seenBatches.Load(hex.EncodeToString(batchHash))
-	if !exists {
-		t.Fatal("Expected seenBatches to not be empty")
+	if len(batchHash) == 0 {
+		t.Fatal("Expected batch hash to not be empty")
 	}
 }
 
@@ -188,10 +182,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 	// Initialize a new sequencer with a seen batch
 	seq := &Sequencer{
-		bq:          NewBatchQueue(db, "pending"),
-		sbq:         NewBatchQueue(db, "submitted"),
-		seenBatches: sync.Map{},
-		rollupId:    []byte("rollup"),
+		logger:           log.NewNopLogger(),
+		queue:            NewBatchQueue(db, "batches"),
+		daSubmissionChan: make(chan coresequencer.Batch, 100),
+		rollupId:         []byte("rollup"),
+		proposer:         true,
 	}
 	defer func() {
 		err := db.Close()
@@ -202,7 +197,6 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 	// Simulate adding a batch hash
 	batchHash := []byte("validHash")
-	seq.seenBatches.Store(hex.EncodeToString(batchHash), struct{}{})
 
 	// Test that VerifyBatch returns true for an existing batch
 	res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{RollupId: seq.rollupId, BatchData: [][]byte{batchHash}})
