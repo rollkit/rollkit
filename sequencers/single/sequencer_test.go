@@ -93,6 +93,11 @@ func TestSequencer_SubmitRollupBatchTxs(t *testing.T) {
 		t.Fatal("Expected response to not be nil")
 	}
 
+	err = seq.publishBatch(t.Context())
+	if err != nil {
+		t.Fatalf("Failed to publish batch: %v", err)
+	}
+
 	// Verify the transaction was added
 	nextBatchresp, err := seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: rollupId})
 	if err != nil {
