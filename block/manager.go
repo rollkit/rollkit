@@ -33,11 +33,6 @@ import (
 )
 
 const (
-	// defaultLazySleepPercent is the percentage of block time to wait to accumulate transactions
-	// in lazy mode.
-	// A value of 10 for e.g. corresponds to 10% of the block time. Must be between 0 and 100.
-	defaultLazySleepPercent = 10
-
 	// defaultDABlockTime is used only if DABlockTime is not configured for manager
 	defaultDABlockTime = 15 * time.Second
 
