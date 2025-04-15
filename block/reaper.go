@@ -36,6 +36,7 @@ func NewReaper(ctx context.Context, exec coreexecutor.Executor, sequencer corese
 	}
 }
 
+// Start begins the reaping process at the specified interval.
 func (r *Reaper) Start() {
 	ticker := time.NewTicker(r.interval)
 	defer ticker.Stop()
@@ -53,6 +54,7 @@ func (r *Reaper) Start() {
 	}
 }
 
+// SubmitTxs retrieves transactions from the executor and submits them to the sequencer.
 func (r *Reaper) SubmitTxs() {
 	txs, err := r.exec.GetTxs(r.ctx)
 	if err != nil {
