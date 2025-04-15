@@ -10,12 +10,10 @@ replace github.com/rollkit/rollkit/core => ../../../core
 
 replace github.com/rollkit/rollkit/da => ../../../da
 
-replace github.com/rollkit/go-execution-evm => ../../../../go-execution-evm
-
 require (
 	cosmossdk.io/log v1.5.0
 	github.com/ethereum/go-ethereum v1.15.0
-	github.com/rollkit/go-execution-evm v0.0.0-20250315222413-8f09ce6f95f6
+	github.com/rollkit/go-execution-evm v0.1.1
 	github.com/rollkit/rollkit v0.14.2-0.20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/core v0.0.0-20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/da v0.0.0-20250317130407-e9e0a1b0485e
@@ -206,10 +204,10 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
 	golang.org/x/mod v0.23.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
