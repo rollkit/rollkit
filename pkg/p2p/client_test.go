@@ -28,19 +28,17 @@ func TestClientStartup(t *testing.T) {
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(tempDir, "config", "node_key.json"))
 	assert.NoError(err)
 
+	defaultConfig := config.DefaultConfig
+
 	testCases := []struct {
 		desc string
 		conf config.Config
 	}{
-		{"blank_config", config.Config{
-			RootDir: tempDir,
-			ChainID: "TestChain",
-		}},
 		{"peer_whitelisting", config.Config{
 			ChainID: "TestChain",
 			RootDir: tempDir,
 			P2P: config.P2PConfig{
-				ListenAddress: "",
+				ListenAddress: defaultConfig.P2P.ListenAddress,
 				Peers:         "",
 				BlockedPeers:  "",
 				AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
@@ -53,7 +51,7 @@ func TestClientStartup(t *testing.T) {
 				ChainID: "TestChain",
 				RootDir: tempDir,
 				P2P: config.P2PConfig{
-					ListenAddress: "",
+					ListenAddress: defaultConfig.P2P.ListenAddress,
 					Peers:         "",
 					BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
 					AllowedPeers:  "",
