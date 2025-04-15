@@ -459,20 +459,8 @@ func (m *Manager) IsDAIncluded(hash types.Hash) bool {
 	return m.headerCache.IsDAIncluded(hash.String())
 }
 
-// getRemainingSleep calculates the remaining sleep time based on config and a start time.
-func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
+func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
 	elapsed := time.Since(start)
-	interval := m.config.Node.BlockTime.Duration
-
-	if m.config.Node.LazyAggregator {
-		if m.buildingBlock && elapsed >= interval {
-			// Special case to give time for transactions to accumulate if we
-			// are coming out of a period of inactivity.
-			return (interval * time.Duration(defaultLazySleepPercent) / 100)
-		} else if !m.buildingBlock {
-			interval = m.config.Node.LazyBlockTime.Duration
-		}
-	}
 
 	if elapsed < interval {
 		return interval - elapsed
@@ -560,8 +548,6 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 }
 
 func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
-	// start is used to track the start time of the block production period
-	start := time.Now()
 	// lazyTimer is used to signal when a block should be built in
 	// lazy mode to signal that the chain is still live during long
 	// periods of inactivity.
@@ -569,6 +555,8 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 	defer lazyTimer.Stop()
 
 	for {
+		// start is used to track the start time of the block production period
+		start := time.Now()
 		select {
 		case <-ctx.Done():
 			return
@@ -578,54 +566,53 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 			// periods of inactivity.
 			// On lazyTimer, we build a block no matter what.
 			m.buildingBlock = true
-			start = time.Now()
 			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
 				m.logger.Error("error while publishing block", "error", err)
 			}
 			// unset the buildingBlocks flag
 			m.buildingBlock = false
-			lazyTimer.Reset(m.getRemainingSleep(start))
+			lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockTime.Duration))
+			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 		case <-blockTimer.C:
 			// On blockTimer, retrieve transactions from executor.
 			// A block will be built only if there are transactions.
 
+			m.logger.Debug("Checking for transactions")
 			// Get transactions from executor
 			txs, err := m.exec.GetTxs(ctx)
 			if err != nil {
 				m.logger.Error("error while getting transactions", "error", err)
-				continue
 			} else if len(txs) == 0 {
 				m.logger.Debug("No transactions in lazy mode - skipping block production")
-				continue
+				blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
+			} else {
+				// If there are transactions, submit them to sequencer and start building next block
+				// Batch will be retrieved from sequencer in publishBlock (as usual).
+				m.buildingBlock = true
+				req := coresequencer.SubmitRollupBatchTxsRequest{
+					RollupId: []byte(m.genesis.ChainID),
+					Batch: &coresequencer.Batch{
+						Transactions: txs,
+					},
+				}
+				_, err = m.sequencer.SubmitRollupBatchTxs(ctx, req)
+				if err != nil {
+					m.logger.Error("error while submitting transactions to sequencer", "error", err)
+					continue
+				}
+
+				// Define the start time for the block production period
+				if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
+					m.logger.Error("error while publishing block", "error", err)
+				}
+				// unset the buildingBlocks flag
+				m.buildingBlock = false
+
+				// reset both timers
+				lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockTime.Duration))
+				blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 			}
 
-			// If there are transactions, submit them to sequencer and start building next block
-			// Batch will be retrieved from sequencer in publishBlock (as usual).
-			m.buildingBlock = true
-			req := coresequencer.SubmitRollupBatchTxsRequest{
-				RollupId: []byte(m.genesis.ChainID),
-				Batch: &coresequencer.Batch{
-					Transactions: txs,
-				},
-			}
-			_, err = m.sequencer.SubmitRollupBatchTxs(ctx, req)
-			if err != nil {
-				m.logger.Error("error while submitting transactions to sequencer", "error", err)
-				continue
-			}
-
-			// Define the start time for the block production period
-			start = time.Now()
-			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
-				m.logger.Error("error while publishing block", "error", err)
-			}
-			// unset the buildingBlocks flag
-			m.buildingBlock = false
-
-			// reset both timers
-			remainingSleep := m.getRemainingSleep(start)
-			lazyTimer.Reset(remainingSleep)
-			blockTimer.Reset(remainingSleep)
 		}
 	}
 }
@@ -644,7 +631,7 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 			}
 			// Reset the blockTimer to signal the next block production
 			// period based on the block time.
-			blockTimer.Reset(m.getRemainingSleep(start))
+			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 		}
 	}
 }
