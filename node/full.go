@@ -400,7 +400,6 @@ func (n *FullNode) Run(ctx context.Context) error {
 
 	if n.nodeConfig.Node.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
-		// go n.blockManager.BatchRetrieveLoop(ctx)
 		go n.blockManager.AggregationLoop(ctx)
 		go n.blockManager.HeaderSubmissionLoop(ctx)
 		go n.headerPublishLoop(ctx)

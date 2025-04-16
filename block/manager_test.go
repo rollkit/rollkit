@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,13 +18,11 @@ import (
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	damocks "github.com/rollkit/rollkit/da/mocks"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
-	"github.com/rollkit/rollkit/pkg/queue"
 	"github.com/rollkit/rollkit/pkg/signer"
 	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/pkg/store"
@@ -52,6 +51,8 @@ func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier
 		logger:        logger,
 		gasPrice:      gasPrice,
 		gasMultiplier: gasMultiplier,
+		lastStateMtx:  &sync.RWMutex{},
+		metrics:       NopMetrics(),
 	}
 }
 
@@ -409,119 +410,6 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require.ErrorIs(err, ErrNotProposer)
 }
 
-func TestManager_getRemainingSleep(t *testing.T) {
-	tests := []struct {
-		name          string
-		manager       *Manager
-		start         time.Time
-		expectedSleep time.Duration
-	}{
-		{
-			name: "Normal aggregation, elapsed < interval",
-			manager: &Manager{
-				config: config.Config{
-					Node: config.NodeConfig{
-						BlockTime: config.DurationWrapper{
-							Duration: 10 * time.Second,
-						},
-						LazyBlockTime: config.DurationWrapper{
-							Duration: 20 * time.Second,
-						},
-						LazyAggregator: false,
-					},
-				},
-				buildingBlock: false,
-			},
-			start:         time.Now().Add(-5 * time.Second),
-			expectedSleep: 5 * time.Second,
-		},
-		{
-			name: "Normal aggregation, elapsed > interval",
-			manager: &Manager{
-				config: config.Config{
-					Node: config.NodeConfig{
-						BlockTime: config.DurationWrapper{
-							Duration: 10 * time.Second,
-						},
-						LazyBlockTime: config.DurationWrapper{
-							Duration: 20 * time.Second,
-						},
-						LazyAggregator: false,
-					},
-				},
-				buildingBlock: false,
-			},
-			start:         time.Now().Add(-15 * time.Second),
-			expectedSleep: 0 * time.Second,
-		},
-		{
-			name: "Lazy aggregation, not building block",
-			manager: &Manager{
-				config: config.Config{
-					Node: config.NodeConfig{
-						BlockTime: config.DurationWrapper{
-							Duration: 10 * time.Second,
-						},
-						LazyBlockTime: config.DurationWrapper{
-							Duration: 20 * time.Second,
-						},
-						LazyAggregator: true,
-					},
-				},
-				buildingBlock: false,
-			},
-			start:         time.Now().Add(-5 * time.Second),
-			expectedSleep: 15 * time.Second,
-		},
-		{
-			name: "Lazy aggregation, building block, elapsed < interval",
-			manager: &Manager{
-				config: config.Config{
-					Node: config.NodeConfig{
-						BlockTime: config.DurationWrapper{
-							Duration: 10 * time.Second,
-						},
-						LazyBlockTime: config.DurationWrapper{
-							Duration: 20 * time.Second,
-						},
-						LazyAggregator: true,
-					},
-				},
-				buildingBlock: true,
-			},
-			start:         time.Now().Add(-5 * time.Second),
-			expectedSleep: 5 * time.Second,
-		},
-		{
-			name: "Lazy aggregation, building block, elapsed > interval",
-			manager: &Manager{
-				config: config.Config{
-					Node: config.NodeConfig{
-						BlockTime: config.DurationWrapper{
-							Duration: 10 * time.Second,
-						},
-						LazyBlockTime: config.DurationWrapper{
-							Duration: 20 * time.Second,
-						},
-						LazyAggregator: true,
-					},
-				},
-				buildingBlock: true,
-			},
-			start:         time.Now().Add(-15 * time.Second),
-			expectedSleep: 1 * time.Second, // 10% of BlockTime
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			actualSleep := tt.manager.getRemainingSleep(tt.start)
-			// Allow for a small difference, e.g., 5 millisecond
-			assert.True(t, WithinDuration(t, tt.expectedSleep, actualSleep, 5*time.Millisecond))
-		})
-	}
-}
-
 // TestAggregationLoop tests the AggregationLoop function
 func TestAggregationLoop(t *testing.T) {
 	mockStore := new(mocks.Store)
@@ -543,7 +431,6 @@ func TestAggregationLoop(t *testing.T) {
 				LazyAggregator: false,
 			},
 		},
-		bq: queue.New[BatchData](),
 	}
 
 	mockStore.On("Height", mock.Anything).Return(uint64(0), nil)
@@ -561,30 +448,93 @@ func TestAggregationLoop(t *testing.T) {
 
 // TestLazyAggregationLoop tests the lazyAggregationLoop function
 func TestLazyAggregationLoop(t *testing.T) {
-	mockLogger := log.NewTestLogger(t)
+	t.Parallel()
 
-	m := &Manager{
-		logger: mockLogger,
-		config: config.Config{
-			Node: config.NodeConfig{
-				BlockTime:      config.DurationWrapper{Duration: time.Second},
-				LazyAggregator: true,
-			},
-		},
-		bq: queue.New[BatchData](),
-	}
+	mockStore := mocks.NewStore(t)
+	//mockLogger := log.NewTestLogger(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	// Set block time to 100ms and lazy block time to 1s
+	blockTime := 100 * time.Millisecond
+	lazyBlockTime := 1 * time.Second
+
+	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
+	m.exec = coreexecutor.NewDummyExecutor()
+	m.isProposer = true
+	m.store = mockStore
+	m.metrics = NopMetrics()
+	m.HeaderCh = make(chan *types.SignedHeader, 10)
+	m.DataCh = make(chan *types.Data, 10)
+	m.config.Node.LazyAggregator = true
+	m.config.Node.BlockTime.Duration = blockTime
+	m.config.Node.LazyBlockTime.Duration = lazyBlockTime
+
+	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(t, err)
+	noopSigner, err := noopsigner.NewNoopSigner(privKey)
+	require.NoError(t, err)
+	m.proposerKey = noopSigner
+	mockSignature := types.Signature([]byte{1, 2, 3})
+
+	// Mock store expectations
+	mockStore.On("Height", mock.Anything).Return(uint64(0), nil)
+	mockStore.On("SetHeight", mock.Anything, mock.Anything).Return(nil)
+	mockStore.On("UpdateState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockStore.On("GetBlockData", mock.Anything, mock.Anything).Return(&types.SignedHeader{}, &types.Data{}, nil)
+	mockStore.On("GetSignature", mock.Anything, mock.Anything).Return(&mockSignature, nil)
+
+	// Create a context with a timeout longer than the test duration
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	blockTimer := time.NewTimer(m.config.Node.BlockTime.Duration)
+	// Create a channel to track block production
+	blockProduced := make(chan struct{}, 10)
+	mockStore.On("SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		blockProduced <- struct{}{}
+	})
+
+	blockTimer := time.NewTimer(blockTime)
 	defer blockTimer.Stop()
 
+	// Start the lazy aggregation loop
+	start := time.Now()
 	go m.lazyAggregationLoop(ctx, blockTimer)
-	m.bq.Notify(BatchData{Batch: &coresequencer.Batch{}})
 
-	// Wait for the function to complete or timeout
-	<-ctx.Done()
+	// Wait for the first block to be produced (should happen after blockTime)
+	select {
+	case <-blockProduced:
+		// First block produced as expected
+	case <-time.After(2 * blockTime):
+		require.Fail(t, "First block not produced within expected time")
+	}
+
+	// Wait for the second block (should happen after lazyBlockTime since no transactions)
+	select {
+	case <-blockProduced:
+		// Second block produced as expected
+	case <-time.After(lazyBlockTime + 100*time.Millisecond):
+		require.Fail(t, "Second block not produced within expected time")
+	}
+
+	// Wait for the third block (should happen after lazyBlockTime since no transactions)
+	select {
+	case <-blockProduced:
+		// Second block produced as expected
+	case <-time.After(lazyBlockTime + 100*time.Millisecond):
+		require.Fail(t, "Second block not produced within expected time")
+	}
+	end := time.Now()
+
+	// Ensure that the duration between block productions adheres to the defined lazyBlockTime.
+	// This check prevents blocks from being produced too fast, maintaining consistent timing.
+	expectedDuration := 2*lazyBlockTime + blockTime
+	expectedEnd := start.Add(expectedDuration)
+	require.WithinDuration(t, expectedEnd, end, 3*blockTime)
+
+	// Cancel the context to stop the loop
+	cancel()
+
+	// Verify mock expectations
+	mockStore.AssertExpectations(t)
 }
 
 // TestNormalAggregationLoop tests the normalAggregationLoop function
