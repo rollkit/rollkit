@@ -73,10 +73,6 @@ func NewClient(
 		return nil, fmt.Errorf("rootDir is required")
 	}
 
-	if conf.P2P.ListenAddress == "" {
-		conf.P2P.ListenAddress = config.DefaultConfig.P2P.ListenAddress
-	}
-
 	gater, err := conngater.NewBasicConnectionGater(ds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection gater: %w", err)
@@ -374,9 +370,15 @@ func (c *Client) GetPeers() ([]peer.AddrInfo, error) {
 }
 
 func (c *Client) GetNetworkInfo() (NetworkInfo, error) {
+	var addrs []string
+	for _, a := range c.host.Addrs() {
+		addr := fmt.Sprintf("%s/p2p/%s", a, c.host.ID())
+		addrs = append(addrs, addr)
+	}
+
 	return NetworkInfo{
 		ID:             c.host.ID().String(),
-		ListenAddress:  c.conf.ListenAddress,
+		ListenAddress:  addrs,
 		ConnectedPeers: c.PeerIDs(),
 	}, nil
 }

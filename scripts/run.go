@@ -7,6 +7,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -31,15 +32,83 @@ func main() {
 		log.Fatal("Number of nodes must be at least 1")
 	}
 
+	// Setup variables to track resources for cleanup
+	var (
+		daCmd        *exec.Cmd
+		nodeCommands = make([]*exec.Cmd, 0, *numNodes)
+		nodeHomes    = make([]string, 0, *numNodes)
+		ctx, cancel  = context.WithCancel(context.Background())
+	)
+
+	// Ensure cleanup happens even on early failure
+	defer func() {
+		// Cancel context to stop any running processes
+		cancel()
+
+		// Give processes some time to gracefully terminate
+		time.Sleep(1 * time.Second)
+
+		// More robust process termination
+		killProcess := func(cmd *exec.Cmd) {
+			if cmd == nil || cmd.Process == nil {
+				return
+			}
+
+			// First try SIGTERM for graceful shutdown
+			log.Printf("Sending SIGTERM to process %d", cmd.Process.Pid)
+			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+				log.Printf("Failed to send SIGTERM to process %d: %v", cmd.Process.Pid, err)
+			}
+
+			// Give it a moment to terminate gracefully
+			done := make(chan error, 1)
+			go func() {
+				done <- cmd.Wait()
+			}()
+
+			select {
+			case <-done:
+				// Process terminated gracefully
+				return
+			case <-time.After(2 * time.Second):
+				// Process didn't terminate, force kill
+				log.Printf("Process %d didn't respond to SIGTERM, sending SIGKILL", cmd.Process.Pid)
+				if err := cmd.Process.Kill(); err != nil {
+					log.Printf("Failed to kill process %d: %v", cmd.Process.Pid, err)
+				}
+			}
+		}
+
+		// Kill DA process
+		if daCmd != nil {
+			killProcess(daCmd)
+		}
+
+		// Kill all node processes
+		for _, cmd := range nodeCommands {
+			killProcess(cmd)
+		}
+
+		// Remove node home directories
+		for _, nodeHome := range nodeHomes {
+			if nodeHome != "" {
+				if err := os.RemoveAll(nodeHome); err != nil {
+					log.Printf("Failed to remove node home directory %s: %v", nodeHome, err)
+				} else {
+					log.Printf("Removed node home directory %s", nodeHome)
+				}
+			}
+		}
+
+		log.Println("Cleanup complete")
+	}()
+
 	// Find the project root directory
 	projectRoot, err := findProjectRoot()
 	if err != nil {
-		log.Fatalf("Failed to find project root: %v", err)
+		log.Printf("Error finding project root: %v", err)
+		return
 	}
-
-	// Create context with cancellation for graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Setup signal handling for graceful shutdown
 	sigCh := make(chan os.Signal, 1)
@@ -60,16 +129,18 @@ func main() {
 		buildCmd.Stdout = os.Stdout
 		buildCmd.Stderr = os.Stderr
 		if err := buildCmd.Run(); err != nil {
-			log.Fatalf("Failed to build local-da: %v", err)
+			log.Printf("Error building local-da: %v", err)
+			return
 		}
 	}
 
 	log.Println("Starting local-da...")
-	daCmd := exec.CommandContext(ctx, daPath)
+	daCmd = exec.CommandContext(ctx, daPath)
 	daCmd.Stdout = os.Stdout
 	daCmd.Stderr = os.Stderr
 	if err := daCmd.Start(); err != nil {
-		log.Fatalf("Failed to start local-da: %v", err)
+		log.Printf("Error starting local-da: %v", err)
+		return
 	}
 
 	// Ensure DA is properly initialized before starting nodes
@@ -85,16 +156,18 @@ func main() {
 		buildCmd.Stdout = os.Stdout
 		buildCmd.Stderr = os.Stderr
 		if err := buildCmd.Run(); err != nil {
-			log.Fatalf("Failed to build testapp: %v", err)
+			log.Printf("Error building testapp: %v", err)
+			return
 		}
 	}
 
 	// Start multiple nodes
-	nodeCommands := make([]*exec.Cmd, *numNodes)
-	var nodeIds []string
+	var aggregatorAddress string
 
 	for i := 0; i < *numNodes; i++ {
 		nodeHome := fmt.Sprintf("./testapp_home_node%d", i)
+		// Track the node home for cleanup
+		nodeHomes = append(nodeHomes, nodeHome)
 		p2pPort := baseP2PPort + i
 		rpcPort := baseRPCPort + i
 		isAggregator := i == 0 // First node is the aggregator
@@ -106,31 +179,92 @@ func main() {
 		initArgs := []string{
 			"init",
 			fmt.Sprintf("--home=%s", nodeHome),
-			"--rollkit.da.address=http://localhost:7980",
 			fmt.Sprintf("--rollkit.node.aggregator=%t", isAggregator),
 			"--rollkit.signer.passphrase=12345678",
+			fmt.Sprintf("--rollkit.rpc.address=0.0.0.0:%d", rpcPort),
 		}
 
 		initCmd := exec.CommandContext(ctx, appPath, initArgs...)
 		initCmd.Stdout = os.Stdout
 		initCmd.Stderr = os.Stderr
 		if err := initCmd.Run(); err != nil {
-			log.Fatalf("Failed to initialize node %d: %v", i, err)
+			log.Printf("Error initializing node %d: %v", i, err)
+			return
 		}
 
-		// Get node ID for peer connections (for non-zero nodes)
+		// If this is not the first node, copy the genesis file from the first node
+		if i > 0 {
+			log.Printf("Copying genesis file from node 0 to node %d...", i)
+			sourceGenesisPath := filepath.Join("./testapp_home_node0", "config", "genesis.json")
+			destGenesisPath := filepath.Join(nodeHome, "config", "genesis.json")
+
+			sourceFile, err := os.Open(sourceGenesisPath)
+			if err != nil {
+				log.Printf("Error opening source genesis file (%s) for node %d: %v", sourceGenesisPath, i, err)
+				return
+			}
+			defer sourceFile.Close()
+
+			destFile, err := os.Create(destGenesisPath) // Create or truncate
+			if err != nil {
+				log.Printf("Error creating destination genesis file (%s) for node %d: %v", destGenesisPath, i, err)
+				return
+			}
+			defer destFile.Close()
+
+			_, err = io.Copy(destFile, sourceFile)
+			if err != nil {
+				log.Printf("Error copying genesis file for node %d: %v", i, err)
+				return
+			}
+			log.Printf("Successfully copied genesis file to node %d", i)
+		}
+
+		// Build run arguments
+		runArgs := []string{
+			"run",
+			fmt.Sprintf("--home=%s", nodeHome),
+			"--rollkit.da.address=http://localhost:7980",
+			fmt.Sprintf("--rollkit.node.aggregator=%t", isAggregator),
+			"--rollkit.signer.passphrase=12345678",
+			fmt.Sprintf("--rollkit.p2p.listen_address=/ip4/0.0.0.0/tcp/%d", p2pPort),
+			fmt.Sprintf("--rollkit.rpc.address=0.0.0.0:%d", rpcPort),
+		}
+
+		// Add peer list for non-aggregator nodes
+		if i > 0 && aggregatorAddress != "" {
+			runArgs = append(runArgs, fmt.Sprintf("--rollkit.p2p.peers=%s", aggregatorAddress))
+		}
+
+		log.Printf("Starting node %d with P2P port %d and RPC port %d...", i, p2pPort, rpcPort)
+		nodeCmd := exec.CommandContext(ctx, appPath, runArgs...)
+		nodeCmd.Stdout = os.NewFile(0, fmt.Sprintf("node%d-stdout", i))
+		nodeCmd.Stderr = os.NewFile(0, fmt.Sprintf("node%d-stderr", i))
+
+		if err := nodeCmd.Start(); err != nil {
+			log.Printf("Error starting node %d: %v", i, err)
+			return
+		}
+
+		nodeCommands = append(nodeCommands, nodeCmd)
+
+		// If this is the aggregator and we have more than one node,
+		// get the node address after it's started
 		if i == 0 && *numNodes > 1 {
+			// Wait a bit for the node to initialize
+			time.Sleep(3 * time.Second)
+
 			// Get node ID of the first node to use for peer connections
 			nodeIdCmd := exec.Command(appPath, "node-info", fmt.Sprintf("--home=%s", nodeHome))
 			nodeInfoOutput, err := nodeIdCmd.CombinedOutput()
 			if err != nil {
-				log.Fatalf("Failed to get node info for node %d: %v", i, err)
+				log.Printf("Error getting node info for node %d: %v, output: %s", i, err, string(nodeInfoOutput))
+				return
 			}
 
 			// Parse the output to extract the full address
 			nodeInfoStr := string(nodeInfoOutput)
 			lines := strings.Split(nodeInfoStr, "\n")
-			var nodeAddress string
 
 			for _, line := range lines {
 				if strings.Contains(line, "🔗 Full Address:") {
@@ -143,53 +277,19 @@ func main() {
 						cleanAddr = strings.TrimPrefix(cleanAddr, "\033[1;32m")
 						cleanAddr = strings.TrimSuffix(cleanAddr, "\033[0m")
 						cleanAddr = strings.TrimSpace(cleanAddr)
-						nodeAddress = cleanAddr
+						aggregatorAddress = cleanAddr
 						break
 					}
 				}
 			}
 
-			if nodeAddress == "" {
-				log.Fatalf("Could not extract node address from output: %s", nodeInfoStr)
+			if aggregatorAddress == "" {
+				log.Printf("Could not extract node address from output: %s", nodeInfoStr)
+				return
 			}
 
-			nodeIds = append(nodeIds, nodeAddress)
-			log.Printf("Node %d Full Address: %s", i, nodeAddress)
+			log.Printf("Aggregator Full Address: %s", aggregatorAddress)
 		}
-
-		// Build peer list for non-zero nodes
-		var peerList string
-		if i > 0 && len(nodeIds) > 0 {
-			// Use the full address directly since it already includes ID and IP:port
-			peerList = nodeIds[0]
-		}
-
-		// Start the node
-		runArgs := []string{
-			"run",
-			fmt.Sprintf("--home=%s", nodeHome),
-			"--rollkit.da.address=http://localhost:7980",
-			fmt.Sprintf("--rollkit.node.aggregator=%t", isAggregator),
-			"--rollkit.signer.passphrase=12345678",
-			fmt.Sprintf("--rollkit.p2p.listen_address=/ip4/0.0.0.0/tcp/%d", p2pPort),
-			fmt.Sprintf("--rollkit.rpc.address=tcp://0.0.0.0:%d", rpcPort),
-		}
-
-		// Add peer list for non-aggregator nodes
-		if i > 0 && peerList != "" {
-			runArgs = append(runArgs, fmt.Sprintf("--rollkit.p2p.peers=%s", peerList))
-		}
-
-		log.Printf("Starting node %d with P2P port %d and RPC port %d...", i, p2pPort, rpcPort)
-		nodeCmd := exec.CommandContext(ctx, appPath, runArgs...)
-		nodeCmd.Stdout = os.NewFile(0, fmt.Sprintf("node%d-stdout", i))
-		nodeCmd.Stderr = os.NewFile(0, fmt.Sprintf("node%d-stderr", i))
-
-		if err := nodeCmd.Start(); err != nil {
-			log.Fatalf("Failed to start node %d: %v", i, err)
-		}
-
-		nodeCommands[i] = nodeCmd
 
 		// Wait a bit before starting the next node
 		if i < *numNodes-1 {
@@ -198,7 +298,7 @@ func main() {
 	}
 
 	// Wait for processes to finish or context cancellation
-	errCh := make(chan error, 1+*numNodes)
+	errCh := make(chan error, 1+len(nodeCommands))
 	go func() {
 		errCh <- daCmd.Wait()
 	}()
@@ -216,26 +316,12 @@ func main() {
 	case err := <-errCh:
 		if ctx.Err() == nil { // If context was not canceled, it's an unexpected error
 			log.Printf("One of the processes exited unexpectedly: %v", err)
-			cancel() // Trigger shutdown of other processes
+			// Don't need to call cancel() here as the defer will handle cleanup
 		}
 	case <-ctx.Done():
 		// Context was canceled, we're shutting down gracefully
 		log.Println("Shutting down processes...")
-
-		// Give processes some time to gracefully terminate
-		time.Sleep(1 * time.Second)
 	}
-
-	// remove all node home directories
-	for i := 0; i < *numNodes; i++ {
-		nodeHome := fmt.Sprintf("./testapp_home_node%d", i)
-		if err := os.RemoveAll(nodeHome); err != nil {
-			log.Printf("Failed to remove node home directory %s: %v", nodeHome, err)
-		} else {
-			log.Printf("Removed node home directory %s", nodeHome)
-		}
-	}
-	log.Println("Cleanup complete")
 }
 
 // findProjectRoot attempts to locate the project root directory

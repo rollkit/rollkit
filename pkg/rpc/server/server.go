@@ -180,8 +180,8 @@ func (p *P2PServer) GetNetInfo(
 	}
 
 	pbNetInfo := &pb.NetInfo{
-		Id:            netInfo.ID,
-		ListenAddress: netInfo.ListenAddress,
+		Id:              netInfo.ID,
+		ListenAddresses: netInfo.ListenAddress,
 	}
 
 	return connect.NewResponse(&pb.GetNetInfoResponse{

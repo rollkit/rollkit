@@ -175,7 +175,7 @@ type NetInfo struct {
 	// Network ID
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Listen address
-	ListenAddress string `protobuf:"bytes,2,opt,name=listen_address,json=listenAddress,proto3" json:"listen_address,omitempty"`
+	ListenAddresses []string `protobuf:"bytes,2,rep,name=listen_addresses,json=listenAddresses,proto3" json:"listen_addresses,omitempty"`
 	// List of connected peers
 	ConnectedPeers []string `protobuf:"bytes,3,rep,name=connected_peers,json=connectedPeers,proto3" json:"connected_peers,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -219,11 +219,11 @@ func (x *NetInfo) GetId() string {
 	return ""
 }
 
-func (x *NetInfo) GetListenAddress() string {
+func (x *NetInfo) GetListenAddresses() []string {
 	if x != nil {
-		return x.ListenAddress
+		return x.ListenAddresses
 	}
-	return ""
+	return nil
 }
 
 func (x *NetInfo) GetConnectedPeers() []string {
@@ -245,10 +245,10 @@ const file_rollkit_v1_p2p_rpc_proto_rawDesc = "" +
 	"\bnet_info\x18\x01 \x01(\v2\x13.rollkit.v1.NetInfoR\anetInfo\"4\n" +
 	"\bPeerInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\aaddress\x18\x02 \x01(\tR\aaddress\"i\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\"m\n" +
 	"\aNetInfo\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
-	"\x0elisten_address\x18\x02 \x01(\tR\rlistenAddress\x12'\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
+	"\x10listen_addresses\x18\x02 \x03(\tR\x0flistenAddresses\x12'\n" +
 	"\x0fconnected_peers\x18\x03 \x03(\tR\x0econnectedPeers2\x9e\x01\n" +
 	"\n" +
 	"P2PService\x12H\n" +
