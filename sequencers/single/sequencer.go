@@ -56,8 +56,6 @@ func NewSequencer(
 	metrics *Metrics,
 	proposer bool,
 ) (*Sequencer, error) {
-	loadCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
 
 	dalc := dac.NewDAClient(da, -1, -1, daNamespace, nil, logger)
 
@@ -73,8 +71,9 @@ func NewSequencer(
 		proposer:         proposer,
 	}
 
-	err := s.queue.Load(loadCtx)
-	if err != nil {
+	loadCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.queue.Load(loadCtx); err != nil {
 		return nil, fmt.Errorf("failed to load batch queue from DB: %w", err)
 	}
 
@@ -112,6 +111,7 @@ func (c *Sequencer) daSubmissionLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			c.logger.Info("DA submission loop stopped")
 			return
 		case batch := <-c.daSubmissionChan:
 			err := c.submitBatchToDA(ctx, batch)
