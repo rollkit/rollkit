@@ -4,10 +4,10 @@ clean-testcache:
 	@go clean --testcache
 .PHONY: clean-testcache
 
-## test: Running unit tests
+## test: Running unit tests for all go.mods
 test:
 	@echo "--> Running unit tests"
-	@go test -race -covermode=atomic -coverprofile=coverage.txt ./...
+	@go run -tags=run scripts/test.go
 .PHONY: test
 
 ## test-e2e: Running e2e tests
