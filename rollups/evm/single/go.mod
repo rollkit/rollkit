@@ -4,11 +4,12 @@ go 1.24.1
 
 toolchain go1.24.2
 
-replace github.com/rollkit/rollkit => ../../../
-
-replace github.com/rollkit/rollkit/core => ../../../core
-
-replace github.com/rollkit/rollkit/da => ../../../da
+replace (
+	github.com/rollkit/rollkit => ../../../
+	github.com/rollkit/rollkit/core => ../../../core
+	github.com/rollkit/rollkit/da => ../../../da
+	github.com/rollkit/rollkit/sequencers/single => ../../../sequencers/single
+)
 
 require (
 	cosmossdk.io/log v1.5.0
@@ -17,6 +18,8 @@ require (
 	github.com/rollkit/rollkit v0.14.2-0.20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/core v0.0.0-20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/da v0.0.0-20250317130407-e9e0a1b0485e
+	github.com/rollkit/rollkit/sequencers/single v0.0.0-00010101000000-000000000000
+	github.com/rs/zerolog v1.33.0
 	github.com/spf13/cobra v1.9.1
 )
 
@@ -55,6 +58,7 @@ require (
 	github.com/elastic/gosigar v0.14.3 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.3 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
+	github.com/filecoin-project/go-jsonrpc v0.7.1 // indirect
 	github.com/flynn/noise v1.1.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
@@ -174,7 +178,6 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rollkit/go-sequencing v0.4.1 // indirect
 	github.com/rs/cors v1.11.1 // indirect
-	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
@@ -212,6 +215,7 @@ require (
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/tools v0.30.0 // indirect
+	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gonum.org/v1/gonum v0.15.1 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241202173237-19429a94021a // indirect
 	google.golang.org/grpc v1.70.0 // indirect

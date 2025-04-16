@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/rollkit/rollkit/sequencers/single"
+	"github.com/rs/zerolog"
 	"os"
 	"path/filepath"
 
@@ -13,8 +16,8 @@ import (
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/core/execution"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/da/proxy"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -25,38 +28,72 @@ import (
 var RunCmd = &cobra.Command{
 	Use:     "start",
 	Aliases: []string{"node", "run"},
-	Short:   "Run the rollkit node",
+	Short:   "Run the rollkit node with EVM execution client",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		opts := []log.Option{}
+		logLevel, _ := cmd.Flags().GetString(config.FlagLogLevel)
+		if logLevel != "" {
+			zl, err := zerolog.ParseLevel(logLevel)
+			if err != nil {
+				return err
+			}
+			opts = append(opts, log.LevelOption(zl))
+		}
+
+		logger := log.NewLogger(os.Stdout, opts...)
 
 		executor, err := createExecutionClient(cmd)
 		if err != nil {
-			panic(err)
+			return err
 		}
-		sequencer := coresequencer.NewDummySequencer()
 
 		nodeConfig, err := rollcmd.ParseConfig(cmd)
 		if err != nil {
-			panic(err)
+			return err
+		}
+
+		daJrpc, err := proxy.NewClient(nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		if err != nil {
+			return err
+		}
+
+		datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "evm-single")
+		if err != nil {
+			return err
+		}
+
+		singleMetrics, err := single.NopMetrics()
+		if err != nil {
+			return err
+		}
+
+		sequencer, err := single.NewSequencer(
+			context.Background(),
+			logger,
+			datastore,
+			daJrpc,
+			[]byte(nodeConfig.DA.Namespace),
+			[]byte(nodeConfig.ChainID),
+			nodeConfig.Node.BlockTime.Duration,
+			singleMetrics,
+			nodeConfig.Node.Aggregator,
+		)
+		if err != nil {
+			return err
 		}
 
 		// Create DA client with dummy DA
 		dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-		logger := log.NewLogger(os.Stdout)
 		dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
 
 		nodeKey, err := key.LoadNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 		if err != nil {
-			panic(err)
-		}
-
-		datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "testapp")
-		if err != nil {
-			panic(err)
+			return err
 		}
 
 		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, nil)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		return rollcmd.StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
