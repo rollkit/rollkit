@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -74,7 +75,10 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		sequencer, err := single.NewSequencer(
+			ctx,
 			logger,
 			datastore,
 			daJrpc,
