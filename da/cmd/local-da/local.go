@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -98,7 +99,7 @@ func (d *LocalDA) GetIDs(ctx context.Context, height uint64, _ []byte) (*coreda.
 	defer d.mu.Unlock()
 
 	if height > d.height {
-		return nil, da.ErrFutureHeight
+		return nil, fmt.Errorf("height %d is in the future: %w", height, da.ErrFutureHeight)
 	}
 
 	kvps, ok := d.data[height]
