@@ -5,17 +5,13 @@ import (
 	"os"
 
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 	cmds "github.com/rollkit/rollkit/rollups/testapp/cmd"
 )
 
 func main() {
 	// Initiate the root command
 	rootCmd := cmds.RootCmd
-
-	initCmd := rollcmd.InitCmd
-
-	rollkitconfig.AddFlags(initCmd)
+	initCmd := cmds.InitCmd()
 
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
