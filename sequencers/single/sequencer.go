@@ -3,11 +3,8 @@ package single
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"cosmossdk.io/log"
@@ -41,18 +38,15 @@ type Sequencer struct {
 	da        coreda.DA
 	batchTime time.Duration
 
-	seenBatches sync.Map
-
-	// submitted batches
-	sbq *BatchQueue
-	// pending batches
-	bq *BatchQueue
+	queue            *BatchQueue              // single queue for immediate availability
+	daSubmissionChan chan coresequencer.Batch // channel for ordered DA submission
 
 	metrics *Metrics
 }
 
 // NewSequencer creates a new Centralized Sequencer
 func NewSequencer(
+	ctx context.Context,
 	logger log.Logger,
 	db ds.Batching,
 	da coreda.DA,
@@ -62,43 +56,29 @@ func NewSequencer(
 	metrics *Metrics,
 	proposer bool,
 ) (*Sequencer, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
 	dalc := dac.NewDAClient(da, -1, -1, daNamespace, nil, logger)
-	mBlobSize, err := dalc.MaxBlobSize(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	maxBlobSize := &atomic.Uint64{}
-	maxBlobSize.Store(mBlobSize)
 
 	s := &Sequencer{
-		logger:    logger,
-		dalc:      dalc,
-		da:        da,
-		batchTime: batchTime,
-		rollupId:  rollupId,
-		// TODO: this can cause an overhead with IO
-		bq:          NewBatchQueue(db, "pending"),
-		sbq:         NewBatchQueue(db, "submitted"),
-		seenBatches: sync.Map{},
-		metrics:     metrics,
-		proposer:    proposer,
+		logger:           logger,
+		dalc:             dalc,
+		da:               da,
+		batchTime:        batchTime,
+		rollupId:         rollupId,
+		queue:            NewBatchQueue(db, "batches"),
+		daSubmissionChan: make(chan coresequencer.Batch, 100), // buffer size can be adjusted
+		metrics:          metrics,
+		proposer:         proposer,
 	}
 
-	err = s.bq.Load(ctx)
-	if err != nil {
+	loadCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.queue.Load(loadCtx); err != nil {
 		return nil, fmt.Errorf("failed to load batch queue from DB: %w", err)
 	}
 
-	err = s.sbq.Load(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load submitted batch queue from DB: %w", err)
-	}
-
-	go s.batchSubmissionLoop(ctx)
+	// Start the DA submission loop
+	go s.daSubmissionLoop(ctx)
 	return s, nil
 }
 
@@ -108,9 +88,17 @@ func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 		return nil, ErrInvalidRollupId
 	}
 
-	// create a batch from the set of transactions and store it in the queue
 	batch := coresequencer.Batch{Transactions: req.Batch.Transactions}
-	err := c.bq.AddBatch(ctx, batch)
+
+	// First try to send to DA submission channel
+	select {
+	case c.daSubmissionChan <- batch:
+	default:
+		return nil, fmt.Errorf("DA submission queue full, please retry later")
+	}
+
+	// Only add to queue if DA submission is possible
+	err := c.queue.AddBatch(ctx, batch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add batch: %w", err)
 	}
@@ -118,51 +106,37 @@ func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 	return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
 }
 
-// batchSubmissionLoop is a loop that publishes batches to the DA layer
-// It is called in a separate goroutine when the Sequencer is created
-func (c *Sequencer) batchSubmissionLoop(ctx context.Context) {
-	batchTimer := time.NewTimer(0)
-	defer batchTimer.Stop()
-
+// daSubmissionLoop processes batches for DA submission in order
+func (c *Sequencer) daSubmissionLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			c.logger.Info("DA submission loop stopped")
 			return
-		case <-batchTimer.C:
+		case batch := <-c.daSubmissionChan:
+			err := c.submitBatchToDA(ctx, batch)
+			if err != nil {
+				c.logger.Error("failed to submit batch to DA", "error", err)
+			}
 		}
-		start := time.Now()
-		err := c.publishBatch(ctx)
-		if err != nil && ctx.Err() == nil {
-			c.logger.Error("error while publishing block", "error", err)
-		}
-		batchTimer.Reset(getRemainingSleep(start, c.batchTime, 0))
 	}
 }
 
-// publishBatch publishes a batch to the DA layer
-func (c *Sequencer) publishBatch(ctx context.Context) error {
-	batch, err := c.bq.Next(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get next batch: %w", err)
-	}
-	if batch.Transactions == nil {
-		return nil
-	}
-	err = c.submitBatchToDA(ctx, *batch)
-	if err != nil {
-		// On failure, re-add the batch to the transaction queue for future retry
-		revertErr := c.bq.AddBatch(ctx, *batch)
-		if revertErr != nil {
-			return fmt.Errorf("failed to revert batch to queue: %w", revertErr)
-		}
-		return fmt.Errorf("failed to submit batch to DA: %w", err)
+// GetNextBatch implements sequencing.Sequencer.
+func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextBatchRequest) (*coresequencer.GetNextBatchResponse, error) {
+	if !c.isValid(req.RollupId) {
+		return nil, ErrInvalidRollupId
 	}
 
-	err = c.sbq.AddBatch(ctx, *batch)
+	batch, err := c.queue.Next(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	return &coresequencer.GetNextBatchResponse{
+		Batch:     batch,
+		Timestamp: time.Now(),
+	}, nil
 }
 
 func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
@@ -317,44 +291,6 @@ func getRemainingSleep(start time.Time, blockTime time.Duration, sleep time.Dura
 		return 0
 	}
 	return remaining + sleep
-}
-
-// GetNextBatch implements sequencing.Sequencer.
-func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextBatchRequest) (*coresequencer.GetNextBatchResponse, error) {
-	if !c.isValid(req.RollupId) {
-		return nil, ErrInvalidRollupId
-	}
-	now := time.Now()
-
-	batch, err := c.sbq.Next(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	batchRes := &coresequencer.GetNextBatchResponse{Batch: batch, Timestamp: now, BatchData: nil} // TODO: populate with DA IDs for all the batches
-	if batch.Transactions == nil {
-		return batchRes, nil
-	}
-
-	h, err := batch.Hash()
-	if err != nil {
-		return c.recover(ctx, *batch, err)
-	}
-
-	hexHash := hex.EncodeToString(h)
-
-	c.seenBatches.Store(hexHash, struct{}{})
-
-	return batchRes, nil
-}
-
-func (c *Sequencer) recover(ctx context.Context, batch coresequencer.Batch, err error) (*coresequencer.GetNextBatchResponse, error) {
-	// Revert the batch if Hash() errors out by adding it back to the BatchQueue
-	revertErr := c.bq.AddBatch(ctx, batch)
-	if revertErr != nil {
-		return nil, fmt.Errorf("failed to revert batch: %w", revertErr)
-	}
-	return nil, fmt.Errorf("failed to generate hash for batch: %w", err)
 }
 
 // VerifyBatch implements sequencing.Sequencer.
