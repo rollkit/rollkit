@@ -62,15 +62,11 @@ var NodeInfoCmd = &cobra.Command{
 		fmt.Printf("🆔 Node ID:      \033[1;36m%s\033[0m\n", nodeID) // Print Node ID once
 
 		// Iterate through all listen addresses
-		if len(netInfo.ListenAddresses) > 1 {
-			fmt.Println("📡 Listen Addrs:")
-			for i, addr := range netInfo.ListenAddresses {
-				fullAddress := fmt.Sprintf("%s/p2p/%s", addr, nodeID)
-				fmt.Printf("   [%d] Addr: \033[1;36m%s\033[0m\n", i+1, addr)
-				fmt.Printf("       Full: \033[1;32m%s\033[0m\n", fullAddress)
-			}
-		} else {
-			fmt.Println("📡 Listen Addrs: \033[3;33mNone found\033[0m") // Handle case with no addresses
+		fmt.Println("📡 Listen Addrs:")
+		for i, addr := range netInfo.ListenAddresses {
+			fullAddress := fmt.Sprintf("%s/p2p/%s", addr, nodeID)
+			fmt.Printf("   [%d] Addr: \033[1;36m%s\033[0m\n", i+1, addr)
+			fmt.Printf("       Full: \033[1;32m%s\033[0m\n", fullAddress)
 		}
 
 		fmt.Println(strings.Repeat("-", 50))
