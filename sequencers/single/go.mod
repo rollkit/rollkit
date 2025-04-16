@@ -11,13 +11,13 @@ replace (
 require (
 	cosmossdk.io/log v1.5.0
 	github.com/go-kit/kit v0.13.0
-	github.com/ipfs/go-datastore v0.7.0
-	github.com/prometheus/client_golang v1.21.0
+	github.com/ipfs/go-datastore v0.8.2
+	github.com/prometheus/client_golang v1.21.1
 	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/da v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.10.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.6
 )
 
 require (
@@ -28,16 +28,15 @@ require (
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/jbenet/goprocess v0.1.4 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.62.0 // indirect
-	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/prometheus/common v0.63.0 // indirect
+	github.com/prometheus/procfs v0.16.0 // indirect
 	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
