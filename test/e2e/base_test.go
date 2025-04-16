@@ -5,6 +5,7 @@ package e2e
 import (
 	"context"
 	"flag"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func TestBasic(t *testing.T) {
 	var (
 		workDir   = t.TempDir()
 		node1Home = filepath.Join(workDir, "1")
-		// node2Home = filepath.Join(workDir, "2")
+		node2Home = filepath.Join(workDir, "2")
 	)
 
 	// Define and parse the binary flag locally in the test function.
@@ -64,22 +65,34 @@ func TestBasic(t *testing.T) {
 	)
 	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
 
-	// // copy genesis to target home2
-	// output, err = sut.RunCmd(binaryPath,
-	// 	"init",
-	// 	"--home="+node2Home,
-	// )
-	// require.NoError(t, err, "failed to init fullnode", output)
-	// MustCopyFile(t, filepath.Join(node1Home, "config", "genesis.json"), filepath.Join(node2Home, "config", "genesis.json"))
-	// sut.StartNode(
-	// 	binaryPath,
-	// 	"start",
-	// 	"--home="+node2Home,
-	// 	fmt.Sprintf("--rollkit.p2p.seeds=%s@127.0.0.1:26656", NodeID(t, node1Home)),
-	// 	"--rollkit.log.level=debug",
-	// 	"--rollkit.rpc.address=127.0.0.1:7332",
-	// )
-	// sut.AwaitNodeUp(t, "http://127.0.0.1:7332", 2*time.Second)
+	// Give aggregator more time before starting the next node
+	time.Sleep(1 * time.Second) // Increased wait time
+
+	// Init the second node (full node)
+	output, err = sut.RunCmd(binaryPath,
+		"init",
+		"--chain_id=testing",
+		"--home="+node2Home,
+	)
+	require.NoError(t, err, "failed to init fullnode", output)
+
+	// Copy genesis file from aggregator to full node
+	MustCopyFile(t, filepath.Join(node1Home, "config", "genesis.json"), filepath.Join(node2Home, "config", "genesis.json"))
+
+	// Start the full node
+	node2RPC := "127.0.0.1:7332"
+	node2P2P := "/ip4/0.0.0.0/tcp/7676"
+	sut.StartNode(
+		binaryPath,
+		"start",
+		"--home="+node2Home,
+		"--rollkit.log.level=debug",
+		"--rollkit.p2p.listen_address="+node2P2P,
+		fmt.Sprintf("--rollkit.rpc.address=%s", node2RPC),
+	)
+
+	sut.AwaitNodeUp(t, "http://"+node2RPC, 20*time.Second)
+	t.Logf("Full node (node 2) is up.")
 
 	asserNodeCaughtUp := func(c *client.Client, height uint64) {
 		ctx, done := context.WithTimeout(context.Background(), time.Second)
@@ -93,15 +106,24 @@ func TestBasic(t *testing.T) {
 	require.NoError(t, err)
 	asserNodeCaughtUp(node1Client, 1)
 
-	// get latest height
-	// ctx, done := context.WithTimeout(context.Background(), time.Second)
-	// defer done()
-	// state, err := node1Client.GetState(ctx)
-	// require.NoError(t, err)
+	// get latest height for node 1
+	ctx, done := context.WithTimeout(context.Background(), time.Second)
+	defer done()
+	state, err := node1Client.GetState(ctx)
+	require.NoError(t, err)
 
-	// node2Client := client.NewClient("http://127.0.0.1:16657")
-	// require.NoError(t, err)
-	// asserNodeCaughtUp(node2Client, state.LastBlockHeight)
+	node2Client := client.NewClient("http://" + node2RPC) // Use variable and prepend http://
+	require.NotNil(t, node2Client, "Failed to create client for node 2")
+	require.Eventually(t, func() bool {
+		ctxNode2, doneNode2 := context.WithTimeout(context.Background(), time.Second)
+		defer doneNode2()
+		stateNode2, err := node2Client.GetState(ctxNode2)
+		if err != nil {
+			t.Logf("Error getting state from node 2: %v", err)
+			return false
+		}
+		return stateNode2.LastBlockHeight >= state.LastBlockHeight
+	}, 10*time.Second, 500*time.Millisecond, "Node 2 failed to catch up")
 
 	// when a client TX for state update is executed
 	// const myKey = "foo"

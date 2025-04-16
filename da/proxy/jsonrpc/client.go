@@ -4,11 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 
+	logger "cosmossdk.io/log"
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"github.com/rollkit/rollkit/core/da"
 )
+
+// Define a package-level logger for the client
+var clientLog = logger.NewLogger(os.Stdout).With("module", "da-rpc", "layer", "client")
 
 // Module wraps the DA interface
 //
@@ -35,50 +40,113 @@ type API struct {
 
 // MaxBlobSize returns the max blob size
 func (api *API) MaxBlobSize(ctx context.Context) (uint64, error) {
-	return api.Internal.MaxBlobSize(ctx)
+	clientLog.Debug("Making RPC call", "method", "MaxBlobSize")
+	res, err := api.Internal.MaxBlobSize(ctx)
+	if err != nil {
+		clientLog.Error("RPC call failed", "method", "MaxBlobSize", "error", err)
+	} else {
+		clientLog.Debug("RPC call successful", "method", "MaxBlobSize", "result", res)
+	}
+	return res, err
 }
 
 // Get returns Blob for each given ID, or an error.
 func (api *API) Get(ctx context.Context, ids []da.ID, ns []byte) ([]da.Blob, error) {
-	return api.Internal.Get(ctx, ids, ns)
+	clientLog.Debug("Making RPC call", "method", "Get", "num_ids", len(ids), "namespace", string(ns))
+	res, err := api.Internal.Get(ctx, ids, ns)
+	if err != nil {
+		clientLog.Error("RPC call failed", "method", "Get", "error", err)
+	} else {
+		clientLog.Debug("RPC call successful", "method", "Get", "num_blobs_returned", len(res))
+	}
+	return res, err
 }
 
 // GetIDs returns IDs of all Blobs located in DA at given height.
 func (api *API) GetIDs(ctx context.Context, height uint64, ns []byte) (*da.GetIDsResult, error) {
-	return api.Internal.GetIDs(ctx, height, ns)
+	clientLog.Debug("Making RPC call", "method", "GetIDs", "height", height, "namespace", string(ns))
+	res, err := api.Internal.GetIDs(ctx, height, ns)
+	if err != nil {
+		clientLog.Error("RPC call failed", "method", "GetIDs", "error", err)
+	} else {
+		clientLog.Debug("RPC call successful", "method", "GetIDs")
+	}
+	return res, err
 }
 
 // GetProofs returns inclusion Proofs for Blobs specified by their IDs.
 func (api *API) GetProofs(ctx context.Context, ids []da.ID, ns []byte) ([]da.Proof, error) {
-	return api.Internal.GetProofs(ctx, ids, ns)
+	clientLog.Debug("Making RPC call", "method", "GetProofs", "num_ids", len(ids), "namespace", string(ns))
+	res, err := api.Internal.GetProofs(ctx, ids, ns)
+	if err != nil {
+		clientLog.Error("RPC call failed", "method", "GetProofs", "error", err)
+	} else {
+		clientLog.Debug("RPC call successful", "method", "GetProofs", "num_proofs_returned", len(res))
+	}
+	return res, err
 }
 
 // Commit creates a Commitment for each given Blob.
 func (api *API) Commit(ctx context.Context, blobs []da.Blob, ns []byte) ([]da.Commitment, error) {
-	return api.Internal.Commit(ctx, blobs, ns)
+	clientLog.Debug("Making RPC call", "method", "Commit", "num_blobs", len(blobs), "namespace", string(ns))
+	res, err := api.Internal.Commit(ctx, blobs, ns)
+	if err != nil {
+		clientLog.Error("RPC call failed", "method", "Commit", "error", err)
+	} else {
+		clientLog.Debug("RPC call successful", "method", "Commit", "num_commitments_returned", len(res))
+	}
+	return res, err
 }
 
 // Validate validates Commitments against the corresponding Proofs. This should be possible without retrieving the Blobs.
 func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, ns []byte) ([]bool, error) {
-	return api.Internal.Validate(ctx, ids, proofs, ns)
-}
-
-// Submit submits the Blobs to Data Availability layer.
-func (api *API) SubmitWithOptions(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
-	return api.Internal.SubmitWithOptions(ctx, blobs, gasPrice, ns, options)
+	clientLog.Debug("Making RPC call", "method", "Validate", "num_ids", len(ids), "num_proofs", len(proofs), "namespace", string(ns))
+	res, err := api.Internal.Validate(ctx, ids, proofs, ns)
+	if err != nil {
+		clientLog.Error("RPC call failed", "method", "Validate", "error", err)
+	} else {
+		clientLog.Debug("RPC call successful", "method", "Validate", "num_results_returned", len(res))
+	}
+	return res, err
 }
 
 // Submit submits the Blobs to Data Availability layer.
 func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte) ([]da.ID, error) {
-	return api.Internal.Submit(ctx, blobs, gasPrice, ns)
+	return api.SubmitWithOptions(ctx, blobs, gasPrice, ns, nil)
+}
+
+// SubmitWithOptions submits the Blobs to Data Availability layer with additional options.
+func (api *API) SubmitWithOptions(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
+	clientLog.Debug("Making RPC call", "method", "Submit", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns))
+	res, err := api.Internal.SubmitWithOptions(ctx, blobs, gasPrice, ns, options)
+	if err != nil {
+		clientLog.Error("RPC call failed", "method", "Submit", "error", err)
+	} else {
+		clientLog.Debug("RPC call successful", "method", "Submit", "num_ids_returned", len(res))
+	}
+	return res, err
 }
 
 func (api *API) GasMultiplier(ctx context.Context) (float64, error) {
-	return api.Internal.GasMultiplier(ctx)
+	clientLog.Debug("Making RPC call", "method", "GasMultiplier")
+	res, err := api.Internal.GasMultiplier(ctx)
+	if err != nil {
+		clientLog.Error("RPC call failed", "method", "GasMultiplier", "error", err)
+	} else {
+		clientLog.Debug("RPC call successful", "method", "GasMultiplier", "result", res)
+	}
+	return res, err
 }
 
 func (api *API) GasPrice(ctx context.Context) (float64, error) {
-	return api.Internal.GasPrice(ctx)
+	clientLog.Debug("Making RPC call", "method", "GasPrice")
+	res, err := api.Internal.GasPrice(ctx)
+	if err != nil {
+		clientLog.Error("RPC call failed", "method", "GasPrice", "error", err)
+	} else {
+		clientLog.Debug("RPC call successful", "method", "GasPrice", "result", res)
+	}
+	return res, err
 }
 
 // Client is the jsonrpc client

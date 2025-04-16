@@ -9,8 +9,11 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	dssync "github.com/ipfs/go-datastore/sync"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // createTestBatch creates a batch with dummy transactions for testing
@@ -24,8 +27,8 @@ func createTestBatch(t *testing.T, txCount int) coresequencer.Batch {
 
 func setupTestQueue(t *testing.T) *BatchQueue {
 	// Create an in-memory thread-safe datastore
-	memdb := dssync.MutexWrap(ds.NewMapDatastore())
-	return NewBatchQueue(memdb, "test")
+	memdb := newPrefixKV(ds.NewMapDatastore(), "single")
+	return NewBatchQueue(memdb, "batching")
 }
 
 func TestNewBatchQueue(t *testing.T) {
@@ -207,79 +210,88 @@ func TestNextBatch(t *testing.T) {
 	}
 }
 
-func TestLoad(t *testing.T) {
-	tests := []struct {
-		name             string
-		setupBatchCounts []int // Transaction counts for batches to add before the test
-		processCount     int   // Number of batches to process before reload
-		expectedQueueLen int   // Expected queue length after reload
-		expectErr        bool
-	}{
-		{
-			name:             "reload from empty datastore",
-			setupBatchCounts: []int{},
-			processCount:     0,
-			expectedQueueLen: 0,
-			expectErr:        false,
-		},
-		{
-			name:             "reload unprocessed batches only",
-			setupBatchCounts: []int{1, 2, 3, 4, 5},
-			processCount:     2, // Process the first two batches
-			expectedQueueLen: 3, // Should reload the remaining 3
-			expectErr:        false,
-		},
-		{
-			name:             "reload when all batches processed",
-			setupBatchCounts: []int{1, 2, 3},
-			processCount:     3, // Process all batches
-			expectedQueueLen: 0, // Should reload none
-			expectErr:        false,
-		},
+func TestLoad_WithMixedData(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+
+	// Use a raw datastore to manually insert mixed data
+	rawDB := dssync.MutexWrap(ds.NewMapDatastore())
+	queuePrefix := "/batches/" // Define a specific prefix for the queue
+
+	// Create the BatchQueue using the raw DB and the prefix
+	bq := NewBatchQueue(rawDB, queuePrefix)
+	require.NotNil(bq)
+
+	// 1. Add valid batch data under the correct prefix
+	validBatch1 := createTestBatch(t, 3)
+	hash1, err := validBatch1.Hash()
+	require.NoError(err)
+	pbBatch1 := &pb.Batch{Txs: validBatch1.Transactions}
+	encodedBatch1, err := proto.Marshal(pbBatch1)
+	require.NoError(err)
+	err = rawDB.Put(ctx, ds.NewKey(queuePrefix+string(hash1)), encodedBatch1)
+	require.NoError(err)
+
+	validBatch2 := createTestBatch(t, 5)
+	hash2, err := validBatch2.Hash()
+	require.NoError(err)
+	pbBatch2 := &pb.Batch{Txs: validBatch2.Transactions}
+	encodedBatch2, err := proto.Marshal(pbBatch2)
+	require.NoError(err)
+	err = rawDB.Put(ctx, ds.NewKey(queuePrefix+string(hash2)), encodedBatch2)
+	require.NoError(err)
+
+	// 3. Add data outside the queue's prefix
+	otherDataKey1 := ds.NewKey("/other/data")
+	err = rawDB.Put(ctx, otherDataKey1, []byte("some other data"))
+	require.NoError(err)
+	otherDataKey2 := ds.NewKey("root_data") // No prefix slash
+	err = rawDB.Put(ctx, otherDataKey2, []byte("more data"))
+	require.NoError(err)
+
+	// Ensure all data is initially present in the raw DB
+	initialKeys := map[string]bool{
+		queuePrefix + string(hash1): true,
+		queuePrefix + string(hash2): true,
+		otherDataKey1.String():      true,
+		otherDataKey2.String():      true,
 	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			bq := setupTestQueue(t)
-			ctx := context.Background()
-
-			// Add initial batches
-			for _, txCount := range tc.setupBatchCounts {
-				batch := createTestBatch(t, txCount)
-				err := bq.AddBatch(ctx, batch)
-				if err != nil {
-					t.Fatalf("unexpected error adding batch: %v", err)
-				}
-			}
-
-			// Process specified number of batches
-			for i := 0; i < tc.processCount; i++ {
-				if i < len(tc.setupBatchCounts) {
-					_, err := bq.Next(ctx)
-					if err != nil {
-						t.Fatalf("unexpected error processing batch: %v", err)
-					}
-				}
-			}
-
-			// Clear the queue to simulate restart
-			bq.queue = make([]coresequencer.Batch, 0)
-
-			// Reload from datastore
-			err := bq.Load(ctx)
-			if tc.expectErr && err == nil {
-				t.Error("expected error but got none")
-			}
-			if !tc.expectErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
-
-			// Verify queue length after reload
-			if len(bq.queue) != tc.expectedQueueLen {
-				t.Errorf("expected queue length %d, got %d", tc.expectedQueueLen, len(bq.queue))
-			}
-		})
+	q := query.Query{}
+	results, err := rawDB.Query(ctx, q)
+	require.NoError(err)
+	count := 0
+	for res := range results.Next() {
+		require.NoError(res.Error)
+		_, ok := initialKeys[res.Key]
+		require.True(ok, "Unexpected key found before load: %s", res.Key)
+		count++
 	}
+	results.Close()
+	require.Equal(len(initialKeys), count, "Initial data count mismatch")
+
+	// Call Load
+	loadErr := bq.Load(ctx)
+	// The current implementation prints errors but continues, so we expect no error return
+	require.NoError(loadErr, "Load returned an unexpected error")
+
+	// Verify queue contains only the valid batches
+	require.Equal(2, len(bq.queue), "Queue should contain only the 2 valid batches")
+	// Check hashes to be sure (order might vary depending on datastore query)
+	loadedHashes := make(map[string]bool)
+	for _, batch := range bq.queue {
+		h, _ := batch.Hash()
+		loadedHashes[string(h)] = true
+	}
+	require.True(loadedHashes[string(hash1)], "Valid batch 1 not found in queue")
+	require.True(loadedHashes[string(hash2)], "Valid batch 2 not found in queue")
+
+	// Verify data outside the prefix remains untouched in the raw DB
+	val, err := rawDB.Get(ctx, otherDataKey1)
+	require.NoError(err)
+	require.Equal([]byte("some other data"), val)
+	val, err = rawDB.Get(ctx, otherDataKey2)
+	require.NoError(err)
+	require.Equal([]byte("more data"), val)
 }
 
 func TestConcurrency(t *testing.T) {

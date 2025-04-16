@@ -372,14 +372,18 @@ func (syncService *SyncService[H]) getChainID() string {
 func (syncService *SyncService[H]) getPeerIDs() []peer.ID {
 	peerIDs := syncService.p2p.PeerIDs()
 	if !syncService.conf.Node.Aggregator {
-		peerIDs = append(peerIDs, getSeedNodes(syncService.conf.P2P.Peers, syncService.logger)...)
+		peerIDs = append(peerIDs, getPeers(syncService.conf.P2P.Peers, syncService.logger)...)
 	}
 	return peerIDs
 }
 
-func getSeedNodes(seeds string, logger log.Logger) []peer.ID {
+func getPeers(seeds string, logger log.Logger) []peer.ID {
 	var peerIDs []peer.ID
-	for _, seed := range strings.Split(seeds, ",") {
+	sl := strings.Split(seeds, ",")
+	if len(sl) == 0 {
+		return peerIDs
+	}
+	for _, seed := range sl {
 		maddr, err := multiaddr.NewMultiaddr(seed)
 		if err != nil {
 			logger.Error("failed to parse peer", "address", seed, "error", err)

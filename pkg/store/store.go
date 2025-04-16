@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"strconv"
 
 	ds "github.com/ipfs/go-datastore"
 	"google.golang.org/protobuf/proto"
@@ -103,7 +102,7 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 		return fmt.Errorf("failed to put data blob in batch: %w", err)
 	}
 	if err := batch.Put(ctx, ds.NewKey(getSignatureKey(height)), signatureHash[:]); err != nil {
-		return fmt.Errorf("failed to put commit blob in batch: %w", err)
+		return fmt.Errorf("failed to put signature of block blob in batch: %w", err)
 	}
 	if err := batch.Put(ctx, ds.NewKey(getIndexKey(hash)), encodeHeight(height)); err != nil {
 		return fmt.Errorf("failed to put index key in batch: %w", err)
@@ -231,34 +230,6 @@ func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, err
 		return nil, fmt.Errorf("failed to get metadata for key '%s': %w", key, err)
 	}
 	return data, nil
-}
-
-func getHeaderKey(height uint64) string {
-	return GenerateKey([]string{headerPrefix, strconv.FormatUint(height, 10)})
-}
-
-func getDataKey(height uint64) string {
-	return GenerateKey([]string{dataPrefix, strconv.FormatUint(height, 10)})
-}
-
-func getSignatureKey(height uint64) string {
-	return GenerateKey([]string{signaturePrefix, strconv.FormatUint(height, 10)})
-}
-
-func getStateKey() string {
-	return statePrefix
-}
-
-func getMetaKey(key string) string {
-	return GenerateKey([]string{metaPrefix, key})
-}
-
-func getIndexKey(hash types.Hash) string {
-	return GenerateKey([]string{indexPrefix, hash.String()})
-}
-
-func getHeightKey() string {
-	return GenerateKey([]string{heightPrefix})
 }
 
 const heightLength = 8

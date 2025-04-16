@@ -8,8 +8,9 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"google.golang.org/protobuf/proto"
+
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
@@ -20,23 +21,26 @@ func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
 
 // BatchQueue implements a persistent queue for transaction batches
 type BatchQueue struct {
-	queue []coresequencer.Batch
-	mu    sync.Mutex
-	// the datastore to store the batches
-	// it is closed by the process which passes it in
-	db ds.Batching
+	queue  []coresequencer.Batch
+	mu     sync.Mutex
+	db     ds.Batching
+	prefix string
 }
 
 // NewBatchQueue creates a new TransactionQueue
 func NewBatchQueue(db ds.Batching, prefix string) *BatchQueue {
 	return &BatchQueue{
-		queue: make([]coresequencer.Batch, 0),
-		db:    newPrefixKV(db, prefix),
+		queue:  make([]coresequencer.Batch, 0),
+		db:     newPrefixKV(db, prefix),
+		prefix: prefix,
 	}
 }
 
 // AddBatch adds a new transaction to the queue and writes it to the WAL
 func (bq *BatchQueue) AddBatch(ctx context.Context, batch coresequencer.Batch) error {
+	bq.mu.Lock()
+	defer bq.mu.Unlock()
+
 	hash, err := batch.Hash()
 	if err != nil {
 		return err
@@ -51,15 +55,13 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch coresequencer.Batch) e
 		return err
 	}
 
-	// First write to WAL for durability
+	// First write to DB for durability
 	if err := bq.db.Put(ctx, ds.NewKey(string(hash)), encodedBatch); err != nil {
 		return err
 	}
 
 	// Then add to in-memory queue
-	bq.mu.Lock()
 	bq.queue = append(bq.queue, batch)
-	bq.mu.Unlock()
 
 	return nil
 }
@@ -99,20 +101,26 @@ func (bq *BatchQueue) Load(ctx context.Context) error {
 	// Clear the current queue
 	bq.queue = make([]coresequencer.Batch, 0)
 
-	// List all entries from the datastore
-	results, err := bq.db.Query(ctx, query.Query{})
+	// List all entries from the datastore using the correct prefix
+	q := query.Query{
+		Prefix: bq.prefix, // Use the stored prefix for filtering
+	}
+	results, err := bq.db.Query(ctx, q)
 	if err != nil {
-		return err
+		return fmt.Errorf("error querying datastore with prefix '%s': %w", bq.prefix, err)
 	}
 	defer results.Close()
 
 	// Load each batch
 	for result := range results.Next() {
+		if result.Error != nil {
+			fmt.Printf("Error reading entry from datastore with prefix '%s': %v\n", bq.prefix, result.Error)
+			continue
+		}
 		pbBatch := &pb.Batch{}
 		err := proto.Unmarshal(result.Value, pbBatch)
 		if err != nil {
-			fmt.Printf("Error decoding batch: %v\n", err)
-			continue
+			return fmt.Errorf("Error decoding batch for key '%s' (prefix '%s'): %v. Attempting to delete entry.\n", result.Key, bq.prefix, err)
 		}
 		bq.queue = append(bq.queue, coresequencer.Batch{Transactions: pbBatch.Txs})
 	}
