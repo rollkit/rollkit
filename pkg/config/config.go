@@ -288,9 +288,6 @@ func Load(cmd *cobra.Command) (Config, error) {
 		home = DefaultRootDir
 	}
 
-	cfg := DefaultConfig
-	cfg.RootDir = home
-
 	v := viper.New()
 	v.SetConfigName(ConfigFileName)
 	v.SetConfigType(ConfigExtension)
@@ -304,17 +301,74 @@ func Load(cmd *cobra.Command) (Config, error) {
 	// get the executable name
 	executableName, err := os.Executable()
 	if err != nil {
-		return cfg, err
+		return Config{}, err
 	}
 
 	if err := bindFlags(path.Base(executableName), cmd, v); err != nil {
-		return cfg, err
+		return Config{}, err
 	}
 
 	// read the configuration file
 	// if the configuration file does not exist, we ignore the error
 	// it will use the defaults
 	_ = v.ReadInConfig()
+
+	return loadFromViper(v, home)
+}
+
+// LoadFromViper loads the node configuration from a provided viper instance.
+// It gets the home directory from the input viper, sets up a new viper instance
+// to read the config file, and then merges both instances.
+// This allows getting configuration values from both command line flags (or other sources)
+// and the config file, with the same precedence as Load.
+func LoadFromViper(inputViper *viper.Viper) (Config, error) {
+	// get home directory from input viper
+	home := inputViper.GetString(FlagRootDir)
+	if home == "" {
+		home = DefaultRootDir
+	}
+
+	// create a new viper instance for reading the config file
+	fileViper := viper.New()
+	fileViper.SetConfigName(ConfigFileName)
+	fileViper.SetConfigType(ConfigExtension)
+	fileViper.AddConfigPath(filepath.Join(home, AppConfigDir))
+	fileViper.AddConfigPath(filepath.Join(home, AppConfigDir, ConfigName))
+	fileViper.SetConfigFile(filepath.Join(home, AppConfigDir, ConfigName))
+
+	// read the configuration file
+	// if the configuration file does not exist, we ignore the error
+	// it will use the defaults
+	_ = fileViper.ReadInConfig()
+
+	// create a merged viper with input viper taking precedence
+	mergedViper := viper.New()
+
+	// first copy all settings from file viper
+	for _, key := range fileViper.AllKeys() {
+		mergedViper.Set(key, fileViper.Get(key))
+	}
+
+	// then override with settings from input viper (higher precedence)
+	for _, key := range inputViper.AllKeys() {
+		// Handle special case for prefixed keys
+		if strings.HasPrefix(key, "rollkit.") {
+			// Strip the prefix for the merged viper
+			strippedKey := strings.TrimPrefix(key, "rollkit.")
+			mergedViper.Set(strippedKey, inputViper.Get(key))
+		} else {
+			mergedViper.Set(key, inputViper.Get(key))
+		}
+	}
+
+	return loadFromViper(mergedViper, home)
+}
+
+// loadFromViper is a helper function that processes a viper instance and returns a Config.
+// It is used by both Load and LoadFromViper to ensure consistent behavior.
+func loadFromViper(v *viper.Viper, home string) (Config, error) {
+	cfg := DefaultConfig
+	cfg.RootDir = home
 
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
