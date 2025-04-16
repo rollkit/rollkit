@@ -1242,6 +1242,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the signature to current block's signed header
 		header.Signature = signature
+
+		if err := header.ValidateBasic(); err != nil {
+			// TODO(tzdybal): I think this is could be even a panic, because if this happens, header is FUBAR
+			m.logger.Error("header validation error", "error", err)
+		}
+
 		err = m.store.SaveBlockData(ctx, header, data, &signature)
 		if err != nil {
 			return SaveBlockError{err}
