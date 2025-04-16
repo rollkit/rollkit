@@ -10,7 +10,10 @@ This directory contains the implementation of a single EVM sequencer using Rollk
 
 ## Starting the Aggregator Node
 
-1. First, ensure that Reth is running using Docker Compose from the go-execution-evm repository.
+1. Both EVM and DA layers must be running before starting the aggregator
+   1. For the EVM layer, Reth can be conveniently run using `docker compose` from the go-execution-evm repository.
+   2. For the DA layer, local-da can be built and run from the `rollkit/da/cmd/local-da` directory.
+
 
 2. Build the sequencer:
 ```bash
