@@ -199,7 +199,6 @@ daSubmitRetryLoop:
 
 		// Attempt to submit the batch to the DA layer
 		res := c.dalc.Submit(ctx, currentBatch.Transactions, maxBlobSize, gasPrice)
-		fmt.Println(res, "res", "therere")
 
 		gasMultiplier, err := c.dalc.GasMultiplier(ctx)
 		if err != nil {

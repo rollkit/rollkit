@@ -3,6 +3,7 @@ package block
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
@@ -475,7 +476,9 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 		metrics:      NopMetrics(),
 	}
 
-	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return([]byte{0}, nil)
+	bz := make([]byte, 8)
+	binary.LittleEndian.PutUint64(bz, 0)
+	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(bz, nil)
 	err = m.pendingHeaders.init()
 	require.NoError(err)
 
@@ -553,7 +556,9 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		metrics:      NopMetrics(),
 	}
 
-	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return([]byte{0}, nil)
+	bz := make([]byte, 8)
+	binary.LittleEndian.PutUint64(bz, 0)
+	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(bz, nil)
 	err = m.pendingHeaders.init()
 	require.NoError(err)
 

@@ -497,6 +497,9 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 			m.logger.Error("error while setting last batch hash", "error", err)
 		}
 		m.lastBatchData = res.BatchData
+		if len(res.Batch.Transactions) == 0 {
+			return nil, ErrNoBatch
+		}
 		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
 	}
 	return nil, ErrNoBatch
@@ -1214,12 +1217,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return nil // Indicate no block was produced
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
-		}
-
-		// Check if the batch contains any transactions
-		if len(batchData.Batch.Transactions) == 0 {
-			m.logger.Info("Retrieved batch contains no transactions, skipping block production")
-			return nil // Indicate no block was produced
 		}
 
 		// sanity check timestamp for monotonically increasing
