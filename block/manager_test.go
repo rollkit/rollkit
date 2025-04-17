@@ -476,7 +476,8 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	}
 
 	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return([]byte{0}, nil)
-	m.pendingHeaders.init()
+	err = m.pendingHeaders.init()
+	require.NoError(err)
 
 	// Mock store calls for height and previous block/commit
 	currentHeight := uint64(1)
@@ -553,7 +554,8 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	}
 
 	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return([]byte{0}, nil)
-	m.pendingHeaders.init()
+	err = m.pendingHeaders.init()
+	require.NoError(err)
 
 	// Mock store calls
 	currentHeight := uint64(1)
