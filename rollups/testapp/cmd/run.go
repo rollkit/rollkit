@@ -39,7 +39,7 @@ var RunCmd = &cobra.Command{
 
 		// Create test implementations
 		// TODO: we need to start the executor http server
-		executor := kvexecutor.CreateDirectKVExecutor()
+		executor := kvexecutor.NewKVExecutor()
 
 		nodeConfig, err := rollcmd.ParseConfig(cmd)
 		if err != nil {

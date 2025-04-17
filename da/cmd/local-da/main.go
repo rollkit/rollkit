@@ -4,10 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
+
 	"os"
 	"os/signal"
 	"syscall"
+
+	"cosmossdk.io/log"
 
 	proxy "github.com/rollkit/rollkit/da/proxy/jsonrpc"
 )
@@ -32,12 +34,14 @@ func main() {
 		host = "0.0.0.0"
 	}
 
-	da := NewLocalDA()
+	// create logger
+	logger := log.NewLogger(os.Stdout).With("module", "da")
+	da := NewLocalDA(logger)
 
 	srv := proxy.NewServer(host, port, da)
-	log.Printf("Listening on: %s:%s", host, port)
+	logger.Info("Listening on: %s:%s", host, port)
 	if err := srv.Start(context.Background()); err != nil {
-		log.Fatal("error while serving:", err)
+		logger.Info("error while serving:", err)
 	}
 
 	interrupt := make(chan os.Signal, 1)

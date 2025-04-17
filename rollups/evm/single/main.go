@@ -6,8 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/rollkit/rollkit/pkg/cmd"
+	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+
+	"github.com/rollkit/rollkit/rollups/evm/single/cmd"
 )
 
 func main() {
@@ -19,16 +21,13 @@ func main() {
 
 	rollkitconfig.AddGlobalFlags(rootCmd, "evm-single")
 
-	// Add subcommands to the root command
-	initCmd := cmd.InitCmd
-	rollkitconfig.AddFlags(initCmd)
-
 	rootCmd.AddCommand(
-		initCmd,
-		RunCmd,
-		cmd.NewDocsGenCmd(rootCmd, "evm-single"),
-		cmd.VersionCmd,
-		cmd.NodeInfoCmd,
+		cmd.InitCmd(),
+		cmd.RunCmd,
+		rollcmd.NewDocsGenCmd(rootCmd, "evm-single"),
+		rollcmd.VersionCmd,
+		rollcmd.NodeInfoCmd,
+		rollcmd.StoreUnsafeCleanCmd,
 	)
 
 	if err := rootCmd.Execute(); err != nil {
