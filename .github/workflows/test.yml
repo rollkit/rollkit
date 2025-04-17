@@ -18,7 +18,7 @@ jobs:
         run: make build
 
   build_evm-single:
-    name: Build Test App
+    name: Build EVM Single App
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
