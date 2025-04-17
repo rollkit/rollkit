@@ -73,7 +73,7 @@ func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint
 		return coreda.ResultSubmit{
 			BaseResult: coreda.BaseResult{
 				Code:    coreda.StatusError,
-				Message: "failed to submit headers: no blobs generated " + message,
+				Message: "failed to submit blobs: no blobs generated " + message,
 			},
 		}
 	}
@@ -96,7 +96,7 @@ func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint
 		return coreda.ResultSubmit{
 			BaseResult: coreda.BaseResult{
 				Code:    status,
-				Message: "failed to submit headers: " + err.Error(),
+				Message: "failed to submit blobs: " + err.Error(),
 			},
 		}
 	}
@@ -105,7 +105,7 @@ func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint
 		return coreda.ResultSubmit{
 			BaseResult: coreda.BaseResult{
 				Code:    coreda.StatusError,
-				Message: "failed to submit headers: unexpected len(ids): 0",
+				Message: "failed to submit blobs: unexpected len(ids): 0",
 			},
 		}
 	}

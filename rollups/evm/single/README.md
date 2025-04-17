@@ -16,10 +16,10 @@ This directory contains the implementation of a single EVM sequencer using Rollk
 
 2. Build the sequencer:
 
-```bash
-go build -o evm-single ./cmd/
-```
-
+  ```bash
+  go build -o evm-single .
+  ```
+  
 3. Initialize the sequencer:
 
 ```bash
