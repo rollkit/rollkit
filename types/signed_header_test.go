@@ -58,7 +58,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 			prepare: func() (*SignedHeader, bool) {
 				// Checks for non-adjacency
 				untrusted := *untrustedAdj
-				untrusted.Header.BaseHeader.Height++
+				untrusted.BaseHeader.Height++
 				return &untrusted, true
 			},
 			err: nil,
@@ -69,7 +69,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.Header.ProposerAddress = GetRandomBytes(32)
+				untrusted.ProposerAddress = GetRandomBytes(32)
 				return &untrusted, true
 			},
 			err: &header.VerifyError{
@@ -82,7 +82,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.Header.ProposerAddress = GetRandomBytes(32)
+				untrusted.ProposerAddress = GetRandomBytes(32)
 				untrusted.BaseHeader.Height++
 				return &untrusted, true
 			},

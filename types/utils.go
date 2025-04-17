@@ -147,11 +147,11 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig, chainID string) (*SignedH
 		Header: GetRandomHeader(chainID),
 		Signer: signer,
 	}
-	signedHeader.Header.BaseHeader.Height = config.Height
-	signedHeader.Header.DataHash = config.DataHash
-	signedHeader.Header.ProposerAddress = signer.Address
-	signedHeader.Header.ValidatorHash = signer.Address
-	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10
+	signedHeader.BaseHeader.Height = config.Height
+	signedHeader.DataHash = config.DataHash
+	signedHeader.ProposerAddress = signer.Address
+	signedHeader.ValidatorHash = signer.Address
+	signedHeader.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10
 
 	signature, err := GetSignature(signedHeader.Header, config.PrivKey)
 	if err != nil {

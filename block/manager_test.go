@@ -135,7 +135,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 	// make sure that the store has the correct data
 	d := dataCache.GetItem(header.Height())
 	require.NotNil(d)
-	require.Equal(d.Metadata.LastDataHash, lastDataHash)
+	require.Equal(d.LastDataHash, lastDataHash)
 	require.Equal(d.Metadata.ChainID, header.ChainID())
 	require.Equal(d.Metadata.Height, header.Height())
 	require.Equal(d.Metadata.Time, header.BaseHeader.Time)

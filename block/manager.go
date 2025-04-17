@@ -1216,7 +1216,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 
 		// sanity check timestamp for monotonically increasing
-		if batchData.Time.Before(lastHeaderTime) {
+		if batchData.Before(lastHeaderTime) {
 			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 		}
 		m.logger.Info("Creating and publishing block", "height", newHeight)
@@ -1263,7 +1263,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		panic(err)
 	}
 	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
-	header.Header.DataHash = data.Hash()
+	header.DataHash = data.Hash()
 
 	signature, err = m.getSignature(header.Header)
 	if err != nil {
@@ -1540,7 +1540,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			BaseHeader: types.BaseHeader{
 				ChainID: lastState.ChainID,
 				Height:  height,
-				Time:    uint64(batchData.Time.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
+				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash:  lastHeaderHash,
 			DataHash:        batchdata,
@@ -1556,10 +1556,10 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	}
 
 	blockData := &types.Data{
-		Txs: make(types.Txs, len(batchData.Batch.Transactions)),
+		Txs: make(types.Txs, len(batchData.Transactions)),
 	}
-	for i := range batchData.Batch.Transactions {
-		blockData.Txs[i] = types.Tx(batchData.Batch.Transactions[i])
+	for i := range batchData.Transactions {
+		blockData.Txs[i] = types.Tx(batchData.Transactions[i])
 	}
 
 	return header, blockData, nil

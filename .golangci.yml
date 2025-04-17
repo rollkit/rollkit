@@ -1,41 +1,52 @@
+version: "2"
 run:
-  timeout: 5m
   modules-download-mode: readonly
-
 linters:
   enable:
     - errorlint
-    - errcheck
-    - gofmt
-    - gci
     - gosec
-    - gosimple
-    - govet
-    - ineffassign
     - misspell
     - revive
-    - staticcheck
-    - typecheck
     - unconvert
-    - unused
-
-linters-settings:
-  gosec:
-    excludes:
-      - G115
-  revive:
-    rules:
-      - name: package-comments
-        disabled: true
-      - name: duplicated-imports
-        severity: warning
-      - name: exported
-        arguments:
-          - disableStutteringCheck
-  gci:
-    custom-order: true
-    sections:
-      - standard # Standard section: captures all standard packages.
-      - default # Default section: contains all imports that could not be matched to another section type.
-      - prefix(github.com/rollkit)
-      - prefix(github.com/rollkit/rollkit)
+  settings:
+    gosec:
+      excludes:
+        - G115
+    revive:
+      rules:
+        - name: package-comments
+          disabled: true
+        - name: duplicated-imports
+          severity: warning
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/rollkit)
+        - prefix(github.com/rollkit/rollkit)
+      custom-order: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

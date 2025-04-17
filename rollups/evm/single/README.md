@@ -14,18 +14,20 @@ This directory contains the implementation of a single EVM sequencer using Rollk
    1. For the EVM layer, Reth can be conveniently run using `docker compose` from the go-execution-evm repository.
    2. For the DA layer, local-da can be built and run from the `rollkit/da/cmd/local-da` directory.
 
-
 2. Build the sequencer:
+
 ```bash
 go build -o evm-single ./cmd/
 ```
 
 3. Initialize the sequencer:
+
 ```bash
 ./evm-single init --rollkit.node.aggregator=true --rollkit.signer.passphrase secret
 ```
 
 4. Start the sequencer:
+
 ```bash
 ./evm-single start \
   --evm.jwt-secret $(cat <path_to>/go-execution-evm/docker/jwttoken/jwt.hex) \
