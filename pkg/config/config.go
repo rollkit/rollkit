@@ -169,6 +169,9 @@ type NodeConfig struct {
 
 	// Header configuration
 	TrustedHash string `mapstructure:"trusted_hash" yaml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis. When provided, the node will fetch the corresponding header/block from peers using this hash and use it as a starting point for synchronization. If not provided, the node will attempt to fetch the genesis block instead."`
+
+	// Pruning management configuration
+	Pruning PruningConfig `mapstructure:"pruning" yaml:"pruning"`
 }
 
 // LogConfig contains all logging configuration parameters
@@ -243,6 +246,11 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "produce blocks only when transactions are available or after lazy block time")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "maximum blocks pending DA confirmation before pausing block production (0 for no limit)")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime.Duration, "maximum interval between blocks in lazy aggregation mode")
+
+	// Pruning configuration flags
+	cmd.Flags().String(FlagPruningStrategy, def.Node.Pruning.Strategy, "")
+	cmd.Flags().Uint64(FlagPruningKeepRecent, def.Node.Pruning.KeepRecent, "")
+	cmd.Flags().Uint64(FlagPruningInterval, def.Node.Pruning.Interval, "")
 
 	// Data Availability configuration flags
 	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")
