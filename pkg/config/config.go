@@ -43,6 +43,11 @@ const (
 	// FlagLazyBlockTime is a flag for specifying the maximum interval between blocks in lazy aggregation mode
 	FlagLazyBlockTime = "rollkit.node.lazy_block_time"
 
+	// Pruning configuration flags
+	FlagPruningStrategy   = "rollkit.node.pruning.strategy"
+	FlagPruningKeepRecent = "rollkit.node.pruning.keep_recent"
+	FlagPruningKeepEvery  = "rollkit.node.pruning.keep_every"
+	FlagPruningInterval   = "rollkit.node.pruning.interval"
 	// Data Availability configuration flags
 
 	// FlagDAAddress is a flag for specifying the data availability layer address
@@ -169,6 +174,22 @@ type NodeConfig struct {
 
 	// Header configuration
 	TrustedHash string `mapstructure:"trusted_hash" yaml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis. When provided, the node will fetch the corresponding header/block from peers using this hash and use it as a starting point for synchronization. If not provided, the node will attempt to fetch the genesis block instead."`
+
+	// Pruning management configuration
+	Pruning PruningConfig `mapstructure:"pruning" yaml:"pruning"`
+}
+
+// PruningConfig allows node operators to manage storage
+type PruningConfig struct {
+	// todo: support volume-based strategy
+	Strategy   string `mapstructure:"strategy" yaml:"strategy" comment:"Strategy determines the pruning approach (none, default, custom)"`
+	KeepRecent uint64 `mapstructure:"keep_recent" yaml:"keep_recent" comment:"Number of recent blocks to keep, used in \"default\" and \"custom\" strategies"`
+	KeepEvery  uint64 `mapstructure:"keep_every" yaml:"keep_every" comment:"Periodic blocks to keep for historical reference, used in \"custom\" strategy"`
+	Interval   uint64 `mapstructure:"interval" yaml:"interval" comment:"how offen the pruning process should run"`
+
+	// todo: support volume-based strategy
+	// VolumeConfig specifies configuration for volume-based storage
+	// VolumeConfig *VolumeStorageConfig `mapstructure:"volume_config" yaml:"volume_config"`
 }
 
 // LogConfig contains all logging configuration parameters
@@ -243,6 +264,12 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "produce blocks only when transactions are available or after lazy block time")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "maximum blocks pending DA confirmation before pausing block production (0 for no limit)")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime.Duration, "maximum interval between blocks in lazy aggregation mode")
+
+	// Pruning configuration flags
+	cmd.Flags().String(FlagPruningStrategy, def.Node.Pruning.Strategy, "")
+	cmd.Flags().Uint64(FlagPruningKeepRecent, def.Node.Pruning.KeepRecent, "")
+	cmd.Flags().Uint64(FlagPruningKeepEvery, def.Node.Pruning.KeepEvery, "")
+	cmd.Flags().Uint64(FlagPruningInterval, def.Node.Pruning.Interval, "")
 
 	// Data Availability configuration flags
 	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")
