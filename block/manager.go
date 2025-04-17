@@ -1210,9 +1210,16 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		batchData, err := m.retrieveBatch(ctx)
 		if errors.Is(err, ErrNoBatch) {
-			return fmt.Errorf("no batch to process")
+			m.logger.Info("No batch retrieved from sequencer, skipping block production")
+			return nil // Indicate no block was produced
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
+		}
+
+		// Check if the batch contains any transactions
+		if len(batchData.Batch.Transactions) == 0 {
+			m.logger.Info("Retrieved batch contains no transactions, skipping block production")
+			return nil // Indicate no block was produced
 		}
 
 		// sanity check timestamp for monotonically increasing

@@ -18,6 +18,7 @@ import (
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	damocks "github.com/rollkit/rollkit/da/mocks"
 	"github.com/rollkit/rollkit/pkg/cache"
@@ -29,6 +30,35 @@ import (
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
+
+// mockSequencer is a local mock implementation for coresequencer.Sequencer
+type mockSequencer struct {
+	mock.Mock
+}
+
+func (m *mockSequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextBatchRequest) (*coresequencer.GetNextBatchResponse, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*coresequencer.GetNextBatchResponse), args.Error(1)
+}
+
+func (m *mockSequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.SubmitRollupBatchTxsRequest) (*coresequencer.SubmitRollupBatchTxsResponse, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*coresequencer.SubmitRollupBatchTxsResponse), args.Error(1)
+}
+
+func (m *mockSequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBatchRequest) (*coresequencer.VerifyBatchResponse, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*coresequencer.VerifyBatchResponse), args.Error(1)
+}
 
 // WithinDuration asserts that the two durations are within the specified tolerance of each other.
 func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) bool {
@@ -408,6 +438,166 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
+}
+
+func Test_publishBlock_NoBatch(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+
+	// Setup manager with mocks
+	mockStore := mocks.NewStore(t)
+	mockSeq := new(mockSequencer)
+	mockExecutor := coreexecutor.NewDummyExecutor()
+	logger := log.NewTestLogger(t)
+	chainID := "Test_publishBlock_NoBatch"
+	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
+	noopSigner, err := noopsigner.NewNoopSigner(privKey)
+	require.NoError(err)
+
+	m := &Manager{
+		store:       mockStore,
+		sequencer:   mockSeq,
+		exec:        mockExecutor,
+		logger:      logger,
+		isProposer:  true,
+		proposerKey: noopSigner,
+		genesis:     genesisData,
+		config: config.Config{
+			Node: config.NodeConfig{
+				MaxPendingBlocks: 0,
+			},
+		},
+		pendingHeaders: &PendingHeaders{
+			store:  mockStore,
+			logger: logger,
+		},
+		lastStateMtx: &sync.RWMutex{},
+		metrics:      NopMetrics(),
+	}
+
+	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return([]byte{0}, nil)
+	m.pendingHeaders.init()
+
+	// Mock store calls for height and previous block/commit
+	currentHeight := uint64(1)
+	mockStore.On("Height", ctx).Return(currentHeight, nil)
+	mockSignature := types.Signature([]byte{1, 2, 3})
+	mockStore.On("GetSignature", ctx, currentHeight).Return(&mockSignature, nil)
+	// Use GetRandomBlock which returns header and data
+	lastHeader, lastData := types.GetRandomBlock(currentHeight, 0, chainID)
+	mockStore.On("GetBlockData", ctx, currentHeight).Return(lastHeader, lastData, nil)
+	// Mock GetBlockData for newHeight to indicate no pending block exists
+	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found"))
+
+	// No need to mock GetTxs on the dummy executor if its default behavior is acceptable
+
+	// Mock sequencer SubmitRollupBatchTxs (should still be called)
+	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
+		return string(req.RollupId) == chainID // Ensure correct rollup ID
+	})
+	mockSeq.On("SubmitRollupBatchTxs", ctx, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil)
+
+	// *** Crucial Mock: Sequencer returns ErrNoBatch ***
+	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
+		return string(req.RollupId) == chainID // Ensure correct rollup ID
+	})
+	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(nil, ErrNoBatch)
+
+	// Call publishBlock
+	err = m.publishBlock(ctx)
+
+	// Assertions
+	require.NoError(err, "publishBlock should return nil error when no batch is available")
+
+	// Verify mocks: Ensure methods after the check were NOT called
+	mockStore.AssertNotCalled(t, "SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	// We can't directly assert non-calls on m.createBlock or m.applyBlock easily without more complex setup,
+	// but returning nil error and not calling SaveBlockData implies they weren't reached.
+	mockSeq.AssertExpectations(t) // Ensure GetNextBatch was called
+	mockStore.AssertExpectations(t)
+}
+
+func Test_publishBlock_EmptyBatch(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+
+	// Setup manager with mocks
+	mockStore := mocks.NewStore(t)
+	mockSeq := new(mockSequencer) // Use the local mock struct
+	mockExecutor := coreexecutor.NewDummyExecutor()
+	logger := log.NewTestLogger(t)
+	chainID := "Test_publishBlock_EmptyBatch"
+	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
+	noopSigner, err := noopsigner.NewNoopSigner(privKey)
+	require.NoError(err)
+
+	m := &Manager{
+		store:       mockStore,
+		sequencer:   mockSeq, // Assign the local mock
+		exec:        mockExecutor,
+		logger:      logger,
+		isProposer:  true,
+		proposerKey: noopSigner,
+		genesis:     genesisData,
+		config: config.Config{
+			Node: config.NodeConfig{
+				MaxPendingBlocks: 0, // No limit
+			},
+		},
+		pendingHeaders: &PendingHeaders{ // Basic pending headers mock
+			store:  mockStore,
+			logger: logger,
+		},
+		lastStateMtx: &sync.RWMutex{},
+		metrics:      NopMetrics(),
+	}
+
+	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return([]byte{0}, nil)
+	m.pendingHeaders.init()
+
+	// Mock store calls
+	currentHeight := uint64(1)
+	mockStore.On("Height", ctx).Return(currentHeight, nil)
+	mockSignature := types.Signature([]byte{1, 2, 3})
+	mockStore.On("GetSignature", ctx, currentHeight).Return(&mockSignature, nil)
+	// Use GetRandomBlock
+	lastHeader, lastData := types.GetRandomBlock(currentHeight, 0, chainID)
+	mockStore.On("GetBlockData", ctx, currentHeight).Return(lastHeader, lastData, nil)
+	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found")) // No pending block
+
+	// No need to mock GetTxs on the dummy executor
+
+	// Mock sequencer SubmitRollupBatchTxs
+	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
+		return string(req.RollupId) == chainID
+	})
+	mockSeq.On("SubmitRollupBatchTxs", ctx, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil)
+
+	// *** Crucial Mock: Sequencer returns an empty batch ***
+	emptyBatchResponse := &coresequencer.GetNextBatchResponse{
+		Batch: &coresequencer.Batch{
+			Transactions: [][]byte{}, // Empty transactions
+		},
+		Timestamp: time.Now(),
+		BatchData: [][]byte{[]byte("some_batch_data")}, // Sequencer might return metadata even if empty
+	}
+	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
+		return string(req.RollupId) == chainID
+	})
+	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(emptyBatchResponse, nil)
+	// Mock store SetMetadata for the last batch data
+	mockStore.On("SetMetadata", ctx, LastBatchDataKey, mock.Anything).Return(nil)
+
+	// Call publishBlock
+	err = m.publishBlock(ctx)
+
+	// Assertions
+	require.NoError(err, "publishBlock should return nil error when the batch is empty")
+
+	// Verify mocks: Ensure methods after the check were NOT called
+	mockStore.AssertNotCalled(t, "SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	mockSeq.AssertExpectations(t)
+	mockStore.AssertExpectations(t)
 }
 
 // TestAggregationLoop tests the AggregationLoop function
