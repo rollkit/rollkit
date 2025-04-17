@@ -16,7 +16,7 @@ jobs:
           go-version-file: ./go.mod
       - name: Build test app
         run: make build
-        
+
   build_evm-single:
     name: Build Test App
     runs-on: ubuntu-latest
