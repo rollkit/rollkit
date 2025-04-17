@@ -88,6 +88,12 @@ func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 		return nil, ErrInvalidRollupId
 	}
 
+	if req.Batch == nil || len(req.Batch.Transactions) == 0 {
+		c.logger.Info("Skipping submission of empty batch", "rollupId", string(req.RollupId))
+		// Return success without processing the empty batch
+		return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
+	}
+
 	batch := coresequencer.Batch{Transactions: req.Batch.Transactions}
 
 	// First try to send to DA submission channel
@@ -236,7 +242,7 @@ daSubmitRetryLoop:
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			// For mempool-related issues, use a longer backoff and increase gas price
-			c.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+			c.logger.Error("single sequcner: DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.batchTime * time.Duration(defaultMempoolTTL)
 
 			// Increase gas price to prioritize the transaction
@@ -253,7 +259,7 @@ daSubmitRetryLoop:
 
 		default:
 			// For other errors, use exponential backoff
-			c.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+			c.logger.Error("single sequcner: DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.exponentialBackoff(backoff)
 		}
 
