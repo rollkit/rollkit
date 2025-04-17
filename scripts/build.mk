@@ -26,6 +26,13 @@ build:
 	@echo "    Check the binary with: $(CURDIR)/rollups/testapp"
 .PHONY: build
 
+## biuld-evm-single: build evm single
+build-evm-single:
+	@echo "--> Building EVM single"
+	@mkdir -p $(CURDIR)/build
+	@cd rollups/evm/single && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-single .
+	@echo "    Check the binary with: $(CURDIR)/rollups/evm-single"
+
 build-da:
 	@echo "--> Building local-da"
 	@mkdir -p $(CURDIR)/build

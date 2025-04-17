@@ -1,12 +1,13 @@
-package main
+package cmd
 
 import (
 	"context"
 	"fmt"
-	"github.com/rollkit/rollkit/sequencers/single"
-	"github.com/rs/zerolog"
 	"os"
 	"path/filepath"
+
+	"github.com/rollkit/rollkit/sequencers/single"
+	"github.com/rs/zerolog"
 
 	"cosmossdk.io/log"
 	"github.com/ethereum/go-ethereum/common"
