@@ -10,6 +10,7 @@ import (
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 	dsync "github.com/ipfs/go-datastore/sync"
+
 	execution "github.com/rollkit/rollkit/core/execution"
 	sequencer "github.com/rollkit/rollkit/core/sequencer"
 )

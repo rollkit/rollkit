@@ -8,7 +8,9 @@ import (
 
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
+
 	"github.com/rollkit/go-sequencing"
+
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 )
