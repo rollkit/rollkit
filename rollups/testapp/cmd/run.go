@@ -37,9 +37,6 @@ var RunCmd = &cobra.Command{
 
 		logger := log.NewLogger(os.Stdout, opts...)
 
-		// Create test implementations
-		executor := kvexecutor.NewKVExecutor()
-
 		// Get KV endpoint flag
 		kvEndpoint, _ := cmd.Flags().GetString(flagKVEndpoint)
 		if kvEndpoint == "" {
@@ -50,6 +47,12 @@ var RunCmd = &cobra.Command{
 		}
 
 		nodeConfig, err := rollcmd.ParseConfig(cmd)
+		if err != nil {
+			return err
+		}
+
+		// Create test implementations
+		executor, err := kvexecutor.NewKVExecutor(nodeConfig.RootDir, nodeConfig.DBPath)
 		if err != nil {
 			return err
 		}

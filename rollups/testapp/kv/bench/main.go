@@ -173,6 +173,7 @@ func runBenchmark(url string, duration, interval time.Duration, txPerInterval in
 func sendTransaction(url, txData string) bool {
 	resp, err := http.Post(url, "text/plain", strings.NewReader(txData))
 	if err != nil {
+		fmt.Printf("Error sending transaction: %v\n", err)
 		return false
 	}
 	defer resp.Body.Close()

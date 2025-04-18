@@ -9,7 +9,10 @@ import (
 )
 
 func TestInitChain_Idempotency(t *testing.T) {
-	exec := NewKVExecutor()
+	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	if err != nil {
+		t.Fatalf("Failed to create KVExecutor: %v", err)
+	}
 	ctx := context.Background()
 	genesisTime := time.Now()
 	initialHeight := uint64(1)
@@ -37,56 +40,78 @@ func TestInitChain_Idempotency(t *testing.T) {
 	}
 }
 
-func TestSetAndGetStoreValue(t *testing.T) {
-	exec := NewKVExecutor()
-	key := "foo"
-	value := "bar"
-	exec.SetStoreValue(key, value)
-
-	retValue, exists := exec.GetStoreValue(key)
-	if !exists {
-		t.Fatalf("Expected key %s to exist", key)
-	}
-	if retValue != value {
-		t.Errorf("Expected value %s, got %s", value, retValue)
-	}
-}
-
 func TestGetTxs(t *testing.T) {
-	exec := NewKVExecutor()
+	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	if err != nil {
+		t.Fatalf("Failed to create KVExecutor: %v", err)
+	}
 	ctx := context.Background()
 
-	// Append transactions directly to mempool
-	exec.mu.Lock()
-	exec.mempool = append(exec.mempool, []byte("a=1"), []byte("b=2"))
-	exec.mu.Unlock()
+	// Inject transactions using the InjectTx method which sends to the channel
+	tx1 := []byte("a=1")
+	tx2 := []byte("b=2")
+	exec.InjectTx(tx1)
+	exec.InjectTx(tx2)
 
+	// Allow a brief moment for transactions to be processed by the channel if needed,
+	// though for buffered channels it should be immediate unless full.
+	time.Sleep(10 * time.Millisecond)
+
+	// First call to GetTxs should retrieve the injected transactions
 	txs, err := exec.GetTxs(ctx)
 	if err != nil {
-		t.Fatalf("GetTxs returned error: %v", err)
+		t.Fatalf("GetTxs returned error on first call: %v", err)
 	}
 	if len(txs) != 2 {
-		t.Errorf("Expected 2 transactions, got %d", len(txs))
+		t.Errorf("Expected 2 transactions on first call, got %d", len(txs))
 	}
 
-	// Modify the returned slice and ensure it does not affect the original
-	txs[0] = []byte("modified")
-	exec.mu.Lock()
-	originalTx := exec.mempool[0]
-	exec.mu.Unlock()
-	if string(originalTx) == "modified" {
-		t.Errorf("GetTxs should return a copy, but original mempool was modified")
+	// Verify the content (order might not be guaranteed depending on channel internals, but likely FIFO here)
+	foundTx1 := false
+	foundTx2 := false
+	for _, tx := range txs {
+		if reflect.DeepEqual(tx, tx1) {
+			foundTx1 = true
+		}
+		if reflect.DeepEqual(tx, tx2) {
+			foundTx2 = true
+		}
+	}
+	if !foundTx1 || !foundTx2 {
+		t.Errorf("Did not retrieve expected transactions. Got: %v", txs)
+	}
+
+	// Second call to GetTxs should return no transactions as the channel was drained
+	txsAfterDrain, err := exec.GetTxs(ctx)
+	if err != nil {
+		t.Fatalf("GetTxs returned error on second call: %v", err)
+	}
+	if len(txsAfterDrain) != 0 {
+		t.Errorf("Expected 0 transactions after drain, got %d", len(txsAfterDrain))
+	}
+
+	// Test injecting again after draining
+	tx3 := []byte("c=3")
+	exec.InjectTx(tx3)
+	time.Sleep(10 * time.Millisecond)
+	txsAfterReinject, err := exec.GetTxs(ctx)
+	if err != nil {
+		t.Fatalf("GetTxs returned error after re-inject: %v", err)
+	}
+	if len(txsAfterReinject) != 1 {
+		t.Errorf("Expected 1 transaction after re-inject, got %d", len(txsAfterReinject))
+	}
+	if !reflect.DeepEqual(txsAfterReinject[0], tx3) {
+		t.Errorf("Expected tx 'c=3' after re-inject, got %s", string(txsAfterReinject[0]))
 	}
 }
 
 func TestExecuteTxs_Valid(t *testing.T) {
-	exec := NewKVExecutor()
+	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	if err != nil {
+		t.Fatalf("Failed to create KVExecutor: %v", err)
+	}
 	ctx := context.Background()
-
-	// Clear store first
-	exec.mu.Lock()
-	exec.store = make(map[string]string)
-	exec.mu.Unlock()
 
 	// Prepare valid transactions
 	txs := [][]byte{
@@ -110,7 +135,10 @@ func TestExecuteTxs_Valid(t *testing.T) {
 }
 
 func TestExecuteTxs_Invalid(t *testing.T) {
-	exec := NewKVExecutor()
+	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	if err != nil {
+		t.Fatalf("Failed to create KVExecutor: %v", err)
+	}
 	ctx := context.Background()
 
 	// Prepare an invalid transaction (missing '=')
@@ -118,18 +146,21 @@ func TestExecuteTxs_Invalid(t *testing.T) {
 		[]byte("invalidformat"),
 	}
 
-	_, _, err := exec.ExecuteTxs(ctx, txs, 1, time.Now(), []byte(""))
+	_, _, err = exec.ExecuteTxs(ctx, txs, 1, time.Now(), []byte(""))
 	if err == nil {
 		t.Fatal("Expected error for malformed transaction, got nil")
 	}
 }
 
 func TestSetFinal(t *testing.T) {
-	exec := NewKVExecutor()
+	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	if err != nil {
+		t.Fatalf("Failed to create KVExecutor: %v", err)
+	}
 	ctx := context.Background()
 
 	// Test with valid blockHeight
-	err := exec.SetFinal(ctx, 1)
+	err = exec.SetFinal(ctx, 1)
 	if err != nil {
 		t.Errorf("Expected nil error for valid blockHeight, got %v", err)
 	}
