@@ -112,17 +112,24 @@ func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, ns
 
 // Submit submits the Blobs to Data Availability layer.
 func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte) ([]da.ID, error) {
-	return api.SubmitWithOptions(ctx, blobs, gasPrice, ns, nil)
-}
-
-// SubmitWithOptions submits the Blobs to Data Availability layer with additional options.
-func (api *API) SubmitWithOptions(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
 	clientLog.Debug("Making RPC call", "method", "Submit", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns))
-	res, err := api.Internal.SubmitWithOptions(ctx, blobs, gasPrice, ns, options)
+	res, err := api.Internal.Submit(ctx, blobs, gasPrice, ns)
 	if err != nil {
 		clientLog.Error("RPC call failed", "method", "Submit", "error", err)
 	} else {
 		clientLog.Debug("RPC call successful", "method", "Submit", "num_ids_returned", len(res))
+	}
+	return res, err
+}
+
+// SubmitWithOptions submits the Blobs to Data Availability layer with additional options.
+func (api *API) SubmitWithOptions(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
+	clientLog.Debug("Making RPC call", "method", "SubmitWithOptions", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns))
+	res, err := api.Internal.SubmitWithOptions(ctx, blobs, gasPrice, ns, options)
+	if err != nil {
+		clientLog.Error("RPC call failed", "method", "SubmitWithOptions", "error", err)
+	} else {
+		clientLog.Debug("RPC call successful", "method", "SubmitWithOptions", "num_ids_returned", len(res))
 	}
 	return res, err
 }

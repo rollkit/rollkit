@@ -97,9 +97,20 @@ func (l *loggingDA) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof
 	return res, err
 }
 
-func (l *loggingDA) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
+func (l *loggingDA) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte) ([]da.ID, error) {
 	l.logger.Debug("RPC call received", "method", "Submit", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns))
-	res, err := l.baseDA.Submit(ctx, blobs, gasPrice, ns, options)
+	res, err := l.baseDA.Submit(ctx, blobs, gasPrice, ns)
+	if err != nil {
+		l.logger.Error("RPC call failed", "method", "Submit", "error", err)
+	} else {
+		l.logger.Debug("RPC call successful", "method", "Submit", "num_ids_returned", len(res))
+	}
+	return res, err
+}
+
+func (l *loggingDA) SubmitWithOptions(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
+	l.logger.Debug("RPC call received", "method", "Submit", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns))
+	res, err := l.baseDA.SubmitWithOptions(ctx, blobs, gasPrice, ns, options)
 	if err != nil {
 		l.logger.Error("RPC call failed", "method", "Submit", "error", err)
 	} else {
