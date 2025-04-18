@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -41,9 +42,6 @@ var RunCmd = &cobra.Command{
 		kvEndpoint, _ := cmd.Flags().GetString(flagKVEndpoint)
 		if kvEndpoint == "" {
 			logger.Info("KV endpoint flag not set, using default from http_server")
-			// Potentially use a default defined in http_server or handle error
-			// For now, let's assume NewHTTPServer handles empty string or has a default
-			// Or better, rely on the default set in root.go init()
 		}
 
 		nodeConfig, err := rollcmd.ParseConfig(cmd)
@@ -94,9 +92,7 @@ var RunCmd = &cobra.Command{
 			httpServer := kvexecutor.NewHTTPServer(executor, kvEndpoint)
 			err = httpServer.Start(ctx) // Use the main context for lifecycle management
 			if err != nil {
-				logger.Error("Failed to start KV executor HTTP server", "error", err)
-				// Decide if this is a fatal error. For now, let's log and continue.
-				// return fmt.Errorf("failed to start KV executor HTTP server: %w", err)
+				return fmt.Errorf("failed to start KV executor HTTP server: %w", err)
 			} else {
 				logger.Info("KV executor HTTP server started", "endpoint", kvEndpoint)
 			}
