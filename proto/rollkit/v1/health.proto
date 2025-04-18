@@ -19,9 +19,9 @@ enum HealthStatus {
   UNKNOWN = 0;
   // Healthy status (Healthy)
   PASS = 1;
-  // Degraded but still serving; 429 plays nicely with load balancers that drop â€œbusyâ€ nodes.
+  // Degraded but still serving
   WARN = 2;
-  // Hard fail.
+  // Hard fail
   FAIL = 3;
 }
 

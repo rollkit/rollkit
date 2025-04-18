@@ -30,9 +30,9 @@ const (
 	HealthStatus_UNKNOWN HealthStatus = 0
 	// Healthy status (Healthy)
 	HealthStatus_PASS HealthStatus = 1
-	// Degraded but still serving; 429 plays nicely with load balancers that drop â€œbusyâ€ nodes.
+	// Degraded but still serving
 	HealthStatus_WARN HealthStatus = 2
-	// Hard fail.
+	// Hard fail
 	HealthStatus_FAIL HealthStatus = 3
 )
 
