@@ -23,7 +23,7 @@ This implementation supports EVM execution via `go-execution-evm` and allows con
 based start [flags]
 ```
 
-### Example (Mocha Network with dummy DA):
+### Example (Mocha Network with dummy DA)
 
 ```bash
 based start \
@@ -103,6 +103,3 @@ based start \
 - Use `--based.max-height-drift` to control batching latency.
 
 ---
-
-
-

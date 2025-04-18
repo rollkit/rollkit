@@ -47,4 +47,4 @@ The sequencer can be configured using various command-line flags. The most impor
 - `--rollkit.signer.passphrase`: Passphrase for the signer
 - `--evm.jwt-secret`: JWT secret for EVM communication
 - `--evm.genesis-hash`: Genesis hash of the EVM chain
-- `--rollkit.node.block_time`: Block time for the Rollkit node 
+- `--rollkit.node.block_time`: Block time for the Rollkit node
