@@ -496,6 +496,9 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
 			m.logger.Error("error while setting last batch hash", "error", err)
 		}
+		if len(res.Batch.Transactions) == 0 {
+			return nil, ErrNoBatch
+		}
 		m.lastBatchData = res.BatchData
 		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
 	}
@@ -1168,7 +1171,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		batchData, err := m.retrieveBatch(ctx)
 		if errors.Is(err, ErrNoBatch) {
-			return fmt.Errorf("no batch to process")
+			m.logger.Info("No batch retrieved from sequencer, skipping block production")
+			return nil // Indicate no block was produced
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
