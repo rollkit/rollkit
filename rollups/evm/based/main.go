@@ -15,7 +15,6 @@ import (
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/proxy/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	"github.com/rollkit/rollkit/pkg/config"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
@@ -27,7 +26,6 @@ import (
 
 func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 	var (
-		homePath            string
 		ethURL              string
 		engineURL           string
 		jwtSecret           string
@@ -47,10 +45,6 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 		Short: "Run the rollkit node in based mode",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			var err error
-			homePath, err = cmd.Flags().GetString(config.FlagRootDir)
-			if err != nil {
-				return fmt.Errorf("error reading home flag: %w", err)
-			}
 
 			ethURL, err = cmd.Flags().GetString("evm.eth-url")
 			if err != nil {
@@ -188,7 +182,6 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 	}
 
 	rollconf.AddFlags(cmd)
-	cmd.Flags().StringVar(&homePath, "home", "~/.rollkit/based", "Home directory for the rollkit based node")
 	cmd.Flags().StringVar(&ethURL, "evm.eth-url", "http://localhost:8545", "Ethereum JSON-RPC URL")
 	cmd.Flags().StringVar(&engineURL, "evm.engine-url", "http://localhost:8551", "Engine API URL")
 	cmd.Flags().StringVar(&jwtSecret, "evm.jwt-secret", "", "JWT secret for Engine API")

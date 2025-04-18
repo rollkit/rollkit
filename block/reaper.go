@@ -15,6 +15,8 @@ import (
 
 const DefaultInterval = 1 * time.Second
 
+// Reaper is responsible for periodically retrieving transactions from the executor,
+// filtering out already seen transactions, and submitting new transactions to the sequencer.
 type Reaper struct {
 	exec      coreexecutor.Executor
 	sequencer coresequencer.Sequencer
