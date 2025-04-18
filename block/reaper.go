@@ -13,6 +13,8 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 )
 
+const DefaultInterval = 1 * time.Second
+
 type Reaper struct {
 	exec      coreexecutor.Executor
 	sequencer coresequencer.Sequencer
@@ -25,6 +27,9 @@ type Reaper struct {
 
 // NewReaper creates a new Reaper instance with persistent seenTx storage.
 func NewReaper(ctx context.Context, exec coreexecutor.Executor, sequencer coresequencer.Sequencer, chainID string, interval time.Duration, logger log.Logger, store ds.Batching) *Reaper {
+	if interval <= 0 {
+		interval = DefaultInterval
+	}
 	return &Reaper{
 		exec:      exec,
 		sequencer: sequencer,
@@ -37,7 +42,8 @@ func NewReaper(ctx context.Context, exec coreexecutor.Executor, sequencer corese
 }
 
 // Start begins the reaping process at the specified interval.
-func (r *Reaper) Start() {
+func (r *Reaper) Start(ctx context.Context) {
+	r.ctx = ctx
 	ticker := time.NewTicker(r.interval)
 	defer ticker.Stop()
 
@@ -45,7 +51,7 @@ func (r *Reaper) Start() {
 
 	for {
 		select {
-		case <-r.ctx.Done():
+		case <-ctx.Done():
 			r.logger.Info("Reaper stopped")
 			return
 		case <-ticker.C:
