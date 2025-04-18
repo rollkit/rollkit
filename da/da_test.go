@@ -40,7 +40,8 @@ func TestMockDAErrors(t *testing.T) {
 		// Set up the mock to throw context deadline exceeded
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
-			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
+			On("SubmitWithOptions", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
+			// On("SubmitWithOptions", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
 			After(submitTimeout).
 			Return(nil, ErrContextDeadline)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -76,7 +77,7 @@ func TestMockDAErrors(t *testing.T) {
 		// Set up the mock to throw tx too large
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
-			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
+			On("SubmitWithOptions", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
 			Return([]coreda.ID{}, ErrTxTooLarge)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)

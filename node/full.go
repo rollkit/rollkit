@@ -59,6 +59,7 @@ type FullNode struct {
 	dSyncService *sync.DataSyncService
 	Store        store.Store
 	blockManager *block.Manager
+	reaper       *block.Reaper
 
 	prometheusSrv *http.Server
 	pprofSrv      *http.Server
@@ -95,6 +96,16 @@ func newFullNode(
 
 	store := store.New(mainKV)
 
+	reaper := block.NewReaper(
+		ctx,
+		exec,
+		sequencer,
+		genesis.ChainID,
+		nodeConfig.Node.BlockTime.Duration,
+		logger.With("module", "Reaper"),
+		mainKV,
+	)
+
 	blockManager, err := initBlockManager(
 		ctx,
 		signer,
@@ -120,6 +131,7 @@ func newFullNode(
 		nodeConfig:   nodeConfig,
 		p2pClient:    p2pClient,
 		blockManager: blockManager,
+		reaper:       reaper,
 		dalc:         dac,
 		Store:        store,
 		hSyncService: headerSyncService,
@@ -384,9 +396,10 @@ func (n *FullNode) Run(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
+	go n.reaper.Start(ctx)
+
 	if n.nodeConfig.Node.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
-
 		go n.blockManager.AggregationLoop(ctx)
 		go n.blockManager.HeaderSubmissionLoop(ctx)
 		go n.headerPublishLoop(ctx)
