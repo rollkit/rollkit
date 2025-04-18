@@ -20,6 +20,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/store"
+	"github.com/rollkit/rollkit/rollups/evm/based/cmd"
 	"github.com/rollkit/rollkit/sequencers/based"
 	"github.com/spf13/cobra"
 )
@@ -233,7 +234,7 @@ func main() {
 		rollcmd.NewDocsGenCmd(rootCmd, AppName),
 		NewExtendedRunNodeCmd(ctx),
 		rollcmd.VersionCmd,
-		rollcmd.InitCmd,
+		cmd.InitCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
