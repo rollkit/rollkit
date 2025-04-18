@@ -48,7 +48,7 @@ jobs:
       - name: Build cli
         run: make install
       - name: Run cli
-        run: rollkit start --ci
+        run: testapp init
 
   # branch_name trims ref/heads/ from github.ref to access a clean branch name
   branch_name:
@@ -69,6 +69,9 @@ jobs:
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
+      - name: Remove existing files
+        run: |
+          rm -rf /opt/homebrew/bin/gtar
       - name: Version Release
         uses: rollkit/.github/.github/actions/version-release@v0.5.0
         with:

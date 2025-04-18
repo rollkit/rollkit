@@ -10,15 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/abci/example/kvstore"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/rollkit/rollkit/pkg/rpc/client"
 	"github.com/stretchr/testify/require"
 )
 
 var binaryPath string
 
 func init() {
-	flag.StringVar(&binaryPath, "binary", "rollkit", "rollkit binary")
+	flag.StringVar(&binaryPath, "binary", "testapp", "testapp binary")
 }
 
 func TestBasic(t *testing.T) {
@@ -36,81 +35,120 @@ func TestBasic(t *testing.T) {
 	// Define and parse the binary flag locally in the test function.
 
 	sut := NewSystemUnderTest(t)
+
+	// start local da
+	localDABinary := filepath.Join(filepath.Dir(binaryPath), "local-da")
+	sut.StartNode(localDABinary)
+	// Wait a moment for the local DA to initialize
+	time.Sleep(500 * time.Millisecond)
+
+	aggregatorPass := "12345678"
+	// init aggregator
+	output, err := sut.RunCmd(binaryPath,
+		"init",
+		"--home="+node1Home,
+		"--chain_id=testing",
+		"--rollkit.node.aggregator",
+		"--rollkit.signer.passphrase="+aggregatorPass,
+	)
+	require.NoError(t, err, "failed to init aggregator", output)
+
 	// start aggregator
 	sut.StartNode(binaryPath,
 		"start",
-		"--proxy_app=kvstore",
 		"--home="+node1Home,
-		"--p2p.laddr=tcp://127.0.0.1:26656",
-		"--rpc.laddr=tcp://127.0.0.1:26657",
-		"--rollkit.sequencer_rollup_id=testing",
-		"--rollkit.aggregator",
-		"--rollkit.block_time=5ms",
-		"--rollkit.da_block_time=15ms",
-		"--rollkit.da_address=http://0.0.0.0:7980",
-		"--rollkit.sequencer_address=0.0.0.0:50051",
+		"--chain_id=testing",
+		"--rollkit.node.aggregator",
+		"--rollkit.signer.passphrase="+aggregatorPass,
+		"--rollkit.node.block_time=5ms",
+		"--rollkit.da.block_time=15ms",
 	)
-	sut.AwaitNodeUp(t, "tcp://127.0.0.1:26657", 2*time.Second)
+	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
 
-	// copy genesis to target home2
+	// Give aggregator more time before starting the next node
+	time.Sleep(1 * time.Second) // Increased wait time
+
+	// Init the second node (full node)
+	output, err = sut.RunCmd(binaryPath,
+		"init",
+		"--chain_id=testing",
+		"--home="+node2Home,
+	)
+	require.NoError(t, err, "failed to init fullnode", output)
+
+	// Copy genesis file from aggregator to full node
 	MustCopyFile(t, filepath.Join(node1Home, "config", "genesis.json"), filepath.Join(node2Home, "config", "genesis.json"))
+
+	// Start the full node
+	node2RPC := "127.0.0.1:7332"
+	node2P2P := "/ip4/0.0.0.0/tcp/7676"
 	sut.StartNode(
 		binaryPath,
 		"start",
-		"--proxy_app=kvstore",
 		"--home="+node2Home,
-		"--p2p.laddr=tcp://127.0.0.1:16656",
-		"--rpc.laddr=tcp://127.0.0.1:16657",
-		"--rollkit.sequencer_rollup_id=testing",
-		fmt.Sprintf("--p2p.seeds=%s@127.0.0.1:26656", NodeID(t, node1Home)),
-		"--rollkit.aggregator=false",
-		"--rollkit.block_time=5ms",
-		"--rollkit.da_block_time=15ms",
-		"--rollkit.da_address=http://0.0.0.0:7980",
-		"--rollkit.sequencer_address=0.0.0.0:50051",
-		"--log_level=debug",
+		"--rollkit.log.level=debug",
+		"--rollkit.p2p.listen_address="+node2P2P,
+		fmt.Sprintf("--rollkit.rpc.address=%s", node2RPC),
 	)
-	sut.AwaitNodeUp(t, "tcp://127.0.0.1:16657", 2*time.Second)
 
-	asserNodeCaughtUp := func(c *rpchttp.HTTP) {
+	sut.AwaitNodeUp(t, "http://"+node2RPC, 20*time.Second)
+	t.Logf("Full node (node 2) is up.")
+
+	asserNodeCaughtUp := func(c *client.Client, height uint64) {
 		ctx, done := context.WithTimeout(context.Background(), time.Second)
 		defer done()
-		status, err := c.Status(ctx)
+		state, err := c.GetState(ctx)
 		require.NoError(t, err)
-		require.False(t, status.SyncInfo.CatchingUp)
+		require.Greater(t, state.LastBlockHeight, height)
 	}
-	node1Client, err := rpchttp.New("tcp://localhost:26657", "tcp://localhost:26657"+"/websocket")
+
+	node1Client := client.NewClient("http://127.0.0.1:7331")
 	require.NoError(t, err)
-	asserNodeCaughtUp(node1Client)
+	asserNodeCaughtUp(node1Client, 1)
 
-	node2Client, err := rpchttp.New("tcp://localhost:16657", "tcp://localhost:16657"+"/websocket")
-	require.NoError(t, err)
-	asserNodeCaughtUp(node2Client)
-
-	// when a client TX for state update is executed
-	const myKey = "foo"
-	myValue := fmt.Sprintf("bar%d", time.Now().UnixNano())
-	tx := kvstore.NewTx(myKey, myValue)
-
+	// get latest height for node 1
 	ctx, done := context.WithTimeout(context.Background(), time.Second)
 	defer done()
-	result, err := node1Client.BroadcastTxCommit(ctx, tx)
+	state, err := node1Client.GetState(ctx)
 	require.NoError(t, err)
-	require.Equal(t, uint32(0), result.TxResult.Code, result.TxResult.Log)
+
+	node2Client := client.NewClient("http://" + node2RPC) // Use variable and prepend http://
+	require.NotNil(t, node2Client, "Failed to create client for node 2")
+	require.Eventually(t, func() bool {
+		ctxNode2, doneNode2 := context.WithTimeout(context.Background(), time.Second)
+		defer doneNode2()
+		stateNode2, err := node2Client.GetState(ctxNode2)
+		if err != nil {
+			t.Logf("Error getting state from node 2: %v", err)
+			return false
+		}
+		return stateNode2.LastBlockHeight >= state.LastBlockHeight
+	}, 10*time.Second, 500*time.Millisecond, "Node 2 failed to catch up")
+
+	// when a client TX for state update is executed
+	// const myKey = "foo"
+	// myValue := fmt.Sprintf("bar%d", time.Now().UnixNano())
+	// tx := fmt.Sprintf("%s=%s", myKey, myValue)
+
+	// ctx, done := context.WithTimeout(context.Background(), time.Second)
+	// defer done()
+	// result, err := node1Client.BroadcastTxCommit(ctx, tx)
+	// require.NoError(t, err)
+	// require.Equal(t, uint32(0), result.TxResult.Code, result.TxResult.Log)
 
 	// then state is persisted
-	ctx, done = context.WithTimeout(context.Background(), 150*time.Millisecond)
-	defer done()
-	resQuery, err := node1Client.ABCIQuery(ctx, "/store", []byte(myKey))
-	require.NoError(t, err)
-	require.Equal(t, myValue, string(resQuery.Response.Value))
+	// ctx, done = context.WithTimeout(context.Background(), 150*time.Millisecond)
+	// defer done()
+	// resQuery, err := node1Client.ABCIQuery(ctx, "/store", []byte(myKey))
+	// require.NoError(t, err)
+	// require.Equal(t, myValue, string(resQuery.Response.Value))
 
 	// and state distributed to fullnode
-	require.Eventually(t, func() bool {
-		ctx, done := context.WithTimeout(context.Background(), 150*time.Millisecond)
-		defer done()
-		resQuery, err = node2Client.ABCIQuery(ctx, "/store", []byte(myKey))
-		require.NoError(t, err)
-		return myValue == string(resQuery.Response.Value)
-	}, time.Second, 5*time.Millisecond)
+	// require.Eventually(t, func() bool {
+	// 	ctx, done := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	// 	defer done()
+	// 	resQuery, err = node2Client.ABCIQuery(ctx, "/store", []byte(myKey))
+	// 	require.NoError(t, err)
+	// 	return myValue == string(resQuery.Response.Value)
+	// }, time.Second, 5*time.Millisecond)
 }

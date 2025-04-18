@@ -1,0 +1,32 @@
+FROM golang:1.24-alpine AS build-env
+
+# Set working directory for the build
+WORKDIR /src
+
+COPY . .
+
+RUN cd da && \
+    (test -f go.mod || go mod init da) && \
+    go mod tidy -compat=1.19 && \
+    CGO_ENABLED=0 go build -o local-da ./cmd/local-da/main.go
+
+RUN ls -alh ./
+# RUN cd da && \
+#     go mod tidy -compat=1.19
+# RUN pwd
+# RUN cd da && go build ./cmd/local-da/main.go
+
+
+# Final image
+FROM alpine:3.18.3
+
+WORKDIR /root
+
+# Copy over binaries from the build-env
+# COPY --from=build-env /src/build/local-da /usr/bin/local-da
+COPY --from=build-env /src/da/local-da /usr/bin/local-da
+
+EXPOSE 7980
+
+ENTRYPOINT ["local-da"]
+CMD ["-listen-all"]

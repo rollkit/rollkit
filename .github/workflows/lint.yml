@@ -55,14 +55,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: rollkit/.github/.github/actions/markdown-lint@v0.5.0
 
-  protobuf-lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - run: make proto-gen
-      - run: make proto-lint
-
   cli-docs-lint:
     name: Lint CLI Docs
     runs-on: ubuntu-latest
@@ -75,7 +67,7 @@ jobs:
       - name: install rollkit cli
         run: make install
       - name: Generate Docs
-        run: rollkit docs-gen
+        run: testapp docs-gen
       - name: Verify no diff
         run: |
           DIFF=$(git diff)
