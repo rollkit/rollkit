@@ -27,13 +27,12 @@ import (
 
 func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 	var (
-		homePath     string
-		ethURL       string
-		engineURL    string
-		jwtSecret    string
-		genesisHash  string
-		feeRecipient string
-
+		homePath            string
+		ethURL              string
+		engineURL           string
+		jwtSecret           string
+		genesisHash         string
+		feeRecipient        string
 		basedURL            string
 		basedAuth           string
 		basedNamespace      string
@@ -53,7 +52,6 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("error reading home flag: %w", err)
 			}
 
-			// Could add validation here if needed
 			ethURL, err = cmd.Flags().GetString("evm.eth-url")
 			if err != nil {
 				return fmt.Errorf("failed to get 'evm.eth-url' flag: %w", err)
@@ -75,7 +73,6 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to get 'evm.fee-recipient' flag: %w", err)
 			}
 
-			// Based flags
 			basedURL, err = cmd.Flags().GetString("based.url")
 			if err != nil {
 				return fmt.Errorf("failed to get 'based.url' flag: %w", err)
@@ -111,7 +108,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 
 			nodeConfig, err := rollcmd.ParseConfig(cmd)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to parse config: %w", err)
 			}
 
 			executor, err := execution.NewEngineExecutionClient(
@@ -144,11 +141,14 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				basedDA = coreda.NewDummyDA(100_000, 0, 0)
 			}
 			nsBytes, err := hex.DecodeString(basedNamespace)
+			if err != nil {
+				return fmt.Errorf("failed to decode based namespace: %w", err)
+			}
 			basedDALC := da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, nsBytes, nil, logger)
 
 			datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "based")
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to create datastore: %w", err)
 			}
 
 			sequencer, err := based.NewSequencer(
@@ -175,34 +175,30 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 
 			nodeKey, err := key.LoadNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to load node key: %w", err)
 			}
 
 			p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, p2p.NopMetrics())
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to create P2P client: %w", err)
 			}
 
 			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDALC, nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
 
-	// 👇 Add custom flags
 	rollconf.AddFlags(cmd)
 	cmd.Flags().StringVar(&homePath, "home", "~/.rollkit/based", "Home directory for the rollkit based node")
-
 	cmd.Flags().StringVar(&ethURL, "evm.eth-url", "http://localhost:8545", "Ethereum JSON-RPC URL")
 	cmd.Flags().StringVar(&engineURL, "evm.engine-url", "http://localhost:8551", "Engine API URL")
 	cmd.Flags().StringVar(&jwtSecret, "evm.jwt-secret", "", "JWT secret for Engine API")
 	cmd.Flags().StringVar(&genesisHash, "evm.genesis-hash", "", "Genesis block hash")
 	cmd.Flags().StringVar(&feeRecipient, "evm.fee-recipient", "", "Fee recipient address")
-
-	// Add based flags
 	cmd.Flags().StringVar(&basedURL, "based.url", "http://localhost:26658", "Based API URL")
 	cmd.Flags().StringVar(&basedAuth, "based.auth", "", "Authentication token for Based API")
 	cmd.Flags().StringVar(&basedNamespace, "based.namespace", "", "Namespace for Based API")
 	cmd.Flags().Uint64Var(&basedStartHeight, "based.start-height", 0, "Starting height for Based API")
-	cmd.Flags().Uint64Var(&basedMaxHeightDrift, "based.max-height-drift", 1, "Maximum number of L1 (DA layer) block heights a rollup batch is allowed to drift while collecting sequenced transactions")
+	cmd.Flags().Uint64Var(&basedMaxHeightDrift, "based.max-height-drift", 1, "Maximum L1 block height drift")
 	cmd.Flags().Float64Var(&basedGasMultiplier, "based.gas-multiplier", 1.0, "Gas multiplier for Based API")
 	cmd.Flags().Float64Var(&basedGasPrice, "based.gas-price", 1.0, "Gas price for Based API")
 
@@ -210,11 +206,9 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 }
 
 const (
-	// AppName is the name of the application, the name of the command, and the name of the home directory.
 	AppName = "based"
 )
 
-// RootCmd is the root command for Rollkit
 var RootCmd = &cobra.Command{
 	Use:   AppName,
 	Short: "The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.",
@@ -225,11 +219,8 @@ If the --home flag is not specified, the rollkit command will create a folder "~
 }
 
 func main() {
-	// Initiate the root command
 	rootCmd := RootCmd
-	// Create context for the executor
 	ctx := context.Background()
-	// Add subcommands to the root command
 	rootCmd.AddCommand(
 		rollcmd.NewDocsGenCmd(rootCmd, AppName),
 		NewExtendedRunNodeCmd(ctx),
@@ -238,7 +229,6 @@ func main() {
 	)
 
 	if err := rootCmd.Execute(); err != nil {
-		// Print to stderr and exit with error
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
