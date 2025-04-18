@@ -22,20 +22,20 @@ This directory contains the implementation of a single EVM sequencer using Rollk
   
 3. Initialize the sequencer:
 
-  ```bash
-  ./evm-single init --rollkit.node.aggregator=true --rollkit.signer.passphrase secret
-  ```
+```bash
+./evm-single init --rollkit.node.aggregator=true --rollkit.signer.passphrase secret
+```
 
 4. Start the sequencer:
 
-  ```bash
-  ./evm-single start \
-    --evm.jwt-secret $(cat <path_to>/go-execution-evm/docker/jwttoken/jwt.hex) \
-    --evm.genesis-hash 0x0a962a0d163416829894c89cb604ae422323bcdf02d7ea08b94d68d3e026a380 \
-    --rollkit.node.block_time 1s \
-    --rollkit.node.aggregator=true \
-    --rollkit.signer.passphrase secret
-  ```
+```bash
+./evm-single start \
+  --evm.jwt-secret $(cat <path_to>/go-execution-evm/docker/jwttoken/jwt.hex) \
+  --evm.genesis-hash 0x0a962a0d163416829894c89cb604ae422323bcdf02d7ea08b94d68d3e026a380 \
+  --rollkit.node.block_time 1s \
+  --rollkit.node.aggregator=true \
+  --rollkit.signer.passphrase secret
+```
 
 Note: Replace `<path_to>` with the actual path to your go-execution-evm repository.
 

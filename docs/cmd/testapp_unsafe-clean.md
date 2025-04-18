@@ -28,4 +28,4 @@ testapp unsafe-clean [flags]
 
 ### SEE ALSO
 
-* [testapp](testapp.md)	 - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
+* [testapp](testapp.md)  - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.

@@ -3,6 +3,7 @@ package da
 import (
 	"context"
 	"encoding/binary"
+	"time"
 )
 
 // Client is the interface for the DA layer client.
@@ -74,6 +75,8 @@ type BaseResult struct {
 	BlobSize uint64
 	// IDs is the list of IDs of the blobs submitted.
 	IDs [][]byte
+	// Timestamp is the timestamp of the posted data on Data Availability Layer.
+	Timestamp time.Time
 }
 
 // makeID creates an ID from a height and a commitment.

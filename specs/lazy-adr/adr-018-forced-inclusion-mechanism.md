@@ -57,7 +57,7 @@ flowchart TB
             validate["Validate time windows"]
             validateDelay["Validate MinDADelay"]
         end
-        
+
         subgraph FallbackMode["Fallback Mode"]
             detect["Detect sequencer down"]
             scan["Scan DA for direct txs"]
@@ -135,7 +135,7 @@ type SequencerStatus struct {
 type DAClient interface {
     // Existing methods
     // ...
-    
+
     // New method for forced inclusion
     GetDirectTransactions(ctx context.Context, fromTime, toTime uint64) ([][]byte, error)
     // Note: SubmitDirectTransaction is removed as it's not a responsibility of the rollup node
@@ -312,7 +312,7 @@ sequenceDiagram
     S->>R: Sequencer Block N+1
     DA->>S: DA Block N+2
     S->>R: Sequencer Block N+2
-    
+
     Note over S,R: Sequencer Down
     DA->>R: DA Block N+3 (Direct Txs)
     Note over R: Fallback Mode Start
@@ -321,7 +321,7 @@ sequenceDiagram
     R->>R: Create Block from Direct Txs
     DA->>R: DA Block N+5 (Direct Txs)
     R->>R: Create Block from Direct Txs
-    
+
     Note over S,R: Sequencer Back Online
     DA->>S: DA Block N+6
     S->>R: Sequencer Block N+6
