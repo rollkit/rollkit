@@ -193,7 +193,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 	cmd.Flags().Uint64Var(&basedStartHeight, "based.start-height", 0, "Starting height for Based API")
 	cmd.Flags().Uint64Var(&basedMaxHeightDrift, "based.max-height-drift", 1, "Maximum L1 block height drift")
 	cmd.Flags().Float64Var(&basedGasMultiplier, "based.gas-multiplier", 1.0, "Gas multiplier for Based API")
-	cmd.Flags().Float64Var(&basedGasPrice, "based.gas-price", 1.0, "Gas price for Based API")
+	cmd.Flags().Float64Var(&basedGasPrice, "based.gas-price", -1.0, "Gas price for Based API")
 
 	return cmd
 }

@@ -33,96 +33,43 @@ var (
 	ErrInvalidMaxBytes = errors.New("invalid max bytes")
 )
 
-// TxsWithTimestamp is a struct that holds transactions and their IDs along with a timestamp.
-type TxsWithTimestamp struct {
-	Txs       [][]byte
-	IDs       [][]byte
-	Timestamp time.Time
-}
-
-// PersistentPendingTxs is a persistent queue for pending transactions.
-type PersistentPendingTxs struct {
-	store datastore.Batching
-	list  []TxsWithTimestamp
-}
-
-// NewPersistentPendingTxs creates a new PersistentPendingTxs instance.
-func NewPersistentPendingTxs(store datastore.Batching) (*PersistentPendingTxs, error) {
-	pt := &PersistentPendingTxs{store: store, list: []TxsWithTimestamp{}}
-	if err := pt.Load(); err != nil && err != datastore.ErrNotFound {
-		return nil, err
-	}
-	return pt, nil
-}
-
-// Push adds transactions to the pending queue with a timestamp.
-func (pt *PersistentPendingTxs) Push(txs [][]byte, ids [][]byte, timestamp time.Time) error {
-	pt.list = append(pt.list, TxsWithTimestamp{Txs: txs, IDs: ids, Timestamp: timestamp})
-	return pt.Save()
-}
-
-// PopUpToMaxBytes pops transactions from the queue until the total size is less than maxBytes.
-func (pt *PersistentPendingTxs) PopUpToMaxBytes(maxBytes uint64) ([][]byte, [][]byte, uint64, time.Time) {
-	var (
-		poppedTxs [][]byte
-		ids       [][]byte
-		totalSize uint64
-		timestamp time.Time = time.Now()
-	)
-
-	for len(pt.list) > 0 {
-		first := pt.list[0]
-		timestamp = first.Timestamp
-		for i, tx := range first.Txs {
-			txSize := uint64(len(tx))
-			if totalSize+txSize > maxBytes {
-				pt.list[0] = TxsWithTimestamp{
-					Txs:       first.Txs[i:],
-					IDs:       first.IDs[i:],
-					Timestamp: first.Timestamp,
-				}
-				pt.Save()
-				return poppedTxs, ids, totalSize, timestamp
-			}
-			poppedTxs = append(poppedTxs, tx)
-			ids = append(ids, first.IDs[i])
-			totalSize += txSize
-		}
-		pt.list = pt.list[1:]
-	}
-	pt.Save()
-	return poppedTxs, ids, totalSize, timestamp
-}
-
-// Save saves the pending transactions to the datastore.
-func (pt *PersistentPendingTxs) Save() error {
-	data, err := json.Marshal(pt.list)
-	if err != nil {
-		return err
-	}
-	return pt.store.Put(context.Background(), datastore.NewKey(dsPendingTxsKey), data)
-}
-
-// Load loads the pending transactions from the datastore.
-func (pt *PersistentPendingTxs) Load() error {
-	data, err := pt.store.Get(context.Background(), datastore.NewKey(dsPendingTxsKey))
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, &pt.list)
-}
-
 var _ coresequencer.Sequencer = &Sequencer{}
 
+// Sequencer is responsible for managing rollup transactions and interacting with the
+// Data Availability (DA) layer. It handles tasks such as adding transactions to a
+// pending queue, retrieving batches of transactions, verifying batches, and submitting
+// them to the DA layer. The Sequencer ensures that transactions are processed in a
+// reliable and efficient manner while adhering to constraints like maximum blob size
+// and height drift.
+// Sequencer represents a structure responsible for managing the sequencing of transactions
+// and interacting with the Data Availability (DA) layer.
 type Sequencer struct {
-	logger         log.Logger
+	// logger is used for logging messages and events within the Sequencer.
+	logger log.Logger
+
+	// maxHeightDrift defines the maximum allowable difference between the current
+	// block height and the DA layer's block height.
 	maxHeightDrift uint64
-	rollupId       []byte
-	DA             coreda.DA
-	dalc           coreda.Client
-	pendingTxs     *PersistentPendingTxs
-	daStartHeight  uint64
-	store          datastore.Batching
+
+	// rollupId is the unique identifier for the rollup associated with this Sequencer.
+	rollupId []byte
+
+	// DA represents the Data Availability layer interface used by the Sequencer.
+	DA coreda.DA
+
+	// dalc is the client used to interact with the Data Availability layer.
+	dalc coreda.Client
+
+	// pendingTxs is a persistent storage for transactions that are pending inclusion
+	// in the rollup blocks.
+	pendingTxs *PersistentPendingTxs
+
+	// daStartHeight specifies the starting block height in the Data Availability layer
+	// from which the Sequencer begins processing.
+	daStartHeight uint64
+
+	// store is a batching datastore used for storing and retrieving data.
+	store datastore.Batching
 }
 
 // NewSequencer creates a new Sequencer instance.
@@ -323,11 +270,11 @@ func (s *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Bat
 	attempt := 0
 
 	// Store initial values to be able to reset or compare later
-	// initialGasPrice, err := s.dalc.GasPrice(ctx)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to get initial gas price: %w", err)
-	// }
-	initialGasPrice := -1.0
+	initialGasPrice, err := s.dalc.GasPrice(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get initial gas price: %w", err)
+	}
+
 	initialMaxBlobSize, err := s.dalc.MaxBlobSize(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get initial max blob size: %w", err)
@@ -347,11 +294,10 @@ daSubmitRetryLoop:
 		// Attempt to submit the batch to the DA layer
 		res := s.dalc.Submit(ctx, currentBatch.Transactions, maxBlobSize, gasPrice)
 
-		// gasMultiplier, err := s.dalc.GasMultiplier(ctx)
-		// if err != nil {
-		// 	return fmt.Errorf("failed to get gas multiplier: %w", err)
-		// }
-		gasMultiplier := 1.1
+		gasMultiplier, err := s.dalc.GasMultiplier(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get gas multiplier: %w", err)
+		}
 
 		switch res.Code {
 		case coreda.StatusSuccess:
