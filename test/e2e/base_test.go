@@ -130,7 +130,6 @@ func TestBasic(t *testing.T) {
 	ctx, done = context.WithTimeout(context.Background(), time.Second)
 	defer done()
 	state, err := c.GetState(ctx)
-	fmt.Println("state", state, "err", err)
 	require.NoError(t, err)
 	require.Greater(t, state.LastBlockHeight, uint64(1))
 }
