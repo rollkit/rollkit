@@ -38,8 +38,16 @@ var RunCmd = &cobra.Command{
 		logger := log.NewLogger(os.Stdout, opts...)
 
 		// Create test implementations
-		// TODO: we need to start the executor http server
 		executor := kvexecutor.NewKVExecutor()
+
+		// Get KV endpoint flag
+		kvEndpoint, _ := cmd.Flags().GetString(flagKVEndpoint)
+		if kvEndpoint == "" {
+			logger.Info("KV endpoint flag not set, using default from http_server")
+			// Potentially use a default defined in http_server or handle error
+			// For now, let's assume NewHTTPServer handles empty string or has a default
+			// Or better, rely on the default set in root.go init()
+		}
 
 		nodeConfig, err := rollcmd.ParseConfig(cmd)
 		if err != nil {
@@ -77,6 +85,22 @@ var RunCmd = &cobra.Command{
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
+		// Start the KV executor HTTP server
+		if kvEndpoint != "" { // Only start if endpoint is provided (or has a default)
+			kvEndpoint = "localhost:9090"
+		}
+
+		httpServer := kvexecutor.NewHTTPServer(executor, kvEndpoint)
+		err = httpServer.Start(ctx) // Use the main context for lifecycle management
+		if err != nil {
+			logger.Error("Failed to start KV executor HTTP server", "error", err)
+			// Decide if this is a fatal error. For now, let's log and continue.
+			// return fmt.Errorf("failed to start KV executor HTTP server: %w", err)
+		} else {
+			logger.Info("KV executor HTTP server started", "endpoint", kvEndpoint)
+		}
+
 		sequencer, err := single.NewSequencer(
 			ctx,
 			logger,
