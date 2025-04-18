@@ -19,7 +19,7 @@ func init() {
 	rollkitconfig.AddGlobalFlags(RootCmd, AppName)
 	rollkitconfig.AddFlags(RunCmd)
 	// Add the KV endpoint flag specifically to the RunCmd
-	RunCmd.Flags().String(flagKVEndpoint, "localhost:8080", "Address and port for the KV executor HTTP server")
+	RunCmd.Flags().String(flagKVEndpoint, "", "Address and port for the KV executor HTTP server")
 }
 
 // RootCmd is the root command for Rollkit

@@ -99,7 +99,8 @@ func (k *KVExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
 }
 
 // ExecuteTxs processes each transaction assumed to be in the format "key=value".
-// It updates the in-memory store accordingly. If a transaction is malformed, an error is returned.
+// It updates the in-memory store accordingly and removes the executed transactions from the mempool.
+// If a transaction is malformed, an error is returned.
 func (k *KVExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) ([]byte, uint64, error) {
 	select {
 	case <-ctx.Done():
@@ -108,19 +109,39 @@ func (k *KVExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight u
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
+
+	// Create a map of transactions to be executed for efficient lookup
+	executedTxsMap := make(map[string]struct{}, len(txs))
+	for _, tx := range txs {
+		executedTxsMap[string(tx)] = struct{}{}
+	}
+
+	// Process transactions
 	for _, tx := range txs {
 		parts := strings.SplitN(string(tx), "=", 2)
 		if len(parts) != 2 {
+			// Don't modify mempool on error, as the block might be rejected
 			return nil, 0, errors.New("malformed transaction; expected format key=value")
 		}
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
 		if key == "" {
+			// Don't modify mempool on error
 			return nil, 0, errors.New("empty key in transaction")
 		}
 		k.store[key] = value
 	}
 	stateRoot := k.computeStateRoot()
+
+	// Filter the mempool, keeping only transactions not in the executed set
+	newMempool := make([][]byte, 0, len(k.mempool))
+	for _, memTx := range k.mempool {
+		if _, executed := executedTxsMap[string(memTx)]; !executed {
+			newMempool = append(newMempool, memTx)
+		}
+	}
+	k.mempool = newMempool
+
 	return stateRoot, 1024, nil
 }
 
