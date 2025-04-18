@@ -219,11 +219,11 @@ func (c *Client) listen() (host.Host, error) {
 func (c *Client) setupDHT(ctx context.Context) error {
 	peers := c.parseAddrInfoList(c.conf.Peers)
 	if len(peers) == 0 {
-		c.logger.Info("no seed nodes - only listening for connections")
+		c.logger.Info("no peers - only listening for connections")
 	}
 
 	for _, sa := range peers {
-		c.logger.Debug("seed node", "addr", sa)
+		c.logger.Debug("peer", "addr", sa)
 	}
 
 	var err error

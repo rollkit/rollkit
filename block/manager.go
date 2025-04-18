@@ -991,7 +991,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 				}
 				err = header.FromProto(&headerPb)
 				if err != nil {
-					m.logger.Error("failed to unmarshal header", "error", err)
+					m.logger.Error("failed to create local header", "error", err)
 					continue
 				}
 				// early validation to reject junk headers

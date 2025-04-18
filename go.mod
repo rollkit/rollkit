@@ -14,7 +14,7 @@ replace (
 require (
 	connectrpc.com/connect v1.18.1
 	connectrpc.com/grpcreflect v1.3.0
-	cosmossdk.io/log v1.5.0
+	cosmossdk.io/log v1.5.1
 	github.com/celestiaorg/go-header v0.6.5
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cosmos/gogoproto v1.7.0
@@ -34,7 +34,7 @@ require (
 	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
 	github.com/rollkit/rollkit/da v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/sequencers/based v0.0.0-00010101000000-000000000000
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.19.0
@@ -127,7 +127,7 @@ require (
 	github.com/libp2p/go-yamux/v5 v5.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/marten-seemann/tcp v0.0.0-20210406111302-dfbc87cc63fd // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/miekg/dns v1.1.64 // indirect
@@ -210,7 +210,7 @@ require (
 	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect
+	golang.org/x/arch v0.15.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
