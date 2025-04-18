@@ -150,7 +150,7 @@ require (
 	github.com/quic-go/webtransport-go v0.8.1-0.20241018022711-4ac2c9250e66 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rollkit/go-sequencing v0.4.1 // indirect
-	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000 // indirect
+	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect

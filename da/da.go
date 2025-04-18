@@ -157,13 +157,15 @@ func (dac *DAClient) Retrieve(ctx context.Context, dataLayerHeight uint64) cored
 
 	return coreda.ResultRetrieve{
 		BaseResult: coreda.BaseResult{
-			Code:   coreda.StatusSuccess,
-			Height: dataLayerHeight,
+			Code:      coreda.StatusSuccess,
+			Height:    dataLayerHeight,
+			IDs:       result.IDs,
+			Timestamp: result.Timestamp,
 		},
 		Data: blobs,
 	}
 }
 
 func (dac *DAClient) submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace []byte) ([]coreda.ID, error) {
-	return dac.DA.Submit(ctx, blobs, gasPrice, namespace, dac.SubmitOptions)
+	return dac.DA.SubmitWithOptions(ctx, blobs, gasPrice, namespace, dac.SubmitOptions)
 }
