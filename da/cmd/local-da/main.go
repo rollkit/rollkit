@@ -38,7 +38,7 @@ func main() {
 	logger := log.NewLogger(os.Stdout).With("module", "da")
 	da := NewLocalDA(logger)
 
-	srv := proxy.NewServer(host, port, da)
+	srv := proxy.NewServer(logger, host, port, da)
 	logger.Info("Listening on", host, port)
 	if err := srv.Start(context.Background()); err != nil {
 		logger.Info("error while serving:", err)

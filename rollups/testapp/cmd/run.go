@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"context"
-	"os"
+	"fmt"
 	"path/filepath"
 
 	"cosmossdk.io/log"
@@ -35,20 +35,28 @@ var RunCmd = &cobra.Command{
 			opts = append(opts, log.LevelOption(zl))
 		}
 
-		logger := log.NewLogger(os.Stdout, opts...)
-
-		// Create test implementations
-		// TODO: we need to start the executor http server
-		executor := kvexecutor.NewKVExecutor()
-
 		nodeConfig, err := rollcmd.ParseConfig(cmd)
 		if err != nil {
 			return err
 		}
 
-		daJrpc, err := proxy.NewClient(nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		logger := rollcmd.SetupLogger(nodeConfig.Log)
+
+		// Get KV endpoint flag
+		kvEndpoint, _ := cmd.Flags().GetString(flagKVEndpoint)
+		if kvEndpoint == "" {
+			logger.Info("KV endpoint flag not set, using default from http_server")
+		}
+
+		// Create test implementations
+		executor, err := kvexecutor.NewKVExecutor(nodeConfig.RootDir, nodeConfig.DBPath)
 		if err != nil {
-			panic(err)
+			return err
+		}
+
+		daJrpc, err := proxy.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		if err != nil {
+			return err
 		}
 
 		dac := da.NewDAClient(
@@ -77,6 +85,18 @@ var RunCmd = &cobra.Command{
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
+		// Start the KV executor HTTP server
+		if kvEndpoint != "" { // Only start if endpoint is provided
+			httpServer := kvexecutor.NewHTTPServer(executor, kvEndpoint)
+			err = httpServer.Start(ctx) // Use the main context for lifecycle management
+			if err != nil {
+				return fmt.Errorf("failed to start KV executor HTTP server: %w", err)
+			} else {
+				logger.Info("KV executor HTTP server started", "endpoint", kvEndpoint)
+			}
+		}
+
 		sequencer, err := single.NewSequencer(
 			ctx,
 			logger,

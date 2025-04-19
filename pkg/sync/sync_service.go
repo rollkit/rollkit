@@ -386,7 +386,7 @@ func getPeers(seeds string, logger log.Logger) []peer.ID {
 	for _, seed := range sl {
 		maddr, err := multiaddr.NewMultiaddr(seed)
 		if err != nil {
-			logger.Error("failed to parse peer", "address", seed, "error", err)
+			logger.Debug("failed to parse peer", "address", seed, "error", err)
 			continue
 		}
 		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)

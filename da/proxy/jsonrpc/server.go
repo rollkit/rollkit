@@ -4,20 +4,18 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"os"
 	"sync/atomic"
 	"time"
 
-	logger "cosmossdk.io/log"
+	"cosmossdk.io/log"
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"github.com/rollkit/rollkit/core/da"
 )
 
-var log = logger.NewLogger(os.Stdout).With("module", "da-rpc")
-
 // Server is a jsonrpc service that can serve the DA interface
 type Server struct {
+	logger   log.Logger
 	srv      *http.Server
 	rpc      *jsonrpc.RPCServer
 	listener net.Listener
@@ -32,7 +30,7 @@ func (s *Server) RegisterService(namespace string, service interface{}, out inte
 }
 
 // NewServer accepts the host address port and the DA implementation to serve as a jsonrpc service
-func NewServer(address, port string, DA da.DA) *Server {
+func NewServer(logger log.Logger, address, port string, DA da.DA) *Server {
 	rpc := jsonrpc.NewServer(jsonrpc.WithServerErrors(getKnownErrorsMapping()))
 	srv := &Server{
 		rpc: rpc,
@@ -41,10 +39,11 @@ func NewServer(address, port string, DA da.DA) *Server {
 			// the amount of time allowed to read request headers. set to the default 2 seconds
 			ReadHeaderTimeout: 2 * time.Second,
 		},
+		logger: logger,
 	}
 	srv.srv.Handler = http.HandlerFunc(rpc.ServeHTTP)
 	// Wrap the provided DA implementation with the logging decorator
-	srv.RegisterService("da", DA, &API{}) // Register the wrapper
+	srv.RegisterService("da", DA, &API{logger: logger}) // Register the wrapper
 	return srv
 }
 
@@ -53,8 +52,9 @@ func NewServer(address, port string, DA da.DA) *Server {
 // Once started, subsequent calls are a no-op
 func (s *Server) Start(context.Context) error {
 	couldStart := s.started.CompareAndSwap(false, true)
+
 	if !couldStart {
-		log.Warn("cannot start server: already started")
+		s.logger.Warn("cannot start server: already started")
 		return nil
 	}
 	listener, err := net.Listen("tcp", s.srv.Addr)
@@ -62,7 +62,7 @@ func (s *Server) Start(context.Context) error {
 		return err
 	}
 	s.listener = listener
-	log.Info("server started", "listening on", s.srv.Addr)
+	s.logger.Info("server started", "listening on", s.srv.Addr)
 	//nolint:errcheck
 	go s.srv.Serve(listener)
 	return nil
@@ -74,7 +74,7 @@ func (s *Server) Start(context.Context) error {
 func (s *Server) Stop(ctx context.Context) error {
 	couldStop := s.started.CompareAndSwap(true, false)
 	if !couldStop {
-		log.Warn("cannot stop server: already stopped")
+		s.logger.Warn("cannot stop server: already stopped")
 		return nil
 	}
 	err := s.srv.Shutdown(ctx)
@@ -82,6 +82,6 @@ func (s *Server) Stop(ctx context.Context) error {
 		return err
 	}
 	s.listener = nil
-	log.Info("server stopped")
+	s.logger.Info("server stopped")
 	return nil
 }

@@ -335,7 +335,7 @@ func (c *Client) parseAddrInfoList(addrInfoStr string) []peer.AddrInfo {
 	for _, p := range peers {
 		maddr, err := multiaddr.NewMultiaddr(p)
 		if err != nil {
-			c.logger.Error("failed to parse peer", "address", p, "error", err)
+			c.logger.Debug("failed to parse peer", "address", p, "error", err)
 			continue
 		}
 		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)

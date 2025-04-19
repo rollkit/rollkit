@@ -2,13 +2,11 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -47,7 +45,10 @@ func TestHandleTx(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			exec := NewKVExecutor()
+			exec, err := NewKVExecutor(t.TempDir(), "testdb")
+			if err != nil {
+				t.Fatalf("Failed to create KVExecutor: %v", err)
+			}
 			server := NewHTTPServer(exec, ":0")
 
 			req := httptest.NewRequest(tt.method, "/tx", strings.NewReader(tt.body))
@@ -63,13 +64,29 @@ func TestHandleTx(t *testing.T) {
 				t.Errorf("expected body %q, got %q", tt.expectedBody, rr.Body.String())
 			}
 
-			// Verify the transaction was added to mempool if it was a valid POST
-			if tt.method == http.MethodPost && tt.body != "" {
-				if len(exec.mempool) != 1 {
-					t.Errorf("expected 1 transaction in mempool, got %d", len(exec.mempool))
+			// Verify the transaction was added to the channel if it was a valid POST
+			if tt.method == http.MethodPost && tt.expectedStatus == http.StatusAccepted {
+				// Allow a moment for the channel send to potentially complete
+				time.Sleep(10 * time.Millisecond)
+				ctx := context.Background()
+				retrievedTxs, err := exec.GetTxs(ctx)
+				if err != nil {
+					t.Fatalf("GetTxs failed: %v", err)
 				}
-				if string(exec.mempool[0]) != tt.body {
-					t.Errorf("expected mempool to contain %q, got %q", tt.body, string(exec.mempool[0]))
+				if len(retrievedTxs) != 1 {
+					t.Errorf("expected 1 transaction in channel, got %d", len(retrievedTxs))
+				} else if string(retrievedTxs[0]) != tt.body {
+					t.Errorf("expected channel to contain %q, got %q", tt.body, string(retrievedTxs[0]))
+				}
+			} else if tt.method == http.MethodPost {
+				// If it was a POST but not accepted, ensure nothing ended up in the channel
+				ctx := context.Background()
+				retrievedTxs, err := exec.GetTxs(ctx)
+				if err != nil {
+					t.Fatalf("GetTxs failed: %v", err)
+				}
+				if len(retrievedTxs) != 0 {
+					t.Errorf("expected 0 transactions in channel for failed POST, got %d", len(retrievedTxs))
 				}
 			}
 		})
@@ -113,12 +130,15 @@ func TestHandleKV_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			exec := NewKVExecutor()
+			exec, err := NewKVExecutor(t.TempDir(), "testdb")
+			if err != nil {
+				t.Fatalf("Failed to create KVExecutor: %v", err)
+			}
 			server := NewHTTPServer(exec, ":0")
 
 			// Set up initial data if needed
 			if tt.key != "" && tt.value != "" {
-				exec.SetStoreValue(tt.key, tt.value)
+				exec.InjectTx([]byte(fmt.Sprintf("%s=%s", tt.key, tt.value)))
 			}
 
 			url := "/kv"
@@ -142,156 +162,12 @@ func TestHandleKV_Get(t *testing.T) {
 	}
 }
 
-func TestHandleKV_Post(t *testing.T) {
-	tests := []struct {
-		name           string
-		jsonBody       string
-		expectedStatus int
-		expectedBody   string
-		checkKey       string
-		expectedValue  string
-	}{
-		{
-			name:           "Set new key-value",
-			jsonBody:       `{"key":"newkey","value":"newvalue"}`,
-			expectedStatus: http.StatusOK,
-			expectedBody:   "Value set",
-			checkKey:       "newkey",
-			expectedValue:  "newvalue",
-		},
-		{
-			name:           "Update existing key",
-			jsonBody:       `{"key":"existing","value":"updated"}`,
-			expectedStatus: http.StatusOK,
-			expectedBody:   "Value set",
-			checkKey:       "existing",
-			expectedValue:  "updated",
-		},
-		{
-			name:           "Missing key",
-			jsonBody:       `{"value":"somevalue"}`,
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Missing key\n",
-		},
-		{
-			name:           "Invalid JSON",
-			jsonBody:       `{"key":`,
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Invalid JSON\n",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			exec := NewKVExecutor()
-			server := NewHTTPServer(exec, ":0")
-
-			// Set up initial data if needed
-			if tt.name == "Update existing key" {
-				exec.SetStoreValue("existing", "original")
-			}
-
-			req := httptest.NewRequest(http.MethodPost, "/kv", strings.NewReader(tt.jsonBody))
-			rr := httptest.NewRecorder()
-
-			server.handleKV(rr, req)
-
-			if rr.Code != tt.expectedStatus {
-				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
-			}
-
-			if rr.Body.String() != tt.expectedBody {
-				t.Errorf("expected body %q, got %q", tt.expectedBody, rr.Body.String())
-			}
-
-			// Verify the key-value was actually set
-			if tt.checkKey != "" {
-				value, exists := exec.GetStoreValue(tt.checkKey)
-				if !exists {
-					t.Errorf("key %q was not set in store", tt.checkKey)
-				}
-				if value != tt.expectedValue {
-					t.Errorf("expected value %q for key %q, got %q", tt.expectedValue, tt.checkKey, value)
-				}
-			}
-		})
-	}
-}
-
-func TestHandleStore(t *testing.T) {
-	tests := []struct {
-		name           string
-		method         string
-		initialKVs     map[string]string
-		expectedStatus int
-		expectedStore  map[string]string
-	}{
-		{
-			name:           "Get empty store",
-			method:         http.MethodGet,
-			initialKVs:     map[string]string{},
-			expectedStatus: http.StatusOK,
-			expectedStore:  map[string]string{},
-		},
-		{
-			name:   "Get populated store",
-			method: http.MethodGet,
-			initialKVs: map[string]string{
-				"key1": "value1",
-				"key2": "value2",
-			},
-			expectedStatus: http.StatusOK,
-			expectedStore: map[string]string{
-				"key1": "value1",
-				"key2": "value2",
-			},
-		},
-		{
-			name:           "Invalid method",
-			method:         http.MethodPost,
-			initialKVs:     map[string]string{},
-			expectedStatus: http.StatusMethodNotAllowed,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			exec := NewKVExecutor()
-			server := NewHTTPServer(exec, ":0")
-
-			// Set up initial data
-			for k, v := range tt.initialKVs {
-				exec.SetStoreValue(k, v)
-			}
-
-			req := httptest.NewRequest(tt.method, "/store", nil)
-			rr := httptest.NewRecorder()
-
-			server.handleStore(rr, req)
-
-			if rr.Code != tt.expectedStatus {
-				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
-			}
-
-			// For success cases, verify the JSON response
-			if tt.expectedStatus == http.StatusOK {
-				var got map[string]string
-				err := json.NewDecoder(rr.Body).Decode(&got)
-				if err != nil {
-					t.Errorf("failed to decode response body: %v", err)
-				}
-
-				if !reflect.DeepEqual(got, tt.expectedStore) {
-					t.Errorf("expected store %v, got %v", tt.expectedStore, got)
-				}
-			}
-		})
-	}
-}
-
 func TestHTTPServerStartStop(t *testing.T) {
 	// Create a test server that listens on a random port
-	exec := NewKVExecutor()
+	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	if err != nil {
+		t.Fatalf("Failed to create KVExecutor: %v", err)
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// This is just a placeholder handler
 		w.WriteHeader(http.StatusOK)
@@ -332,7 +208,10 @@ func TestHTTPServerStartStop(t *testing.T) {
 
 // TestHTTPServerContextCancellation tests that the server shuts down properly when the context is cancelled
 func TestHTTPServerContextCancellation(t *testing.T) {
-	exec := NewKVExecutor()
+	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	if err != nil {
+		t.Fatalf("Failed to create KVExecutor: %v", err)
+	}
 
 	// Use a random available port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

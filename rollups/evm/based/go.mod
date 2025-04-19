@@ -13,7 +13,6 @@ replace (
 )
 
 require (
-	cosmossdk.io/log v1.5.1
 	github.com/ethereum/go-ethereum v1.15.0
 	github.com/rollkit/go-execution-evm v0.1.1-0.20250328070936-d9a866002f5f
 	github.com/rollkit/rollkit v0.14.2-0.20250317130407-e9e0a1b0485e
@@ -26,6 +25,7 @@ require (
 require (
 	connectrpc.com/connect v1.18.1 // indirect
 	connectrpc.com/grpcreflect v1.3.0 // indirect
+	cosmossdk.io/log v1.5.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/Masterminds/semver/v3 v3.3.0 // indirect

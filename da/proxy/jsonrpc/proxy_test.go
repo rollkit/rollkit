@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	da "github.com/rollkit/rollkit/da"
 	proxy "github.com/rollkit/rollkit/da/proxy/jsonrpc"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,8 @@ var emptyOptions = []byte{}
 // 3450 which is chosen to be sufficiently distinct from the default port
 func TestProxy(t *testing.T) {
 	dummy := coreda.NewDummyDA(100_000, 0, 0)
-	server := proxy.NewServer(ServerHost, ServerPort, dummy)
+	logger := log.NewTestLogger(t)
+	server := proxy.NewServer(logger, ServerHost, ServerPort, dummy)
 	err := server.Start(context.Background())
 	require.NoError(t, err)
 	defer func() {
@@ -41,7 +43,7 @@ func TestProxy(t *testing.T) {
 		}
 	}()
 
-	client, err := proxy.NewClient(context.Background(), ClientURL, "")
+	client, err := proxy.NewClient(context.Background(), logger, ClientURL, "")
 	require.NoError(t, err)
 	RunDATestSuite(t, &client.DA)
 }
