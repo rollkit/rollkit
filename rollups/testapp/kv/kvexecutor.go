@@ -25,8 +25,7 @@ var (
 // It also includes fields to track genesis initialization persisted in the datastore.
 type KVExecutor struct {
 	db     ds.Batching
-	txChan chan []byte // Buffered channel for incoming transactions
-	// genesisInitialized and genesisStateRoot are now checked/stored in the db
+	txChan chan []byte // Buffered channel for transactions
 }
 
 // NewKVExecutor creates a new instance of KVExecutor with initialized store and mempool channel.
@@ -37,7 +36,7 @@ func NewKVExecutor(rootdir, dbpath string) (*KVExecutor, error) {
 	}
 	return &KVExecutor{
 		db:     datastore,
-		txChan: make(chan []byte, txChannelBufferSize), // Initialize buffered channel
+		txChan: make(chan []byte, txChannelBufferSize),
 	}, nil
 }
 
@@ -102,14 +101,12 @@ func (k *KVExecutor) InitChain(ctx context.Context, genesisTime time.Time, initi
 	default:
 	}
 
-	// Check if genesis already initialized by looking for the flag in the DB
 	initialized, err := k.db.Has(ctx, genesisInitializedKey)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to check genesis initialization status: %w", err)
 	}
 
 	if initialized {
-		// Genesis already initialized; retrieve stored genesis state root
 		genesisRoot, err := k.db.Get(ctx, genesisStateRootKey)
 		if err != nil {
 			return nil, 0, fmt.Errorf("genesis initialized but failed to retrieve state root: %w", err)
