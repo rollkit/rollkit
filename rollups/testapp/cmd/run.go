@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"cosmossdk.io/log"
@@ -36,17 +35,17 @@ var RunCmd = &cobra.Command{
 			opts = append(opts, log.LevelOption(zl))
 		}
 
-		logger := log.NewLogger(os.Stdout, opts...)
+		nodeConfig, err := rollcmd.ParseConfig(cmd)
+		if err != nil {
+			return err
+		}
+
+		logger := rollcmd.SetupLogger(nodeConfig.Log)
 
 		// Get KV endpoint flag
 		kvEndpoint, _ := cmd.Flags().GetString(flagKVEndpoint)
 		if kvEndpoint == "" {
 			logger.Info("KV endpoint flag not set, using default from http_server")
-		}
-
-		nodeConfig, err := rollcmd.ParseConfig(cmd)
-		if err != nil {
-			return err
 		}
 
 		// Create test implementations
@@ -55,9 +54,9 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		daJrpc, err := proxy.NewClient(nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		daJrpc, err := proxy.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		dac := da.NewDAClient(

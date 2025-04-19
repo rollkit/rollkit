@@ -990,12 +990,12 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 				var headerPb pb.SignedHeader
 				err := proto.Unmarshal(bz, &headerPb)
 				if err != nil {
-					m.logger.Error("failed to unmarshal header", "error", err)
+					m.logger.Debug("failed to unmarshal header", "error", err, "DAHeight", daHeight)
 					continue
 				}
 				err = header.FromProto(&headerPb)
 				if err != nil {
-					m.logger.Error("failed to create local header", "error", err)
+					m.logger.Error("failed to create local header", "error", err, "DAHeight", daHeight)
 					continue
 				}
 				// early validation to reject junk headers

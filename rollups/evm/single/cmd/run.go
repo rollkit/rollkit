@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/rollkit/rollkit/sequencers/single"
@@ -41,8 +40,6 @@ var RunCmd = &cobra.Command{
 			opts = append(opts, log.LevelOption(zl))
 		}
 
-		logger := log.NewLogger(os.Stdout, opts...)
-
 		executor, err := createExecutionClient(cmd)
 		if err != nil {
 			return err
@@ -53,7 +50,9 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		daJrpc, err := proxy.NewClient(nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		logger := rollcmd.SetupLogger(nodeConfig.Log)
+
+		daJrpc, err := proxy.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
 		if err != nil {
 			return err
 		}
