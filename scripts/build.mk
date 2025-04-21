@@ -51,6 +51,6 @@ build-da:
 ## clean: clean and build
 clean: 
 	@echo "--> Cleaning Testapp CLI"
-	@rm -rf $(CURDIR)/build/testapp
+	@rm -rf $(CURDIR)/build/
 	@echo "--> Testapp CLI Cleaned!"
 .PHONY: clean
