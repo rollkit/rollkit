@@ -396,9 +396,11 @@ func (n *FullNode) Run(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
+	//TODO: once we can identify if we are in based moded we should remove running this for all nodes.
+	go n.reaper.Start(ctx)
+
 	if n.nodeConfig.Node.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
-		go n.reaper.Start(ctx)
 		go n.blockManager.AggregationLoop(ctx)
 		go n.blockManager.HeaderSubmissionLoop(ctx)
 		go n.headerPublishLoop(ctx)
