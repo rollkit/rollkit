@@ -16,6 +16,8 @@ type Store interface {
 
 	// SaveBlock saves block along with its seen signature (which will be included in the next block).
 	SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error
+	// DeleteBlockData deletes block at given height.
+	DeleteBlockData(ctx context.Context, height uint64) error
 
 	// GetBlock returns block at given height, or error if it's not found in Store.
 	GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error)
@@ -43,4 +45,8 @@ type Store interface {
 
 	// Close safely closes underlying data storage, to ensure that data is actually saved.
 	Close() error
+}
+
+type PruningStore interface {
+	Store
 }

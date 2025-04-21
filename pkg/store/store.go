@@ -92,7 +92,7 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 
 	batch, err := s.db.Batch(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to create a new batch: %w", err)
+		return fmt.Errorf("failed to create a new batch for saving block data: %w", err)
 	}
 
 	if err := batch.Put(ctx, ds.NewKey(getHeaderKey(height)), headerBlob); err != nil {
@@ -106,6 +106,29 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 	}
 	if err := batch.Put(ctx, ds.NewKey(getIndexKey(hash)), encodeHeight(height)); err != nil {
 		return fmt.Errorf("failed to put index key in batch: %w", err)
+	}
+	if err := batch.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit batch: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteBlockData deletes block at given height.
+func (s *DefaultStore) DeleteBlockData(ctx context.Context, height uint64) error {
+	batch, err := s.db.Batch(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create a new batch for deleting block data: %w", err)
+	}
+
+	if err := batch.Delete(ctx, ds.NewKey(getHeaderKey(height))); err != nil {
+		return fmt.Errorf("failed to delete header blob in batch: %w", err)
+	}
+	if err := batch.Delete(ctx, ds.NewKey(getDataKey(height))); err != nil {
+		return fmt.Errorf("failed to delete data blob in batch: %w", err)
+	}
+	if err := batch.Delete(ctx, ds.NewKey(getSignatureKey(height))); err != nil {
+		return fmt.Errorf("failed to delete signature of block blob in batch: %w", err)
 	}
 	if err := batch.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit batch: %w", err)
