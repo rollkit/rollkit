@@ -114,8 +114,6 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 	return nil
 }
 
-// TODO: We unmarshal the header and data here, but then we re-marshal them to proto to hash or send them to DA, we should not unmarshal them here and allow the caller to handle them as needed.
-
 // GetBlockData returns block header and data at given height, or error if it's not found in Store.
 func (s *DefaultStore) GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error) {
 	headerBlob, err := s.db.Get(ctx, ds.NewKey(getHeaderKey(height)))
