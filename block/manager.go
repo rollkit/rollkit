@@ -496,6 +496,9 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
 			m.logger.Error("error while setting last batch hash", "error", err)
 		}
+		if len(res.Batch.Transactions) == 0 {
+			return nil, ErrNoBatch
+		}
 		m.lastBatchData = res.BatchData
 		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
 	}
@@ -543,72 +546,30 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 }
 
 func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
-	// lazyTimer is used to signal when a block should be built in
-	// lazy mode to signal that the chain is still live during long
-	// periods of inactivity.
+	// lazyTimer triggers block publication even during inactivity
 	lazyTimer := time.NewTimer(0)
 	defer lazyTimer.Stop()
 
 	for {
-		// start is used to track the start time of the block production period
-		start := time.Now()
 		select {
 		case <-ctx.Done():
 			return
+
 		case <-lazyTimer.C:
-			// lazyTimer is used to signal when a block should be built in
-			// lazy mode to signal that the chain is still live during long
-			// periods of inactivity.
-			// On lazyTimer, we build a block no matter what.
-			m.buildingBlock = true
-			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
-				m.logger.Error("error while publishing block", "error", err)
-			}
-			// unset the buildingBlocks flag
-			m.buildingBlock = false
-			lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockTime.Duration))
-			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 		case <-blockTimer.C:
-			// On blockTimer, retrieve transactions from executor.
-			// A block will be built only if there are transactions.
-
-			m.logger.Debug("Checking for transactions")
-			// Get transactions from executor
-			txs, err := m.exec.GetTxs(ctx)
-			if err != nil {
-				m.logger.Error("error while getting transactions", "error", err)
-			} else if len(txs) == 0 {
-				m.logger.Debug("No transactions in lazy mode - skipping block production")
-				blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
-			} else {
-				// If there are transactions, submit them to sequencer and start building next block
-				// Batch will be retrieved from sequencer in publishBlock (as usual).
-				m.buildingBlock = true
-				req := coresequencer.SubmitRollupBatchTxsRequest{
-					RollupId: []byte(m.genesis.ChainID),
-					Batch: &coresequencer.Batch{
-						Transactions: txs,
-					},
-				}
-				_, err = m.sequencer.SubmitRollupBatchTxs(ctx, req)
-				if err != nil {
-					m.logger.Error("error while submitting transactions to sequencer", "error", err)
-					continue
-				}
-
-				// Define the start time for the block production period
-				if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
-					m.logger.Error("error while publishing block", "error", err)
-				}
-				// unset the buildingBlocks flag
-				m.buildingBlock = false
-
-				// reset both timers
-				lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockTime.Duration))
-				blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
-			}
-
 		}
+
+		// Reset the start time
+		start := time.Now()
+
+		// Attempt to publish the block regardless of activity
+		if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
+			m.logger.Error("error while publishing block", "error", err)
+		}
+
+		// Reset both timers for the next aggregation window
+		lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockTime.Duration))
+		blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 	}
 }
 
@@ -1210,13 +1171,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		batchData, err := m.retrieveBatch(ctx)
 		if errors.Is(err, ErrNoBatch) {
-			return fmt.Errorf("no batch to process")
+			m.logger.Info("No batch retrieved from sequencer, skipping block production")
+			return nil // Indicate no block was produced
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
 
 		// sanity check timestamp for monotonically increasing
-		if batchData.Time.Before(lastHeaderTime) {
+		if batchData.Before(lastHeaderTime) {
 			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 		}
 		m.logger.Info("Creating and publishing block", "height", newHeight)
@@ -1263,7 +1225,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		panic(err)
 	}
 	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
-	header.Header.DataHash = data.Hash()
+	header.DataHash = data.Hash()
 
 	signature, err = m.getSignature(header.Header)
 	if err != nil {
@@ -1540,7 +1502,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			BaseHeader: types.BaseHeader{
 				ChainID: lastState.ChainID,
 				Height:  height,
-				Time:    uint64(batchData.Time.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
+				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash:  lastHeaderHash,
 			DataHash:        batchdata,
@@ -1556,10 +1518,10 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	}
 
 	blockData := &types.Data{
-		Txs: make(types.Txs, len(batchData.Batch.Transactions)),
+		Txs: make(types.Txs, len(batchData.Transactions)),
 	}
-	for i := range batchData.Batch.Transactions {
-		blockData.Txs[i] = types.Tx(batchData.Batch.Transactions[i])
+	for i := range batchData.Transactions {
+		blockData.Txs[i] = types.Tx(batchData.Transactions[i])
 	}
 
 	return header, blockData, nil

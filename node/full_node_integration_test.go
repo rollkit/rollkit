@@ -31,6 +31,7 @@ type FullNodeTestSuite struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	node      *FullNode
+	executor  *coreexecutor.DummyExecutor
 	errCh     chan error
 	runningWg sync.WaitGroup
 }
@@ -110,6 +111,8 @@ func (s *FullNodeTestSuite) SetupTest() {
 	require.True(ok)
 
 	s.node = fn
+
+	s.executor = dummyExec
 
 	// Start the node in a goroutine using Run instead of Start
 	s.startNodeInBackground(s.node)
@@ -229,6 +232,8 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	s.T().Log("=== Sequencer Check ===")
 	require.NotNil(s.node.blockManager.SeqClient(), "Sequencer client should be initialized")
 
+	s.executor.InjectTx([]byte("dummy transaction"))
+
 	// Monitor batch retrieval
 	s.T().Log("=== Monitoring Batch Retrieval ===")
 	for i := 0; i < 5; i++ {
@@ -279,6 +284,8 @@ func (s *FullNodeTestSuite) TestDAInclusion() {
 	s.T().Logf("Is proposer: %v", s.node.blockManager.IsProposer())
 	s.T().Logf("DA client initialized: %v", s.node.blockManager.DALCInitialized())
 	s.T().Logf("Aggregator enabled: %v", s.node.nodeConfig.Node.Aggregator)
+
+	s.executor.InjectTx([]byte("dummy transaction"))
 
 	// Monitor state changes in shorter intervals
 	s.T().Log("=== Monitoring State Changes ===")

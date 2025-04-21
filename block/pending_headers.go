@@ -2,9 +2,9 @@ package block
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync/atomic"
 
 	"cosmossdk.io/log"
@@ -108,7 +108,14 @@ func (pb *PendingHeaders) setLastSubmittedHeight(ctx context.Context, newLastSub
 	lsh := pb.lastSubmittedHeight.Load()
 
 	if newLastSubmittedHeight > lsh && pb.lastSubmittedHeight.CompareAndSwap(lsh, newLastSubmittedHeight) {
-		err := pb.store.SetMetadata(ctx, LastSubmittedHeightKey, []byte(strconv.FormatUint(newLastSubmittedHeight, 10)))
+		bz := make([]byte, 8)
+		binary.LittleEndian.PutUint64(bz, newLastSubmittedHeight)
+		err := pb.store.SetMetadata(ctx, LastSubmittedHeightKey, bz)
+		if err != nil {
+			pb.logger.Error("failed to convert last submitted height to bytes", "err", err)
+			return
+		}
+		err = pb.store.SetMetadata(ctx, LastSubmittedHeightKey, bz)
 		if err != nil {
 			// This indicates IO error in KV store. We can't do much about this.
 			// After next successful DA submission, update will be re-attempted (with new value).
@@ -128,9 +135,13 @@ func (pb *PendingHeaders) init() error {
 	if err != nil {
 		return err
 	}
-	lsh, err := strconv.ParseUint(string(raw), 10, 64)
-	if err != nil {
-		return err
+	if len(raw) != 8 {
+		return fmt.Errorf("invalid length of last submitted height: %d, expected 8", len(raw))
+	}
+	lsh := binary.LittleEndian.Uint64(raw)
+	if lsh == 0 {
+		// this is special case, we don't need to modify lastSubmittedHeight
+		return nil
 	}
 	pb.lastSubmittedHeight.CompareAndSwap(0, lsh)
 	return nil

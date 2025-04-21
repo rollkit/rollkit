@@ -71,15 +71,15 @@ func BasicDATest(t *testing.T, d coreda.DA) {
 	msg2 := []byte("message 2")
 
 	ctx := context.TODO()
-	id1, err := d.Submit(ctx, []coreda.Blob{msg1}, 0, testNamespace, emptyOptions)
+	id1, err := d.Submit(ctx, []coreda.Blob{msg1}, 0, testNamespace)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, id1)
 
-	id2, err := d.Submit(ctx, []coreda.Blob{msg2}, 0, testNamespace, emptyOptions)
+	id2, err := d.Submit(ctx, []coreda.Blob{msg2}, 0, testNamespace)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, id2)
 
-	id3, err := d.Submit(ctx, []coreda.Blob{msg1}, 0, testNamespace, []byte("random options"))
+	id3, err := d.SubmitWithOptions(ctx, []coreda.Blob{msg1}, 0, testNamespace, []byte("random options"))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, id3)
 
@@ -124,7 +124,7 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 	msgs := [][]byte{[]byte("msg1"), []byte("msg2"), []byte("msg3")}
 
 	ctx := context.TODO()
-	ids, err := d.Submit(ctx, msgs, 0, testNamespace, emptyOptions)
+	ids, err := d.Submit(ctx, msgs, 0, testNamespace)
 	assert.NoError(t, err)
 	assert.Len(t, ids, len(msgs))
 
@@ -181,7 +181,7 @@ func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 	go func() {
 		defer wg.Done()
 		for i := uint64(1); i <= 100; i++ {
-			_, err := d.Submit(ctx, [][]byte{[]byte("test")}, 0, []byte{}, emptyOptions)
+			_, err := d.Submit(ctx, [][]byte{[]byte("test")}, 0, []byte{})
 			assert.NoError(t, err)
 		}
 	}()

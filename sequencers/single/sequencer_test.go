@@ -102,6 +102,50 @@ func TestSequencer_SubmitRollupBatchTxs(t *testing.T) {
 	}
 }
 
+func TestSequencer_SubmitRollupBatchTxs_EmptyBatch(t *testing.T) {
+	// Initialize a new sequencer
+	metrics, _ := NopMetrics()
+	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0)
+	db := ds.NewMapDatastore()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	rollupId := []byte("rollup1")
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("namespace"), rollupId, 10*time.Second, metrics, false)
+	require.NoError(t, err, "Failed to create sequencer")
+	defer func() {
+		err := db.Close()
+		require.NoError(t, err, "Failed to close sequencer")
+	}()
+
+	// Test submitting an empty batch
+	res, err := seq.SubmitRollupBatchTxs(context.Background(), coresequencer.SubmitRollupBatchTxsRequest{
+		RollupId: rollupId,
+		Batch:    &coresequencer.Batch{Transactions: [][]byte{}}, // Empty transactions
+	})
+	require.NoError(t, err, "Submitting empty batch should not return an error")
+	require.NotNil(t, res, "Response should not be nil for empty batch submission")
+
+	// Verify that no batch was added to the queue
+	nextBatchResp, err := seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: rollupId})
+	require.NoError(t, err, "Getting next batch after empty submission failed")
+	require.NotNil(t, nextBatchResp, "GetNextBatch response should not be nil")
+	require.Empty(t, nextBatchResp.Batch.Transactions, "Queue should be empty after submitting an empty batch")
+
+	// Test submitting a nil batch
+	res, err = seq.SubmitRollupBatchTxs(context.Background(), coresequencer.SubmitRollupBatchTxsRequest{
+		RollupId: rollupId,
+		Batch:    nil, // Nil batch
+	})
+	require.NoError(t, err, "Submitting nil batch should not return an error")
+	require.NotNil(t, res, "Response should not be nil for nil batch submission")
+
+	// Verify again that no batch was added to the queue
+	nextBatchResp, err = seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: rollupId})
+	require.NoError(t, err, "Getting next batch after nil submission failed")
+	require.NotNil(t, nextBatchResp, "GetNextBatch response should not be nil")
+	require.Empty(t, nextBatchResp.Batch.Transactions, "Queue should still be empty after submitting a nil batch")
+}
+
 func TestSequencer_GetNextBatch_NoLastBatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 
@@ -363,7 +407,7 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(100_000_000), nil)
 	mockDA.On("GasPrice", mock.Anything).Return(float64(0), nil)
 	mockDA.On("GasMultiplier", mock.Anything).Return(float64(0), nil)
-	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	mockDA.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("mock DA always rejects submissions"))
 
 	// Submit a batch
