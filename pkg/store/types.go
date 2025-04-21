@@ -49,4 +49,6 @@ type Store interface {
 
 type PruningStore interface {
 	Store
+
+	PruneBlockData(ctx context.Context) error
 }

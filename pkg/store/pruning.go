@@ -2,20 +2,25 @@ package store
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/types"
 )
 
 type DefaultPruningStore struct {
 	Store
+
+	Config config.PruningConfig
 }
 
 var _ PruningStore = &DefaultPruningStore{}
 
 // NewDefaultPruningStore returns default pruning store.
-func NewDefaultPruningStore(store Store) PruningStore {
+func NewDefaultPruningStore(store Store, config config.PruningConfig) PruningStore {
 	return &DefaultPruningStore{
-		Store: store,
+		Store:  store,
+		Config: config,
 	}
 }
 
@@ -37,7 +42,10 @@ func (s *DefaultPruningStore) Height(ctx context.Context) (uint64, error) {
 // SaveBlockData adds block header and data to the store along with corresponding signature.
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultPruningStore) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
-	// todo: prune blocks
+	if err := s.PruneBlockData(ctx); err != nil {
+		return fmt.Errorf("failed to prune block data: %w", err)
+	}
+
 	return s.Store.SaveBlockData(ctx, header, data, signature)
 }
 
@@ -87,4 +95,38 @@ func (s *DefaultPruningStore) SetMetadata(ctx context.Context, key string, value
 // GetMetadata returns values stored for given key with SetMetadata.
 func (s *DefaultPruningStore) GetMetadata(ctx context.Context, key string) ([]byte, error) {
 	return s.Store.GetMetadata(ctx, key)
+}
+
+func (s *DefaultPruningStore) PruneBlockData(ctx context.Context) error {
+	var (
+		err error
+	)
+
+	// Skip if strategy is none.
+	if s.Config.Strategy == config.PruningConfigStrategyNone {
+		return nil
+	}
+
+	height, err := s.Height(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Skip if it's a correct interval or latest height is less or equal than number of blocks need to keep.
+	if height%s.Config.Interval != 0 || height <= s.Config.KeepRecent {
+		return nil
+	}
+
+	// Must keep latest 2 blocks.
+	endHeight := height - 1 - s.Config.KeepRecent
+	startHeight := min(0, endHeight-s.Config.KeepRecent)
+
+	for i := startHeight; i <= endHeight; i++ {
+		err = s.DeleteBlockData(ctx, i)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
