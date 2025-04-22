@@ -49,7 +49,7 @@ func CreateSigner(config *rollconf.Config, homePath string, passphrase string) (
 	return nil, nil
 }
 
-// LoadOrGenNodeKey creates the node key file.
+// LoadOrGenNodeKey creates the node key file if it doesn't exist.
 func LoadOrGenNodeKey(homePath string) error {
 	nodeKeyFile := filepath.Join(homePath, "config")
 
