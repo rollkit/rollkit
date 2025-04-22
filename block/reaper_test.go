@@ -42,12 +42,16 @@ func TestReaper_SubmitTxs_Success(t *testing.T) {
 
 	// Run once and ensure transaction is submitted
 	reaper.SubmitTxs()
+	mockSeq.AssertCalled(t, "SubmitRollupBatchTxs", mock.Anything, submitReqMatcher)
 
-	// Mock interactions for the second SubmitTxs call (tx already seen in the real store)
 	mockExec.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
 
 	// Run again, should not resubmit
 	reaper.SubmitTxs()
+
+	// Verify the final state: GetTxs called twice, SubmitRollupBatchTxs called only once
+	mockExec.AssertExpectations(t)
+	mockSeq.AssertExpectations(t)
 }
 
 func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
@@ -68,6 +72,10 @@ func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
 
 	// Run once and ensure nothing is submitted
 	reaper.SubmitTxs()
+
+	// Verify GetTxs was called
+	mockExec.AssertExpectations(t)
+	mockSeq.AssertNotCalled(t, "SubmitRollupBatchTxs", mock.Anything, mock.Anything)
 }
 
 func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
@@ -116,4 +124,10 @@ func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 
 	// Should not submit it again
 	reaper2.SubmitTxs()
+
+	// Verify the final state:
+	mockExec1.AssertExpectations(t)
+	mockSeq1.AssertExpectations(t)
+	mockExec2.AssertExpectations(t)
+	mockSeq2.AssertNotCalled(t, "SubmitRollupBatchTxs", mock.Anything, mock.Anything)
 }
