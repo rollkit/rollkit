@@ -76,7 +76,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="chapter-item expanded "><a href="specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="specs/block-executor.html"><strong aria-hidden="true">4.</strong> Block Executor</a></li><li class="chapter-item expanded "><a href="specs/block-validity.html"><strong aria-hidden="true">5.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="specs/da.html"><strong aria-hidden="true">6.</strong> DA</a></li><li class="chapter-item expanded "><a href="specs/full_node.html"><strong aria-hidden="true">7.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="specs/header-sync.html"><strong aria-hidden="true">8.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="specs/indexer-service.html"><strong aria-hidden="true">9.</strong> Indexer Service</a></li><li class="chapter-item expanded "><a href="specs/mempool.html"><strong aria-hidden="true">10.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="specs/p2p.html"><strong aria-hidden="true">11.</strong> P2P</a></li><li class="chapter-item expanded "><a href="specs/rpc-equivalency-coverage.html"><strong aria-hidden="true">12.</strong> RPC Equivalency</a></li><li class="chapter-item expanded "><a href="specs/state.html"><strong aria-hidden="true">13.</strong> State</a></li><li class="chapter-item expanded "><a href="specs/store.html"><strong aria-hidden="true">14.</strong> Store</a></li><li class="chapter-item expanded "><a href="specs/validators.html"><strong aria-hidden="true">15.</strong> Validators</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="chapter-item expanded "><a href="specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="specs/block-validity.html"><strong aria-hidden="true">4.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="specs/da.html"><strong aria-hidden="true">5.</strong> DA</a></li><li class="chapter-item expanded "><a href="specs/full_node.html"><strong aria-hidden="true">6.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="specs/header-sync.html"><strong aria-hidden="true">7.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../lazy-adr/adr-014-header-and-data-separation.html"><strong aria-hidden="true">8.</strong> Header and Data Separation ADR</a></li><li class="chapter-item expanded "><a href="../lazy-adr/adr-015-rollkit-minimal-header.html"><strong aria-hidden="true">9.</strong> Rollkit Minimal Header</a></li><li class="chapter-item expanded "><a href="specs/p2p.html"><strong aria-hidden="true">10.</strong> P2P</a></li><li class="chapter-item expanded "><a href="specs/store.html"><strong aria-hidden="true">11.</strong> Store</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -263,7 +263,7 @@ gantt
 <tr><td>signing key</td><td>crypto.PrivKey</td><td>used for signing a block after it is created</td></tr>
 <tr><td>config</td><td>config.BlockManagerConfig</td><td>block manager configurations (see config options below)</td></tr>
 <tr><td>genesis</td><td>*cmtypes.GenesisDoc</td><td>initialize the block manager with genesis state (genesis configuration defined in <code>config/genesis.json</code> file under the app directory)</td></tr>
-<tr><td>store</td><td>store.Store</td><td>local datastore for storing rollup blocks and states (default local store path is <code>$db_dir/rollkit</code> and <code>db_dir</code> specified in the <code>config.toml</code> file under the app directory)</td></tr>
+<tr><td>store</td><td>store.Store</td><td>local datastore for storing rollup blocks and states (default local store path is <code>$db_dir/rollkit</code> and <code>db_dir</code> specified in the <code>config.yaml</code> file under the app directory)</td></tr>
 <tr><td>mempool, proxyapp, eventbus</td><td>mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus</td><td>for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production</td></tr>
 <tr><td>dalc</td><td>da.DAClient</td><td>the data availability light client used to submit and retrieve blocks to DA network</td></tr>
 <tr><td>blockstore</td><td>*goheaderstore.Store[*types.Block]</td><td>to retrieve blocks gossiped over the P2P network</td></tr>
@@ -294,13 +294,13 @@ gantt
 <h3 id="block-publication-to-da-network"><a class="header" href="#block-publication-to-da-network">Block Publication to DA Network</a></h3>
 <p>The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the <code>pendingBlocks</code> queue) to the DA network using the <code>DABlockTime</code> configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L50"><code>maxSubmitAttempts</code></a> attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L59"><code>initialBackoff</code></a> and it doubles in the next attempt and capped at <code>DABlockTime</code>. A successful publish event leads to the emptying of <code>pendingBlocks</code> queue and a failure event leads to proper error reporting without emptying of <code>pendingBlocks</code> queue.</p>
 <h3 id="block-retrieval-from-da-network"><a class="header" href="#block-retrieval-from-da-network">Block Retrieval from DA Network</a></h3>
-<p>The block manager of the full nodes regularly pulls blocks from the DA network at <code>DABlockTime</code> intervals and starts off with a DA height read from the last state stored in the local store or <code>DAStartHeight</code> configuration parameter, whichever is the latest. The block manager also actively maintains and increments the <code>daHeight</code> counter after every DA pull. The pull happens by making the <code>RetrieveBlocks(daHeight)</code> request using the Data Availability Light Client (DALC) retriever, which can return either <code>Success</code>, <code>NotFound</code>, or <code>Error</code>. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the <code>daHeight</code> counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block <code>NotFound</code> scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the <code>daHeight</code> counter in this case. Finally, for the <code>Success</code> scenario, first, blocks that are successfully retrieved are marked as DA included and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the <code>DABlockTime</code> and <code>BlockTime</code> intervals.</p>
+<p>The block manager of the full nodes regularly pulls blocks from the DA network at <code>DABlockTime</code> intervals and starts off with a DA height read from the last state stored in the local store or <code>DAStartHeight</code> configuration parameter, whichever is the latest. The block manager also actively maintains and increments the <code>daHeight</code> counter after every DA pull. The pull happens by making the <code>RetrieveBlocks(daHeight)</code> request using the Data Availability Light Client (DALC) retriever, which can return either <code>Success</code>, <code>NotFound</code>, or <code>Error</code>. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the <code>daHeight</code> counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block <code>NotFound</code> scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the <code>daHeight</code> counter in this case. Finally, for the <code>Success</code> scenario, first, blocks that are successfully retrieved are marked as DA included and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the <code>DABlockTime</code> and <code>BlockTime</code> intervals. For more details on DA integration, see the <a href="specs/./da.html">Data Availability specification</a>.</p>
 <h4 id="out-of-order-rollup-blocks-on-da"><a class="header" href="#out-of-order-rollup-blocks-on-da">Out-of-Order Rollup Blocks on DA</a></h4>
 <p>Rollkit should support blocks arriving out-of-order on DA, like so:
-<img src="https://github.com/rollkit/rollkit/blob/32839c86634a64aa5646bfd1e88bf37b86b81fec/block/out-of-order-blocks.png?raw=true" alt="out-of-order blocks" /></p>
+<img src="specs/./out-of-order-blocks.png" alt="out-of-order blocks" /></p>
 <h4 id="termination-condition"><a class="header" href="#termination-condition">Termination Condition</a></h4>
 <p>If the sequencer double-signs two blocks at the same height, evidence of the fault should be posted to DA. Rollkit full nodes should process the longest valid chain up to the height of the fault evidence, and terminate. See diagram:
-<img src="https://github.com/rollkit/rollkit/blob/32839c86634a64aa5646bfd1e88bf37b86b81fec/block/termination.png?raw=true" alt="termination conidition" /></p>
+<img src="specs/./termination.png" alt="termination conidition" /></p>
 <h3 id="block-sync-service"><a class="header" href="#block-sync-service">Block Sync Service</a></h3>
 <p>The block sync service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block sync service is passed to it. Blocks created in the block manager are then passed to the <code>BlockCh</code> channel and then sent to the <a href="https://github.com/celestiaorg/go-header">go-header</a> service to be gossiped blocks over the P2P network.</p>
 <h3 id="block-publication-to-p2p-network"><a class="header" href="#block-publication-to-p2p-network">Block Publication to P2P network</a></h3>
@@ -341,12 +341,14 @@ This block is marked as soft confirmed by the validating full node until the sam
 <li>The block manager loads the initial state from the local store and uses genesis if not found in the local store, when the node (re)starts.</li>
 <li>The default mode for sequencer nodes is normal (not lazy).</li>
 <li>The sequencer can produce empty blocks.</li>
-<li>The block manager uses persistent storage (disk) when the <code>root_dir</code> and <code>db_path</code> configuration parameters are specified in <code>config.toml</code> file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.</li>
+<li>The block manager uses persistent storage (disk) when the <code>root_dir</code> and <code>db_path</code> configuration parameters are specified in <code>config.yaml</code> file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.</li>
 <li>The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was DA included during DA retrieval. The block is only marked DA included in this case.</li>
 <li>The data sync store is created by prefixing <code>dataSync</code> on the main data store.</li>
-<li>The genesis <code>ChainID</code> is used to create the <code>PubSubTopID</code> in go-header with the string <code>-block</code> appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.</li>
+<li>The genesis <code>ChainID</code> is used to create the <code>PubSubTopID</code> in go-header with the string <code>-block</code> appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to <a href="https://github.com/celestiaorg/go-header">go-header</a> specs for more details.</li>
 <li>Block sync over the P2P network works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via <code>P2PConfig.Seeds</code> configuration parameter when starting the full node.</li>
 <li>Node's context is passed down to all the components of the P2P block sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
+<li>The block manager supports the separation of header and data structures in Rollkit. This allows for expanding the sequencing scheme beyond centralized sequencing and enables the use of a decentralized sequencer mode. For detailed information on this architecture, see the <a href="specs/../../lazy-adr/adr-014-header-and-data-separation.html">Header and Data Separation ADR</a>.</li>
+<li>The block manager processes blocks with a minimal header format, which is designed to eliminate dependency on CometBFT's header format and can be used to produce an execution layer tailored header if needed. For details on this header structure, see the <a href="specs/../../lazy-adr/adr-015-rollkit-minimal-header.html">Rollkit Minimal Header</a> specification.</li>
 </ul>
 <h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block-manager</a></p>
@@ -357,189 +359,11 @@ This block is marked as soft confirmed by the validating full node until the sam
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
 <p>[5] <a href="https://rollkit.dev/guides/full-node">Tutorial</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="block-executor"><a class="header" href="#block-executor">Block Executor</a></h1>
-<h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
-<p>The <code>BlockExecutor</code> is a component responsible for creating, applying, and maintaining blocks and state in the system. It interacts with the mempool and the application via the <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI interface</a>.</p>
-<h2 id="detailed-description"><a class="header" href="#detailed-description">Detailed Description</a></h2>
-<p>The <code>BlockExecutor</code> is initialized with a proposer address, <code>namespace ID</code>, <code>chain ID</code>, <code>mempool</code>, <code>proxyApp</code>, <code>eventBus</code>, and <code>logger</code>. It uses these to manage the creation and application of blocks. It also validates blocks and commits them, updating the state as necessary.</p>
-<ul>
-<li>
-<p><code>NewBlockExecutor</code>: This method creates a new instance of <code>BlockExecutor</code>. It takes a proposer address, <code>namespace ID</code>, <code>chain ID</code>, <code>mempool</code>, <code>proxyApp</code>, <code>eventBus</code>, and <code>logger</code> as parameters. See <a href="https://github.com/rollkit/rollkit/blob/main/block/block-manager.md">block manager</a> for details.</p>
-</li>
-<li>
-<p><code>InitChain</code>: This method initializes the chain by calling ABCI <code>InitChainSync</code> using the consensus connection to the app. It takes a <code>GenesisDoc</code> as a parameter. It sends a ABCI <code>RequestInitChain</code> message with the genesis parameters including:</p>
-<ul>
-<li>Genesis Time</li>
-<li>Chain ID</li>
-<li>Consensus Parameters including:
-<ul>
-<li>Block Max Bytes</li>
-<li>Block Max Gas</li>
-<li>Evidence Parameters</li>
-<li>Validator Parameters</li>
-<li>Version Parameters</li>
-</ul>
-</li>
-<li>Initial Validator Set using genesis validators</li>
-<li>Initial Height</li>
-</ul>
-</li>
-<li>
-<p><code>CreateBlock</code>: This method reaps transactions from the mempool and builds a block. It takes the state, the height of the block, last header hash, and the signature as parameters.</p>
-</li>
-<li>
-<p><code>ApplyBlock</code>: This method applies the block to the state. Given the current state and block to be applied, it:</p>
-<ul>
-<li>
-<p>Validates the block, as described in <code>Validate</code>.</p>
-</li>
-<li>
-<p>Executes the block using app, as described in <code>execute</code>.</p>
-</li>
-<li>
-<p>Captures the validator updates done in the execute block.</p>
-</li>
-<li>
-<p>Updates the state using the block, block execution responses, and validator updates as described in <code>updateState</code>.</p>
-</li>
-<li>
-<p>Returns the updated state, validator updates and errors, if any, after applying the block.</p>
-</li>
-<li>
-<p>It can return the following named errors:</p>
-<ul>
-<li><code>ErrEmptyValSetGenerate</code>: returned when applying the validator changes would result in empty set.</li>
-<li><code>ErrAddingValidatorToBased</code>: returned when adding validators to empty validator set.</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><code>Validate</code>: This method validates the block. It takes the state and the block as parameters. In addition to the basic <a href="https://github.com/rollkit/rollkit/blob/main/types/block_spec.md">block validation</a> rules, it applies the following validations:</p>
-<ul>
-<li>New block version must match block version of the state.</li>
-<li>If state is at genesis, new block height must match initial height of the state.</li>
-<li>New block height must be last block height + 1 of the state.</li>
-<li>New block header <code>AppHash</code> must match state <code>AppHash</code>.</li>
-<li>New block header <code>LastResultsHash</code> must match state <code>LastResultsHash</code>.</li>
-<li>New block header <code>AggregatorsHash</code> must match state <code>Validators.Hash()</code>.</li>
-</ul>
-</li>
-<li>
-<p><code>Commit</code>: This method commits the block and updates the mempool. Given the updated state, the block, and the ABCI <code>ResponseFinalizeBlock</code> as parameters, it:</p>
-<ul>
-<li>Invokes app commit, basically finalizing the last execution, by  calling ABCI <code>Commit</code>.</li>
-<li>Updates the mempool to inform that the transactions included in the block can be safely discarded.</li>
-<li>Publishes the events produced during the block execution for indexing.</li>
-</ul>
-</li>
-<li>
-<p><code>updateState</code>: This method updates the state. Given the current state, the block, the ABCI <code>ResponseFinalizeBlock</code> and the validator updates, it validates the updated validator set, updates the state by applying the block and returns the updated state and errors, if any. The state consists of:</p>
-<ul>
-<li>Version</li>
-<li>Chain ID</li>
-<li>Initial Height</li>
-<li>Last Block including:
-<ul>
-<li>Block Height</li>
-<li>Block Time</li>
-<li>Block ID</li>
-</ul>
-</li>
-<li>Next Validator Set</li>
-<li>Current Validator Set</li>
-<li>Last Validators</li>
-<li>Whether Last Height Validators changed</li>
-<li>Consensus Parameters</li>
-<li>Whether Last Height Consensus Parameters changed</li>
-<li>App Hash</li>
-</ul>
-</li>
-<li>
-<p><code>execute</code>: This method executes the block. It takes the context, the state, and the block as parameters. It calls the ABCI method <code>FinalizeBlock</code> with the ABCI <code>RequestFinalizeBlock</code> containing the block hash, ABCI header, commit, transactions and returns the ABCI <code>ResponseFinalizeBlock</code> and errors, if any.</p>
-</li>
-<li>
-<p><code>publishEvents</code>: This method publishes events related to the block. It takes the ABCI <code>ResponseFinalizeBlock</code>, the block, and the state as parameters.</p>
-</li>
-</ul>
-<h2 id="message-structurecommunication-format-2"><a class="header" href="#message-structurecommunication-format-2">Message Structure/Communication Format</a></h2>
-<p>The <code>BlockExecutor</code> communicates with the application via the <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI interface</a>. It calls the ABCI methods <code>InitChainSync</code>, <code>FinalizeBlock</code>, <code>Commit</code> for initializing a new chain and creating blocks, respectively.</p>
-<h2 id="assumptions-and-considerations-2"><a class="header" href="#assumptions-and-considerations-2">Assumptions and Considerations</a></h2>
-<p>The <code>BlockExecutor</code> assumes that there is consensus connection available to the app, which can be used to send and receive ABCI messages. In addition there are some important pre-condition and post-condition invariants, as follows:</p>
-<ul>
-<li>
-<p><code>InitChain</code>:</p>
-<ul>
-<li>pre-condition:
-<ul>
-<li>state is at genesis.</li>
-</ul>
-</li>
-<li>post-condition:
-<ul>
-<li>new chain is initialized.</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><code>CreateBlock</code>:</p>
-<ul>
-<li>pre-condition:
-<ul>
-<li>chain is initialized</li>
-</ul>
-</li>
-<li>post-condition:
-<ul>
-<li>new block is created</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><code>ApplyBlock</code>:</p>
-<ul>
-<li>pre-condition:
-<ul>
-<li>block is valid, using basic <a href="https://github.com/rollkit/rollkit/blob/main/types/block_spec.md">block validation</a> rules as well as validations performed in <code>Validate</code>, as described above.</li>
-</ul>
-</li>
-<li>post-condition:
-<ul>
-<li>block is added to the chain, state is updated and block execution responses are captured.</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><code>Commit</code>:</p>
-<ul>
-<li>pre-condition:
-<ul>
-<li>block has been applied</li>
-</ul>
-</li>
-<li>post-condition:
-<ul>
-<li>block is committed</li>
-<li>mempool is cleared of block transactions</li>
-<li>block events are published</li>
-<li>state App Hash is updated with the result from <code>ResponseCommit</code></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
-<p>See <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go">block executor</a></p>
-<h2 id="references-2"><a class="header" href="#references-2">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go">Block Executor</a></p>
-<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/block/block-manager.md">Block Manager</a></p>
-<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/types/block_spec.md">Block Validation</a></p>
-<p>[4] <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI documentation</a></p>
+<p>[6] <a href="specs/../../lazy-adr/adr-014-header-and-data-separation.html">Header and Data Separation ADR</a></p>
+<p>[7] <a href="specs/../../lazy-adr/adr-015-rollkit-minimal-header.html">Rollkit Minimal Header</a></p>
+<p>[8] <a href="specs/./da.html">Data Availability</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="block-and-header-validity"><a class="header" href="#block-and-header-validity">Block and Header Validity</a></h1>
-<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
+<h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
 <p>Like all blockchains, rollups are defined as the chain of <strong>valid</strong> blocks from the genesis, to the head. Thus, the block and header validity rules define the chain.</p>
 <p>Verifying a block/header is done in 3 parts:</p>
 <ol>
@@ -658,27 +482,24 @@ Block.Verify()
 <p>The <code>Submit</code> call may result in an error (<code>StatusError</code>) based on the underlying DA implementations on following scenarios:</p>
 <ul>
 <li>the total blobs size exceeds the underlying DA's limits (includes empty blobs)</li>
-<li>the implementation specific failures, e.g., for <a href="https://github.com/rollkit/celestia-da">celestia-da</a>, invalid namespace, unable to create the commitment or proof, setting low gas price, etc, could return error.</li>
+<li>the implementation specific failures, e.g., for <a href="https://github.com/rollkit/go-da/tree/main/proxy/jsonrpc">celestia-da-json-rpc</a>, invalid namespace, unable to create the commitment or proof, setting low gas price, etc, could return error.</li>
 </ul>
 <p>The <code>RetrieveBlocks</code> retrieves the rollup blocks for a given DA height using <a href="https://github.com/rollkit/go-da">go-da</a> <code>GetIDs</code> and <code>Get</code> methods. If there are no blocks available for a given DA height, <code>StatusNotFound</code> is returned (which is not an error case). The retrieved blobs are converted back to rollup blocks and returned on successful retrieval.</p>
 <p>Both <code>SubmitBlocks</code> and <code>RetrieveBlocks</code> may be unsuccessful if the DA node and the DA blockchain that the DA implementation is using have failures. For example, failures such as, DA mempool is full, DA submit transaction is nonce clashing with other transaction from the DA submitter account, DA node is not synced, etc.</p>
-<h2 id="implementation-3"><a class="header" href="#implementation-3">Implementation</a></h2>
+<h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">da implementation</a></p>
-<h2 id="references-3"><a class="header" href="#references-3">References</a></h2>
+<h2 id="references-2"><a class="header" href="#references-2">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/go-da">go-da</a></p>
-<p>[2] <a href="https://github.com/rollkit/celestia-da">celestia-da</a></p>
-<p>[3] <a href="https://github.com/rollkit/go-da/tree/main/proxy/grpc">proxy/grpc</a></p>
-<p>[4] <a href="https://github.com/rollkit/go-da/tree/main/proxy/jsonrpc">proxy/jsonrpc</a></p>
+<p>[2] <a href="https://github.com/rollkit/go-da/tree/main/proxy/grpc">proxy/grpc</a></p>
+<p>[3] <a href="https://github.com/rollkit/go-da/tree/main/proxy/jsonrpc">proxy/jsonrpc</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="full-node"><a class="header" href="#full-node">Full Node</a></h1>
-<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
+<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
 <p>A Full Node is a top-level service that encapsulates different components of Rollkit and initializes/manages them.</p>
 <h2 id="details-1"><a class="header" href="#details-1">Details</a></h2>
 <h3 id="full-node-details"><a class="header" href="#full-node-details">Full Node Details</a></h3>
 <p>A Full Node is initialized inside the Cosmos SDK start script along with the node configuration, a private key to use in the P2P client, a private key for signing blocks as a block proposer, a client creator, a genesis document, and a logger. It uses them to initialize the components described above. The components TxIndexer, BlockIndexer, and IndexerService exist to ensure cometBFT compatibility since they are needed for most of the RPC calls from the <code>SignClient</code> interface from cometBFT.</p>
 <p>Note that unlike a light node which only syncs and stores block headers seen on the P2P layer, the full node also syncs and stores full blocks seen on both the P2P network and the DA layer. Full blocks contain all the transactions published as part of the block.</p>
 <p>The Full Node mainly encapsulates and initializes/manages the following components:</p>
-<h3 id="proxyapp"><a class="header" href="#proxyapp">proxyApp</a></h3>
-<p>The Cosmos SDK start script passes a client creator constructed using the relevant Cosmos SDK application to the Full Node's constructor which is then used to create the proxy app interface. When the proxy app is started, it establishes different <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI app connections</a> including Mempool, Consensus, Query, and Snapshot. The full node uses this interface to interact with the application.</p>
 <h3 id="genesisdoc"><a class="header" href="#genesisdoc">genesisDoc</a></h3>
 <p>The <a href="https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md">genesis</a> document contains information about the initial state of the rollup chain, in particular its validator set.</p>
 <h3 id="conf"><a class="header" href="#conf">conf</a></h3>
@@ -697,27 +518,26 @@ Block.Verify()
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync Service</a> is used for syncing block headers between nodes over P2P.</p>
 <h3 id="bsyncservice"><a class="header" href="#bsyncservice">bSyncService</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync Service</a> is used for syncing blocks between nodes over P2P.</p>
-<h2 id="message-structurecommunication-format-3"><a class="header" href="#message-structurecommunication-format-3">Message Structure/Communication Format</a></h2>
+<h2 id="message-structurecommunication-format-2"><a class="header" href="#message-structurecommunication-format-2">Message Structure/Communication Format</a></h2>
 <p>The Full Node communicates with other nodes in the network using the P2P client. It also communicates with the application using the ABCI proxy connections. The communication format is based on the P2P and ABCI protocols.</p>
-<h2 id="assumptions-and-considerations-3"><a class="header" href="#assumptions-and-considerations-3">Assumptions and Considerations</a></h2>
+<h2 id="assumptions-and-considerations-2"><a class="header" href="#assumptions-and-considerations-2">Assumptions and Considerations</a></h2>
 <p>The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors.</p>
-<h2 id="implementation-4"><a class="header" href="#implementation-4">Implementation</a></h2>
+<h2 id="implementation-3"><a class="header" href="#implementation-3">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full node</a></p>
-<h2 id="references-4"><a class="header" href="#references-4">References</a></h2>
+<h2 id="references-3"><a class="header" href="#references-3">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
-<p>[2] <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI Methods</a></p>
-<p>[3] <a href="https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md">Genesis Document</a></p>
-<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/config/config.go">Node Configuration</a></p>
-<p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">Peer to Peer Client</a></p>
-<p>[6] <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go">Mempool</a></p>
-<p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Store</a></p>
-<p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go">Store Interface</a></p>
-<p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
-<p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">Data Availability Layer Client</a></p>
-<p>[11] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync Service</a></p>
-<p>[12] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync Service</a></p>
+<p>[2] <a href="https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md">Genesis Document</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/config/config.go">Node Configuration</a></p>
+<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">Peer to Peer Client</a></p>
+<p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go">Mempool</a></p>
+<p>[6] <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Store</a></p>
+<p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go">Store Interface</a></p>
+<p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
+<p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">Data Availability Layer Client</a></p>
+<p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync Service</a></p>
+<p>[11] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync Service</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="header-sync"><a class="header" href="#header-sync">Header Sync</a></h1>
-<h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
+<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
 <p>The nodes in the P2P network sync headers using the header sync service that implements the <a href="https://github.com/celestiaorg/go-header">go-header</a> interface. The header sync service consists of several components as listed below.</p>
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Description</th></tr></thead><tbody>
 <tr><td>store</td><td>a <code>headerEx</code> prefixed <a href="https://github.com/ipfs/go-datastore">datastore</a> where synced headers are stored</td></tr>
@@ -742,78 +562,359 @@ Block.Verify()
 <li>The Header Sync works only when the node is connected to the P2P network by specifying the initial seeds to connect to via the <code>P2PConfig.Seeds</code> configuration parameter.</li>
 <li>The node's context is passed down to all the components of the P2P header sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
 </ul>
-<h2 id="implementation-5"><a class="header" href="#implementation-5">Implementation</a></h2>
+<h2 id="implementation-4"><a class="header" href="#implementation-4">Implementation</a></h2>
 <p>The header sync implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">block/sync_service.go</a>. The full and light nodes create and start the header sync service under <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a>.</p>
-<h2 id="references-5"><a class="header" href="#references-5">References</a></h2>
+<h2 id="references-4"><a class="header" href="#references-4">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">Light Node</a></p>
 <p>[4] <a href="https://github.com/celestiaorg/go-header">go-header</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="indexer-service"><a class="header" href="#indexer-service">Indexer Service</a></h1>
-<h2 id="abstract-6"><a class="header" href="#abstract-6">Abstract</a></h2>
-<p>The Indexer service indexes transactions and blocks using events emitted by the block executor that can later be used to build services like block explorers that ingest this data.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="header-and-data-separation-adr"><a class="header" href="#header-and-data-separation-adr">Header and Data Separation ADR</a></h1>
+<h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
+<p>The separation of header and data structures in Rollkit unlocks expanding the sequencing scheme beyond centralized sequencing and unlocks the use of a decentralized sequencer mode. This means that the creation of list of the transactions can be done by another network as well while rollup nodes still produce headers after executing that list of transactions. This overall change is akin to the proposer-builder separation in the Ethereum protocol, where the Rollkit header producer acts as the proposer, and the sequencer, which produces a list of transactions, acts as the builder.</p>
+<h3 id="before-separation"><a class="header" href="#before-separation">Before Separation</a></h3>
+<pre><code class="language-mermaid">flowchart LR
+    CS[Centralized Sequencer] --&gt;|Creates| B[Block]
+    B --&gt;|Contains| SH1[SignedHeader]
+    B --&gt;|Contains| D1[Data]
+
+    class CS,B,SH1,D1 node
+</code></pre>
+<h3 id="after-separation"><a class="header" href="#after-separation">After Separation</a></h3>
+<pre><code class="language-mermaid">flowchart LR
+    HP[Header Producer] --&gt;|Creates| SH2[SignedHeader]
+    SEQ[Sequencer] --&gt;|Creates| D2[Data]
+    SH2 -.-&gt;|References via DataCommitment| D2
+
+    class HP,SEQ,SH2,D2 node
+</code></pre>
 <h2 id="protocolcomponent-description-2"><a class="header" href="#protocolcomponent-description-2">Protocol/Component Description</a></h2>
-<p>The Indexer service is started and stopped along with a Full Node. It consists of three main components: an event bus, a transaction indexer and a block indexer.</p>
-<h3 id="event-bus"><a class="header" href="#event-bus">Event Bus</a></h3>
-<p>The event bus is a messaging service between the full node and the indexer service. It serves events emitted by the block executor of the full node to the indexer service where events are routed to the relevant indexer component based on type.</p>
-<h3 id="block-indexer"><a class="header" href="#block-indexer">Block Indexer</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/indexer/block.go#L11">Block Indexer</a> indexes BeginBlock and EndBlock events with an underlying KV store. Block events are indexed by their height, such that matching search criteria returns the respective block height(s).</p>
-<h3 id="transaction-indexer"><a class="header" href="#transaction-indexer">Transaction Indexer</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer.go#L14">Transaction Indexer</a> is a key-value store-backed indexer that provides functionalities for indexing and searching transactions. It allows for the addition of a batch of transactions, indexing and storing a single transaction, retrieving a transaction specified by hash, and querying for transactions based on specific conditions. The indexer also supports range queries and can return results based on the intersection of multiple conditions.</p>
+<p>Before, Rollkit only supported the use of a centralized sequencer that was responsible for creating a list of rollup tx by reaping its mempool, executing them to produce a header, and putting them together in a rollup block. Rollkit headers and data were encapsulated within a single block structure. The block struct looked like this:</p>
+<pre><code class="language-go">// Block defines the structure of Rollkit block.
+type Block struct {
+	SignedHeader SignedHeader
+	Data         Data
+}
+</code></pre>
+<p>The separation of header and data into distinct structures allows them to be processed independently. The <code>SignedHeader</code> struct now focuses on the header information, while the <code>Data</code> struct handles transaction data separately. This separation is particularly beneficial in unlocking based rollups, where users submit transactions directly to the Data Availability layer which acts as the entity responsible for creating the list of transactions.</p>
+<pre><code class="language-mermaid">classDiagram
+    class Block {
+        SignedHeader
+        Data
+    }
+
+    class SignedHeader {
+        Header
+        Signature
+    }
+
+    class Header {
+        ParentHash
+        Height
+        Timestamp
+        ChainID
+        DataCommitment
+        StateRoot
+        ExtraData
+    }
+
+    class Data {
+        Metadata
+        Txs
+    }
+
+    Block *-- SignedHeader
+    Block *-- Data
+    SignedHeader *-- Header
+</code></pre>
+<p>This change also affects how rollup full nodes sync. Previously, rollup full nodes would apply the transactions from the <code>Block</code> struct and verify that the <code>header</code> in <code>SignedHeader</code> matched their locally produced header. Now, with the separation, full nodes obtain the transaction data separately (via the DA layer directly in based sequencer mode, or via p2p gossip/DA layer in centralized sequencer mode) and verify it against the header signed by the header producer once they have both components. If a full node receives the header/data via a p2p gossip layer, they should wait to see the same header/data on the DA layer before marking the corresponding block as finalized in their view.</p>
+<p>This ensures that the data integrity and consistency are maintained across the network.</p>
+<pre><code class="language-go">// SignedHeader struct consists of the header and a signature
+type SignedHeader struct {
+    Header // Rollkit Header
+    Signature  Signature // Signature of the header producer
+    ...
+}
+
+// Header struct focusing on header information
+type Header struct {
+    // Hash of the previous rollup block header.
+    ParentHash Hash
+    // Height represents the block height (aka block number) of a given header
+    Height uint64
+    // Block creation timestamp
+    Timestamp uint64
+    // The Chain ID
+    ChainID string
+    // Pointer to location of associated block data aka transactions in the DA layer
+    DataCommitment Hash
+    // Commitment representing the state linked to the header
+    StateRoot Hash
+    // Arbitrary field for additional metadata
+    ExtraData []byte
+}
+
+// Data defines Rollkit block data.
+type Data struct {
+	*Metadata // Defines metadata for Data struct to help with p2p gossiping.
+	Txs Txs // List of transactions to be executed
+}
+</code></pre>
+<p>The <code>publishBlock</code> method in <code>manager.go</code> now creates the header and data structures separately. This decoupling allows for the header to be submitted to the DA layer independently of the rollup block data, which can be built by a separate network. This change supports the transition from a centralized sequencer mode to a decentralized sequencer mode, making the system more modular.</p>
+<h2 id="message-structurecommunication-format-3"><a class="header" href="#message-structurecommunication-format-3">Message Structure/Communication Format</a></h2>
+<h3 id="header-producer"><a class="header" href="#header-producer">Header Producer</a></h3>
+<p>Before the separation: Only the entire <code>Block</code> struct composed of both header and data was submitted to the DA layer. The <code>Block</code> and <code>SignedHeader</code> were both gossipped over two separate p2p layers: gossipping <code>Block</code> to just full nodes and gossipping the <code>SignedHeader</code> to full nodes and future rollup light nodes to join that will only sync headers (and proofs).</p>
+<p>After the separation: The <code>SignedHeader</code> and <code>Data</code> are submitted separately to the DA layer. Note that the <code>SignedHeader</code> has a <code>Header</code> that is linked to the <code>Data</code> via a <code>DataCommitment</code> from the DA layer. <code>SignedHeader</code> and <code>Data</code> are both gossipped over two separate p2p layers: gossipping <code>Data</code> to just full nodes and gossipping the <code>SignedHeader</code> to full nodes and future rollup light nodes to join that will only sync headers (and proofs).</p>
+<p>In based sequencing mode, the header producer is equivalent to a full node.</p>
+<h3 id="before-separation-1"><a class="header" href="#before-separation-1">Before Separation</a></h3>
+<pre><code class="language-mermaid">flowchart LR
+
+    CS1[Centralized Sequencer] --&gt;|Submits Block| DA1[DA Layer]
+    CS1 --&gt;|Gossips Block| FN1[Full Nodes]
+    CS1 --&gt;|Gossips SignedHeader| LN1[Light Nodes]
+
+    class CS1,DA1,FN1,LN1 node
+</code></pre>
+<h3 id="after-separation---centralized-mode"><a class="header" href="#after-separation---centralized-mode">After Separation - Centralized Mode</a></h3>
+<pre><code class="language-mermaid">flowchart LR
+
+    CS2[Centralized Sequencer] --&gt;|Submits Data| DA2[DA Layer]
+    HP2[Header Producer] --&gt;|Submits SignedHeader| DA2
+
+    CS2 --&gt;|Gossips Data| FN2[Full Nodes]
+    HP2 --&gt;|Gossips SignedHeader| FN2
+    HP2 --&gt;|Gossips SignedHeader| LN2[Light Nodes]
+
+    class CS2,HP2,DA2,FN2,LN2 node
+</code></pre>
+<h3 id="after-separation---based-mode"><a class="header" href="#after-separation---based-mode">After Separation - Based Mode</a></h3>
+<pre><code class="language-mermaid">flowchart LR
+
+    Users --&gt;|Submit Txs| DA3[DA Layer]
+    FN3[Full Node/Header Producer] --&gt;|Reads Data| DA3
+
+    class Users,DA3,FN3,LN3 node
+</code></pre>
+<h3 id="syncing-full-node"><a class="header" href="#syncing-full-node">Syncing Full Node</a></h3>
+<p>Before the separation: Full Nodes get the entire <code>Block</code> struct via p2p or the DA layer. They can choose to apply the block as soon as they get it via p2p OR just wait to see it on the DA layer. This depends on whether a full node opts in to the p2p layer or not. Gossipping the <code>SignedHeader</code> over p2p is primarily for rollup light nodes to get the header.</p>
+<p>After the separation: Full nodes get the <code>Data</code> struct and the <code>SignedHeader</code> struct separately over p2p and DA layers. In code, this refers to the <code>HeaderStore</code> and the <code>DataStore</code> in block manager. A Full node should wait for having both the <code>Data</code> struct and the corresponding <code>SignedHeader</code> to it before applying the block data to its associated state machine. This is so that the full node can verify that its locally produced header's state commitment after it applies the <code>Data</code> associated to a block is consistent with the <code>Header</code> inside the <code>SignedHeader</code> that is received from the header producer. The <code>Header</code> should contain a link to its associated Data via a <code>DataCommitment</code> that is a pointer to the location of the <code>Data</code> on the DA layer.</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant FN as Full Node
+    participant P2P as P2P Network
+    participant DA as DA Layer
+    participant SM as State Machine
+
+    Note over FN,DA: After Separation - Sync Process
+
+    P2P-&gt;&gt;FN: Receive Data
+    P2P-&gt;&gt;FN: Receive SignedHeader
+    FN-&gt;&gt;DA: Verify Data availability
+    FN-&gt;&gt;DA: Verify SignedHeader availability
+    FN-&gt;&gt;FN: Match Data with SignedHeader via DataCommitment
+    FN-&gt;&gt;SM: Apply Data to state machine
+    FN-&gt;&gt;FN: Verify locally produced header matches received Header
+    FN-&gt;&gt;FN: Mark block as finalized
+</code></pre>
+<p>In a centralized sequencer mode, before, a full node marks a block finalized, it should verify that both the <code>SignedHeader</code> and <code>Data</code> associated to it were made available on the DA layer by checking it directly or verifying DA inclusion proofs.</p>
+<p>In based sequencing mode, blocks can be instantly finalized since the <code>Data</code> is directly always derived from the DA layer and already exists there. There's no need for a <code>SignedHeader</code> to exist on the DA layer.</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant DA as DA Layer
+    participant FN as Full Node
+    participant SM as State Machine
+
+    Note over DA,FN: Based Sequencing Mode
+
+    DA-&gt;&gt;FN: Data already available
+    FN-&gt;&gt;FN: Read Data from DA
+    FN-&gt;&gt;FN: Execute transactions
+    FN-&gt;&gt;FN: Produce Header
+    FN-&gt;&gt;SM: Apply state changes
+    FN-&gt;&gt;FN: Finalize Block
+    Note right of FN: No need to submit SignedHeader to DA
+</code></pre>
+<h2 id="assumptions-and-considerations-3"><a class="header" href="#assumptions-and-considerations-3">Assumptions and Considerations</a></h2>
+<ul>
+<li>Considerations include ensuring that headers and data are correctly synchronized and validated to prevent inconsistencies.</li>
+<li>Ensure that all components interacting with headers and data are updated to handle them as separate entities.</li>
+<li>Security measures should be in place to prevent unauthorized access or tampering with headers and data during transmission and storage.</li>
+<li>Performance optimizations may be necessary to handle the increased complexity of managing separate header and data structures, especially in high-throughput environments.</li>
+<li>Testing and validation processes should be updated to account for the new structure and ensure that all components function correctly in both centralized and decentralized sequencer modes.</li>
+</ul>
+<h2 id="implementation-5"><a class="header" href="#implementation-5">Implementation</a></h2>
+<p>The implementation of this separation can be found in the Rollkit repository, specifically in the changes made to the <code>manager.go</code> file. The <code>publishBlock</code> method illustrates the creation of separate header and data structures, and the associated logic for handling them independently. See <a href="https://github.com/rollkit/rollkit/pull/1789">Rollkit PR #1789</a></p>
+<h2 id="references-5"><a class="header" href="#references-5">References</a></h2>
+<ul>
+<li><a href="https://github.com/rollkit/rollkit/pull/1789">Rollkit PR #1789</a></li>
+<li><a href="https://www.alchemy.com/overviews/proposer-builder-separation">Proposer-Builder Separation</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="rollkit-minimal-header"><a class="header" href="#rollkit-minimal-header">Rollkit Minimal Header</a></h1>
+<h2 id="abstract-6"><a class="header" href="#abstract-6">Abstract</a></h2>
+<p>This document specifies a minimal header format for Rollkit, designed to eliminate the dependency on CometBFT's header format. This new format can then be used to produce an execution layer tailored header if needed. For example, the new ABCI Execution layer can have an ABCI-specific header for IBC compatibility. This allows Rollkit to define its own header structure while maintaining backward compatibility where necessary.</p>
+<h2 id="protocolcomponent-description-3"><a class="header" href="#protocolcomponent-description-3">Protocol/Component Description</a></h2>
+<p>The Rollkit minimal header is a streamlined version of the traditional header, focusing on essential information required for block processing and state management for rollup nodes. This header format is designed to be lightweight and efficient, facilitating faster processing and reduced overhead.</p>
+<h3 id="rollkit-minimal-header-structure"><a class="header" href="#rollkit-minimal-header-structure">Rollkit Minimal Header Structure</a></h3>
+<pre><code class="language-ascii">┌─────────────────────────────────────────────┐
+│             Rollkit Minimal Header          │
+├─────────────────────┬───────────────────────┤
+│ ParentHash          │ Hash of previous block│
+├─────────────────────┼───────────────────────┤
+│ Height              │ Block number          │
+├─────────────────────┼───────────────────────┤
+│ Timestamp           │ Creation time         │
+├─────────────────────┼───────────────────────┤
+│ ChainID             │ Chain identifier      │
+├─────────────────────┼───────────────────────┤
+│ DataCommitment      │ Pointer to block data │
+│                     │ on DA layer           │
+├─────────────────────┼───────────────────────┤
+│ StateRoot           │ State commitment      │
+├─────────────────────┼───────────────────────┤
+│ ExtraData           │ Additional metadata   │
+│                     │ (e.g. sequencer info) │
+└─────────────────────┴───────────────────────┘
+</code></pre>
 <h2 id="message-structurecommunication-format-4"><a class="header" href="#message-structurecommunication-format-4">Message Structure/Communication Format</a></h2>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L409"><code>publishEvents</code> method</a> in the block executor is responsible for broadcasting several types of events through the event bus. These events include <code>EventNewBlock</code>, <code>EventNewBlockHeader</code>, <code>EventNewBlockEvents</code>, <code>EventNewEvidence</code>, and <code>EventTx</code>. Each of these events carries specific data related to the block or transaction they represent.</p>
-<ol>
-<li>
-<p><code>EventNewBlock</code>: Triggered when a new block is finalized. It carries the block data along with the results of the <code>FinalizeBlock</code> ABCI method.</p>
-</li>
-<li>
-<p><code>EventNewBlockHeader</code>: Triggered alongside the <code>EventNewBlock</code> event. It carries the block header data.</p>
-</li>
-<li>
-<p><code>EventNewBlockEvents</code>: Triggered when a new block is finalized. It carries the block height, the events associated with the block, and the number of transactions in the block.</p>
-</li>
-<li>
-<p><code>EventNewEvidence</code>: Triggered for each piece of evidence in the block. It carries the evidence and the height of the block.</p>
-</li>
-<li>
-<p><code>EventTx</code>: Triggered for each transaction in the block. It carries the result of the <code>DeliverTx</code> ABCI method for the transaction.</p>
-</li>
-</ol>
-<p>The <code>OnStart</code> method in <code>indexer_service.go</code> subscribes to these events. It listens for new blocks and transactions, and upon receiving these events, it indexes the transactions and blocks accordingly. The block indexer indexes <code>EventNewBlockEvents</code>, while the transaction indexer indexes the events inside <code>EventTx</code>. The events, <code>EventNewBlock</code>, <code>EventNewBlockHeader</code>, and <code>EventNewEvidence</code> are not currently used by the indexer service.</p>
+<p>The header is defined in GoLang as follows:</p>
+<pre><code class="language-go">// Header struct focusing on header information
+type Header struct {
+    // Hash of the previous rollup block header.
+    ParentHash Hash
+    // Height represents the block height (aka block number) of a given header
+    Height uint64
+    // Block creation timestamp
+    Timestamp uint64
+    // The Chain ID
+    ChainID string
+    // Pointer to location of associated block data aka transactions in the DA layer
+    DataCommitment []byte
+    // Commitment representing the state linked to the header
+    StateRoot Hash
+    // Arbitrary field for additional metadata
+    ExtraData []byte
+}
+</code></pre>
+<p>In case the rollup has a specific designated proposer or a proposer set, that information can be put in the <code>extraData</code> field. So in centralized sequencer mode, the <code>sequencerAddress</code> can live in <code>extraData</code>. For base sequencer mode, this information is not relevant.</p>
+<p>This minimal Rollkit header can be transformed to be tailored to a specific execution layer as well by inserting additional information typically needed.</p>
+<h3 id="evm-execution-client"><a class="header" href="#evm-execution-client">EVM execution client</a></h3>
+<ul>
+<li><code>transactionsRoot</code>: Merkle root of all transactions in the block. Can be constructed from unpacking the <code>DataCommitment</code> in Rollkit Header.</li>
+<li><code>receiptsRoot</code>: Merkle root of all transaction receipts, which store the results of transaction execution. This can be inserted by the EVM execution client.</li>
+<li><code>Gas Limit</code>: Max gas allowed in the block.</li>
+<li><code>Gas Used</code>: Total gas consumed in this block.</li>
+</ul>
+<h4 id="transformation-to-evm-header"><a class="header" href="#transformation-to-evm-header">Transformation to EVM Header</a></h4>
+<pre><code class="language-ascii">┌─────────────────────────────────────────────┐
+│             Rollkit Minimal Header          │
+└───────────────────┬─────────────────────────┘
+                    │
+                    ▼ Transform
+┌─────────────────────────────────────────────┐
+│               EVM Header                    │
+├─────────────────────┬───────────────────────┤
+│ ParentHash          │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ Height/Number       │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ Timestamp           │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ ChainID             │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ TransactionsRoot    │ Derived from          │
+│                     │ DataCommitment        │
+├─────────────────────┼───────────────────────┤
+│ StateRoot           │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ ReceiptsRoot        │ Added by EVM client   │
+├─────────────────────┼───────────────────────┤
+│ GasLimit            │ Added by EVM client   │
+├─────────────────────┼───────────────────────┤
+│ GasUsed             │ Added by EVM client   │
+├─────────────────────┼───────────────────────┤
+│ ExtraData           │ From Rollkit Header   │
+└─────────────────────┴───────────────────────┘
+</code></pre>
+<h3 id="abci-execution"><a class="header" href="#abci-execution">ABCI Execution</a></h3>
+<p>This header can be transformed into an ABCI-specific header for IBC compatibility.</p>
+<ul>
+<li><code>Version</code>: Required by IBC clients to correctly interpret the block's structure and contents.</li>
+<li><code>LastCommitHash</code>: The hash of the previous block's commit, used by IBC clients to verify the legitimacy of the block's state transitions.</li>
+<li><code>DataHash</code>: A hash of the block's transaction data, enabling IBC clients to verify that the data has not been tampered with. Can be constructed from unpacking the <code>DataCommitment</code> in Rollkit header.</li>
+<li><code>ValidatorHash</code>: Current validator set's hash, which IBC clients use to verify that the block was validated by the correct set of validators. This can be the IBC attester set of the chain for backward compatibility with the IBC Tendermint client, if needed.</li>
+<li><code>NextValidatorsHash</code>: The hash of the next validator set, allowing IBC clients to anticipate and verify upcoming validators.</li>
+<li><code>ConsensusHash</code>: Denotes the hash of the consensus parameters, ensuring that IBC clients are aligned with the consensus rules of the blockchain.</li>
+<li><code>AppHash</code>: Same as the <code>StateRoot</code> in the Rollkit Header.</li>
+<li><code>EvidenceHash</code>: A hash of evidence of any misbehavior by validators, which IBC clients use to assess the trustworthiness of the validator set.</li>
+<li><code>LastResultsHash</code>: Root hash of all results from the transactions from the previous block.</li>
+<li><code>ProposerAddress</code>: The address of the block proposer, allowing IBC clients to track and verify the entities proposing new blocks. Can be constructed from the <code>extraData</code> field in the Rollkit Header.</li>
+</ul>
+<h4 id="transformation-to-abci-header"><a class="header" href="#transformation-to-abci-header">Transformation to ABCI Header</a></h4>
+<pre><code class="language-ascii">┌─────────────────────────────────────────────┐
+│             Rollkit Minimal Header          │
+└───────────────────┬─────────────────────────┘
+                    │
+                    ▼ Transform
+┌─────────────────────────────────────────────┐
+│               ABCI Header                   │
+├─────────────────────┬───────────────────────┤
+│ Height              │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ Time                │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ ChainID             │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ AppHash             │ From StateRoot        │
+├─────────────────────┼───────────────────────┤
+│ DataHash            │ From DataCommitment   │
+├─────────────────────┼───────────────────────┤
+│ Version             │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ LastCommitHash      │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ ValidatorHash       │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ NextValidatorsHash  │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ ConsensusHash       │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ EvidenceHash        │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ LastResultsHash     │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ ProposerAddress     │ From ExtraData        │
+└─────────────────────┴───────────────────────┘
+</code></pre>
 <h2 id="assumptions-and-considerations-4"><a class="header" href="#assumptions-and-considerations-4">Assumptions and Considerations</a></h2>
-<p>The indexer service assumes that the messages passed by the block executor are valid block headers and valid transactions with the required fields such that they can be indexed by the respective block indexer and transaction indexer.</p>
+<ul>
+<li>The Rollkit minimal header is designed to be flexible and adaptable, allowing for integration with various execution layers such as EVM and ABCI, without being constrained by CometBFT's header format.</li>
+<li>The <code>extraData</code> field provides a mechanism for including additional metadata, such as sequencer information, which can be crucial for certain rollup configurations.</li>
+<li>The transformation of the Rollkit header into execution layer-specific headers should be done carefully to ensure compatibility and correctness, especially for IBC and any other cross-chain communication protocols.</li>
+</ul>
+<h3 id="header-transformation-flow"><a class="header" href="#header-transformation-flow">Header Transformation Flow</a></h3>
+<pre><code class="language-ascii">┌─────────────────────────────────────────────┐
+│             Rollkit Minimal Header          │
+│                                             │
+│  A lightweight, flexible header format      │
+│  with essential fields for block processing │
+└───────────┬─────────────────┬───────────────┘
+            │                 │
+            ▼                 ▼
+┌───────────────────┐ ┌─────────────────────┐
+│  EVM Header       │ │  ABCI Header        │
+│                   │ │                     │
+│  For EVM-based    │ │  For IBC-compatible │
+│  execution layers │ │  execution layers   │
+└───────────────────┘ └─────────────────────┘
+</code></pre>
 <h2 id="implementation-6"><a class="header" href="#implementation-6">Implementation</a></h2>
-<p>See <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go">indexer service</a></p>
+<p>Pending implementation.</p>
 <h2 id="references-6"><a class="header" href="#references-6">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/state/indexer/block.go#L11">Block Indexer</a></p>
-<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer.go#L14">Transaction Indexer</a></p>
-<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L409">Publish Events</a></p>
-<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go">Indexer Service</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="mempool-1"><a class="header" href="#mempool-1">Mempool</a></h1>
-<h2 id="abstract-7"><a class="header" href="#abstract-7">Abstract</a></h2>
-<p>The mempool module stores transactions which have not yet been included in a block, and provides an interface to check the validity of incoming transactions. It's defined by an interface <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go#L32">here</a>, with an implementation <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go">here</a>.</p>
-<h2 id="component-description"><a class="header" href="#component-description">Component Description</a></h2>
-<p>Full nodes instantiate a mempool <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">here</a>. A <code>p2p.GossipValidator</code> is constructed from the node's mempool <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L465">here</a>, which is used by Rollkit's P2P code to deal with peers who gossip invalid transactions. The mempool is also passed into the <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L158">block manager constructor</a>, which creates a <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L218"><code>BlockExecutor</code></a> from the mempool.</p>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/block-executor.md"><code>BlockExecutor</code></a> calls <code>ReapMaxBytesMaxGas</code> in <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L95"><code>CreateBlock</code></a> to get transactions from the pool for the new block. When <code>commit</code> is called, the <code>BlockExecutor</code> calls <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L318"><code>Update(...)</code></a> on the mempool, removing the old transactions from the pool.</p>
-<h2 id="communication"><a class="header" href="#communication">Communication</a></h2>
-<p>Several RPC methods query the mempool module: <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L92"><code>BroadcastTxCommit</code></a>, <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L186"><code>BroadcastTxAsync</code></a>, <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L202"><code>BroadcastTxSync</code></a> call the mempool's <code>CheckTx(...)</code> method.</p>
-<h2 id="interface"><a class="header" href="#interface">Interface</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Function Name</th><th>Input Arguments</th><th>Output Type</th><th>Intended Behavior</th></tr></thead><tbody>
-<tr><td>CheckTx</td><td>tx types.Tx, callback func(*abci.Response), txInfo TxInfo</td><td>error</td><td>Executes a new transaction against the application to determine its validity and whether it should be added to the mempool.</td></tr>
-<tr><td>RemoveTxByKey</td><td>txKey types.TxKey</td><td>error</td><td>Removes a transaction, identified by its key, from the mempool.</td></tr>
-<tr><td>ReapMaxBytesMaxGas</td><td>maxBytes, maxGas int64</td><td>types.Txs</td><td>Reaps transactions from the mempool up to maxBytes bytes total with the condition that the total gasWanted must be less than maxGas. If both maxes are negative, there is no cap on the size of all returned transactions (~ all available transactions).</td></tr>
-<tr><td>ReapMaxTxs</td><td>max int</td><td>types.Txs</td><td>Reaps up to max transactions from the mempool. If max is negative, there is no cap on the size of all returned transactions (~ all available transactions).</td></tr>
-<tr><td>Lock</td><td>N/A</td><td>N/A</td><td>Locks the mempool. The consensus must be able to hold the lock to safely update.</td></tr>
-<tr><td>Unlock</td><td>N/A</td><td>N/A</td><td>Unlocks the mempool.</td></tr>
-<tr><td>Update</td><td>blockHeight uint64, blockTxs types.Txs, deliverTxResponses []*abci.ResponseDeliverTx, newPreFn PreCheckFunc, newPostFn PostCheckFunc</td><td>error</td><td>Informs the mempool that the given txs were committed and can be discarded. This should be called<em>after</em> block is committed by consensus. Lock/Unlock must be managed by the caller.</td></tr>
-<tr><td>FlushAppConn</td><td>N/A</td><td>error</td><td>Flushes the mempool connection to ensure async callback calls are done, e.g., from CheckTx. Lock/Unlock must be managed by the caller.</td></tr>
-<tr><td>Flush</td><td>N/A</td><td>N/A</td><td>Removes all transactions from the mempool and caches.</td></tr>
-<tr><td>TxsAvailable</td><td>N/A</td><td>&lt;-chan struct{}</td><td>Returns a channel which fires once for every height when transactions are available in the mempool. The returned channel may be nil if EnableTxsAvailable was not called.</td></tr>
-<tr><td>EnableTxsAvailable</td><td>N/A</td><td>N/A</td><td>Initializes the TxsAvailable channel, ensuring it will trigger once every height when transactions are available.</td></tr>
-<tr><td>Size</td><td>N/A</td><td>int</td><td>Returns the number of transactions in the mempool.</td></tr>
-<tr><td>SizeBytes</td><td>N/A</td><td>int64</td><td>Returns the total size of all txs in the mempool.</td></tr>
-</tbody></table>
-</div><div style="break-before: page; page-break-before: always;"></div><h1 id="p2p-1"><a class="header" href="#p2p-1">P2P</a></h1>
+<ul>
+<li><a href="https://ethereum.org/en/developers/docs/">Ethereum Developer Documentation</a>: Comprehensive resources for understanding Ethereum's architecture, including block and transaction structures.</li>
+<li><a href="https://docs.tendermint.com/master/spec/">Tendermint Core Documentation</a>: Detailed documentation on Tendermint, which includes information on ABCI and its header format.</li>
+<li><a href="https://github.com/tendermint/spec/blob/master/spec/abci/abci.md">ABCI Specification</a>: The official specification for the Application Blockchain Interface (ABCI), which describes how applications can interact with the Tendermint consensus engine.</li>
+<li><a href="https://github.com/cosmos/ibc">IBC Protocol Specification</a>: Documentation on the Inter-Blockchain Communication (IBC) protocol, which includes details on how headers are used for cross-chain communication.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="p2p-1"><a class="header" href="#p2p-1">P2P</a></h1>
 <p>Every rollup node (both full and light) runs a P2P client using <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a> P2P networking stack for gossiping transactions in the rollup's P2P network. The same P2P client is also used by the header and block sync services for gossiping headers and blocks.</p>
 <p>Following parameters are required for creating a new instance of a P2P client:</p>
 <ul>
@@ -850,233 +951,8 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <p>[2] <a href="https://github.com/ipfs/go-datastore">go-datastore</a></p>
 <p>[3] <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a></p>
 <p>[4] <a href="https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater">conngater</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="rollkit-rpc-equivalency"><a class="header" href="#rollkit-rpc-equivalency">Rollkit RPC Equivalency</a></h1>
-<h2 id="abstract-8"><a class="header" href="#abstract-8">Abstract</a></h2>
-<p>Rollkit RPC is a remote procedure call (RPC) service that provides a set of endpoints for interacting with a Rollkit node. It supports various protocols such as URI over HTTP, JSONRPC over HTTP, and JSONRPC over WebSockets.</p>
-<h2 id="protocolcomponent-description-3"><a class="header" href="#protocolcomponent-description-3">Protocol/Component Description</a></h2>
-<p>Rollkit RPC serves a variety of endpoints that allow clients to query the state of the blockchain, broadcast transactions, and subscribe to events. The RPC service follows the specifications outlined in the CometBFT <a href="https://docs.cometbft.com/v0.38/spec/rpc/">specification</a>.</p>
-<h2 id="rollkit-rpc-functionality-coverage"><a class="header" href="#rollkit-rpc-functionality-coverage">Rollkit RPC Functionality Coverage</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Routes</th><th>Full Node</th><th>Test Coverage</th></tr></thead><tbody>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#health">Health</a></td><td>✅</td><td>❌</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#status">Status</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#netinfo">NetInfo</a></td><td>✅</td><td>❌</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#blockchain">Blockchain</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#block">Block</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#blockbyhash">BlockByHash</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#blockresults">BlockResults</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#commit">Commit</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#validators">Validators</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#genesis">Genesis</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#genesischunked">GenesisChunked</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#consensusparams">ConsensusParams</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#unconfirmedtxs">UnconfirmedTxs</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#numunconfirmedtxs">NumUnconfirmedTxs</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#tx">Tx</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#broadcasttxsync">BroadCastTxSync</a></td><td>✅</td><td>🚧</td></tr>
-<tr><td><a href="https://docs.cometbft.com/v0.38/spec/rpc/#broadcasttxasync">BroadCastTxAsync</a></td><td>✅</td><td>🚧</td></tr>
-</tbody></table>
-</div>
-<h2 id="message-structurecommunication-format-5"><a class="header" href="#message-structurecommunication-format-5">Message Structure/Communication Format</a></h2>
-<p>The communication format depends on the protocol used. For HTTP-based protocols, the request and response are typically structured as JSON objects. For web socket-based protocols, the messages are sent as JSONRPC requests and responses.</p>
-<h2 id="assumptions-and-considerations-5"><a class="header" href="#assumptions-and-considerations-5">Assumptions and Considerations</a></h2>
-<p>The RPC service assumes that the Rollkit node it interacts with is running and correctly configured. It also assumes that the client is authorized to perform the requested operations.</p>
-<p>The RPC provides an additional query for DA included blocks using the <code>height</code> parameter:</p>
-<pre><code class="language-sh">curl http://127.0.0.1:26657/block?height=1
-
-curl http://127.0.0.1:26657/block?height=included
-</code></pre>
-<h3 id="parameters"><a class="header" href="#parameters">Parameters</a></h3>
-<ul>
-<li>height (integer or string): height of the requested block. If no height is specified the latest block will be used. If height is set to the string &quot;included&quot;, the latest DA included block will be returned.</li>
-</ul>
-<h2 id="implementation-7"><a class="header" href="#implementation-7">Implementation</a></h2>
-<p>The implementation of the Rollkit RPC service can be found in the <a href="https://github.com/rollkit/rollkit/blob/main/rpc/json/service.go"><code>rpc/json/service.go</code></a> file in the Rollkit repository.</p>
-<h2 id="references-8"><a class="header" href="#references-8">References</a></h2>
-<p>[1] <a href="https://docs.cometbft.com/v0.38/spec/rpc/">CometBFT RPC Specification</a>
-[2] <a href="https://github.com/rollkit/rollkit/blob/main/rpc/json/service.go">RPC Service Implementation</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="block-executor-1"><a class="header" href="#block-executor-1">Block Executor</a></h1>
-<h2 id="abstract-9"><a class="header" href="#abstract-9">Abstract</a></h2>
-<p>The <code>BlockExecutor</code> is a component responsible for creating, applying, and maintaining blocks and state in the system. It interacts with the mempool and the application via the <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI interface</a>.</p>
-<h2 id="detailed-description-1"><a class="header" href="#detailed-description-1">Detailed Description</a></h2>
-<p>The <code>BlockExecutor</code> is initialized with a proposer address, <code>namespace ID</code>, <code>chain ID</code>, <code>mempool</code>, <code>proxyApp</code>, <code>eventBus</code>, and <code>logger</code>. It uses these to manage the creation and application of blocks. It also validates blocks and commits them, updating the state as necessary.</p>
-<ul>
-<li>
-<p><code>NewBlockExecutor</code>: This method creates a new instance of <code>BlockExecutor</code>. It takes a proposer address, <code>namespace ID</code>, <code>chain ID</code>, <code>mempool</code>, <code>proxyApp</code>, <code>eventBus</code>, and <code>logger</code> as parameters. See <a href="https://github.com/rollkit/rollkit/blob/main/block/block-manager.md">block manager</a> for details.</p>
-</li>
-<li>
-<p><code>InitChain</code>: This method initializes the chain by calling ABCI <code>InitChainSync</code> using the consensus connection to the app. It takes a <code>GenesisDoc</code> as a parameter. It sends a ABCI <code>RequestInitChain</code> message with the genesis parameters including:</p>
-<ul>
-<li>Genesis Time</li>
-<li>Chain ID</li>
-<li>Consensus Parameters including:
-<ul>
-<li>Block Max Bytes</li>
-<li>Block Max Gas</li>
-<li>Evidence Parameters</li>
-<li>Validator Parameters</li>
-<li>Version Parameters</li>
-</ul>
-</li>
-<li>Initial Validator Set using genesis validators</li>
-<li>Initial Height</li>
-</ul>
-</li>
-<li>
-<p><code>CreateBlock</code>: This method reaps transactions from the mempool and builds a block. It takes the state, the height of the block, last header hash, and the signature as parameters.</p>
-</li>
-<li>
-<p><code>ApplyBlock</code>: This method applies the block to the state. Given the current state and block to be applied, it:</p>
-<ul>
-<li>
-<p>Validates the block, as described in <code>Validate</code>.</p>
-</li>
-<li>
-<p>Executes the block using app, as described in <code>execute</code>.</p>
-</li>
-<li>
-<p>Captures the validator updates done in the execute block.</p>
-</li>
-<li>
-<p>Updates the state using the block, block execution responses, and validator updates as described in <code>updateState</code>.</p>
-</li>
-<li>
-<p>Returns the updated state, validator updates and errors, if any, after applying the block.</p>
-</li>
-<li>
-<p>It can return the following named errors:</p>
-<ul>
-<li><code>ErrEmptyValSetGenerate</code>: returned when applying the validator changes would result in empty set.</li>
-<li><code>ErrAddingValidatorToBased</code>: returned when adding validators to empty validator set.</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><code>Validate</code>: This method validates the block. It takes the state and the block as parameters. In addition to the basic <a href="https://github.com/rollkit/rollkit/blob/main/types/block_spec.md">block validation</a> rules, it applies the following validations:</p>
-<ul>
-<li>New block version must match block version of the state.</li>
-<li>If state is at genesis, new block height must match initial height of the state.</li>
-<li>New block height must be last block height + 1 of the state.</li>
-<li>New block header <code>AppHash</code> must match state <code>AppHash</code>.</li>
-<li>New block header <code>LastResultsHash</code> must match state <code>LastResultsHash</code>.</li>
-<li>New block header <code>AggregatorsHash</code> must match state <code>Validators.Hash()</code>.</li>
-</ul>
-</li>
-<li>
-<p><code>Commit</code>: This method commits the block and updates the mempool. Given the updated state, the block, and the ABCI <code>ResponseFinalizeBlock</code> as parameters, it:</p>
-<ul>
-<li>Invokes app commit, basically finalizing the last execution, by  calling ABCI <code>Commit</code>.</li>
-<li>Updates the mempool to inform that the transactions included in the block can be safely discarded.</li>
-<li>Publishes the events produced during the block execution for indexing.</li>
-</ul>
-</li>
-<li>
-<p><code>updateState</code>: This method updates the state. Given the current state, the block, the ABCI <code>ResponseFinalizeBlock</code> and the validator updates, it validates the updated validator set, updates the state by applying the block and returns the updated state and errors, if any. The state consists of:</p>
-<ul>
-<li>Version</li>
-<li>Chain ID</li>
-<li>Initial Height</li>
-<li>Last Block including:
-<ul>
-<li>Block Height</li>
-<li>Block Time</li>
-<li>Block ID</li>
-</ul>
-</li>
-<li>Next Validator Set</li>
-<li>Current Validator Set</li>
-<li>Last Validators</li>
-<li>Whether Last Height Validators changed</li>
-<li>Consensus Parameters</li>
-<li>Whether Last Height Consensus Parameters changed</li>
-<li>App Hash</li>
-</ul>
-</li>
-<li>
-<p><code>execute</code>: This method executes the block. It takes the context, the state, and the block as parameters. It calls the ABCI method <code>FinalizeBlock</code> with the ABCI <code>RequestFinalizeBlock</code> containing the block hash, ABCI header, commit, transactions and returns the ABCI <code>ResponseFinalizeBlock</code> and errors, if any.</p>
-</li>
-<li>
-<p><code>publishEvents</code>: This method publishes events related to the block. It takes the ABCI <code>ResponseFinalizeBlock</code>, the block, and the state as parameters.</p>
-</li>
-</ul>
-<h2 id="message-structurecommunication-format-6"><a class="header" href="#message-structurecommunication-format-6">Message Structure/Communication Format</a></h2>
-<p>The <code>BlockExecutor</code> communicates with the application via the <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI interface</a>. It calls the ABCI methods <code>InitChainSync</code>, <code>FinalizeBlock</code>, <code>Commit</code> for initializing a new chain and creating blocks, respectively.</p>
-<h2 id="assumptions-and-considerations-6"><a class="header" href="#assumptions-and-considerations-6">Assumptions and Considerations</a></h2>
-<p>The <code>BlockExecutor</code> assumes that there is consensus connection available to the app, which can be used to send and receive ABCI messages. In addition there are some important pre-condition and post-condition invariants, as follows:</p>
-<ul>
-<li>
-<p><code>InitChain</code>:</p>
-<ul>
-<li>pre-condition:
-<ul>
-<li>state is at genesis.</li>
-</ul>
-</li>
-<li>post-condition:
-<ul>
-<li>new chain is initialized.</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><code>CreateBlock</code>:</p>
-<ul>
-<li>pre-condition:
-<ul>
-<li>chain is initialized</li>
-</ul>
-</li>
-<li>post-condition:
-<ul>
-<li>new block is created</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><code>ApplyBlock</code>:</p>
-<ul>
-<li>pre-condition:
-<ul>
-<li>block is valid, using basic <a href="https://github.com/rollkit/rollkit/blob/main/types/block_spec.md">block validation</a> rules as well as validations performed in <code>Validate</code>, as described above.</li>
-</ul>
-</li>
-<li>post-condition:
-<ul>
-<li>block is added to the chain, state is updated and block execution responses are captured.</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><code>Commit</code>:</p>
-<ul>
-<li>pre-condition:
-<ul>
-<li>block has been applied</li>
-</ul>
-</li>
-<li>post-condition:
-<ul>
-<li>block is committed</li>
-<li>mempool is cleared of block transactions</li>
-<li>block events are published</li>
-<li>state App Hash is updated with the result from <code>ResponseCommit</code></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<h2 id="implementation-8"><a class="header" href="#implementation-8">Implementation</a></h2>
-<p>See <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go">block executor</a></p>
-<h2 id="references-9"><a class="header" href="#references-9">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go">Block Executor</a></p>
-<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/block/block-manager.md">Block Manager</a></p>
-<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/types/block_spec.md">Block Validation</a></p>
-<p>[4] <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI documentation</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="store-1"><a class="header" href="#store-1">Store</a></h1>
-<h2 id="abstract-10"><a class="header" href="#abstract-10">Abstract</a></h2>
+<h2 id="abstract-7"><a class="header" href="#abstract-7">Abstract</a></h2>
 <p>The Store interface defines methods for storing and retrieving blocks, commits, and the state of the blockchain.</p>
 <h2 id="protocolcomponent-description-4"><a class="header" href="#protocolcomponent-description-4">Protocol/Component Description</a></h2>
 <p>The Store interface defines the following methods:</p>
@@ -1117,13 +993,13 @@ curl http://127.0.0.1:26657/block?height=included
 <p>For example, in a call to <code>GetBlockByHash</code> for some block hash <code>&lt;block_hash&gt;</code>, the key used in the full node's base key-value store will be <code>/0/b/&lt;block_hash&gt;</code> where <code>0</code> is the main store prefix and <code>b</code> is the block prefix. Similarly, in a call to <code>GetValidators</code> for some height <code>&lt;height&gt;</code>, the key used in the full node's base key-value store will be <code>/0/v/&lt;height&gt;</code> where <code>0</code> is the main store prefix and <code>v</code> is the validator set prefix.</p>
 <p>Inside the key-value store, the value of these various types of data like <code>Block</code> is stored as a byte array which is encoded and decoded using the corresponding Protobuf <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">marshal and unmarshal methods</a>.</p>
 <p>The store is most widely used inside the <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block manager</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go">full client</a> to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, <code>lastStateMtx</code>, to synchronize read/write access to it and prevent race conditions.</p>
-<h2 id="message-structurecommunication-format-7"><a class="header" href="#message-structurecommunication-format-7">Message Structure/Communication Format</a></h2>
+<h2 id="message-structurecommunication-format-5"><a class="header" href="#message-structurecommunication-format-5">Message Structure/Communication Format</a></h2>
 <p>The Store does not communicate over the network, so there is no message structure or communication format.</p>
-<h2 id="assumptions-and-considerations-7"><a class="header" href="#assumptions-and-considerations-7">Assumptions and Considerations</a></h2>
+<h2 id="assumptions-and-considerations-5"><a class="header" href="#assumptions-and-considerations-5">Assumptions and Considerations</a></h2>
 <p>The Store assumes that the underlying datastore is reliable and provides atomicity for transactions. It also assumes that the data passed to it for storage is valid and correctly formatted.</p>
-<h2 id="implementation-9"><a class="header" href="#implementation-9">Implementation</a></h2>
+<h2 id="implementation-7"><a class="header" href="#implementation-7">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go#L11">Store Interface</a> and <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Default Store</a> for its implementation.</p>
-<h2 id="references-10"><a class="header" href="#references-10">References</a></h2>
+<h2 id="references-8"><a class="header" href="#references-8">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go#L11">Store Interface</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Default Store</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">Full Node Store Initialization</a></p>
@@ -1133,27 +1009,6 @@ curl http://127.0.0.1:26657/block?height=included
 <p>[7] <a href="https://github.com/ipfs/go-datastore">Go Datastore</a></p>
 <p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/store/kv.go">Key Value Store</a></p>
 <p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">Serialization</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="sequencer-selection-scheme"><a class="header" href="#sequencer-selection-scheme">Sequencer Selection Scheme</a></h1>
-<h2 id="abstract-11"><a class="header" href="#abstract-11">Abstract</a></h2>
-<p>The Sequencer Selection scheme describes the process of selecting a block proposer i.e. sequencer from the validator set.</p>
-<p>In the first version of Rollkit, this is a fixed pubkey, belonging to the centralized sequencer. The validator set may only ever have one &quot;validator&quot;, the centralized sequencer.</p>
-<h2 id="protocolcomponent-description-5"><a class="header" href="#protocolcomponent-description-5">Protocol/Component Description</a></h2>
-<p>There is exactly one sequencer which is configured at genesis. <code>GenesisDoc</code> usually contains an array of validators as it is imported from <code>CometBFT</code>. If there is more than one validator defined
-in the genesis validator set, an error is thrown.</p>
-<p>The <code>Header</code> struct defines a field called <code>ProposerAddress</code> which is the pubkey of the original proposer of the block.</p>
-<p>The <code>SignedHeader</code> struct commits over the header and the proposer address and stores the result in <code>LastCommitHash</code>.</p>
-<p>A new untrusted header is verified by checking its <code>ProposerAddress</code> and matching it against the best-known header. In case of a mismatch, an error is thrown.</p>
-<h2 id="message-structurecommunication-format-8"><a class="header" href="#message-structurecommunication-format-8">Message Structure/Communication Format</a></h2>
-<p>The primary structures encompassing validator information include <code>SignedHeader</code>, <code>Header</code>, and <code>State</code>. Some fields are repurposed from CometBFT as seen in <code>GenesisDoc</code> <code>Validators</code>.</p>
-<h2 id="assumptions-and-considerations-8"><a class="header" href="#assumptions-and-considerations-8">Assumptions and Considerations</a></h2>
-<ol>
-<li>There must be exactly one validator defined in the genesis file, which determines the sequencer for all the blocks.</li>
-</ol>
-<h2 id="implementation-10"><a class="header" href="#implementation-10">Implementation</a></h2>
-<p>The implementation is split across multiple functions including <code>IsProposer</code>, <code>publishBlock</code>, <code>CreateBlock</code>, and <code>Verify</code> among others, which are defined in various files like <code>state.go</code>, <code>manager.go</code>, <code>block.go</code>, <code>header.go</code> etc., within the repository.</p>
-<p>See <a href="https://github.com/rollkit/rollkit/blob/main/block/block-manager.md">block manager</a></p>
-<h2 id="references-11"><a class="header" href="#references-11">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/block/block-manager.md">Block Manager</a></p>
 
                     </main>
 

@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-executor.html"><strong aria-hidden="true">4.</strong> Block Executor</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html"><strong aria-hidden="true">5.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">6.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/full_node.html" class="active"><strong aria-hidden="true">7.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="../specs/header-sync.html"><strong aria-hidden="true">8.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../specs/indexer-service.html"><strong aria-hidden="true">9.</strong> Indexer Service</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">10.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">11.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/rpc-equivalency-coverage.html"><strong aria-hidden="true">12.</strong> RPC Equivalency</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">13.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">14.</strong> Store</a></li><li class="chapter-item expanded "><a href="../specs/validators.html"><strong aria-hidden="true">15.</strong> Validators</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html"><strong aria-hidden="true">4.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">5.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/full_node.html" class="active"><strong aria-hidden="true">6.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="../specs/header-sync.html"><strong aria-hidden="true">7.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../../lazy-adr/adr-014-header-and-data-separation.html"><strong aria-hidden="true">8.</strong> Header and Data Separation ADR</a></li><li class="chapter-item expanded "><a href="../../lazy-adr/adr-015-rollkit-minimal-header.html"><strong aria-hidden="true">9.</strong> Rollkit Minimal Header</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">10.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">11.</strong> Store</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -145,8 +145,6 @@
 <p>A Full Node is initialized inside the Cosmos SDK start script along with the node configuration, a private key to use in the P2P client, a private key for signing blocks as a block proposer, a client creator, a genesis document, and a logger. It uses them to initialize the components described above. The components TxIndexer, BlockIndexer, and IndexerService exist to ensure cometBFT compatibility since they are needed for most of the RPC calls from the <code>SignClient</code> interface from cometBFT.</p>
 <p>Note that unlike a light node which only syncs and stores block headers seen on the P2P layer, the full node also syncs and stores full blocks seen on both the P2P network and the DA layer. Full blocks contain all the transactions published as part of the block.</p>
 <p>The Full Node mainly encapsulates and initializes/manages the following components:</p>
-<h3 id="proxyapp"><a class="header" href="#proxyapp">proxyApp</a></h3>
-<p>The Cosmos SDK start script passes a client creator constructed using the relevant Cosmos SDK application to the Full Node's constructor which is then used to create the proxy app interface. When the proxy app is started, it establishes different <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI app connections</a> including Mempool, Consensus, Query, and Snapshot. The full node uses this interface to interact with the application.</p>
 <h3 id="genesisdoc"><a class="header" href="#genesisdoc">genesisDoc</a></h3>
 <p>The <a href="https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md">genesis</a> document contains information about the initial state of the rollup chain, in particular its validator set.</p>
 <h3 id="conf"><a class="header" href="#conf">conf</a></h3>
@@ -173,17 +171,16 @@
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full node</a></p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
-<p>[2] <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI Methods</a></p>
-<p>[3] <a href="https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md">Genesis Document</a></p>
-<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/config/config.go">Node Configuration</a></p>
-<p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">Peer to Peer Client</a></p>
-<p>[6] <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go">Mempool</a></p>
-<p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Store</a></p>
-<p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go">Store Interface</a></p>
-<p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
-<p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">Data Availability Layer Client</a></p>
-<p>[11] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync Service</a></p>
-<p>[12] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync Service</a></p>
+<p>[2] <a href="https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md">Genesis Document</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/config/config.go">Node Configuration</a></p>
+<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">Peer to Peer Client</a></p>
+<p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go">Mempool</a></p>
+<p>[6] <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Store</a></p>
+<p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go">Store Interface</a></p>
+<p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
+<p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">Data Availability Layer Client</a></p>
+<p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync Service</a></p>
+<p>[11] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync Service</a></p>
 
                     </main>
 
