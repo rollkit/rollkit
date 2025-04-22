@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
@@ -40,10 +41,10 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 }
 
 // Returns a minimalistic block manager using a mock DA Client
-func getManager(t *testing.T, mockDA *mocks.Client, gasPrice float64, gasMultiplier float64) *Manager {
+func getManager(t *testing.T, dac da.Client, gasPrice float64, gasMultiplier float64) *Manager {
 	logger := log.NewTestLogger(t)
 	return &Manager{
-		dalc:          mockDA, // Use the mock DA Client
+		dalc:          dac,
 		headerCache:   cache.NewCache[types.SignedHeader](),
 		logger:        logger,
 		gasPrice:      gasPrice,
@@ -231,6 +232,7 @@ func TestIsDAIncluded(t *testing.T) {
 	require.True(m.IsDAIncluded(hash))
 }
 
+// Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase1"
 	assert := assert.New(t)

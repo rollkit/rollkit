@@ -78,7 +78,7 @@ func TestMockDAErrors(t *testing.T) {
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
 			On("SubmitWithOptions", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
-			Return([]coreda.ID{}, coreda.ErrTxTooLarge)
+			Return([]coreda.ID{}, coreda.ErrBlobSizeOverLimit)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -88,7 +88,7 @@ func TestMockDAErrors(t *testing.T) {
 		assert.NoError(err)
 
 		resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
-		assert.Contains(resp.Message, coreda.ErrTxTooLarge.Error(), "should return tx too large error")
+		assert.Contains(resp.Message, coreda.ErrBlobSizeOverLimit.Error(), "should return blob size over limit error")
 		assert.Equal(resp.Code, coreda.StatusTooBig)
 	})
 }

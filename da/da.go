@@ -88,7 +88,7 @@ func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint
 			status = coreda.StatusAlreadyInMempool
 		case errors.Is(err, coreda.ErrTxIncorrectAccountSequence):
 			status = coreda.StatusAlreadyInMempool
-		case errors.Is(err, coreda.ErrTxTooLarge):
+		case errors.Is(err, coreda.ErrBlobSizeOverLimit):
 			status = coreda.StatusTooBig
 		case errors.Is(err, coreda.ErrContextDeadline):
 			status = coreda.StatusContextDeadline
