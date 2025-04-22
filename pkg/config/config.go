@@ -248,9 +248,9 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime.Duration, "maximum interval between blocks in lazy aggregation mode")
 
 	// Pruning configuration flags
-	cmd.Flags().String(FlagPruningStrategy, def.Node.Pruning.Strategy, "")
-	cmd.Flags().Uint64(FlagPruningKeepRecent, def.Node.Pruning.KeepRecent, "")
-	cmd.Flags().Uint64(FlagPruningInterval, def.Node.Pruning.Interval, "")
+	cmd.Flags().String(FlagPruningStrategy, def.Node.Pruning.Strategy, "pruning strategy (none, default, everything, custom)")
+	cmd.Flags().Uint64(FlagPruningKeepRecent, def.Node.Pruning.KeepRecent, "number of recent blocks to keep")
+	cmd.Flags().Uint64(FlagPruningInterval, def.Node.Pruning.Interval, "frequency of pruning operations")
 
 	// Data Availability configuration flags
 	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")
