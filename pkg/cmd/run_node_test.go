@@ -239,6 +239,40 @@ func TestDefaultAggregatorValue(t *testing.T) {
 	}
 }
 
+func TestSetupLogger(t *testing.T) {
+	testCases := []struct {
+		name        string
+		config      rollconf.LogConfig
+		expectPanic bool // We can't easily inspect the logger internals, so we check for panics
+	}{
+		{"DefaultInfoText", rollconf.LogConfig{Format: "text", Level: "info", Trace: false}, false},
+		{"JSONFormat", rollconf.LogConfig{Format: "json", Level: "info", Trace: false}, false},
+		{"DebugLevel", rollconf.LogConfig{Format: "text", Level: "debug", Trace: false}, false},
+		{"WarnLevel", rollconf.LogConfig{Format: "text", Level: "warn", Trace: false}, false},
+		{"ErrorLevel", rollconf.LogConfig{Format: "text", Level: "error", Trace: false}, false},
+		{"UnknownLevelDefaultsToInfo", rollconf.LogConfig{Format: "text", Level: "unknown", Trace: false}, false},
+		{"TraceEnabled", rollconf.LogConfig{Format: "text", Level: "info", Trace: true}, false},
+		{"JSONWithTrace", rollconf.LogConfig{Format: "json", Level: "debug", Trace: true}, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.expectPanic {
+				assert.Panics(t, func() {
+					_ = SetupLogger(tc.config)
+				})
+			} else {
+				assert.NotPanics(t, func() {
+					logger := SetupLogger(tc.config)
+					assert.NotNil(t, logger)
+					// Basic check to ensure logger works
+					logger.Info("Test log message")
+				})
+			}
+		})
+	}
+}
+
 // TestCentralizedAddresses verifies that when centralized service flags are provided,
 // the configuration fields in nodeConfig are updated accordingly, ensuring that mocks are skipped.
 func TestCentralizedAddresses(t *testing.T) {
@@ -273,6 +307,131 @@ func TestCentralizedAddresses(t *testing.T) {
 	}
 }
 
+func TestStartNodeErrors(t *testing.T) {
+	baseCtx := context.Background()
+	logger := log.NewNopLogger() // Use NopLogger for tests unless specific logging output is needed
+
+	// Common setup
+	executor, sequencer, dac, _, p2pClient, ds := createTestComponents(baseCtx, t)
+	nodeKey, err := key.GenerateNodeKey()
+	assert.NoError(t, err)
+	tmpDir := t.TempDir()
+
+	// Create a dummy genesis file for successful load cases
+	// Note: StartNode expects genesis relative to ConfigPath's dir, which defaults relative to RootDir
+	dummyConfigDir := filepath.Join(tmpDir, "config")
+	err = os.MkdirAll(dummyConfigDir, 0755)
+	assert.NoError(t, err)
+	dummyGenesisPath := filepath.Join(dummyConfigDir, "genesis.json")
+	err = os.WriteFile(dummyGenesisPath, []byte(`{"chain_id":"test","initial_height":"1"}`), 0644)
+	assert.NoError(t, err)
+
+	// Create a dummy signer file path
+	dummySignerPath := filepath.Join(tmpDir, "signer")
+	_, err = filesigner.CreateFileSystemSigner(dummySignerPath, []byte("password"))
+	assert.NoError(t, err)
+
+	testCases := []struct {
+		name           string
+		configModifier func(cfg *rollconf.Config)
+		cmdModifier    func(cmd *cobra.Command)
+		expectedError  string
+		expectPanic    bool
+	}{
+		{
+			name: "GRPCSignerPanic",
+			configModifier: func(cfg *rollconf.Config) {
+				cfg.RootDir = tmpDir // Need RootDir for ConfigPath default
+				cfg.Signer.SignerType = "grpc"
+				cfg.Node.Aggregator = true // Required for signer logic to be hit
+			},
+			expectPanic: true, // Expects panic("grpc remote signer not implemented")
+		},
+		{
+			name: "UnknownSignerError",
+			configModifier: func(cfg *rollconf.Config) {
+				cfg.RootDir = tmpDir // Need RootDir for ConfigPath default
+				cfg.Signer.SignerType = "unknown"
+				cfg.Node.Aggregator = true // Required for signer logic to be hit
+			},
+			expectedError: "unknown remote signer type: unknown",
+		},
+		{
+			name: "LoadGenesisError",
+			configModifier: func(cfg *rollconf.Config) {
+				// Set RootDir to a path where genesis.json won't be found relative to its default config dir
+				cfg.RootDir = filepath.Join(tmpDir, "nonexistent_root")
+				// Ensure the directory exists so ConfigPath() doesn't fail early, but genesis won't be there
+				err := os.MkdirAll(filepath.Join(cfg.RootDir, "config"), 0755)
+				assert.NoError(t, err)
+			},
+			expectedError: "failed to load genesis:", // Check for prefix as the exact error might vary
+		},
+		{
+			name: "LoadFileSystemSignerError",
+			configModifier: func(cfg *rollconf.Config) {
+				cfg.RootDir = tmpDir // Need RootDir for ConfigPath default
+				cfg.Node.Aggregator = true
+				cfg.Signer.SignerType = "file"
+				cfg.Signer.SignerPath = filepath.Join(tmpDir, "nonexistent_signer") // Invalid path
+			},
+			cmdModifier:   nil,                         // Flag is already defined globally, no need to redefine
+			expectedError: "no such file or directory", // Error from file system
+		},
+		// TODO: Add test case for node.NewNode error if possible with mocks
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			nodeConfig := rollconf.DefaultConfig
+			// Apply test-specific config modifications BEFORE potentially using them in newRunNodeCmd
+			if tc.configModifier != nil {
+				tc.configModifier(&nodeConfig)
+			}
+
+			// Create a signer based on the potentially modified config (needed for newRunNodeCmd)
+			// Use a dummy signer initially, StartNode logic will attempt to load the configured one
+			dummySigner, _ := filesigner.CreateFileSystemSigner(dummySignerPath, []byte("password"))
+
+			// Pass the potentially modified nodeConfig to newRunNodeCmd
+			cmd := newRunNodeCmd(baseCtx, executor, sequencer, dac, dummySigner, nodeKey, p2pClient, ds, nodeConfig)
+
+			// Set the context on the command object before using it
+			cmd.SetContext(baseCtx)
+
+			// Apply command modifications (like setting flags) AFTER creating the command
+			if tc.cmdModifier != nil {
+				tc.cmdModifier(cmd)
+			}
+
+			runFunc := func() {
+				// Pass the final nodeConfig to StartNode
+				err := StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, ds, nodeConfig)
+				if tc.expectedError != "" {
+					assert.ErrorContains(t, err, tc.expectedError)
+				} else {
+					// If no error is expected (e.g., only panic), ensure no error is returned if it doesn't panic
+					if !tc.expectPanic {
+						assert.NoError(t, err)
+					}
+				}
+			}
+
+			if tc.expectPanic {
+				assert.Panics(t, runFunc)
+			} else {
+				assert.NotPanics(t, runFunc)
+				// Re-check error after NotPanics confirms no panic occurred
+				// Need to re-run StartNode as the original runFunc only checks error if !tc.expectPanic
+				err := StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, ds, nodeConfig)
+				if tc.expectedError != "" {
+					assert.ErrorContains(t, err, tc.expectedError)
+				}
+			}
+		})
+	}
+}
+
 // newRunNodeCmd returns the command that allows the CLI to start a node.
 func newRunNodeCmd(
 	ctx context.Context,
@@ -300,6 +459,7 @@ func newRunNodeCmd(
 		Aliases: []string{"node", "run"},
 		Short:   "Run the rollkit node",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Use the nodeConfig passed into this function closure
 			return StartNode(log.NewNopLogger(), cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
