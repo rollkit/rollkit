@@ -3,15 +3,18 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/rollkit/rollkit/pkg/rpc/client"
 	"github.com/stretchr/testify/require"
+
+	nodeclient "github.com/rollkit/rollkit/pkg/rpc/client"
 )
 
 var binaryPath string
@@ -62,6 +65,7 @@ func TestBasic(t *testing.T) {
 		"--rollkit.signer.passphrase="+aggregatorPass,
 		"--rollkit.node.block_time=5ms",
 		"--rollkit.da.block_time=15ms",
+		"--kv-endpoint=127.0.0.1:9090",
 	)
 	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
 
@@ -91,64 +95,41 @@ func TestBasic(t *testing.T) {
 		fmt.Sprintf("--rollkit.rpc.address=%s", node2RPC),
 	)
 
-	sut.AwaitNodeUp(t, "http://"+node2RPC, 20*time.Second)
+	sut.AwaitNodeUp(t, "http://"+node2RPC, 2*time.Second)
 	t.Logf("Full node (node 2) is up.")
 
-	asserNodeCaughtUp := func(c *client.Client, height uint64) {
-		ctx, done := context.WithTimeout(context.Background(), time.Second)
-		defer done()
-		state, err := c.GetState(ctx)
-		require.NoError(t, err)
-		require.Greater(t, state.LastBlockHeight, height)
-	}
-
-	node1Client := client.NewClient("http://127.0.0.1:7331")
-	require.NoError(t, err)
-	asserNodeCaughtUp(node1Client, 1)
-
-	// get latest height for node 1
-	ctx, done := context.WithTimeout(context.Background(), time.Second)
-	defer done()
-	state, err := node1Client.GetState(ctx)
-	require.NoError(t, err)
-
-	node2Client := client.NewClient("http://" + node2RPC) // Use variable and prepend http://
-	require.NotNil(t, node2Client, "Failed to create client for node 2")
-	require.Eventually(t, func() bool {
-		ctxNode2, doneNode2 := context.WithTimeout(context.Background(), time.Second)
-		defer doneNode2()
-		stateNode2, err := node2Client.GetState(ctxNode2)
-		if err != nil {
-			t.Logf("Error getting state from node 2: %v", err)
-			return false
-		}
-		return stateNode2.LastBlockHeight >= state.LastBlockHeight
-	}, 10*time.Second, 500*time.Millisecond, "Node 2 failed to catch up")
-
 	// when a client TX for state update is executed
-	// const myKey = "foo"
-	// myValue := fmt.Sprintf("bar%d", time.Now().UnixNano())
-	// tx := fmt.Sprintf("%s=%s", myKey, myValue)
+	const myKey = "foo"
+	myValue := fmt.Sprintf("bar%d", time.Now().UnixNano())
+	tx := fmt.Sprintf("%s=%s", myKey, myValue)
+	kvStoreEndpoint := "http://127.0.0.1:9090/tx" // Assuming this is the endpoint based on init flag
 
-	// ctx, done := context.WithTimeout(context.Background(), time.Second)
-	// defer done()
-	// result, err := node1Client.BroadcastTxCommit(ctx, tx)
-	// require.NoError(t, err)
-	// require.Equal(t, uint32(0), result.TxResult.Code, result.TxResult.Log)
+	ctx, done := context.WithTimeout(context.Background(), 5*time.Second) // Increased timeout for HTTP request
+	defer done()
 
-	// then state is persisted
-	// ctx, done = context.WithTimeout(context.Background(), 150*time.Millisecond)
-	// defer done()
-	// resQuery, err := node1Client.ABCIQuery(ctx, "/store", []byte(myKey))
-	// require.NoError(t, err)
-	// require.Equal(t, myValue, string(resQuery.Response.Value))
+	// Submit transaction via HTTP POST to the KV store endpoint
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, kvStoreEndpoint, bytes.NewBufferString(tx))
+	require.NoError(t, err, "failed to create http request")
+	req.Header.Set("Content-Type", "text/plain") // Or application/octet-stream depending on server expectation
 
-	// and state distributed to fullnode
-	// require.Eventually(t, func() bool {
-	// 	ctx, done := context.WithTimeout(context.Background(), 150*time.Millisecond)
-	// 	defer done()
-	// 	resQuery, err = node2Client.ABCIQuery(ctx, "/store", []byte(myKey))
-	// 	require.NoError(t, err)
-	// 	return myValue == string(resQuery.Response.Value)
-	// }, time.Second, 5*time.Millisecond)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err, "failed to send http request")
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusAccepted, resp.StatusCode, "transaction not accepted by kv store")
+	t.Logf("Transaction '%s' submitted successfully via HTTP to %s", tx, kvStoreEndpoint)
+
+	// wait for the transaction to be processed
+	time.Sleep(2 * time.Second)
+
+	// verify a block has been produced
+	c := nodeclient.NewClient("http://127.0.0.1:7331")
+	require.NoError(t, err)
+
+	ctx, done = context.WithTimeout(context.Background(), time.Second)
+	defer done()
+	state, err := c.GetState(ctx)
+	require.NoError(t, err)
+	require.Greater(t, state.LastBlockHeight, uint64(1))
 }

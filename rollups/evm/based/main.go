@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"cosmossdk.io/log"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rollkit/go-execution-evm"
 	coreda "github.com/rollkit/rollkit/core/da"
@@ -98,7 +96,6 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			logger := log.NewLogger(os.Stdout)
 
 			nodeConfig, err := rollcmd.ParseConfig(cmd)
 			if err != nil {
@@ -112,9 +109,11 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to create execution client: %w", err)
 			}
 
+			logger := rollcmd.SetupLogger(nodeConfig.Log)
+
 			var rollDA coreda.DA
 			if nodeConfig.DA.AuthToken != "" {
-				client, err := jsonrpc.NewClient(ctx, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+				client, err := jsonrpc.NewClient(ctx, logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
 				if err != nil {
 					return fmt.Errorf("failed to create DA client: %w", err)
 				}
@@ -126,7 +125,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 
 			var basedDA coreda.DA
 			if basedAuth != "" {
-				client, err := jsonrpc.NewClient(ctx, basedURL, basedAuth)
+				client, err := jsonrpc.NewClient(ctx, logger, basedURL, basedAuth)
 				if err != nil {
 					return fmt.Errorf("failed to create based client: %w", err)
 				}

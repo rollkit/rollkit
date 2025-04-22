@@ -11,30 +11,24 @@ import (
 	rpc "github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
 )
 
-// Client is the client for the StoreService
+// Client is the client for StoreService, P2PService, and HealthService
 type Client struct {
-	storeClient rpc.StoreServiceClient
-	p2pClient   rpc.P2PServiceClient
+	storeClient  rpc.StoreServiceClient
+	p2pClient    rpc.P2PServiceClient
+	healthClient rpc.HealthServiceClient
 }
 
-// NewStoreClient creates a new StoreClient
+// NewClient creates a new RPC client
 func NewClient(baseURL string) *Client {
 	httpClient := http.DefaultClient
-	storeClient := rpc.NewStoreServiceClient(
-		httpClient,
-		baseURL,
-		connect.WithGRPC(),
-	)
-
-	p2pClient := rpc.NewP2PServiceClient(
-		httpClient,
-		baseURL,
-		connect.WithGRPC(),
-	)
+	storeClient := rpc.NewStoreServiceClient(httpClient, baseURL, connect.WithGRPC())
+	p2pClient := rpc.NewP2PServiceClient(httpClient, baseURL, connect.WithGRPC())
+	healthClient := rpc.NewHealthServiceClient(httpClient, baseURL, connect.WithGRPC())
 
 	return &Client{
-		storeClient: storeClient,
-		p2pClient:   p2pClient,
+		storeClient:  storeClient,
+		p2pClient:    p2pClient,
+		healthClient: healthClient,
 	}
 }
 
@@ -115,4 +109,14 @@ func (c *Client) GetNetInfo(ctx context.Context) (*pb.NetInfo, error) {
 	}
 
 	return resp.Msg.NetInfo, nil
+}
+
+// GetHealth calls the HealthService.Livez endpoint and returns the HealthStatus
+func (c *Client) GetHealth(ctx context.Context) (pb.HealthStatus, error) {
+	req := connect.NewRequest(&emptypb.Empty{})
+	resp, err := c.healthClient.Livez(ctx, req)
+	if err != nil {
+		return pb.HealthStatus_UNKNOWN, err
+	}
+	return resp.Msg.Status, nil
 }

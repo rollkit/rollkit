@@ -189,10 +189,30 @@ func (p *P2PServer) GetNetInfo(
 	}), nil
 }
 
-// NewServiceHandler creates a new HTTP handler for both Store and P2P services
+// HealthServer implements the HealthService defined in the proto file
+type HealthServer struct{}
+
+// NewHealthServer creates a new HealthServer instance
+func NewHealthServer() *HealthServer {
+	return &HealthServer{}
+}
+
+// Livez implements the HealthService.Livez RPC
+func (h *HealthServer) Livez(
+	ctx context.Context,
+	req *connect.Request[emptypb.Empty],
+) (*connect.Response[pb.GetHealthResponse], error) {
+	// always return healthy
+	return connect.NewResponse(&pb.GetHealthResponse{
+		Status: pb.HealthStatus_PASS,
+	}), nil
+}
+
+// NewServiceHandler creates a new HTTP handler for Store, P2P and Health services
 func NewServiceHandler(store store.Store, peerManager p2p.P2PRPC) (http.Handler, error) {
 	storeServer := NewStoreServer(store)
 	p2pServer := NewP2PServer(peerManager)
+	healthServer := NewHealthServer()
 
 	mux := http.NewServeMux()
 
@@ -200,24 +220,29 @@ func NewServiceHandler(store store.Store, peerManager p2p.P2PRPC) (http.Handler,
 	reflector := grpcreflect.NewStaticReflector(
 		rpc.StoreServiceName,
 		rpc.P2PServiceName,
+		rpc.HealthServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, compress1KB))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector, compress1KB))
 
-	// Register the StoreService
+	// Register StoreService
 	storePath, storeHandler := rpc.NewStoreServiceHandler(storeServer)
 	mux.Handle(storePath, storeHandler)
 
-	// Register the P2PService
+	// Register P2PService
 	p2pPath, p2pHandler := rpc.NewP2PServiceHandler(p2pServer)
 	mux.Handle(p2pPath, p2pHandler)
 
+	// Register HealthService
+	healthPath, healthHandler := rpc.NewHealthServiceHandler(healthServer)
+	mux.Handle(healthPath, healthHandler)
+
 	// Use h2c to support HTTP/2 without TLS
 	return h2c.NewHandler(mux, &http2.Server{
-		IdleTimeout:          120 * time.Second, // Close idle connections after 2 minutes
-		MaxReadFrameSize:     1 << 24,           // 16MB max frame size
-		MaxConcurrentStreams: 100,               // Limit concurrent streams
-		ReadIdleTimeout:      30 * time.Second,  // Timeout for reading frames
-		PingTimeout:          15 * time.Second,  // Timeout for ping frames
+		IdleTimeout:          120 * time.Second,
+		MaxReadFrameSize:     1 << 24,
+		MaxConcurrentStreams: 100,
+		ReadIdleTimeout:      30 * time.Second,
+		PingTimeout:          15 * time.Second,
 	}), nil
 }

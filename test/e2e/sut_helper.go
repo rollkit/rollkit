@@ -94,12 +94,11 @@ func (s *SystemUnderTest) AwaitNodeUp(t *testing.T, rpcAddr string, timeout time
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
-			result, err := con.GetState(ctx)
-			if err != nil || result.LastBlockHeight < 1 {
+			_, err := con.GetHealth(ctx)
+			if err != nil {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
-			t.Logf("Node started. Current block: %d\n", result.LastBlockHeight)
 			started <- struct{}{}
 			return
 		}

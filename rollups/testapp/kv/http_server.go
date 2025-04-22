@@ -3,10 +3,14 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
+
+	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 )
 
 // HTTPServer wraps a KVExecutor and provides an HTTP interface for it
@@ -109,7 +113,7 @@ func (hs *HTTPServer) handleTx(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleKV handles direct key-value operations (GET/POST)
+// handleKV handles direct key-value operations (GET/POST) against the database
 // GET /kv?key=somekey - retrieve a value
 // POST /kv with JSON {"key": "somekey", "value": "somevalue"} - set a value
 func (hs *HTTPServer) handleKV(w http.ResponseWriter, r *http.Request) {
@@ -121,41 +125,25 @@ func (hs *HTTPServer) handleKV(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		value, exists := hs.executor.GetStoreValue(key)
+		// Use r.Context() when calling the executor method
+		value, exists := hs.executor.GetStoreValue(r.Context(), key)
 		if !exists {
-			http.Error(w, "Key not found", http.StatusNotFound)
+			// GetStoreValue now returns false on error too, check logs for details
+			// Check if the key truly doesn't exist vs a DB error occurred.
+			// For simplicity here, we treat both as Not Found for the client.
+			// A more robust implementation might check the error type.
+			_, err := hs.executor.db.Get(r.Context(), ds.NewKey(key))
+			if errors.Is(err, ds.ErrNotFound) {
+				http.Error(w, "Key not found", http.StatusNotFound)
+			} else {
+				// Some other DB error occurred
+				http.Error(w, "Failed to retrieve key", http.StatusInternalServerError)
+				fmt.Printf("Error retrieving key '%s' from DB: %v\n", key, err)
+			}
 			return
 		}
 
 		_, err := w.Write([]byte(value))
-		if err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
-		}
-
-	case http.MethodPost:
-		var data struct {
-			Key   string `json:"key"`
-			Value string `json:"value"`
-		}
-
-		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
-			return
-		}
-		defer func() {
-			if err := r.Body.Close(); err != nil {
-				fmt.Printf("Error closing request body: %v\n", err)
-			}
-		}()
-
-		if data.Key == "" {
-			http.Error(w, "Missing key", http.StatusBadRequest)
-			return
-		}
-
-		hs.executor.SetStoreValue(data.Key, data.Value)
-		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte("Value set"))
 		if err != nil {
 			fmt.Printf("Error writing response: %v\n", err)
 		}
@@ -165,7 +153,7 @@ func (hs *HTTPServer) handleKV(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleStore returns all key-value pairs in the store
+// handleStore returns all non-reserved key-value pairs in the store by querying the database
 // GET /store
 func (hs *HTTPServer) handleStore(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -173,15 +161,33 @@ func (hs *HTTPServer) handleStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hs.executor.mu.Lock()
 	store := make(map[string]string)
-	for k, v := range hs.executor.store {
-		store[k] = v
+	q := query.Query{} // Query all entries
+	results, err := hs.executor.db.Query(r.Context(), q)
+	if err != nil {
+		http.Error(w, "Failed to query store", http.StatusInternalServerError)
+		fmt.Printf("Error querying datastore: %v\n", err)
+		return
 	}
-	hs.executor.mu.Unlock()
+	defer results.Close()
+
+	for result := range results.Next() {
+		if result.Error != nil {
+			http.Error(w, "Failed during store iteration", http.StatusInternalServerError)
+			fmt.Printf("Error iterating datastore results: %v\n", result.Error)
+			return
+		}
+		// Exclude reserved genesis keys from the output
+		dsKey := ds.NewKey(result.Key)
+		if dsKey.Equal(genesisInitializedKey) || dsKey.Equal(genesisStateRootKey) {
+			continue
+		}
+		store[result.Key] = string(result.Value)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(store); err != nil {
+		// Error already sent potentially, just log
 		fmt.Printf("Error encoding JSON response: %v\n", err)
 	}
 }
