@@ -1,37 +1,35 @@
 ## prep the base image.
 #
-FROM golang as base
+FROM golang:1.24 AS base
 
-RUN apt update && \
-	apt-get install -y \
+RUN apt-get update && \
+	apt-get install -y --no-install-recommends \
 	build-essential \
 	ca-certificates \
-	curl
+	curl \
+	&& rm -rf /var/lib/apt/lists/*
 
 # enable faster module downloading.
-ENV GOPROXY https://proxy.golang.org
+ENV GOPROXY=https://proxy.golang.org
 
 ## builder stage.
 #
-FROM base as builder
+FROM base AS builder
 
 WORKDIR /rollkit
 
-# cache dependencies.
-COPY ./go.mod . 
-COPY ./go.sum . 
-RUN go mod download
-
+# Copy all source code first
 COPY . .
 
-RUN make install
+# Now download dependencies and build
+RUN go mod download && make install
 
 ## prep the final image.
 #
 FROM base
 
-COPY --from=builder /go/bin/rollkit /usr/bin
+COPY --from=builder /go/bin/testapp /usr/bin
 
 WORKDIR /apps
 
-ENTRYPOINT ["rollkit"]
+ENTRYPOINT ["testapp"]

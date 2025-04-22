@@ -1,0 +1,12 @@
+go 1.23
+
+use (
+	.
+	./core
+	./rollups/abci/based
+	./rollups/abci/centralized
+	./rollups/evm/based
+	./rollups/evm/centralized
+	./sequencers/based
+	./sequencers/single
+)

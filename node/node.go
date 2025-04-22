@@ -3,56 +3,60 @@ package node
 import (
 	"context"
 
-	"github.com/libp2p/go-libp2p/core/crypto"
+	"cosmossdk.io/log"
+	ds "github.com/ipfs/go-datastore"
 
-	"github.com/cometbft/cometbft/libs/log"
-	proxy "github.com/cometbft/cometbft/proxy"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	cmtypes "github.com/cometbft/cometbft/types"
-
-	"github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	"github.com/rollkit/rollkit/pkg/service"
+	"github.com/rollkit/rollkit/pkg/signer"
 )
 
 // Node is the interface for a rollup node
 type Node interface {
-	Start() error
-	GetClient() rpcclient.Client
-	Stop() error
+	service.Service
+
 	IsRunning() bool
-	Cancel()
 }
 
 // NewNode returns a new Full or Light Node based on the config
+// This is the entry point for composing a node, when compiling a node, you need to provide an executor
+// Example executors can be found in rollups/
 func NewNode(
 	ctx context.Context,
-	conf config.NodeConfig,
-	p2pKey crypto.PrivKey,
-	signingKey crypto.PrivKey,
-	appClient proxy.ClientCreator,
-	genesis *cmtypes.GenesisDoc,
+	conf config.Config,
+	exec coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
+	dac coreda.Client,
+	signer signer.Signer,
+	nodeKey key.NodeKey,
+	p2pClient *p2p.Client,
+	genesis genesis.Genesis,
+	database ds.Batching,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
-	if !conf.Light {
-		return newFullNode(
-			ctx,
-			conf,
-			p2pKey,
-			signingKey,
-			appClient,
-			genesis,
-			metricsProvider,
-			logger,
-		)
-	} else {
-		return newLightNode(
-			ctx,
-			conf,
-			p2pKey,
-			appClient,
-			genesis,
-			metricsProvider,
-			logger,
-		)
+	if conf.Node.Light {
+		return newLightNode(conf, genesis, p2pClient, nodeKey, database, logger)
 	}
+
+	return newFullNode(
+		ctx,
+		conf,
+		p2pClient,
+		signer,
+		nodeKey,
+		genesis,
+		database,
+		exec,
+		sequencer,
+		dac,
+		metricsProvider,
+		logger,
+	)
 }

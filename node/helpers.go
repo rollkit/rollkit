@@ -1,12 +1,14 @@
 package node
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"testing"
+	"os"
+	"path/filepath"
 	"time"
 
-	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 )
 
 // Source is an enum representing different sources of height
@@ -23,7 +25,6 @@ const (
 
 // MockTester is a mock testing.T
 type MockTester struct {
-	t *testing.T
 }
 
 // Fail is used to fail the test
@@ -42,13 +43,6 @@ func waitForFirstBlock(node Node, source Source) error {
 	return waitForAtLeastNBlocks(node, 1, source)
 }
 
-func getBMConfig() config.BlockManagerConfig {
-	return config.BlockManagerConfig{
-		DABlockTime: 100 * time.Millisecond,
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-	}
-}
-
 func getNodeHeight(node Node, source Source) (uint64, error) {
 	switch source {
 	case Header:
@@ -60,13 +54,6 @@ func getNodeHeight(node Node, source Source) (uint64, error) {
 	default:
 		return 0, errors.New("invalid source")
 	}
-}
-
-func isBlockHashSeen(node Node, blockHash string) bool {
-	if fn, ok := node.(*FullNode); ok {
-		return fn.blockManager.IsBlockHashSeen(blockHash)
-	}
-	return false
 }
 
 func getNodeHeightFromHeader(node Node) (uint64, error) {
@@ -88,35 +75,19 @@ func getNodeHeightFromBlock(node Node) (uint64, error) {
 
 func getNodeHeightFromStore(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
-		return fn.blockManager.GetStoreHeight(), nil
+		height, err := fn.blockManager.GetStoreHeight(context.Background())
+		return height, err
 	}
 	return 0, errors.New("not a full node")
 }
 
-// safeClose closes the channel if it's not closed already
+//nolint:unused
 func safeClose(ch chan struct{}) {
 	select {
 	case <-ch:
 	default:
 		close(ch)
 	}
-}
-
-func verifyNodesSynced(node1, node2 Node, source Source) error {
-	return Retry(300, 100*time.Millisecond, func() error {
-		n1Height, err := getNodeHeight(node1, source)
-		if err != nil {
-			return err
-		}
-		n2Height, err := getNodeHeight(node2, source)
-		if err != nil {
-			return err
-		}
-		if n1Height == n2Height {
-			return nil
-		}
-		return fmt.Errorf("nodes not synced: node1 at height %v, node2 at height %v", n1Height, n2Height)
-	})
 }
 
 func waitForAtLeastNBlocks(node Node, n int, source Source) error {
@@ -129,15 +100,6 @@ func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 			return nil
 		}
 		return fmt.Errorf("expected height > %v, got %v", n, nHeight)
-	})
-}
-
-func waitUntilBlockHashSeen(node Node, blockHash string) error {
-	return Retry(300, 100*time.Millisecond, func() error {
-		if isBlockHashSeen(node, blockHash) {
-			return nil
-		}
-		return fmt.Errorf("block hash %v not seen", blockHash)
 	})
 }
 
@@ -161,4 +123,24 @@ func Retry(tries int, durationBetweenAttempts time.Duration, fn func() error) (e
 		time.Sleep(durationBetweenAttempts)
 	}
 	return fn()
+}
+
+// InitFiles initializes the files for the node.
+// It creates a temporary directory and nodekey file for testing purposes.
+// It returns the path to the temporary directory and a function to clean up the temporary directory.
+func InitFiles(dir string) error {
+	// Create config directory
+	configDir := filepath.Join(dir, "config")
+	err := os.MkdirAll(configDir, 0700) //nolint:gosec
+	if err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	// create the nodekey file
+	_, err = key.LoadOrGenNodeKey(configDir)
+	if err != nil {
+		return fmt.Errorf("failed to create node key: %w", err)
+	}
+
+	return nil
 }

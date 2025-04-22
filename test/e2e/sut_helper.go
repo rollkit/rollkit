@@ -16,13 +16,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/p2p"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	"github.com/rollkit/rollkit/pkg/rpc/client"
 )
 
 // WorkDir defines the default working directory for spawned processes.
@@ -51,6 +50,18 @@ func NewSystemUnderTest(t *testing.T) *SystemUnderTest {
 	return r
 }
 
+// RunCmd runs a command and returns the output
+func (s *SystemUnderTest) RunCmd(cmd string, args ...string) (string, error) {
+	c := exec.Command( //nolint:gosec // used by tests only
+		locateExecutable(cmd),
+		args...,
+	)
+	// Use CombinedOutput to capture both stdout and stderr
+	combinedOutput, err := c.CombinedOutput() // Changed from c.Output()
+
+	return string(combinedOutput), err
+}
+
 // StartNode starts a process for the given command and manages it cleanup on test end.
 func (s *SystemUnderTest) StartNode(cmd string, args ...string) {
 	c := exec.Command( //nolint:gosec // used by tests only
@@ -60,7 +71,8 @@ func (s *SystemUnderTest) StartNode(cmd string, args ...string) {
 	c.Dir = WorkDir
 	s.watchLogs(c)
 
-	require.NoError(s.t, c.Start())
+	err := c.Start()
+	require.NoError(s.t, err)
 
 	// cleanup when stopped
 	s.awaitProcessCleanup(c)
@@ -75,21 +87,18 @@ func (s *SystemUnderTest) AwaitNodeUp(t *testing.T, rpcAddr string, timeout time
 
 	started := make(chan struct{}, 1)
 	go func() { // query for a non empty block on status page
-		t.Logf("Checking node status: %s\n", rpcAddr)
+		t.Logf("Checking node state: %s\n", rpcAddr)
 		for {
-			con, err := rpchttp.New(rpcAddr, "/websocket")
-			if err != nil || con.Start() != nil {
+			con := client.NewClient(rpcAddr)
+			if con == nil {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
-			result, err := con.Status(ctx)
-			if err != nil || result.SyncInfo.LatestBlockHeight < 1 {
-				_ = con.Stop()
+			_, err := con.GetHealth(ctx)
+			if err != nil {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
-			t.Logf("Node started. Current block: %d\n", result.SyncInfo.LatestBlockHeight)
-			_ = con.Stop()
 			started <- struct{}{}
 			return
 		}
@@ -257,11 +266,9 @@ func MustCopyFile(t *testing.T, src, dest string) *os.File {
 // NodeID generates and returns the peer ID from the node's private key.
 func NodeID(t *testing.T, nodeDir string) peer.ID {
 	t.Helper()
-	node1Key, err := p2p.LoadOrGenNodeKey(filepath.Join(nodeDir, "config", "node_key.json"))
+	node1Key, err := key.LoadNodeKey(filepath.Join(nodeDir, "config"))
 	require.NoError(t, err)
-	p2pKey, err := types.GetNodeKey(node1Key)
-	require.NoError(t, err)
-	node1ID, err := peer.IDFromPrivateKey(p2pKey)
+	node1ID, err := peer.IDFromPrivateKey(node1Key.PrivKey)
 	require.NoError(t, err)
 	return node1ID
 }

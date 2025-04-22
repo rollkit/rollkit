@@ -3,51 +3,36 @@ package node
 import (
 	"context"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
+	"time"
 
+	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-	llcfg "github.com/cometbft/cometbft/config"
-	"github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/libs/service"
-	corep2p "github.com/cometbft/cometbft/p2p"
-	proxy "github.com/cometbft/cometbft/proxy"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	cmtypes "github.com/cometbft/cometbft/types"
-
-	proxyda "github.com/rollkit/go-da/proxy"
-
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/block"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/mempool"
-	"github.com/rollkit/rollkit/p2p"
-	"github.com/rollkit/rollkit/state"
-	"github.com/rollkit/rollkit/state/indexer"
-	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
-	"github.com/rollkit/rollkit/state/txindex"
-	"github.com/rollkit/rollkit/state/txindex/kv"
-	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/types"
+	coreda "github.com/rollkit/rollkit/core/da"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/config"
+	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
+	"github.com/rollkit/rollkit/pkg/service"
+	"github.com/rollkit/rollkit/pkg/signer"
+	"github.com/rollkit/rollkit/pkg/store"
+	"github.com/rollkit/rollkit/pkg/sync"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
-var (
-	mainPrefix    = "0"
-	indexerPrefix = "1" // indexPrefix uses "i", so using "0-2" to avoid clash
-)
+var mainPrefix = "0"
 
 const (
 	// genesisChunkSize is the maximum size, in bytes, of each
@@ -62,89 +47,43 @@ var _ Node = &FullNode{}
 type FullNode struct {
 	service.BaseService
 
-	genesis *cmtypes.GenesisDoc
+	genesis genesispkg.Genesis
 	// cache of chunked genesis data.
 	genChunks []string
 
-	nodeConfig config.NodeConfig
+	nodeConfig config.Config
 
-	proxyApp     proxy.AppConns
-	eventBus     *cmtypes.EventBus
-	dalc         *da.DAClient
+	dalc         coreda.Client
 	p2pClient    *p2p.Client
-	hSyncService *block.HeaderSyncService
-	dSyncService *block.DataSyncService
-	// TODO(tzdybal): consider extracting "mempool reactor"
-	Mempool      mempool.Mempool
-	mempoolIDs   *mempoolIDs
+	hSyncService *sync.HeaderSyncService
+	dSyncService *sync.DataSyncService
 	Store        store.Store
 	blockManager *block.Manager
-	client       rpcclient.Client
+	reaper       *block.Reaper
 
-	// Preserves cometBFT compatibility
-	TxIndexer      txindex.TxIndexer
-	BlockIndexer   indexer.BlockIndexer
-	IndexerService *txindex.IndexerService
-	prometheusSrv  *http.Server
-
-	// keep context here only because of API compatibility
-	// - it's used in `OnStart` (defined in service.Service interface)
-	ctx           context.Context
-	cancel        context.CancelFunc
-	threadManager *types.ThreadManager
-	seqClient     *seqGRPC.Client
-	mempoolReaper *mempool.CListMempoolReaper
+	prometheusSrv *http.Server
+	pprofSrv      *http.Server
+	rpcServer     *http.Server
 }
 
 // newFullNode creates a new Rollkit full node.
 func newFullNode(
 	ctx context.Context,
-	nodeConfig config.NodeConfig,
-	p2pKey crypto.PrivKey,
-	signingKey crypto.PrivKey,
-	clientCreator proxy.ClientCreator,
-	genesis *cmtypes.GenesisDoc,
+	nodeConfig config.Config,
+	p2pClient *p2p.Client,
+	signer signer.Signer,
+	nodeKey key.NodeKey,
+	genesis genesispkg.Genesis,
+	database ds.Batching,
+	exec coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
+	dac coreda.Client,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
-	// Create context with cancel so that all services using the context can
-	// catch the cancel signal when the node shutdowns
-	ctx, cancel := context.WithCancel(ctx)
-	defer func() {
-		// If there is an error, cancel the context
-		if err != nil {
-			cancel()
-		}
-	}()
+	seqMetrics, _ := metricsProvider(genesis.ChainID)
 
-	seqMetrics, p2pMetrics, memplMetrics, smMetrics, abciMetrics := metricsProvider(genesis.ChainID)
-
-	proxyApp, err := initProxyApp(clientCreator, logger, abciMetrics)
-	if err != nil {
-		return nil, err
-	}
-
-	eventBus, err := initEventBus(logger)
-	if err != nil {
-		return nil, err
-	}
-
-	baseKV, err := initBaseKV(nodeConfig, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	dalc, err := initDALC(nodeConfig, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
-	if err != nil {
-		return nil, err
-	}
-
-	mainKV := newPrefixKV(baseKV, mainPrefix)
+	mainKV := newPrefixKV(database, mainPrefix)
 	headerSyncService, err := initHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
@@ -155,132 +94,126 @@ func newFullNode(
 		return nil, err
 	}
 
-	mempool := initMempool(proxyApp, memplMetrics)
-
-	seqClient := seqGRPC.NewClient()
-	mempoolReaper := initMempoolReaper(mempool, []byte(genesis.ChainID), seqClient, logger.With("module", "reaper"))
-
 	store := store.New(mainKV)
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, mempoolReaper, seqClient, proxyApp, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics, smMetrics)
-	if err != nil {
-		return nil, err
-	}
 
-	indexerKV := newPrefixKV(baseKV, indexerPrefix)
-	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, nodeConfig, indexerKV, eventBus, logger)
+	reaper := block.NewReaper(
+		ctx,
+		exec,
+		sequencer,
+		genesis.ChainID,
+		nodeConfig.Node.BlockTime.Duration,
+		logger.With("module", "Reaper"),
+		mainKV,
+	)
+
+	blockManager, err := initBlockManager(
+		ctx,
+		signer,
+		exec,
+		nodeConfig,
+		genesis,
+		store,
+		sequencer,
+		dac,
+		logger,
+		headerSyncService,
+		dataSyncService,
+		seqMetrics,
+		nodeConfig.DA.GasPrice,
+		nodeConfig.DA.GasMultiplier,
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	node := &FullNode{
-		proxyApp:       proxyApp,
-		eventBus:       eventBus,
-		genesis:        genesis,
-		nodeConfig:     nodeConfig,
-		p2pClient:      p2pClient,
-		blockManager:   blockManager,
-		dalc:           dalc,
-		Mempool:        mempool,
-		seqClient:      seqClient,
-		mempoolReaper:  mempoolReaper,
-		mempoolIDs:     newMempoolIDs(),
-		Store:          store,
-		TxIndexer:      txIndexer,
-		IndexerService: indexerService,
-		BlockIndexer:   blockIndexer,
-		hSyncService:   headerSyncService,
-		dSyncService:   dataSyncService,
-		ctx:            ctx,
-		cancel:         cancel,
-		threadManager:  types.NewThreadManager(),
+		genesis:      genesis,
+		nodeConfig:   nodeConfig,
+		p2pClient:    p2pClient,
+		blockManager: blockManager,
+		reaper:       reaper,
+		dalc:         dac,
+		Store:        store,
+		hSyncService: headerSyncService,
+		dSyncService: dataSyncService,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
-	node.p2pClient.SetTxValidator(node.newTxValidator(p2pMetrics))
-	node.client = NewFullClient(node)
 
 	return node, nil
 }
 
-func initProxyApp(clientCreator proxy.ClientCreator, logger log.Logger, metrics *proxy.Metrics) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(clientCreator, metrics)
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error while starting proxy app connections: %w", err)
-	}
-	return proxyApp, nil
-}
-
-func initEventBus(logger log.Logger) (*cmtypes.EventBus, error) {
-	eventBus := cmtypes.NewEventBus()
-	eventBus.SetLogger(logger.With("module", "events"))
-	if err := eventBus.Start(); err != nil {
-		return nil, err
-	}
-	return eventBus, nil
-}
-
-// initBaseKV initializes the base key-value store.
-func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
-	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" { // this is used for testing
-		logger.Info("WARNING: working in in-memory mode")
-		return store.NewDefaultInMemoryKVStore()
-	}
-	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
-}
-
-func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {
-	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
-	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
-	if err != nil {
-		return nil, fmt.Errorf("error decoding namespace: %w", err)
-	}
-
-	if nodeConfig.DAGasMultiplier < 0 {
-		return nil, errors.New("gas multiplier must be greater than or equal to zero")
-	}
-
-	client, err := proxyda.NewClient(nodeConfig.DAAddress, nodeConfig.DAAuthToken)
-	if err != nil {
-		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
-	}
-
-	var submitOpts []byte
-	if nodeConfig.DASubmitOptions != "" {
-		submitOpts = []byte(nodeConfig.DASubmitOptions)
-	}
-	return da.NewDAClient(client, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
-		namespace, submitOpts, logger.With("module", "da_client")), nil
-}
-
-func initMempool(proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {
-	mempool := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0, mempool.WithMetrics(memplMetrics))
-	mempool.EnableTxsAvailable()
-	return mempool
-}
-
-func initMempoolReaper(m mempool.Mempool, rollupID []byte, seqClient *seqGRPC.Client, logger log.Logger) *mempool.CListMempoolReaper {
-	return mempool.NewCListMempoolReaper(m, rollupID, seqClient, logger)
-}
-
-func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
-	headerSyncService, err := block.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+func initHeaderSyncService(
+	mainKV ds.Batching,
+	nodeConfig config.Config,
+	genesis genesispkg.Genesis,
+	p2pClient *p2p.Client,
+	logger log.Logger,
+) (*sync.HeaderSyncService, error) {
+	headerSyncService, err := sync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
 	return headerSyncService, nil
 }
 
-func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.DataSyncService, error) {
-	dataSyncService, err := block.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
+func initDataSyncService(
+	mainKV ds.Batching,
+	nodeConfig config.Config,
+	genesis genesispkg.Genesis,
+	p2pClient *p2p.Client,
+	logger log.Logger,
+) (*sync.DataSyncService, error) {
+	dataSyncService, err := sync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing DataSyncService: %w", err)
 	}
 	return dataSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, mempoolReaper *mempool.CListMempoolReaper, seqClient *seqGRPC.Client, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
-	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, mempoolReaper, seqClient, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics, execMetrics)
+// initBlockManager initializes the block manager.
+// It requires:
+// - signingKey: the private key of the validator
+// - nodeConfig: the node configuration
+// - genesis: the genesis document
+// - store: the store
+// - seqClient: the sequencing client
+// - dalc: the DA client
+
+func initBlockManager(
+	ctx context.Context,
+	signer signer.Signer,
+	exec coreexecutor.Executor,
+	nodeConfig config.Config,
+	genesis genesispkg.Genesis,
+	store store.Store,
+	sequencer coresequencer.Sequencer,
+	dalc coreda.Client,
+	logger log.Logger,
+	headerSyncService *sync.HeaderSyncService,
+	dataSyncService *sync.DataSyncService,
+	seqMetrics *block.Metrics,
+	gasPrice float64,
+	gasMultiplier float64,
+) (*block.Manager, error) {
+	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
+
+	blockManager, err := block.NewManager(
+		ctx,
+		signer,
+		nodeConfig,
+		genesis,
+		store,
+		exec,
+		sequencer,
+		dalc,
+		logger.With("module", "BlockManager"),
+		headerSyncService.Store(),
+		dataSyncService.Store(),
+		seqMetrics,
+		gasPrice,
+		gasMultiplier,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
 	}
@@ -291,10 +224,6 @@ func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, g
 // iterate through larger genesis structures.
 func (n *FullNode) initGenesisChunks() error {
 	if n.genChunks != nil {
-		return nil
-	}
-
-	if n.genesis == nil {
 		return nil
 	}
 
@@ -348,87 +277,238 @@ func (n *FullNode) dataPublishLoop(ctx context.Context) {
 	}
 }
 
-// GetClient returns the RPC client for the full node.
-func (n *FullNode) GetClient() rpcclient.Client {
-	return n.client
-}
+// startInstrumentationServer starts HTTP servers for instrumentation (Prometheus metrics and pprof).
+// Returns the primary server (Prometheus if enabled, otherwise pprof) and optionally a secondary server.
+func (n *FullNode) startInstrumentationServer() (*http.Server, *http.Server) {
+	var prometheusServer, pprofServer *http.Server
 
-// Cancel calls the underlying context's cancel function.
-func (n *FullNode) Cancel() {
-	n.cancel()
-}
+	// Check if Prometheus is enabled
+	if n.nodeConfig.Instrumentation.IsPrometheusEnabled() {
+		prometheusMux := http.NewServeMux()
 
-// startPrometheusServer starts a Prometheus HTTP server, listening for metrics
-// collectors on addr.
-func (n *FullNode) startPrometheusServer() *http.Server {
-	srv := &http.Server{
-		Addr: n.nodeConfig.Instrumentation.PrometheusListenAddr,
-		Handler: promhttp.InstrumentMetricHandler(
+		// Register Prometheus metrics handler
+		prometheusMux.Handle("/metrics", promhttp.InstrumentMetricHandler(
 			prometheus.DefaultRegisterer, promhttp.HandlerFor(
 				prometheus.DefaultGatherer,
 				promhttp.HandlerOpts{MaxRequestsInFlight: n.nodeConfig.Instrumentation.MaxOpenConnections},
 			),
-		),
-		ReadHeaderTimeout: readHeaderTimeout,
-	}
-	go func() {
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			// Error starting or closing listener:
-			n.Logger.Error("Prometheus HTTP server ListenAndServe", "err", err)
+		))
+
+		prometheusServer = &http.Server{
+			Addr:              n.nodeConfig.Instrumentation.PrometheusListenAddr,
+			Handler:           prometheusMux,
+			ReadHeaderTimeout: readHeaderTimeout,
 		}
-	}()
-	return srv
+
+		go func() {
+			if err := prometheusServer.ListenAndServe(); err != http.ErrServerClosed {
+				// Error starting or closing listener:
+				n.Logger.Error("Prometheus HTTP server ListenAndServe", "err", err)
+			}
+		}()
+
+		n.Logger.Info("Started Prometheus HTTP server", "addr", n.nodeConfig.Instrumentation.PrometheusListenAddr)
+	}
+
+	// Check if pprof is enabled
+	if n.nodeConfig.Instrumentation.IsPprofEnabled() {
+		pprofMux := http.NewServeMux()
+
+		// Register pprof handlers
+		pprofMux.HandleFunc("/debug/pprof/", pprof.Index)
+		pprofMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		pprofMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		pprofMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		pprofMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		// Register other pprof handlers
+		pprofMux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+		pprofMux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		pprofMux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+		pprofMux.Handle("/debug/pprof/block", pprof.Handler("block"))
+		pprofMux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+		pprofMux.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
+
+		pprofServer = &http.Server{
+			Addr:              n.nodeConfig.Instrumentation.GetPprofListenAddr(),
+			Handler:           pprofMux,
+			ReadHeaderTimeout: readHeaderTimeout,
+		}
+
+		go func() {
+			if err := pprofServer.ListenAndServe(); err != http.ErrServerClosed {
+				// Error starting or closing listener:
+				n.Logger.Error("pprof HTTP server ListenAndServe", "err", err)
+			}
+		}()
+
+		n.Logger.Info("Started pprof HTTP server", "addr", n.nodeConfig.Instrumentation.GetPprofListenAddr())
+	}
+
+	// Return the primary server (for backward compatibility) and the secondary server
+	if prometheusServer != nil {
+		return prometheusServer, pprofServer
+	}
+	return pprofServer, nil
 }
 
-// OnStart is a part of Service interface.
-func (n *FullNode) OnStart() error {
+// Run implements the Service interface.
+// It starts all subservices and manages the node's lifecycle.
+func (n *FullNode) Run(ctx context.Context) error {
 	// begin prometheus metrics gathering if it is enabled
-	if n.nodeConfig.Instrumentation != nil && n.nodeConfig.Instrumentation.IsPrometheusEnabled() {
-		n.prometheusSrv = n.startPrometheusServer()
+	if n.nodeConfig.Instrumentation != nil &&
+		(n.nodeConfig.Instrumentation.IsPrometheusEnabled() || n.nodeConfig.Instrumentation.IsPprofEnabled()) {
+		n.prometheusSrv, n.pprofSrv = n.startInstrumentationServer()
 	}
+
+	// Start RPC server
+	handler, err := rpcserver.NewServiceHandler(n.Store, n.p2pClient)
+	if err != nil {
+		return fmt.Errorf("error creating RPC handler: %w", err)
+	}
+
+	n.rpcServer = &http.Server{
+		Addr:         n.nodeConfig.RPC.Address,
+		Handler:      handler,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	go func() {
+		if err := n.rpcServer.ListenAndServe(); err != http.ErrServerClosed {
+			n.Logger.Error("RPC server error", "err", err)
+		}
+	}()
+
+	n.Logger.Info("Started RPC server", "addr", n.nodeConfig.RPC.Address)
+
 	n.Logger.Info("starting P2P client")
-	err := n.p2pClient.Start(n.ctx)
+	err = n.p2pClient.Start(ctx)
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
 
-	if err = n.hSyncService.Start(n.ctx); err != nil {
+	if err = n.hSyncService.Start(ctx); err != nil {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
-	if err = n.dSyncService.Start(n.ctx); err != nil {
+	if err = n.dSyncService.Start(ctx); err != nil {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
-	if err := n.seqClient.Start(
-		n.nodeConfig.SequencerAddress,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	); err != nil {
-		return err
+	if n.nodeConfig.Node.Aggregator {
+		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
+		go n.blockManager.AggregationLoop(ctx)
+		go n.reaper.Start(ctx)
+		go n.blockManager.HeaderSubmissionLoop(ctx)
+		go n.headerPublishLoop(ctx)
+		go n.dataPublishLoop(ctx)
+	} else {
+		go n.blockManager.RetrieveLoop(ctx)
+		go n.blockManager.HeaderStoreRetrieveLoop(ctx)
+		go n.blockManager.DataStoreRetrieveLoop(ctx)
+		go n.blockManager.SyncLoop(ctx)
 	}
 
-	if n.nodeConfig.Aggregator {
-		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
-		// reaper is started only in aggregator mode
-		if err = n.mempoolReaper.StartReaper(n.ctx); err != nil {
-			return fmt.Errorf("error while starting mempool reaper: %w", err)
-		}
-		n.threadManager.Go(func() { n.blockManager.BatchRetrieveLoop(n.ctx) })
-		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx) })
-		n.threadManager.Go(func() { n.blockManager.HeaderSubmissionLoop(n.ctx) })
-		n.threadManager.Go(func() { n.headerPublishLoop(n.ctx) })
-		n.threadManager.Go(func() { n.dataPublishLoop(n.ctx) })
-		return nil
+	// Block until context is canceled
+	<-ctx.Done()
+
+	// Perform cleanup
+	n.Logger.Info("halting full node...")
+	n.Logger.Info("shutting down full node sub services...")
+
+	// Use a timeout context to ensure shutdown doesn't hang
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var multiErr error // Use a multierror variable
+
+	// Stop P2P Client
+	err = n.p2pClient.Close()
+	if err != nil {
+		n.Logger.Error("error closing P2P client", "error", err)
+		multiErr = errors.Join(multiErr, fmt.Errorf("closing P2P client: %w", err))
 	}
-	n.threadManager.Go(func() { n.blockManager.RetrieveLoop(n.ctx) })
-	n.threadManager.Go(func() { n.blockManager.HeaderStoreRetrieveLoop(n.ctx) })
-	n.threadManager.Go(func() { n.blockManager.DataStoreRetrieveLoop(n.ctx) })
-	n.threadManager.Go(func() { n.blockManager.SyncLoop(n.ctx, n.cancel) })
-	return nil
+
+	// Stop Header Sync Service
+	err = n.hSyncService.Stop(shutdownCtx)
+	if err != nil {
+		// Log context canceled errors at a lower level if desired, or handle specific non-cancel errors
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			n.Logger.Error("error stopping header sync service", "error", err)
+		} else {
+			n.Logger.Debug("header sync service stop context ended", "reason", err) // Log cancellation as debug
+		}
+		// Still include the error in multiErr for completeness if needed
+		multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
+	}
+
+	// Stop Data Sync Service
+	err = n.dSyncService.Stop(shutdownCtx)
+	if err != nil {
+		// Log context canceled errors at a lower level if desired, or handle specific non-cancel errors
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			n.Logger.Error("error stopping data sync service", "error", err)
+		} else {
+			n.Logger.Debug("data sync service stop context ended", "reason", err) // Log cancellation as debug
+		}
+		// Still include the error in multiErr for completeness if needed
+		multiErr = errors.Join(multiErr, fmt.Errorf("stopping data sync service: %w", err))
+	}
+
+	// Shutdown Prometheus Server
+	if n.prometheusSrv != nil {
+		err = n.prometheusSrv.Shutdown(shutdownCtx)
+		// http.ErrServerClosed is expected on graceful shutdown
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			n.Logger.Error("error shutting down Prometheus server", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down Prometheus server: %w", err))
+		}
+	}
+
+	// Shutdown Pprof Server
+	if n.pprofSrv != nil {
+		err = n.pprofSrv.Shutdown(shutdownCtx)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			n.Logger.Error("error shutting down pprof server", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down pprof server: %w", err))
+		}
+	}
+
+	// Shutdown RPC Server
+	if n.rpcServer != nil {
+		err = n.rpcServer.Shutdown(shutdownCtx)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			n.Logger.Error("error shutting down RPC server", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down RPC server: %w", err))
+		}
+	}
+
+	// Ensure Store.Close is called last to maximize chance of data flushing
+	err = n.Store.Close()
+	if err != nil {
+		// Store.Close() might log internally, but log here too for context
+		n.Logger.Error("error closing store", "error", err)
+		multiErr = errors.Join(multiErr, fmt.Errorf("closing store: %w", err))
+	}
+
+	// Log final status
+	if multiErr != nil {
+		n.Logger.Error("errors encountered while stopping node", "errors", multiErr)
+	} else {
+		n.Logger.Info("full node halted successfully")
+	}
+
+	// Return the original context error if it exists (e.g., context cancelled)
+	// or the combined shutdown error if the context cancellation was clean.
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return multiErr // Return shutdown errors if context was okay
 }
 
 // GetGenesis returns entire genesis doc.
-func (n *FullNode) GetGenesis() *cmtypes.GenesisDoc {
+func (n *FullNode) GetGenesis() genesispkg.Genesis {
 	return n.genesis
 }
 
@@ -441,36 +521,9 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 	return n.genChunks, nil
 }
 
-// OnStop is a part of Service interface.
-//
-// p2pClient and sync services stop first, ceasing network activities. Then rest of services are halted.
-// Context is cancelled to signal goroutines managed by thread manager to stop.
-// Store is closed last because it's used by other services/goroutines.
-func (n *FullNode) OnStop() {
-	n.Logger.Info("halting full node...")
-	n.Logger.Info("shutting down full node sub services...")
-	err := errors.Join(
-		n.p2pClient.Close(),
-		n.hSyncService.Stop(n.ctx),
-		n.dSyncService.Stop(n.ctx),
-		n.seqClient.Stop(),
-		n.IndexerService.Stop(),
-	)
-	if n.prometheusSrv != nil {
-		err = errors.Join(err, n.prometheusSrv.Shutdown(n.ctx))
-	}
-	if n.mempoolReaper != nil {
-		n.mempoolReaper.StopReaper()
-	}
-	n.cancel()
-	n.threadManager.Wait()
-	err = errors.Join(err, n.Store.Close())
-	n.Logger.Error("errors while stopping node:", "errors", err)
-}
-
-// OnReset is a part of Service interface.
-func (n *FullNode) OnReset() error {
-	panic("OnReset - not implemented!")
+// IsRunning returns true if the node is running.
+func (n *FullNode) IsRunning() bool {
+	return n.blockManager != nil
 }
 
 // SetLogger sets the logger used by node.
@@ -483,81 +536,6 @@ func (n *FullNode) GetLogger() log.Logger {
 	return n.Logger
 }
 
-// EventBus gives access to Node's event bus.
-func (n *FullNode) EventBus() *cmtypes.EventBus {
-	return n.eventBus
-}
-
-// AppClient returns ABCI proxy connections to communicate with application.
-func (n *FullNode) AppClient() proxy.AppConns {
-	return n.proxyApp
-}
-
-// newTxValidator creates a pubsub validator that uses the node's mempool to check the
-// transaction. If the transaction is valid, then it is added to the mempool
-func (n *FullNode) newTxValidator(metrics *p2p.Metrics) p2p.GossipValidator {
-	return func(m *p2p.GossipMessage) bool {
-		n.Logger.Debug("transaction received", "bytes", len(m.Data))
-		msgBytes := m.Data
-		labels := []string{
-			"peer_id", m.From.String(),
-			"chID", n.genesis.ChainID,
-		}
-		metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-		metrics.MessageReceiveBytesTotal.With("message_type", "tx").Add(float64(len(msgBytes)))
-		checkTxResCh := make(chan *abci.ResponseCheckTx, 1)
-		err := n.Mempool.CheckTx(m.Data, func(resp *abci.ResponseCheckTx) {
-			select {
-			case <-n.ctx.Done():
-				return
-			case checkTxResCh <- resp:
-			}
-		}, mempool.TxInfo{
-			SenderID:    n.mempoolIDs.GetForPeer(m.From),
-			SenderP2PID: corep2p.ID(m.From),
-		})
-		switch {
-		case errors.Is(err, mempool.ErrTxInCache):
-			return true
-		case errors.Is(err, mempool.ErrMempoolIsFull{}):
-			return true
-		case errors.Is(err, mempool.ErrTxTooLarge{}):
-			return false
-		case errors.Is(err, mempool.ErrPreCheck{}):
-			return false
-		default:
-		}
-		checkTxResp := <-checkTxResCh
-
-		return checkTxResp.Code == abci.CodeTypeOK
-	}
-}
-
-func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
-	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.TxnDatastore)
-}
-
-func createAndStartIndexerService(
-	ctx context.Context,
-	conf config.NodeConfig,
-	kvStore ds.TxnDatastore,
-	eventBus *cmtypes.EventBus,
-	logger log.Logger,
-) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
-	var (
-		txIndexer    txindex.TxIndexer
-		blockIndexer indexer.BlockIndexer
-	)
-
-	txIndexer = kv.NewTxIndex(ctx, kvStore)
-	blockIndexer = blockidxkv.New(ctx, newPrefixKV(kvStore, "block_events"))
-
-	indexerService := txindex.NewIndexerService(ctx, txIndexer, blockIndexer, eventBus, false)
-	indexerService.SetLogger(logger.With("module", "txindex"))
-
-	if err := indexerService.Start(); err != nil {
-		return nil, nil, nil, err
-	}
-
-	return indexerService, txIndexer, blockIndexer, nil
+func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
+	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.Batching)
 }

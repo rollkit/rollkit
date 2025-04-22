@@ -14,11 +14,7 @@ Note that unlike a light node which only syncs and stores block headers seen on 
 
 The Full Node mainly encapsulates and initializes/manages the following components:
 
-### proxyApp
-
-The Cosmos SDK start script passes a client creator constructed using the relevant Cosmos SDK application to the Full Node's constructor which is then used to create the proxy app interface. When the proxy app is started, it establishes different [ABCI app connections] including Mempool, Consensus, Query, and Snapshot. The full node uses this interface to interact with the application.
-
-### genesisDoc
+### genesis
 
 The [genesis] document contains information about the initial state of the rollup chain, in particular its validator set.
 
@@ -70,30 +66,27 @@ See [full node]
 
 [1] [Full Node][full node]
 
-[2] [ABCI Methods][ABCI app connections]
+[2] [Genesis Document][genesis]
 
-[3] [Genesis Document][genesis]
+[3] [Node Configuration][node configuration]
 
-[4] [Node Configuration][node configuration]
+[4] [Peer to Peer Client][peer-to-peer client]
 
-[5] [Peer to Peer Client][peer-to-peer client]
+[5] [Mempool][Mempool]
 
-[6] [Mempool][Mempool]
+[6] [Store][Store]
 
-[7] [Store][Store]
+[7] [Store Interface][store interface]
 
-[8] [Store Interface][store interface]
+[8] [Block Manager][block manager]
 
-[9] [Block Manager][block manager]
+[9] [Data Availability Layer Client][dalc]
 
-[10] [Data Availability Layer Client][dalc]
+[10] [Header Sync Service][Header Sync Service]
 
-[11] [Header Sync Service][Header Sync Service]
-
-[12] [Block Sync Service][Block Sync Service]
+[11] [Block Sync Service][Block Sync Service]
 
 [full node]: https://github.com/rollkit/rollkit/blob/main/node/full.go
-[ABCI app connections]: https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md
 [genesis]: https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md
 [node configuration]: https://github.com/rollkit/rollkit/blob/main/config/config.go
 [peer-to-peer client]: https://github.com/rollkit/rollkit/blob/main/p2p/client.go

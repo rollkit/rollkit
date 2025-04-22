@@ -2,77 +2,79 @@ package node
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
-	"errors"
+	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/libs/log"
-	"github.com/libp2p/go-libp2p/core/crypto"
+	"cosmossdk.io/log"
 	"github.com/stretchr/testify/require"
 
-	goDATest "github.com/rollkit/go-da/test"
-	"github.com/rollkit/rollkit/da"
+	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
+	"github.com/rollkit/rollkit/types"
 )
 
-func getMockDA(t *testing.T) *da.DAClient {
-	namespace := make([]byte, len(MockDANamespace)/2)
-	_, err := hex.Decode(namespace, []byte(MockDANamespace))
-	require.NoError(t, err)
-	return da.NewDAClient(goDATest.NewDummyDA(), -1, -1, namespace, nil, log.TestingLogger())
+func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
+	// Use a higher base port to reduce chances of conflicts with system services
+	startPort := 40000 + n*100 // Spread port ranges further apart
+	return rollkitconfig.Config{
+		RootDir: t.TempDir(),
+		Node: rollkitconfig.NodeConfig{
+			Aggregator:    true,
+			BlockTime:     rollkitconfig.DurationWrapper{Duration: 500 * time.Millisecond},
+			LazyBlockTime: rollkitconfig.DurationWrapper{Duration: 5 * time.Second},
+		},
+		DA: rollkitconfig.DAConfig{
+			Address:   MockDAAddress,
+			Namespace: MockDANamespace,
+		},
+		P2P: rollkitconfig.P2PConfig{
+			ListenAddress: fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", startPort+n),
+		},
+	}
 }
 
-func TestMockTester(t *testing.T) {
-	m := MockTester{t}
-	m.Fail()
-	m.FailNow()
-	m.Logf("hello")
-	m.Errorf("goodbye")
-}
-
-func TestGetNodeHeight(t *testing.T) {
-	require := require.New(t)
+func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
+	// Create a cancellable context instead of using background context
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	dalc := getMockDA(t)
-	num := 2
-	keys := make([]crypto.PrivKey, num)
-	for i := 0; i < num; i++ {
-		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
-	}
-	bmConfig := getBMConfig()
-	chainID := "TestGetNodeHeight"
-	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, chainID, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 1, false, true, keys, bmConfig, chainID, false, t)
+	config := getTestConfig(t, 1)
 
-	startNodeWithCleanup(t, fullNode)
-	require.NoError(waitForFirstBlock(fullNode, Store))
-	startNodeWithCleanup(t, lightNode)
+	// Generate genesis and keys
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	require.NoError(t, err)
 
-	cases := []struct {
-		desc   string
-		node   Node
-		source Source
-	}{
-		{"fullNode height from Header", fullNode, Header},
-		{"fullNode height from Block", fullNode, Block},
-		{"fullNode height from Store", fullNode, Store},
-		{"lightNode height from Header", lightNode, Header},
+	executor, sequencer, dac, p2pClient, ds := createTestComponents(t)
+
+	err = InitFiles(config.RootDir)
+	require.NoError(t, err)
+
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config"))
+	require.NoError(t, err)
+
+	node, err := NewNode(
+		ctx,
+		config,
+		executor,
+		sequencer,
+		dac,
+		remoteSigner,
+		*nodeKey,
+		p2pClient,
+		genesis,
+		ds,
+		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
+		log.NewTestLogger(t),
+	)
+	require.NoError(t, err)
+
+	// Update cleanup to cancel the context instead of calling Stop
+	cleanup := func() {
+		// Cancel the context to stop the node
+		cancel()
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			require.NoError(Retry(1000, 100*time.Millisecond, func() error {
-				num, err := getNodeHeight(tc.node, tc.source)
-				if err != nil {
-					return err
-				}
-				if num > 0 {
-					return nil
-				}
-				return errors.New("expected height > 0")
-			}))
-		})
-	}
+	return node.(*FullNode), cleanup
 }

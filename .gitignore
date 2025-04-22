@@ -3,7 +3,11 @@ proto/pb
 proto/tendermint
 types/pb/tendermint
 .vscode/launch.json
+.vscode/settings.json
 */**.html
 *.idea
 *.env
 .*env
+build
+.aider*
+.DS_Store

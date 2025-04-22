@@ -12,79 +12,67 @@ import (
 	"sync/atomic"
 	"time"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-	cmcrypto "github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/merkle"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proxy"
-	cmtypes "github.com/cometbft/cometbft/types"
-	secp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
-	ecdsa "github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
+	"cosmossdk.io/log"
+	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/crypto/pb"
-
-	goheaderstore "github.com/celestiaorg/go-header/store"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/rollkit/go-sequencing"
-	"github.com/rollkit/go-sequencing/proxy/grpc"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/mempool"
-	"github.com/rollkit/rollkit/state"
-	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/third_party/log"
+
+	coreda "github.com/rollkit/rollkit/core/da"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/cache"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/signer"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
-// defaultLazySleepPercent is the percentage of block time to wait to accumulate transactions
-// in lazy mode.
-// A value of 10 for e.g. corresponds to 10% of the block time. Must be between 0 and 100.
-const defaultLazySleepPercent = 10
+const (
+	// defaultDABlockTime is used only if DABlockTime is not configured for manager
+	defaultDABlockTime = 15 * time.Second
 
-// defaultDABlockTime is used only if DABlockTime is not configured for manager
-const defaultDABlockTime = 15 * time.Second
+	// defaultBlockTime is used only if BlockTime is not configured for manager
+	defaultBlockTime = 1 * time.Second
 
-// defaultBlockTime is used only if BlockTime is not configured for manager
-const defaultBlockTime = 1 * time.Second
+	// defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
+	defaultLazyBlockTime = 60 * time.Second
 
-// defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
-const defaultLazyBlockTime = 60 * time.Second
+	// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
+	defaultMempoolTTL = 25
 
-// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
-const defaultMempoolTTL = 25
+	// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
+	// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
+	blockProtocolOverhead = 1 << 16
 
-// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
-// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
-const blockProtocolOverhead = 1 << 16
+	// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
+	// This is temporary solution. It will be removed in future versions.
+	maxSubmitAttempts = 30
 
-// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
-// This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 30
+	// Applies to most channels, 100 is a large enough buffer to avoid blocking
+	channelLength = 100
 
-// Applies to most channels, 100 is a large enough buffer to avoid blocking
-const channelLength = 100
+	// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
+	headerInChLength = 10000
 
-// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
-const headerInChLength = 10000
+	// DAIncludedHeightKey is the key used for persisting the da included height in store.
+	DAIncludedHeightKey = "d"
 
-// initialBackoff defines initial value for block submission backoff
-var initialBackoff = 100 * time.Millisecond
+	// LastBatchDataKey is the key used for persisting the last batch data in store.
+	LastBatchDataKey = "l"
+)
 
-// DAIncludedHeightKey is the key used for persisting the da included height in store.
-const DAIncludedHeightKey = "d"
+var (
+	// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
+	dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
 
-// LastBatchHashKey is the key used for persisting the last batch hash in store.
-const LastBatchHashKey = "l"
-
-// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
-var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
-
-// ErrNoBatch indicate no batch is available for creating block
-var ErrNoBatch = errors.New("no batch to process")
-
-// ErrHeightFromFutureStr is the error message for height from future returned by da
-var ErrHeightFromFutureStr = "given height is from the future"
+	// initialBackoff defines initial value for block submission backoff
+	initialBackoff = 100 * time.Millisecond
+)
 
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
@@ -98,10 +86,11 @@ type NewDataEvent struct {
 	DAHeight uint64
 }
 
-// BatchWithTime is used to pass batch and time to BatchQueue
-type BatchWithTime struct {
-	*sequencing.Batch
+// BatchData is used to pass batch, time and data (da.IDs) to BatchQueue
+type BatchData struct {
+	*coresequencer.Batch
 	time.Time
+	Data [][]byte
 }
 
 // Manager is responsible for aggregating transactions into blocks.
@@ -111,14 +100,11 @@ type Manager struct {
 	lastStateMtx *sync.RWMutex
 	store        store.Store
 
-	conf    config.BlockManagerConfig
-	genesis *cmtypes.GenesisDoc
+	config  config.Config
+	genesis genesis.Genesis
 
-	proposerKey crypto.PrivKey
+	proposerKey signer.Signer
 
-	executor *state.BlockExecutor
-
-	dalc *da.DAClient
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
@@ -131,8 +117,8 @@ type Manager struct {
 	dataInCh  chan NewDataEvent
 	dataStore *goheaderstore.Store[*types.Data]
 
-	headerCache *HeaderCache
-	dataCache   *DataCache
+	headerCache *cache.Cache[types.SignedHeader]
+	dataCache   *cache.Cache[types.Data]
 
 	// headerStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve headers from headerStore
 	headerStoreCh chan struct{}
@@ -156,33 +142,96 @@ type Manager struct {
 	// true if the manager is a proposer
 	isProposer bool
 
+	exec coreexecutor.Executor
+
 	// daIncludedHeight is rollup height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
-	// grpc client for sequencing middleware
-	seqClient     *grpc.Client
-	lastBatchHash []byte
-	bq            *BatchQueue
+	dalc             coreda.Client
+	gasPrice         float64
+	gasMultiplier    float64
+
+	sequencer     coresequencer.Sequencer
+	lastBatchData [][]byte
 }
 
-// getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
-func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
+// getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
+func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
-	s, err := store.GetState(context.Background())
+	s, err := store.GetState(ctx)
 
 	if errors.Is(err, ds.ErrNotFound) {
-		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
-		s, err = types.NewFromGenesisDoc(genesis)
+		logger.Info("No state found in store, initializing new state")
+
+		// Initialize genesis block explicitly
+		header := types.Header{
+			DataHash:        new(types.Data).Hash(),
+			ProposerAddress: genesis.ProposerAddress,
+			BaseHeader: types.BaseHeader{
+				ChainID: genesis.ChainID,
+				Height:  genesis.InitialHeight,
+				Time:    uint64(genesis.GenesisDAStartHeight.UnixNano()),
+			}}
+
+		var signature types.Signature
+		var pubKey crypto.PubKey
+		// The signer is only provided in aggregator nodes. This enables the creation of a signed genesis header,
+		// which includes a public key and a cryptographic signature for the header.
+		// In a full node (non-aggregator), the signer will be nil, and only an unsigned genesis header will be initialized locally.
+		if signer != nil {
+			pubKey, err = signer.GetPublic()
+			if err != nil {
+				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
+			}
+
+			signature, err = getSignature(header, signer)
+			if err != nil {
+				return types.State{}, fmt.Errorf("failed to get header signature: %w", err)
+			}
+		}
+
+		err = store.SaveBlockData(ctx,
+			&types.SignedHeader{
+				Header: header,
+				Signer: types.Signer{
+					PubKey:  pubKey,
+					Address: genesis.ProposerAddress,
+				},
+				Signature: signature,
+			},
+			&types.Data{},
+			&signature,
+		)
 		if err != nil {
+			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
+		}
+
+		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
+		// TODO(tzdybal): handle max bytes
+		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartHeight, genesis.InitialHeight, genesis.ChainID)
+		if err != nil {
+			logger.Error("error while initializing chain", "error", err)
 			return types.State{}, err
 		}
+
+		s := types.State{
+			Version:         types.Version{},
+			ChainID:         genesis.ChainID,
+			InitialHeight:   genesis.InitialHeight,
+			LastBlockHeight: genesis.InitialHeight - 1,
+			LastBlockTime:   genesis.GenesisDAStartHeight,
+			AppHash:         stateRoot,
+			DAHeight:        0,
+		}
+		return s, nil
 	} else if err != nil {
+		logger.Error("error while getting state", "error", err)
 		return types.State{}, err
 	} else {
 		// Perform a sanity-check to stop the user from
 		// using a higher genesis than the last stored state.
 		// if they meant to hard-fork, they should have cleared the stored State
-		if uint64(genesis.InitialHeight) > s.LastBlockHeight {
+		if uint64(genesis.InitialHeight) > s.LastBlockHeight { //nolint:unconvert
 			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
 		}
 	}
@@ -192,79 +241,69 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 
 // NewManager creates new block Manager.
 func NewManager(
-	proposerKey crypto.PrivKey,
-	conf config.BlockManagerConfig,
-	genesis *cmtypes.GenesisDoc,
+	ctx context.Context,
+	proposerKey signer.Signer,
+	config config.Config,
+	genesis genesis.Genesis,
 	store store.Store,
-	mempool mempool.Mempool,
-	mempoolReaper *mempool.CListMempoolReaper,
-	seqClient *grpc.Client,
-	proxyApp proxy.AppConnConsensus,
-	dalc *da.DAClient,
-	eventBus *cmtypes.EventBus,
+	exec coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
+	dalc coreda.Client,
 	logger log.Logger,
 	headerStore *goheaderstore.Store[*types.SignedHeader],
 	dataStore *goheaderstore.Store[*types.Data],
 	seqMetrics *Metrics,
-	execMetrics *state.Metrics,
+	gasPrice float64,
+	gasMultiplier float64,
 ) (*Manager, error) {
-	s, err := getInitialState(store, genesis)
+	s, err := getInitialState(ctx, genesis, proposerKey, store, exec, logger)
 	if err != nil {
+		logger.Error("error while getting initial state", "error", err)
 		return nil, err
 	}
 	//set block height in store
-	store.SetHeight(context.Background(), s.LastBlockHeight)
-
-	if s.DAHeight < conf.DAStartHeight {
-		s.DAHeight = conf.DAStartHeight
+	err = store.SetHeight(ctx, s.LastBlockHeight)
+	if err != nil {
+		return nil, err
 	}
 
-	if conf.DABlockTime == 0 {
+	if s.DAHeight < config.DA.StartHeight {
+		s.DAHeight = config.DA.StartHeight
+	}
+
+	if config.DA.BlockTime.Duration == 0 {
 		logger.Info("Using default DA block time", "DABlockTime", defaultDABlockTime)
-		conf.DABlockTime = defaultDABlockTime
+		config.DA.BlockTime.Duration = defaultDABlockTime
 	}
 
-	if conf.BlockTime == 0 {
+	if config.Node.BlockTime.Duration == 0 {
 		logger.Info("Using default block time", "BlockTime", defaultBlockTime)
-		conf.BlockTime = defaultBlockTime
+		config.Node.BlockTime.Duration = defaultBlockTime
 	}
 
-	if conf.LazyBlockTime == 0 {
+	if config.Node.LazyBlockTime.Duration == 0 {
 		logger.Info("Using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
-		conf.LazyBlockTime = defaultLazyBlockTime
+		config.Node.LazyBlockTime.Duration = defaultLazyBlockTime
 	}
 
-	if conf.DAMempoolTTL == 0 {
+	if config.DA.MempoolTTL == 0 {
 		logger.Info("Using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
-		conf.DAMempoolTTL = defaultMempoolTTL
+		config.DA.MempoolTTL = defaultMempoolTTL
 	}
 
-	proposerAddress := s.Validators.Proposer.Address.Bytes()
+	//proposerAddress := s.Validators.Proposer.Address.Bytes()
 
-	maxBlobSize, err := dalc.DA.MaxBlobSize(context.Background())
+	maxBlobSize, err := dalc.MaxBlobSize(ctx)
 	if err != nil {
 		return nil, err
 	}
 	// allow buffer for the block header and protocol encoding
+	//nolint:ineffassign // This assignment is needed
 	maxBlobSize -= blockProtocolOverhead
-
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics)
-	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
-		res, err := exec.InitChain(genesis)
-		if err != nil {
-			return nil, err
-		}
-		if err := updateState(&s, res); err != nil {
-			return nil, err
-		}
-
-		if err := store.UpdateState(context.Background(), s); err != nil {
-			return nil, err
-		}
-	}
 
 	isProposer, err := isProposer(proposerKey, s)
 	if err != nil {
+		logger.Error("error while checking if proposer", "error", err)
 		return nil, err
 	}
 
@@ -274,18 +313,22 @@ func NewManager(
 	}
 
 	// If lastBatchHash is not set, retrieve the last batch hash from store
-	lastBatchHash, err := store.GetMetadata(context.Background(), LastBatchHashKey)
+	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
 	if err != nil {
 		logger.Error("error while retrieving last batch hash", "error", err)
 	}
 
+	lastBatchData, err := bytesToBatchData(lastBatchDataBytes)
+	if err != nil {
+		logger.Error("error while converting last batch hash", "error", err)
+	}
+
 	agg := &Manager{
 		proposerKey: proposerKey,
-		conf:        conf,
+		config:      config,
 		genesis:     genesis,
 		lastState:   s,
 		store:       store,
-		executor:    exec,
 		dalc:        dalc,
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
@@ -298,20 +341,47 @@ func NewManager(
 		headerStore:    headerStore,
 		dataStore:      dataStore,
 		lastStateMtx:   new(sync.RWMutex),
-		lastBatchHash:  lastBatchHash,
-		headerCache:    NewHeaderCache(),
-		dataCache:      NewDataCache(),
+		lastBatchData:  lastBatchData,
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
 		retrieveCh:     make(chan struct{}, 1),
 		logger:         logger,
 		buildingBlock:  false,
 		pendingHeaders: pendingHeaders,
 		metrics:        seqMetrics,
 		isProposer:     isProposer,
-		seqClient:      seqClient,
-		bq:             NewBatchQueue(),
+		sequencer:      sequencer,
+		exec:           exec,
+		gasPrice:       gasPrice,
+		gasMultiplier:  gasMultiplier,
 	}
-	agg.init(context.Background())
+	agg.init(ctx)
 	return agg, nil
+}
+
+// DALCInitialized returns true if DALC is initialized.
+func (m *Manager) DALCInitialized() bool {
+	return m.dalc != nil
+}
+
+// PendingHeaders returns the pending headers.
+func (m *Manager) PendingHeaders() *PendingHeaders {
+	return m.pendingHeaders
+}
+
+// IsProposer returns true if the manager is acting as proposer.
+func (m *Manager) IsProposer() bool {
+	return m.isProposer
+}
+
+// SeqClient returns the grpc sequencing client.
+func (m *Manager) SeqClient() coresequencer.Sequencer {
+	return m.sequencer
+}
+
+// GetLastState returns the last recorded state.
+func (m *Manager) GetLastState() types.State {
+	return m.lastState
 }
 
 func (m *Manager) init(ctx context.Context) {
@@ -343,22 +413,13 @@ func (m *Manager) GetDAIncludedHeight() uint64 {
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
-func (m *Manager) SetDALC(dalc *da.DAClient) {
+func (m *Manager) SetDALC(dalc coreda.Client) {
 	m.dalc = dalc
 }
 
 // isProposer returns whether or not the manager is a proposer
-func isProposer(signerPrivKey crypto.PrivKey, s types.State) (bool, error) {
-	if len(s.Validators.Validators) == 0 {
-		return false, ErrNoValidatorsInState
-	}
-
-	signerPubBytes, err := signerPrivKey.GetPublic().Raw()
-	if err != nil {
-		return false, err
-	}
-
-	return bytes.Equal(s.Validators.Validators[0].PubKey.Bytes(), signerPubBytes), nil
+func isProposer(_ signer.Signer, _ types.State) (bool, error) {
+	return true, nil
 }
 
 // SetLastState is used to set lastState used by Manager.
@@ -369,8 +430,8 @@ func (m *Manager) SetLastState(state types.State) {
 }
 
 // GetStoreHeight returns the manager's store height
-func (m *Manager) GetStoreHeight() uint64 {
-	return m.store.Height()
+func (m *Manager) GetStoreHeight(ctx context.Context) (uint64, error) {
+	return m.store.Height(ctx)
 }
 
 // GetHeaderInCh returns the manager's blockInCh
@@ -385,28 +446,16 @@ func (m *Manager) GetDataInCh() chan NewDataEvent {
 
 // IsBlockHashSeen returns true if the block with the given hash has been seen.
 func (m *Manager) IsBlockHashSeen(blockHash string) bool {
-	return m.headerCache.isSeen(blockHash)
+	return m.headerCache.IsSeen(blockHash)
 }
 
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
 func (m *Manager) IsDAIncluded(hash types.Hash) bool {
-	return m.headerCache.isDAIncluded(hash.String())
+	return m.headerCache.IsDAIncluded(hash.String())
 }
 
-// getRemainingSleep calculates the remaining sleep time based on config and a start time.
-func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
+func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
 	elapsed := time.Since(start)
-	interval := m.conf.BlockTime
-
-	if m.conf.LazyAggregator {
-		if m.buildingBlock && elapsed >= interval {
-			// Special case to give time for transactions to accumulate if we
-			// are coming out of a period of inactivity.
-			return (interval * time.Duration(defaultLazySleepPercent) / 100)
-		} else if !m.buildingBlock {
-			interval = m.conf.LazyBlockTime
-		}
-	}
 
 	if elapsed < interval {
 		return interval - elapsed
@@ -415,78 +464,63 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 	return 0
 }
 
-// BatchRetrieveLoop is responsible for retrieving batches from the sequencer.
-func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
-	// Initialize batchTimer to fire immediately on start
-	batchTimer := time.NewTimer(0)
-	defer batchTimer.Stop()
+// GetExecutor returns the executor used by the manager.
+//
+// Note: this is a temporary method to allow testing the manager.
+// It will be removed once the manager is fully integrated with the execution client.
+func (m *Manager) GetExecutor() coreexecutor.Executor {
+	return m.exec
+}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-batchTimer.C:
-			start := time.Now()
+func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
+	m.logger.Debug("Attempting to retrieve next batch",
+		"chainID", m.genesis.ChainID,
+		"lastBatchData", m.lastBatchData)
 
-			// Skip batch retrieval if context is already done
-			if ctx.Err() != nil {
-				return
-			}
-
-			res, err := m.seqClient.GetNextBatch(ctx, sequencing.GetNextBatchRequest{
-				RollupId:      []byte(m.genesis.ChainID),
-				LastBatchHash: m.lastBatchHash,
-			})
-
-			if err != nil {
-				m.logger.Error("error while retrieving batch", "error", err)
-			}
-
-			if res != nil && res.Batch != nil {
-				batch := res.Batch
-				batchTime := res.Timestamp
-
-				// Calculate and store batch hash only if hashing succeeds
-				if h, err := batch.Hash(); err == nil {
-					m.bq.AddBatch(BatchWithTime{Batch: batch, Time: batchTime})
-
-					// Update lastBatchHash only if the batch contains transactions
-					if batch.Transactions != nil {
-						err := m.store.SetMetadata(ctx, LastBatchHashKey, h)
-						if err != nil {
-							m.logger.Error("error while setting last batch hash", "error", err)
-						}
-
-						m.lastBatchHash = h
-					}
-				} else {
-					m.logger.Error("error while hashing batch", "error", err)
-				}
-			}
-
-			// Determine remaining time for the next batch and reset timer
-			elapsed := time.Since(start)
-			remainingSleep := m.conf.BlockTime - elapsed
-			if remainingSleep < 0 {
-				remainingSleep = 0
-			}
-			batchTimer.Reset(remainingSleep)
-		}
+	req := coresequencer.GetNextBatchRequest{
+		RollupId:      []byte(m.genesis.ChainID),
+		LastBatchData: m.lastBatchData,
 	}
+
+	res, err := m.sequencer.GetNextBatch(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if res != nil && res.Batch != nil {
+		m.logger.Debug("Retrieved batch",
+			"txCount", len(res.Batch.Transactions),
+			"timestamp", res.Timestamp)
+
+		h := convertBatchDataToBytes(res.BatchData)
+		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
+			m.logger.Error("error while setting last batch hash", "error", err)
+		}
+		if len(res.Batch.Transactions) == 0 {
+			return nil, ErrNoBatch
+		}
+		m.lastBatchData = res.BatchData
+		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
+	}
+	return nil, ErrNoBatch
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
-	initialHeight := uint64(m.genesis.InitialHeight)
-	height := m.store.Height()
+	initialHeight := m.genesis.InitialHeight //nolint:gosec
+	height, err := m.store.Height(ctx)
+	if err != nil {
+		m.logger.Error("error while getting store height", "error", err)
+		return
+	}
 	var delay time.Duration
 
 	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
 	if height < initialHeight {
-		delay = time.Until(m.genesis.GenesisTime)
+		delay = time.Until(m.genesis.GenesisDAStartHeight.Add(m.config.Node.BlockTime.Duration))
 	} else {
 		lastBlockTime := m.getLastBlockTime()
-		delay = time.Until(lastBlockTime.Add(m.conf.BlockTime))
+		delay = time.Until(lastBlockTime.Add(m.config.Node.BlockTime.Duration))
 	}
 
 	if delay > 0 {
@@ -503,7 +537,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	// Lazy Aggregator mode.
 	// In Lazy Aggregator mode, blocks are built only when there are
 	// transactions or every LazyBlockTime.
-	if m.conf.LazyAggregator {
+	if m.config.Node.LazyAggregator {
 		m.lazyAggregationLoop(ctx, blockTimer)
 		return
 	}
@@ -512,11 +546,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 }
 
 func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
-	// start is used to track the start time of the block production period
-	start := time.Now()
-	// lazyTimer is used to signal when a block should be built in
-	// lazy mode to signal that the chain is still live during long
-	// periods of inactivity.
+	// lazyTimer triggers block publication even during inactivity
 	lazyTimer := time.NewTimer(0)
 	defer lazyTimer.Stop()
 
@@ -524,29 +554,22 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		select {
 		case <-ctx.Done():
 			return
-		// the m.bq.notifyCh channel is signalled when batch becomes available in the batch queue
-		case _, ok := <-m.bq.notifyCh:
-			if ok && !m.buildingBlock {
-				// set the buildingBlock flag to prevent multiple calls to reset the time
-				m.buildingBlock = true
-				// Reset the block timer based on the block time.
-				blockTimer.Reset(m.getRemainingSleep(start))
-			}
-			continue
+
 		case <-lazyTimer.C:
 		case <-blockTimer.C:
 		}
-		// Define the start time for the block production period
-		start = time.Now()
+
+		// Reset the start time
+		start := time.Now()
+
+		// Attempt to publish the block regardless of activity
 		if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
 			m.logger.Error("error while publishing block", "error", err)
 		}
-		// unset the buildingBlocks flag
-		m.buildingBlock = false
-		// Reset the lazyTimer to produce a block even if there
-		// are no transactions as a way to signal that the chain
-		// is still live.
-		lazyTimer.Reset(m.getRemainingSleep(start))
+
+		// Reset both timers for the next aggregation window
+		lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockTime.Duration))
+		blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 	}
 }
 
@@ -558,19 +581,20 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 		case <-blockTimer.C:
 			// Define the start time for the block production period
 			start := time.Now()
+
 			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
 				m.logger.Error("error while publishing block", "error", err)
 			}
 			// Reset the blockTimer to signal the next block production
 			// period based on the block time.
-			blockTimer.Reset(m.getRemainingSleep(start))
+			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 		}
 	}
 }
 
 // HeaderSubmissionLoop is responsible for submitting blocks to the DA layer.
 func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
-	timer := time.NewTicker(m.conf.DABlockTime)
+	timer := time.NewTicker(m.config.DA.BlockTime.Duration)
 	defer timer.Stop()
 	for {
 		select {
@@ -611,7 +635,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 			d := &types.Data{
 				Metadata: metadata,
 			}
-			m.dataCache.setData(headerHeight, d)
+			m.dataCache.SetItem(headerHeight, d)
 		}
 	}
 }
@@ -620,10 +644,10 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 //
 // SyncLoop processes headers gossiped in P2P network to know what's the latest block height,
 // block data is retrieved from DA layer.
-func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
-	daTicker := time.NewTicker(m.conf.DABlockTime)
+func (m *Manager) SyncLoop(ctx context.Context) {
+	daTicker := time.NewTicker(m.config.DA.BlockTime.Duration)
 	defer daTicker.Stop()
-	blockTicker := time.NewTicker(m.conf.BlockTime)
+	blockTicker := time.NewTicker(m.config.Node.BlockTime.Duration)
 	defer blockTicker.Stop()
 	for {
 		select {
@@ -643,11 +667,16 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", headerHash,
 			)
-			if headerHeight <= m.store.Height() || m.headerCache.isSeen(headerHash) {
+			height, err := m.store.Height(ctx)
+			if err != nil {
+				m.logger.Error("error while getting store height", "error", err)
+				continue
+			}
+			if headerHeight <= height || m.headerCache.IsSeen(headerHash) {
 				m.logger.Debug("header already seen", "height", headerHeight, "block hash", headerHash)
 				continue
 			}
-			m.headerCache.setHeader(headerHeight, header)
+			m.headerCache.SetItem(headerHeight, header)
 
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToRetrieveCh()
@@ -657,12 +686,12 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			// so that trySyncNextBlock can progress
 			m.handleEmptyDataHash(ctx, &header.Header)
 
-			err := m.trySyncNextBlock(ctx, daHeight)
+			err = m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 				continue
 			}
-			m.headerCache.setSeen(headerHash)
+			m.headerCache.SetSeen(headerHash)
 		case dataEvent := <-m.dataInCh:
 			data := dataEvent.Data
 			daHeight := dataEvent.DAHeight
@@ -673,20 +702,25 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", dataHash,
 			)
-			if dataHeight <= m.store.Height() || m.dataCache.isSeen(dataHash) {
+			height, err := m.store.Height(ctx)
+			if err != nil {
+				m.logger.Error("error while getting store height", "error", err)
+				continue
+			}
+			if dataHeight <= height || m.dataCache.IsSeen(dataHash) {
 				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue
 			}
-			m.dataCache.setData(dataHeight, data)
+			m.dataCache.SetItem(dataHeight, data)
 
 			m.sendNonBlockingSignalToDataStoreCh()
 
-			err := m.trySyncNextBlock(ctx, daHeight)
+			err = m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 				continue
 			}
-			m.dataCache.setSeen(dataHash)
+			m.dataCache.SetSeen(dataHash)
 		case <-ctx.Done():
 			return
 		}
@@ -727,13 +761,16 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return ctx.Err()
 		default:
 		}
-		currentHeight := m.store.Height()
-		h := m.headerCache.getHeader(currentHeight + 1)
+		currentHeight, err := m.store.Height(ctx)
+		if err != nil {
+			return err
+		}
+		h := m.headerCache.GetItem(currentHeight + 1)
 		if h == nil {
 			m.logger.Debug("header not found in cache", "height", currentHeight+1)
 			return nil
 		}
-		d := m.dataCache.getData(currentHeight + 1)
+		d := m.dataCache.GetItem(currentHeight + 1)
 		if d == nil {
 			m.logger.Debug("data not found in cache", "height", currentHeight+1)
 			return nil
@@ -742,10 +779,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		hHeight := h.Height()
 		m.logger.Info("Syncing header and data", "height", hHeight)
 		// Validate the received block before applying
-		if err := m.executor.Validate(m.lastState, h, d); err != nil {
+		if err := m.execValidate(m.lastState, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
-		newState, responses, err := m.applyBlock(ctx, h, d)
+		newState, err := m.applyBlock(ctx, h, d)
 		if err != nil {
 			if ctx.Err() != nil {
 				return err
@@ -757,18 +794,16 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return SaveBlockError{err}
 		}
-		_, _, err = m.executor.Commit(ctx, newState, h, d, responses)
+		_, err = m.execCommit(ctx, newState, h, d)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
 
-		err = m.store.SaveBlockResponses(ctx, hHeight, responses)
-		if err != nil {
-			return SaveBlockResponsesError{err}
-		}
-
 		// Height gets updated
-		m.store.SetHeight(ctx, hHeight)
+		err = m.store.SetHeight(ctx, hHeight)
+		if err != nil {
+			return err
+		}
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
@@ -777,8 +812,8 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
-		m.headerCache.deleteHeader(currentHeight + 1)
-		m.dataCache.deleteData(currentHeight + 1)
+		m.headerCache.DeleteItem(currentHeight + 1)
+		m.dataCache.DeleteItem(currentHeight + 1)
 	}
 }
 
@@ -909,7 +944,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		err := m.processNextDAHeader(ctx)
 		if err != nil && ctx.Err() == nil {
 			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
-			if !strings.Contains(err.Error(), ErrHeightFromFutureStr) {
+			if !m.areAllErrorsHeightFromFuture(err) {
 				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 			}
 			continue
@@ -944,12 +979,25 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 		}
 		headerResp, fetchErr := m.fetchHeaders(ctx, daHeight)
 		if fetchErr == nil {
-			if headerResp.Code == da.StatusNotFound {
+			if headerResp.Code == coreda.StatusNotFound {
 				m.logger.Debug("no header found", "daHeight", daHeight, "reason", headerResp.Message)
 				return nil
 			}
-			m.logger.Debug("retrieved potential headers", "n", len(headerResp.Headers), "daHeight", daHeight)
-			for _, header := range headerResp.Headers {
+			m.logger.Debug("retrieved potential headers", "n", len(headerResp.Data), "daHeight", daHeight)
+			for _, bz := range headerResp.Data {
+				header := new(types.SignedHeader)
+				// decode the header
+				var headerPb pb.SignedHeader
+				err := proto.Unmarshal(bz, &headerPb)
+				if err != nil {
+					m.logger.Debug("failed to unmarshal header", "error", err, "DAHeight", daHeight)
+					continue
+				}
+				err = header.FromProto(&headerPb)
+				if err != nil {
+					m.logger.Error("failed to create local header", "error", err, "DAHeight", daHeight)
+					continue
+				}
 				// early validation to reject junk headers
 				if !m.isUsingExpectedCentralizedSequencer(header) {
 					m.logger.Debug("skipping header from unexpected sequencer",
@@ -958,13 +1006,13 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 					continue
 				}
 				blockHash := header.Hash().String()
-				m.headerCache.setDAIncluded(blockHash)
+				m.headerCache.SetDAIncluded(blockHash)
 				err = m.setDAIncludedHeight(ctx, header.Height())
 				if err != nil {
 					return err
 				}
 				m.logger.Info("block marked as DA included", "blockHeight", header.Height(), "blockHash", blockHash)
-				if !m.headerCache.isSeen(blockHash) {
+				if !m.headerCache.IsSeen(blockHash) {
 					// Check for shut down event prior to logging
 					// and sending block to blockInCh. The reason
 					// for checking for the shutdown event
@@ -995,40 +1043,46 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 }
 
 func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
-	return bytes.Equal(header.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) && header.ValidateBasic() == nil
+	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 
-func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (da.ResultRetrieveHeaders, error) {
+// areAllErrorsHeightFromFuture checks if all errors in a joined error are ErrHeightFromFutureStr
+func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check if the error itself is ErrHeightFromFutureStr
+	if strings.Contains(err.Error(), ErrHeightFromFutureStr.Error()) {
+		return true
+	}
+
+	// If it's a joined error, check each error recursively
+	if joinedErr, ok := err.(interface{ Unwrap() []error }); ok {
+		for _, e := range joinedErr.Unwrap() {
+			if !m.areAllErrorsHeightFromFuture(e) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
+}
+
+func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
 	var err error
-	headerRes := m.dalc.RetrieveHeaders(ctx, daHeight)
-	if headerRes.Code == da.StatusError {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
+	defer cancel()
+	headerRes := m.dalc.Retrieve(ctx, daHeight)
+	if headerRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
 	}
 	return headerRes, err
 }
 
-func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
-	// note: for compatibility with tendermint light client
-	consensusVote := header.MakeCometBFTVote()
-	sign, err := m.sign(consensusVote)
-	if err != nil {
-		return nil, err
-	}
-	signature := types.Signature(sign)
-	return &signature, nil
-}
-
-func (m *Manager) getTxsFromBatch() (cmtypes.Txs, *time.Time, error) {
-	batch := m.bq.Next()
-	if batch == nil {
-		// batch is nil when there is nothing to process
-		return nil, nil, ErrNoBatch
-	}
-	txs := make(cmtypes.Txs, 0, len(batch.Transactions))
-	for _, tx := range batch.Transactions {
-		txs = append(txs, tx)
-	}
-	return txs, &batch.Time, nil
+func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
+	return getSignature(header, m.proposerKey)
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -1042,9 +1096,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return ErrNotProposer
 	}
 
-	if m.conf.MaxPendingBlocks != 0 && m.pendingHeaders.numPendingHeaders() >= m.conf.MaxPendingBlocks {
+	if m.config.Node.MaxPendingBlocks != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingBlocks {
 		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
-			m.pendingHeaders.numPendingHeaders(), m.conf.MaxPendingBlocks)
+			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingBlocks)
 	}
 
 	var (
@@ -1054,19 +1108,23 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastHeaderTime time.Time
 		err            error
 	)
-	height := m.store.Height()
+	height, err := m.store.Height(ctx)
+	if err != nil {
+		return fmt.Errorf("error while getting store height: %w", err)
+	}
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
-	if newHeight == uint64(m.genesis.InitialHeight) {
+	if newHeight <= m.genesis.InitialHeight {
+		// Special handling for genesis block
 		lastSignature = &types.Signature{}
 	} else {
 		lastSignature, err = m.store.GetSignature(ctx, height)
 		if err != nil {
-			return fmt.Errorf("error while loading last commit: %w", err)
+			return fmt.Errorf("error while loading last commit: %w, height: %d", err, height)
 		}
 		lastHeader, lastData, err := m.store.GetBlockData(ctx, height)
 		if err != nil {
-			return fmt.Errorf("error while loading last block: %w", err)
+			return fmt.Errorf("error while loading last block: %w, height: %d", err, height)
 		}
 		lastHeaderHash = lastHeader.Hash()
 		lastDataHash = lastData.Hash()
@@ -1076,7 +1134,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	var (
 		header    *types.SignedHeader
 		data      *types.Data
-		signature *types.Signature
+		signature types.Signature
 	)
 
 	// Check if there's an already stored block at a newer height
@@ -1087,25 +1145,44 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		extendedCommit, err := m.getExtendedCommit(ctx, height)
+		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
+			m.logger.Error("failed to get txs from executor", "err", err)
+			// Continue but log the state
+			m.logger.Info("Current state",
+				"height", height,
+				"isProposer", m.isProposer,
+				"pendingHeaders", m.pendingHeaders.numPendingHeaders())
 		}
 
-		txs, timestamp, err := m.getTxsFromBatch()
-		if errors.Is(err, ErrNoBatch) {
-			m.logger.Info(err.Error())
-			return nil
-		}
+		m.logger.Debug("Submitting transaction to sequencer",
+			"txCount", len(execTxs))
+		_, err = m.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
+			RollupId: sequencing.RollupId(m.genesis.ChainID),
+			Batch:    &coresequencer.Batch{Transactions: execTxs},
+		})
 		if err != nil {
+			m.logger.Error("failed to submit rollup transaction to sequencer",
+				"err", err,
+				"chainID", m.genesis.ChainID)
+			// Add retry logic or proper error handling
+		}
+		m.logger.Debug("Successfully submitted transaction to sequencer")
+
+		batchData, err := m.retrieveBatch(ctx)
+		if errors.Is(err, ErrNoBatch) {
+			m.logger.Info("No batch retrieved from sequencer, skipping block production")
+			return nil // Indicate no block was produced
+		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
+
 		// sanity check timestamp for monotonically increasing
-		if timestamp.Before(lastHeaderTime) {
-			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
+		if batchData.Before(lastHeaderTime) {
+			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 		}
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
+		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
 		if err != nil {
 			return err
 		}
@@ -1117,8 +1194,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		   these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
 		*/
 		header.DataHash = data.Hash()
-		header.Validators = m.getLastStateValidators()
-		header.ValidatorHash = header.Validators.Hash()
+		//header.Validators = m.getLastStateValidators()
+		//header.ValidatorHash = header.Validators.Hash()
 
 		signature, err = m.getSignature(header.Header)
 		if err != nil {
@@ -1126,14 +1203,20 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 
 		// set the signature to current block's signed header
-		header.Signature = *signature
-		err = m.store.SaveBlockData(ctx, header, data, signature)
+		header.Signature = signature
+
+		if err := header.ValidateBasic(); err != nil {
+			// TODO(tzdybal): I think this is could be even a panic, because if this happens, header is FUBAR
+			m.logger.Error("header validation error", "error", err)
+		}
+
+		err = m.store.SaveBlockData(ctx, header, data, &signature)
 		if err != nil {
 			return SaveBlockError{err}
 		}
 	}
 
-	newState, responses, err := m.applyBlock(ctx, header, data)
+	newState, err := m.applyBlock(ctx, header, data)
 	if err != nil {
 		if ctx.Err() != nil {
 			return err
@@ -1142,19 +1225,15 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		panic(err)
 	}
 	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
-	header.Header.DataHash = data.Hash()
+	header.DataHash = data.Hash()
 
 	signature, err = m.getSignature(header.Header)
 	if err != nil {
 		return err
 	}
 
-	if err := m.processVoteExtension(ctx, header, data, newHeight); err != nil {
-		return err
-	}
-
 	// set the signature to current block's signed header
-	header.Signature = *signature
+	header.Signature = signature
 
 	// append metadata to Data before validating and saving
 	data.Metadata = &types.Metadata{
@@ -1164,41 +1243,39 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		LastDataHash: lastDataHash,
 	}
 	// Validate the created block before storing
-	if err := m.executor.Validate(m.lastState, header, data); err != nil {
+	if err := m.execValidate(m.lastState, header, data); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
 	}
 
 	headerHeight := header.Height()
 
 	headerHash := header.Hash().String()
-	m.headerCache.setSeen(headerHash)
+	m.headerCache.SetSeen(headerHash)
 
 	// SaveBlock commits the DB tx
-	err = m.store.SaveBlockData(ctx, header, data, signature)
+	err = m.store.SaveBlockData(ctx, header, data, &signature)
 	if err != nil {
 		return SaveBlockError{err}
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
-	appHash, _, err := m.executor.Commit(ctx, newState, header, data, responses)
+	appHash, err := m.execCommit(ctx, newState, header, data)
 	if err != nil {
 		return err
 	}
 	// Update app hash in state
 	newState.AppHash = appHash
 
-	// SaveBlockResponses commits the DB tx
-	err = m.store.SaveBlockResponses(ctx, headerHeight, responses)
-	if err != nil {
-		return SaveBlockResponsesError{err}
-	}
-
 	// Update the store height before submitting to the DA layer but after committing to the DB
-	m.store.SetHeight(ctx, headerHeight)
+	err = m.store.SetHeight(ctx, headerHeight)
+	if err != nil {
+		return err
+	}
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
+	m.logger.Debug("updating state", "newState", newState)
 	err = m.updateState(ctx, newState)
 	if err != nil {
 		return err
@@ -1223,87 +1300,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.logger.Debug("successfully proposed header", "proposer", hex.EncodeToString(header.ProposerAddress), "height", headerHeight)
 
 	return nil
-}
-
-func (m *Manager) sign(payload []byte) ([]byte, error) {
-	var sig []byte
-	switch m.proposerKey.Type() {
-	case pb.KeyType_Ed25519:
-		return m.proposerKey.Sign(payload)
-	case pb.KeyType_Secp256k1:
-		k := m.proposerKey.(*crypto.Secp256k1PrivateKey)
-		rawBytes, err := k.Raw()
-		if err != nil {
-			return nil, err
-		}
-		priv := secp256k1.PrivKeyFromBytes(rawBytes)
-		sig = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
-		return sig[1:], nil
-	default:
-		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
-	}
-}
-
-func (m *Manager) processVoteExtension(ctx context.Context, header *types.SignedHeader, data *types.Data, newHeight uint64) error {
-	if !m.voteExtensionEnabled(newHeight) {
-		return nil
-	}
-
-	extension, err := m.executor.ExtendVote(ctx, header, data)
-	if err != nil {
-		return fmt.Errorf("error returned by ExtendVote: %w", err)
-	}
-
-	vote := &cmproto.Vote{
-		Height:    int64(newHeight),
-		Round:     0,
-		Extension: extension,
-	}
-	extSignBytes := cmtypes.VoteExtensionSignBytes(m.genesis.ChainID, vote)
-
-	sign, err := m.sign(extSignBytes)
-	if err != nil {
-		return fmt.Errorf("failed to sign vote extension: %w", err)
-	}
-	extendedCommit := buildExtendedCommit(header, extension, sign)
-	err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
-	if err != nil {
-		return fmt.Errorf("failed to save extended commit: %w", err)
-	}
-	return nil
-}
-
-func (m *Manager) voteExtensionEnabled(newHeight uint64) bool {
-	enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
-	return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight
-}
-
-func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
-	emptyExtendedCommit := abci.ExtendedCommitInfo{}
-	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) {
-		return emptyExtendedCommit, nil
-	}
-	extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
-	if err != nil {
-		return emptyExtendedCommit, err
-	}
-	return *extendedCommit, nil
-}
-
-func buildExtendedCommit(header *types.SignedHeader, extension []byte, sign []byte) *abci.ExtendedCommitInfo {
-	extendedCommit := &abci.ExtendedCommitInfo{
-		Round: 0,
-		Votes: []abci.ExtendedVoteInfo{{
-			Validator: abci.Validator{
-				Address: header.Validators.GetProposer().Address,
-				Power:   header.Validators.GetProposer().VotingPower,
-			},
-			VoteExtension:      extension,
-			ExtensionSignature: sign,
-			BlockIdFlag:        cmproto.BlockIDFlagCommit,
-		}},
-	}
-	return extendedCommit
 }
 
 func (m *Manager) recordMetrics(data *types.Data) {
@@ -1331,13 +1327,13 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	}
 	numSubmittedHeaders := 0
 	attempt := 0
-	maxBlobSize, err := m.dalc.DA.MaxBlobSize(ctx)
+	maxBlobSize, err := m.dalc.MaxBlobSize(ctx)
 	if err != nil {
 		return err
 	}
 	initialMaxBlobSize := maxBlobSize
-	initialGasPrice := m.dalc.GasPrice
-	gasPrice := m.dalc.GasPrice
+	gasPrice := m.gasPrice
+	initialGasPrice := gasPrice
 
 daSubmitRetryLoop:
 	for !submittedAllHeaders && attempt < maxSubmitAttempts {
@@ -1347,17 +1343,33 @@ daSubmitRetryLoop:
 		case <-time.After(backoff):
 		}
 
-		res := m.dalc.SubmitHeaders(ctx, headersToSubmit, maxBlobSize, gasPrice)
+		headersBz := make([][]byte, len(headersToSubmit))
+		for i, header := range headersToSubmit {
+			headerPb, err := header.ToProto()
+			if err != nil {
+				// do we drop the header from attempting to be submitted?
+				return fmt.Errorf("failed to transform header to proto: %w", err)
+			}
+			headersBz[i], err = proto.Marshal(headerPb)
+			if err != nil {
+				// do we drop the header from attempting to be submitted?
+				return fmt.Errorf("failed to marshal header: %w", err)
+			}
+		}
+
+		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
+		defer cancel()
+		res := m.dalc.Submit(ctx, headersBz, maxBlobSize, gasPrice)
 		switch res.Code {
-		case da.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "headerCount", res.SubmittedCount)
+		case coreda.StatusSuccess:
+			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount)
 			if res.SubmittedCount == uint64(len(headersToSubmit)) {
 				submittedAllHeaders = true
 			}
 			submittedBlocks, notSubmittedBlocks := headersToSubmit[:res.SubmittedCount], headersToSubmit[res.SubmittedCount:]
 			numSubmittedHeaders += len(submittedBlocks)
 			for _, block := range submittedBlocks {
-				m.headerCache.setDAIncluded(block.Hash().String())
+				m.headerCache.SetDAIncluded(block.Hash().String())
 				err = m.setDAIncludedHeight(ctx, block.Height())
 				if err != nil {
 					return err
@@ -1373,22 +1385,22 @@ daSubmitRetryLoop:
 			// scale back gasPrice gradually
 			backoff = 0
 			maxBlobSize = initialMaxBlobSize
-			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
-				gasPrice = gasPrice / m.dalc.GasMultiplier
+			if m.gasMultiplier > 0 && gasPrice != -1 {
+				gasPrice = gasPrice / m.gasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
 				}
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
-		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
+		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL)
-			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
-				gasPrice = gasPrice * m.dalc.GasMultiplier
+			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL) //nolint:gosec
+			if m.gasMultiplier > 0 && gasPrice != -1 {
+				gasPrice = gasPrice * m.gasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 
-		case da.StatusTooBig:
+		case coreda.StatusTooBig:
 			maxBlobSize = maxBlobSize / 4
 			fallthrough
 		default:
@@ -1415,20 +1427,15 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	if backoff == 0 {
 		backoff = initialBackoff
 	}
-	if backoff > m.conf.DABlockTime {
-		backoff = m.conf.DABlockTime
+	if backoff > m.config.DA.BlockTime.Duration {
+		backoff = m.config.DA.BlockTime.Duration
 	}
 	return backoff
 }
 
-func (m *Manager) getLastStateValidators() *cmtypes.ValidatorSet {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.lastState.Validators
-}
-
 // Updates the state stored in manager's store along the manager's lastState
 func (m *Manager) updateState(ctx context.Context, s types.State) error {
+	m.logger.Debug("updating state", "newState", s)
 	m.lastStateMtx.Lock()
 	defer m.lastStateMtx.Unlock()
 	err := m.store.UpdateState(ctx, s)
@@ -1446,68 +1453,185 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
 }
 
-func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
+func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.ApplyBlock(ctx, m.lastState, header, data)
+	return m.execApplyBlock(ctx, m.lastState, header, data)
 }
 
-func updateState(s *types.State, res *abci.ResponseInitChain) error {
-	// If the app did not return an app hash, we keep the one set from the genesis doc in
-	// the state. We don't set appHash since we don't want the genesis doc app hash
-	// recorded in the genesis block. We should probably just remove GenesisDoc.AppHash.
-	if len(res.AppHash) > 0 {
-		s.AppHash = res.AppHash
-	}
-
-	if res.ConsensusParams != nil {
-		params := res.ConsensusParams
-		if params.Block != nil {
-			s.ConsensusParams.Block.MaxBytes = params.Block.MaxBytes
-			s.ConsensusParams.Block.MaxGas = params.Block.MaxGas
-		}
-		if params.Evidence != nil {
-			s.ConsensusParams.Evidence.MaxAgeNumBlocks = params.Evidence.MaxAgeNumBlocks
-			s.ConsensusParams.Evidence.MaxAgeDuration = params.Evidence.MaxAgeDuration
-			s.ConsensusParams.Evidence.MaxBytes = params.Evidence.MaxBytes
-		}
-		if params.Validator != nil {
-			// Copy params.Validator.PubkeyTypes, and set result's value to the copy.
-			// This avoids having to initialize the slice to 0 values, and then write to it again.
-			s.ConsensusParams.Validator.PubKeyTypes = append([]string{}, params.Validator.PubKeyTypes...)
-		}
-		if params.Version != nil {
-			s.ConsensusParams.Version.App = params.Version.App
-		}
-		s.Version.Consensus.App = s.ConsensusParams.Version.App
-	}
-	// We update the last results hash with the empty hash, to conform with RFC-6962.
-	s.LastResultsHash = merkle.HashFromByteSlices(nil)
-
-	vals, err := cmtypes.PB2TM.ValidatorUpdates(res.Validators)
-	if err != nil {
-		return err
-	}
-
-	// apply initchain valset change
-	nValSet := s.Validators.Copy()
-	err = nValSet.UpdateWithChangeSet(vals)
-	if err != nil {
-		return err
-	}
-	if len(nValSet.Validators) != 1 {
-		return errors.New("expected exactly one validator")
-	}
-
-	s.Validators = cmtypes.NewValidatorSet(nValSet.Validators)
-	s.NextValidators = cmtypes.NewValidatorSet(nValSet.Validators).CopyIncrementProposerPriority(1)
-	s.LastValidators = cmtypes.NewValidatorSet(nValSet.Validators)
-
+func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Data) error {
+	// TODO(tzdybal): implement
 	return nil
+}
+
+func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
+	err := m.exec.SetFinal(ctx, h.Height())
+	return newState.AppHash, err
+}
+
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+	data := batchData.Data
+	batchdata := convertBatchDataToBytes(data)
+
+	key, err := m.proposerKey.GetPublic()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get proposer public key: %w", err)
+	}
+
+	// check that the proposer address is the same as the genesis proposer address
+	address, err := m.proposerKey.GetAddress()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get proposer address: %w", err)
+	}
+	if !bytes.Equal(m.genesis.ProposerAddress, address) {
+		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
+	}
+
+	header := &types.SignedHeader{
+		Header: types.Header{
+			Version: types.Version{
+				Block: lastState.Version.Block,
+				App:   lastState.Version.App,
+			},
+			BaseHeader: types.BaseHeader{
+				ChainID: lastState.ChainID,
+				Height:  height,
+				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
+			},
+			LastHeaderHash:  lastHeaderHash,
+			DataHash:        batchdata,
+			ConsensusHash:   make(types.Hash, 32),
+			AppHash:         lastState.AppHash,
+			ProposerAddress: m.genesis.ProposerAddress,
+		},
+		Signature: *lastSignature,
+		Signer: types.Signer{
+			PubKey:  key,
+			Address: m.genesis.ProposerAddress,
+		},
+	}
+
+	blockData := &types.Data{
+		Txs: make(types.Txs, len(batchData.Transactions)),
+	}
+	for i := range batchData.Transactions {
+		blockData.Txs[i] = types.Tx(batchData.Transactions[i])
+	}
+
+	return header, blockData, nil
+}
+
+func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
+	rawTxs := make([][]byte, len(data.Txs))
+	for i := range data.Txs {
+		rawTxs[i] = data.Txs[i]
+	}
+	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
+	if err != nil {
+		return types.State{}, err
+	}
+
+	s, err := m.nextState(lastState, header, newStateRoot)
+	if err != nil {
+		return types.State{}, err
+	}
+
+	return s, nil
+}
+
+func (m *Manager) nextState(state types.State, header *types.SignedHeader, stateRoot []byte) (types.State, error) {
+	height := header.Height()
+
+	s := types.State{
+		Version:         state.Version,
+		ChainID:         state.ChainID,
+		InitialHeight:   state.InitialHeight,
+		LastBlockHeight: height,
+		LastBlockTime:   header.Time(),
+		AppHash:         stateRoot,
+	}
+	return s, nil
+}
+
+func convertBatchDataToBytes(batchData [][]byte) []byte {
+	// If batchData is nil or empty, return an empty byte slice
+	if len(batchData) == 0 {
+		return []byte{}
+	}
+
+	// For a single item, we still need to length-prefix it for consistency
+	// First, calculate the total size needed
+	// Format: 4 bytes (length) + data for each entry
+	totalSize := 0
+	for _, data := range batchData {
+		totalSize += 4 + len(data) // 4 bytes for length prefix + data length
+	}
+
+	// Allocate buffer with calculated capacity
+	result := make([]byte, 0, totalSize)
+
+	// Add length-prefixed data
+	for _, data := range batchData {
+		// Encode length as 4-byte big-endian integer
+		lengthBytes := make([]byte, 4)
+		binary.BigEndian.PutUint32(lengthBytes, uint32(len(data)))
+
+		// Append length prefix
+		result = append(result, lengthBytes...)
+
+		// Append actual data
+		result = append(result, data...)
+	}
+
+	return result
+}
+
+// bytesToBatchData converts a length-prefixed byte array back to a slice of byte slices
+func bytesToBatchData(data []byte) ([][]byte, error) {
+	if len(data) == 0 {
+		return [][]byte{}, nil
+	}
+
+	var result [][]byte
+	offset := 0
+
+	for offset < len(data) {
+		// Check if we have at least 4 bytes for the length prefix
+		if offset+4 > len(data) {
+			return nil, fmt.Errorf("corrupted data: insufficient bytes for length prefix at offset %d", offset)
+		}
+
+		// Read the length prefix
+		length := binary.BigEndian.Uint32(data[offset : offset+4])
+		offset += 4
+
+		// Check if we have enough bytes for the data
+		if offset+int(length) > len(data) {
+			return nil, fmt.Errorf("corrupted data: insufficient bytes for entry of length %d at offset %d", length, offset)
+		}
+
+		// Extract the data entry
+		entry := make([]byte, length)
+		copy(entry, data[offset:offset+int(length)])
+		result = append(result, entry)
+
+		// Move to the next entry
+		offset += int(length)
+	}
+
+	return result, nil
+}
+
+func getSignature(header types.Header, proposerKey signer.Signer) (types.Signature, error) {
+	b, err := header.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return proposerKey.Sign(b)
 }
