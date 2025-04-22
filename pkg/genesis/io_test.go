@@ -34,7 +34,6 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 				InitialHeight:        1,
 				GenesisDAStartHeight: validTime,
 				ProposerAddress:      []byte("proposer-address"),
-				AppState:             json.RawMessage(`{"key": "value"}`),
 			},
 			wantErr: false,
 		},
@@ -45,7 +44,6 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 				InitialHeight:        1,
 				GenesisDAStartHeight: validTime,
 				ProposerAddress:      []byte("proposer-address"),
-				AppState:             json.RawMessage(`{}`),
 			},
 			wantErr: false,
 		},
@@ -77,7 +75,7 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 			tmpFile := filepath.Join(tmpDir, "genesis.json")
 
 			// Test SaveGenesis
-			err := SaveGenesis(tc.genesis, tmpFile)
+			err := tc.genesis.Save(tmpFile)
 			require.NoError(t, err)
 			err = tc.genesis.Validate()
 			if tc.wantErr {
@@ -89,20 +87,6 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 			// Test LoadGenesis
 			loaded, err := LoadGenesis(tmpFile)
 			assert.NoError(t, err)
-
-			// Compare AppState as JSON objects instead of raw bytes
-			if len(tc.genesis.AppState) > 0 {
-				var expectedAppState, actualAppState interface{}
-				err = json.Unmarshal(tc.genesis.AppState, &expectedAppState)
-				assert.NoError(t, err)
-				err = json.Unmarshal(loaded.AppState, &actualAppState)
-				assert.NoError(t, err)
-				assert.Equal(t, expectedAppState, actualAppState, "AppState contents should match")
-
-				// Set AppState to nil for the remaining comparison
-				tc.genesis.AppState = nil
-				loaded.AppState = nil
-			}
 
 			// Compare the rest of the fields
 			assert.Equal(t, tc.genesis, loaded)
@@ -126,7 +110,7 @@ func TestLoadGenesis_FileNotFound(t *testing.T) {
 func TestLoadGenesis_InvalidJSON(t *testing.T) {
 	// Create a temporary file with invalid JSON
 	tmpFile := filepath.Join(t.TempDir(), "invalid.json")
-	err := os.WriteFile(filepath.Clean(tmpFile), []byte("{invalid json}"), 0600)
+	err := os.WriteFile(filepath.Clean(tmpFile), []byte("{invalid json}"), 0o600)
 	require.NoError(t, err)
 
 	_, err = LoadGenesis(tmpFile)
@@ -141,7 +125,7 @@ func TestLoadGenesis_ReadError(t *testing.T) {
 	// Create a directory with the same name as our intended file
 	// This will cause ReadFile to fail with "is a directory" error
 	tmpFilePath := filepath.Join(tmpDir, "genesis.json")
-	err := os.Mkdir(tmpFilePath, 0755)
+	err := os.Mkdir(tmpFilePath, 0o755)
 	require.NoError(t, err)
 
 	// Try to load from a path that is actually a directory
@@ -154,7 +138,7 @@ func TestLoadGenesis_InvalidGenesisContent(t *testing.T) {
 	// Create a temporary file with valid JSON but invalid Genesis content
 	tmpFile := filepath.Join(t.TempDir(), "valid_json_invalid_genesis.json")
 	// This is valid JSON but doesn't have required Genesis fields
-	err := os.WriteFile(filepath.Clean(tmpFile), []byte(`{"foo": "bar"}`), 0600)
+	err := os.WriteFile(filepath.Clean(tmpFile), []byte(`{"foo": "bar"}`), 0o600)
 	require.NoError(t, err)
 
 	_, err = LoadGenesis(tmpFile)
@@ -186,7 +170,7 @@ func TestSaveGenesis_InvalidPath(t *testing.T) {
 			if tc.createPath {
 				// Create a read-only directory if needed
 				dirPath := filepath.Dir(tc.path)
-				err := os.MkdirAll(dirPath, 0500) // read-only directory
+				err := os.MkdirAll(dirPath, 0o500) // read-only directory
 				if err != nil {
 					t.Skip("Failed to create directory with specific permissions, skipping:", err)
 				}
@@ -199,7 +183,7 @@ func TestSaveGenesis_InvalidPath(t *testing.T) {
 				ProposerAddress:      []byte("proposer-address"),
 			}
 
-			err := SaveGenesis(genesis, tc.path)
+			err := genesis.Save(tc.path)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "failed to write genesis file")
 		})

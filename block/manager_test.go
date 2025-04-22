@@ -184,7 +184,6 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 		uint64(2), // Set initial height to 2
 		genesisData.GenesisDAStartHeight,
 		genesisData.ProposerAddress,
-		nil, // No raw bytes for now
 	)
 	sampleState := types.State{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
@@ -620,7 +619,6 @@ func TestAggregationLoop(t *testing.T) {
 			1,
 			time.Now(),
 			[]byte{}, // Empty extra data
-			nil,      // No raw bytes for now
 		),
 		config: config.Config{
 			Node: config.NodeConfig{
