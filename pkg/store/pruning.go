@@ -117,8 +117,8 @@ func (s *DefaultPruningStore) PruneBlockData(ctx context.Context) error {
 		return nil
 	}
 
-	// Must keep latest 2 blocks.
-	endHeight := height - 1 - s.Config.KeepRecent
+	// Must keep at least 2 blocks(while strategy is everything).
+	endHeight := height - s.Config.KeepRecent
 	startHeight := min(0, endHeight-s.Config.KeepRecent)
 
 	for i := startHeight; i <= endHeight; i++ {
