@@ -323,7 +323,7 @@ func TestStartNodeErrors(t *testing.T) {
 	err = os.MkdirAll(dummyConfigDir, 0755)
 	assert.NoError(t, err)
 	dummyGenesisPath := filepath.Join(dummyConfigDir, "genesis.json")
-	err = os.WriteFile(dummyGenesisPath, []byte(`{"chain_id":"test","initial_height":"1"}`), 0644)
+	err = os.WriteFile(dummyGenesisPath, []byte(`{"chain_id":"test","initial_height":"1"}`), 0o600)
 	assert.NoError(t, err)
 
 	// Create a dummy signer file path
