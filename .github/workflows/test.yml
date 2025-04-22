@@ -14,7 +14,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: ./go.mod
-      - name: Build all rollkit binaries 
+      - name: Build all rollkit binaries
         run: make build-all
 
   go_mod_tidy_check:
