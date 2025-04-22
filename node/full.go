@@ -396,7 +396,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
-	//TODO: once we can identify if we are in based moded we should remove running this for all nodes.
+	//TODO: once we can identify if we are in based mode we should remove running this for all nodes.
 	go n.reaper.Start(ctx)
 
 	if n.nodeConfig.Node.Aggregator {
