@@ -6,7 +6,6 @@ retract v0.12.0 // Published by accident
 
 replace (
 	github.com/rollkit/rollkit/core => ./core
-	github.com/rollkit/rollkit/da => ./da
 )
 
 require (

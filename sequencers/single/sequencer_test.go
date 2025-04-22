@@ -16,7 +16,7 @@ import (
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	damocks "github.com/rollkit/rollkit/da/mocks"
+	damocks "github.com/rollkit/rollkit/test/mocks"
 )
 
 func TestNewSequencer(t *testing.T) {

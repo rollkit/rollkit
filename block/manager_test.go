@@ -20,7 +20,7 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/da"
+
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
@@ -77,7 +77,7 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier float64) *Manager {
 	logger := log.NewTestLogger(t)
 	return &Manager{
-		dalc:          da.NewDAClient(backend, gasPrice, gasMultiplier, nil, nil, logger),
+		dalc:          coreda.NewDummyClient(backend, []byte("test")),
 		headerCache:   cache.NewCache[types.SignedHeader](),
 		logger:        logger,
 		gasPrice:      gasPrice,
@@ -298,10 +298,10 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(12345), nil)
 			mockDA.
 				On("SubmitWithOptions", mock.Anything, blobs, tc.expectedGasPrices[0], []byte(nil), []byte(nil)).
-				Return([][]byte{}, da.ErrTxTimedOut).Once()
+				Return([][]byte{}, coreda.ErrTxTimedOut).Once()
 			mockDA.
 				On("SubmitWithOptions", mock.Anything, blobs, tc.expectedGasPrices[1], []byte(nil), []byte(nil)).
-				Return([][]byte{}, da.ErrTxTimedOut).Once()
+				Return([][]byte{}, coreda.ErrTxTimedOut).Once()
 			mockDA.
 				On("SubmitWithOptions", mock.Anything, blobs, tc.expectedGasPrices[2], []byte(nil), []byte(nil)).
 				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
