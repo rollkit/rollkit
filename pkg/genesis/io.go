@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-// LoadGenesis loads the genesis state from the specified file path
+// LoadGenesis loads the genesis state from the specified file path.
 func LoadGenesis(genesisPath string) (Genesis, error) {
 	// Validate and clean the file path
 	cleanPath := filepath.Clean(genesisPath)
@@ -21,8 +21,7 @@ func LoadGenesis(genesisPath string) (Genesis, error) {
 	}
 
 	var genesis Genesis
-	err = json.Unmarshal(genesisJSON, &genesis)
-	if err != nil {
+	if err := json.Unmarshal(genesisJSON, &genesis); err != nil {
 		return Genesis{}, fmt.Errorf("invalid genesis file: %w", err)
 	}
 
@@ -33,17 +32,15 @@ func LoadGenesis(genesisPath string) (Genesis, error) {
 	return genesis, nil
 }
 
-// SaveGenesis saves the genesis state to the specified file path
-func SaveGenesis(genesis Genesis, genesisPath string) error {
-	// Validate and clean the file path
-	cleanPath := filepath.Clean(genesisPath)
-
-	genesisJSON, err := json.MarshalIndent(genesis, "", "  ")
+// Save saves the genesis state to the specified file path.
+// It should only be used when the application is NOT handling the genesis creation.
+func (g Genesis) Save(genesisPath string) error {
+	genesisJSON, err := json.MarshalIndent(g, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal genesis state: %w", err)
 	}
 
-	err = os.WriteFile(cleanPath, genesisJSON, 0600)
+	err = os.WriteFile(filepath.Clean(genesisPath), genesisJSON, 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to write genesis file: %w", err)
 	}

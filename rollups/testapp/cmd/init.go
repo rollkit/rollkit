@@ -39,7 +39,7 @@ func InitCmd() *cobra.Command {
 				return fmt.Errorf("error reading passphrase flag: %w", err)
 			}
 
-			proposerAddress, err := rollcmd.InitializeSigner(&cfg, homePath, passphrase)
+			proposerAddress, err := rollcmd.CreateSigner(&cfg, homePath, passphrase)
 			if err != nil {
 				return err
 			}
@@ -48,7 +48,7 @@ func InitCmd() *cobra.Command {
 				return fmt.Errorf("error writing rollkit.yaml file: %w", err)
 			}
 
-			if err := rollcmd.InitializeNodeKey(homePath); err != nil {
+			if err := rollcmd.LoadOrGenNodeKey(homePath); err != nil {
 				return err
 			}
 

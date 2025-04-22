@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,8 +13,8 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
 
-// InitializeSigner sets up the signer configuration and creates necessary files
-func InitializeSigner(config *rollconf.Config, homePath string, passphrase string) ([]byte, error) {
+// CreateSigner sets up the signer configuration and creates necessary files
+func CreateSigner(config *rollconf.Config, homePath string, passphrase string) ([]byte, error) {
 	if config.Signer.SignerType == "file" && config.Node.Aggregator {
 		if passphrase == "" {
 			return nil, fmt.Errorf("passphrase is required when using local file signer")
@@ -44,61 +43,57 @@ func InitializeSigner(config *rollconf.Config, homePath string, passphrase strin
 		}
 
 		proposerAddress := hash.SumTruncated(bz)
-
 		return proposerAddress, nil
 	} else if config.Signer.SignerType != "file" && config.Node.Aggregator {
 		return nil, fmt.Errorf("remote signer not implemented for aggregator nodes, use local signer instead")
 	}
+
 	return nil, nil
 }
 
-// InitializeNodeKey creates the node key file
-func InitializeNodeKey(homePath string) error {
+// LoadOrGenNodeKey creates the node key file.
+func LoadOrGenNodeKey(homePath string) error {
 	nodeKeyFile := filepath.Join(homePath, "config")
+
 	_, err := key.LoadOrGenNodeKey(nodeKeyFile)
 	if err != nil {
 		return fmt.Errorf("failed to create node key: %w", err)
 	}
+
 	return nil
 }
 
-// InitializeGenesis creates and saves a genesis file with the given app state
-func InitializeGenesis(homePath string, chainID string, initialHeight uint64, proposerAddress, appState []byte) error {
-	// Create the config directory path first
+var ErrGenesisExists = fmt.Errorf("genesis file already exists")
+
+// CreateGenesis creates and saves a genesis file with the given app state.
+// If the genesis file already exists, it skips the creation and returns ErrGenesisExists.
+// The genesis file is saved in the config directory of the specified home path.
+func CreateGenesis(homePath string, chainID string, initialHeight uint64, proposerAddress, appState []byte) error {
 	configDir := filepath.Join(homePath, "config")
-	// Determine the genesis file path
 	genesisPath := filepath.Join(configDir, "genesis.json")
 
 	// Check if the genesis file already exists
 	if _, err := os.Stat(genesisPath); err == nil {
-		// File exists, return successfully without overwriting
-		fmt.Printf("Genesis file already exists at %s: skipping...\n", genesisPath)
-		return nil
+		return ErrGenesisExists
 	} else if !os.IsNotExist(err) {
-		// An error other than "not exist" occurred (e.g., permissions)
 		return fmt.Errorf("failed to check for existing genesis file at %s: %w", genesisPath, err)
 	}
-	// If os.IsNotExist(err) is true, the file doesn't exist, so we proceed.
 
-	// Create the config directory if it doesn't exist (needed before saving genesis)
+	// If the directory doesn't exist, create it
 	if err := os.MkdirAll(configDir, 0o750); err != nil {
 		return fmt.Errorf("error creating config directory: %w", err)
 	}
 
-	// Create the genesis data struct since the file doesn't exist
 	genesisData := genesispkg.NewGenesis(
 		chainID,
 		initialHeight,
-		time.Now(),                // Current time as genesis DA start height
-		proposerAddress,           // Proposer address
-		json.RawMessage(appState), // App state from parameters
+		time.Now(),      // Current time as genesis DA start height
+		proposerAddress, // Proposer address
 	)
 
-	// Save the new genesis file
-	if err := genesispkg.SaveGenesis(genesisData, genesisPath); err != nil {
+	if err := genesisData.Save(genesisPath); err != nil {
 		return fmt.Errorf("error writing genesis file: %w", err)
 	}
 
-	fmt.Printf("Initialized new genesis file: %s\n", genesisPath)
 	return nil
 }
