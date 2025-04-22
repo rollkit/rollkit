@@ -329,12 +329,16 @@ func (_m *Store) UpdateState(ctx context.Context, state types.State) error {
 	return r0
 }
 
-// NewStore creates a new instance of Store. It also registers a testing interface on the mock.
+// NewStore creates a new instance of Store. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
-// Remember to call AssertExpectations manually at the end of your test.
-func NewStore(t mock.TestingT) *Store {
+func NewStore(t interface {
+	mock.TestingT
+	Cleanup(func())
+}) *Store {
 	mock := &Store{}
 	mock.Mock.Test(t)
-	// t.Cleanup(func() { mock.AssertExpectations(t) }) // Remove automatic cleanup
+
+	t.Cleanup(func() { mock.AssertExpectations(t) })
+
 	return mock
 }

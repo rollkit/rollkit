@@ -15,12 +15,12 @@ import (
 	"cosmossdk.io/log"
 
 	"github.com/rollkit/rollkit/block"
-	blockmocks "github.com/rollkit/rollkit/block/mocks"
 	coreda "github.com/rollkit/rollkit/core/da" // Add coreda import
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
+	blockmocks "github.com/rollkit/rollkit/test/mocks"
 	testmocks "github.com/rollkit/rollkit/test/mocks" // Import the general test mocks for Store
 	"github.com/rollkit/rollkit/types"
 )
@@ -32,7 +32,7 @@ const (
 
 // setupManagerForAggregationTest initializes a Manager instance suitable for aggregation feature tests.
 // It uses mock dependencies and a basic configuration. Returns the config used.
-func setupManagerForAggregationTest(t *testing.T) (*block.Manager, *blockmocks.Executor, *blockmocks.Sequencer, *blockmocks.DAClient, *testmocks.Store, config.Config) {
+func setupManagerForAggregationTest(t *testing.T) (*block.Manager, *blockmocks.Executor, *blockmocks.Sequencer, *blockmocks.Client, *testmocks.Store, config.Config) {
 	require := require.New(t)
 
 	// Dependencies
@@ -41,7 +41,7 @@ func setupManagerForAggregationTest(t *testing.T) (*block.Manager, *blockmocks.E
 	mockStore := testmocks.NewStore(t)
 	mockExecutor := blockmocks.NewExecutor(t)
 	mockSequencer := blockmocks.NewSequencer(t)
-	mockDAClient := blockmocks.NewDAClient(t)
+	mockDAClient := blockmocks.NewClient(t)
 	// Header/Data stores still needed for Manager init, but can use a dummy kvstore as they won't be heavily used in these tests
 	dummyKV := dsync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := goheaderstore.NewStore[*types.SignedHeader](dummyKV, goheaderstore.WithStorePrefix("header"))
@@ -858,7 +858,7 @@ func TestManager_Aggregation_DASubmission_GasPriceAdjustment(t *testing.T) {
 	mockStore := testmocks.NewStore(t)
 	mockExecutor := blockmocks.NewExecutor(t)
 	mockSequencer := blockmocks.NewSequencer(t)
-	mockDAClient := blockmocks.NewDAClient(t)
+	mockDAClient := blockmocks.NewClient(t)
 	dummyKV := dsync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := goheaderstore.NewStore[*types.SignedHeader](dummyKV, goheaderstore.WithStorePrefix("header"))
 	require.NoError(err)
@@ -999,7 +999,7 @@ func TestManager_Aggregation_MaxPendingBlocks(t *testing.T) {
 	mockStore := testmocks.NewStore(t)
 	mockExecutor := blockmocks.NewExecutor(t)
 	mockSequencer := blockmocks.NewSequencer(t)
-	mockDAClient := blockmocks.NewDAClient(t)
+	mockDAClient := blockmocks.NewClient(t)
 	dummyKV := dsync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := goheaderstore.NewStore[*types.SignedHeader](dummyKV, goheaderstore.WithStorePrefix("header"))
 	require.NoError(err)

@@ -15,11 +15,11 @@ import (
 	"cosmossdk.io/log"
 
 	"github.com/rollkit/rollkit/block"
-	blockmocks "github.com/rollkit/rollkit/block/mocks" // Add coreda import
 	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
+	blockmocks "github.com/rollkit/rollkit/test/mocks"
 	testmocks "github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -32,7 +32,7 @@ const (
 // setupManagerForDASubmissionTest initializes a Manager instance suitable for DA submission tests.
 // It configures the manager as a proposer and uses mock dependencies.
 // Crucially, it allows pre-populating the store with blocks pending submission.
-func setupManagerForDASubmissionTest(t *testing.T, initialLastSubmittedHeight uint64, blocksToPreload []*types.SignedHeader) (*block.Manager, *blockmocks.DAClient, *testmocks.Store, config.Config) {
+func setupManagerForDASubmissionTest(t *testing.T, initialLastSubmittedHeight uint64, blocksToPreload []*types.SignedHeader) (*block.Manager, *blockmocks.Client, *testmocks.Store, config.Config) {
 	require := require.New(t)
 
 	// Dependencies
@@ -41,7 +41,7 @@ func setupManagerForDASubmissionTest(t *testing.T, initialLastSubmittedHeight ui
 	// Executor/Sequencer mocks needed for manager init, but won't be used heavily in these tests
 	mockExecutor := blockmocks.NewExecutor(t)
 	mockSequencer := blockmocks.NewSequencer(t)
-	mockDAClient := blockmocks.NewDAClient(t)
+	mockDAClient := blockmocks.NewClient(t)
 	dummyKV := dsync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := goheaderstore.NewStore[*types.SignedHeader](dummyKV, goheaderstore.WithStorePrefix("header"))
 	require.NoError(err)
