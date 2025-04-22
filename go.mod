@@ -4,9 +4,7 @@ go 1.24.1
 
 retract v0.12.0 // Published by accident
 
-replace (
-	github.com/rollkit/rollkit/core => ./core
-)
+replace github.com/rollkit/rollkit/core => ./core
 
 require (
 	connectrpc.com/connect v1.18.1
@@ -26,7 +24,6 @@ require (
 	github.com/prometheus/client_golang v1.21.1
 	github.com/rollkit/go-sequencing v0.4.1
 	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
-	github.com/rollkit/rollkit/da v0.0.0-00010101000000-000000000000
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
