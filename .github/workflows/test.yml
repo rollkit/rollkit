@@ -5,8 +5,8 @@ on:
   workflow_call:
 
 jobs:
-  build_testapp:
-    name: Build Test App
+  build_all-apps:
+    name: Build All Rollkit Binaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,19 +15,7 @@ jobs:
         with:
           go-version-file: ./go.mod
       - name: Build test app
-        run: make build
-
-  build_evm-single:
-    name: Build EVM Single App
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: set up go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: ./go.mod
-      - name: Build evm single sequencer app
-        run: make build-evm-single
+        run: make build-all
 
   go_mod_tidy_check:
     name: Go Mod Tidy Check

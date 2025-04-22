@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
+	rollgenesis "github.com/rollkit/rollkit/pkg/genesis"
 )
 
 // InitCmd initializes a new rollkit.yaml file in the current directory
@@ -39,7 +41,7 @@ func InitCmd() *cobra.Command {
 				return fmt.Errorf("error reading passphrase flag: %w", err)
 			}
 
-			proposerAddress, err := rollcmd.InitializeSigner(&cfg, homePath, passphrase)
+			proposerAddress, err := rollcmd.CreateSigner(&cfg, homePath, passphrase)
 			if err != nil {
 				return err
 			}
@@ -48,7 +50,7 @@ func InitCmd() *cobra.Command {
 				return fmt.Errorf("error writing rollkit.yaml file: %w", err)
 			}
 
-			if err := rollcmd.InitializeNodeKey(homePath); err != nil {
+			if err := rollcmd.LoadOrGenNodeKey(homePath); err != nil {
 				return err
 			}
 
@@ -58,8 +60,20 @@ func InitCmd() *cobra.Command {
 				chainID = "rollkit-test"
 			}
 
-			// Initialize genesis with empty app state
-			if err := rollcmd.InitializeGenesis(homePath, chainID, 1, proposerAddress, []byte("{}")); err != nil {
+			// Initialize genesis without app state
+			err = rollgenesis.CreateGenesis(homePath, chainID, 1, proposerAddress)
+			if errors.Is(err, rollgenesis.ErrGenesisExists) {
+				// check if existing genesis file is valid
+				if genesis, err := rollgenesis.LoadGenesis(homePath); err == nil {
+					if err := genesis.Validate(); err != nil {
+						return fmt.Errorf("existing genesis file is invalid: %w", err)
+					}
+				} else {
+					return fmt.Errorf("error loading existing genesis file: %w", err)
+				}
+
+				cmd.Printf("Genesis file already exists at %s, skipping creation.\n", homePath)
+			} else if err != nil {
 				return fmt.Errorf("error initializing genesis file: %w", err)
 			}
 
