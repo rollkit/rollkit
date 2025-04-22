@@ -1,0 +1,12 @@
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+ignore:
+  - "test"
+  - "types/pb"
+  - "pkg/cmd/docs_gen.go"
