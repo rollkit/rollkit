@@ -156,9 +156,11 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
-func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
+func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, crypto.PubKey, error) {
 	// Load the state from store.
 	s, err := store.GetState(ctx)
+
+	var pubKey crypto.PubKey
 
 	if errors.Is(err, ds.ErrNotFound) {
 		logger.Info("No state found in store, initializing new state")
@@ -174,19 +176,19 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			}}
 
 		var signature types.Signature
-		var pubKey crypto.PubKey
+
 		// The signer is only provided in aggregator nodes. This enables the creation of a signed genesis header,
 		// which includes a public key and a cryptographic signature for the header.
 		// In a full node (non-aggregator), the signer will be nil, and only an unsigned genesis header will be initialized locally.
 		if signer != nil {
 			pubKey, err = signer.GetPublic()
 			if err != nil {
-				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
+				return types.State{}, pubKey, fmt.Errorf("failed to get public key: %w", err)
 			}
 
 			signature, err = getSignature(header, signer)
 			if err != nil {
-				return types.State{}, fmt.Errorf("failed to get header signature: %w", err)
+				return types.State{}, pubKey, fmt.Errorf("failed to get header signature: %w", err)
 			}
 		}
 
@@ -203,7 +205,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			&signature,
 		)
 		if err != nil {
-			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
+			return types.State{}, pubKey, fmt.Errorf("failed to save genesis block: %w", err)
 		}
 
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
@@ -211,7 +213,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartHeight, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
 			logger.Error("error while initializing chain", "error", err)
-			return types.State{}, err
+			return types.State{}, pubKey, err
 		}
 
 		s := types.State{
@@ -223,20 +225,20 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			AppHash:         stateRoot,
 			DAHeight:        0,
 		}
-		return s, nil
+		return s, pubKey, nil
 	} else if err != nil {
 		logger.Error("error while getting state", "error", err)
-		return types.State{}, err
+		return types.State{}, pubKey, err
 	} else {
 		// Perform a sanity-check to stop the user from
 		// using a higher genesis than the last stored state.
 		// if they meant to hard-fork, they should have cleared the stored State
 		if uint64(genesis.InitialHeight) > s.LastBlockHeight { //nolint:unconvert
-			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
+			return types.State{}, pubKey, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
 		}
 	}
 
-	return s, nil
+	return s, pubKey, nil
 }
 
 // NewManager creates new block Manager.
@@ -256,7 +258,7 @@ func NewManager(
 	gasPrice float64,
 	gasMultiplier float64,
 ) (*Manager, error) {
-	s, err := getInitialState(ctx, genesis, proposerKey, store, exec, logger)
+	s, pubkey, err := getInitialState(ctx, genesis, proposerKey, store, exec, logger)
 	if err != nil {
 		logger.Error("error while getting initial state", "error", err)
 		return nil, err
@@ -301,7 +303,7 @@ func NewManager(
 	//nolint:ineffassign // This assignment is needed
 	maxBlobSize -= blockProtocolOverhead
 
-	isProposer, err := isProposer(proposerKey, s)
+	isProposer, err := isProposer(proposerKey, pubkey)
 	if err != nil {
 		logger.Error("error while checking if proposer", "error", err)
 		return nil, err
@@ -418,7 +420,20 @@ func (m *Manager) SetDALC(dalc coreda.Client) {
 }
 
 // isProposer returns whether or not the manager is a proposer
-func isProposer(_ signer.Signer, _ types.State) (bool, error) {
+func isProposer(signer signer.Signer, pubkey crypto.PubKey) (bool, error) {
+	if signer == nil {
+		return false, nil
+	}
+	pubKey, err := signer.GetPublic()
+	if err != nil {
+		return false, err
+	}
+	if pubKey == nil {
+		return false, errors.New("public key is nil")
+	}
+	if !pubKey.Equals(pubkey) {
+		return false, nil
+	}
 	return true, nil
 }
 

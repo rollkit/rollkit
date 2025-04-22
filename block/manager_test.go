@@ -69,7 +69,7 @@ func TestInitialStateClean(t *testing.T) {
 	mockExecutor.On("InitChain", ctx, genesisData.GenesisDAStartHeight, genesisData.InitialHeight, genesisData.ChainID).
 		Return([]byte("mockAppHash"), uint64(1000), nil).Once()
 
-	s, err := getInitialState(ctx, genesisData, nil, emptyStore, mockExecutor, logger)
+	s, _, err := getInitialState(ctx, genesisData, nil, emptyStore, mockExecutor, logger)
 	require.NoError(err)
 	initialHeight := genesisData.InitialHeight
 	require.Equal(initialHeight-1, s.LastBlockHeight)
@@ -99,7 +99,7 @@ func TestInitialStateStored(t *testing.T) {
 	mockExecutor := mocks.NewExecutor(t)
 
 	// getInitialState should not call InitChain if state exists
-	s, err := getInitialState(ctx, genesisData, nil, store, mockExecutor, logger)
+	s, _, err := getInitialState(ctx, genesisData, nil, store, mockExecutor, logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -179,7 +179,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require.NoError(err)
 	mockExecutor := mocks.NewExecutor(t)
 
-	_, err = getInitialState(ctx, genesis, nil, store, mockExecutor, logger)
+	_, _, err = getInitialState(ctx, genesis, nil, store, mockExecutor, logger)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 
 	// Assert mock expectations (InitChain should not have been called)
@@ -319,7 +319,7 @@ func Test_isProposer(t *testing.T) {
 	require := require.New(t)
 
 	type args struct {
-		state         types.State
+		state         crypto.PubKey
 		signerPrivKey signer.Signer
 	}
 	tests := []struct {
@@ -331,17 +331,32 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "Signing key matches genesis proposer public key",
 			args: func() args {
-				genesisData, privKey, _ := types.GetGenesisWithPrivkey("Test_isProposer")
-				s, err := types.NewFromGenesisDoc(genesisData)
-				require.NoError(err)
+				_, privKey, _ := types.GetGenesisWithPrivkey("Test_isProposer")
 				signer, err := noopsigner.NewNoopSigner(privKey)
 				require.NoError(err)
 				return args{
-					s,
+					privKey.GetPublic(),
 					signer,
 				}
 			}(),
 			isProposer: true,
+			err:        nil,
+		},
+		{
+			name: "Signing key does not match genesis proposer public key",
+			args: func() args {
+				_, privKey, _ := types.GetGenesisWithPrivkey("Test_isProposer_Mismatch")
+				// Generate a different private key
+				otherPrivKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+				require.NoError(err)
+				signer, err := noopsigner.NewNoopSigner(otherPrivKey)
+				require.NoError(err)
+				return args{
+					privKey.GetPublic(),
+					signer,
+				}
+			}(),
+			isProposer: false,
 			err:        nil,
 		},
 	}
