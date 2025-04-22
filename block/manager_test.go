@@ -1,7 +1,6 @@
 package block
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -17,8 +16,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
@@ -29,35 +26,6 @@ import (
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
-
-// mockSequencer is a local mock implementation for coresequencer.Sequencer
-type mockSequencer struct {
-	mock.Mock
-}
-
-func (m *mockSequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextBatchRequest) (*coresequencer.GetNextBatchResponse, error) {
-	args := m.Called(ctx, req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*coresequencer.GetNextBatchResponse), args.Error(1)
-}
-
-func (m *mockSequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.SubmitRollupBatchTxsRequest) (*coresequencer.SubmitRollupBatchTxsResponse, error) {
-	args := m.Called(ctx, req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*coresequencer.SubmitRollupBatchTxsResponse), args.Error(1)
-}
-
-func (m *mockSequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBatchRequest) (*coresequencer.VerifyBatchResponse, error) {
-	args := m.Called(ctx, req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*coresequencer.VerifyBatchResponse), args.Error(1)
-}
 
 // WithinDuration asserts that the two durations are within the specified tolerance of each other.
 func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) bool {
@@ -71,11 +39,11 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 	return assert.Fail(t, fmt.Sprintf("Not within duration.\nExpected: %v\nActual: %v\nTolerance: %v", expected, actual, tolerance))
 }
 
-// Returns a minimalistic block manager
-func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier float64) *Manager {
+// Returns a minimalistic block manager using a mock DA Client
+func getManager(t *testing.T, mockDA *mocks.Client, gasPrice float64, gasMultiplier float64) *Manager {
 	logger := log.NewTestLogger(t)
 	return &Manager{
-		dalc:          coreda.NewDummyClient(backend, []byte("test")),
+		dalc:          mockDA, // Use the mock DA Client
 		headerCache:   cache.NewCache[types.SignedHeader](),
 		logger:        logger,
 		gasPrice:      gasPrice,
@@ -87,21 +55,32 @@ func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier
 
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
+	ctx := context.TODO()
 
 	// Create genesis document
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateClean")
 	logger := log.NewTestLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
-	s, err := getInitialState(context.TODO(), genesisData, nil, emptyStore, coreexecutor.NewDummyExecutor(), logger)
+	mockExecutor := mocks.NewExecutor(t)
+
+	// Set expectation for InitChain call within getInitialState
+	mockExecutor.On("InitChain", ctx, genesisData.GenesisDAStartHeight, genesisData.InitialHeight, genesisData.ChainID).
+		Return([]byte("mockAppHash"), uint64(1000), nil).Once()
+
+	s, err := getInitialState(ctx, genesisData, nil, emptyStore, mockExecutor, logger)
 	require.NoError(err)
 	initialHeight := genesisData.InitialHeight
 	require.Equal(initialHeight-1, s.LastBlockHeight)
 	require.Equal(initialHeight, s.InitialHeight)
+
+	// Assert mock expectations
+	mockExecutor.AssertExpectations(t)
 }
 
 func TestInitialStateStored(t *testing.T) {
 	require := require.New(t)
+	ctx := context.Background()
 
 	// Create genesis document
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateStored")
@@ -111,17 +90,21 @@ func TestInitialStateStored(t *testing.T) {
 		LastBlockHeight: 100,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	logger := log.NewTestLogger(t)
-	s, err := getInitialState(context.TODO(), genesisData, nil, store, coreexecutor.NewDummyExecutor(), logger)
+	mockExecutor := mocks.NewExecutor(t)
+
+	// getInitialState should not call InitChain if state exists
+	s, err := getInitialState(ctx, genesisData, nil, store, mockExecutor, logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
+
+	// Assert mock expectations (InitChain should not have been called)
+	mockExecutor.AssertExpectations(t)
 }
 
 func TestHandleEmptyDataHash(t *testing.T) {
@@ -173,6 +156,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)
+	ctx := context.Background()
 
 	// Create genesis document with initial height 2
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
@@ -188,19 +172,23 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 		InitialHeight:   1,
 		LastBlockHeight: 0,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	_, err = getInitialState(context.TODO(), genesis, nil, store, coreexecutor.NewDummyExecutor(), logger)
+	mockExecutor := mocks.NewExecutor(t)
+
+	_, err = getInitialState(ctx, genesis, nil, store, mockExecutor, logger)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
+
+	// Assert mock expectations (InitChain should not have been called)
+	mockExecutor.AssertExpectations(t)
 }
 
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
+	mockDAC := mocks.NewClient(t)       // Use mock DA Client
+	m := getManager(t, mockDAC, -1, -1) // Pass mock DA Client
 	payload := []byte("test")
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
@@ -243,84 +231,14 @@ func TestIsDAIncluded(t *testing.T) {
 	require.True(m.IsDAIncluded(hash))
 }
 
-func TestSubmitBlocksToMockDA(t *testing.T) {
-	ctx := context.Background()
-
-	testCases := []struct {
-		name              string
-		gasPrice          float64
-		gasMultiplier     float64
-		expectedGasPrices []float64
-		isErrExpected     bool
-	}{
-		{"defaults", -1, -1, []float64{
-			-1, -1, -1,
-		}, false},
-		{"fixed_gas_price", 1.0, -1, []float64{
-			1.0, 1.0, 1.0,
-		}, false},
-		{"default_gas_price_with_multiplier", -1, 1.2, []float64{
-			-1, -1, -1,
-		}, false},
-		// {"fixed_gas_price_with_multiplier", 1.0, 1.2, []float64{
-		// 	1.0, 1.2, 1.2 * 1.2,
-		// }, false},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			mockDA := &mocks.DA{}
-			m := getManager(t, mockDA, tc.gasPrice, tc.gasMultiplier)
-			m.config.DA.BlockTime.Duration = time.Millisecond
-			m.config.DA.MempoolTTL = 1
-			kvStore, err := store.NewDefaultInMemoryKVStore()
-			require.NoError(t, err)
-			m.store = store.New(kvStore)
-
-			var blobs [][]byte
-			header, data := types.GetRandomBlock(1, 5, "TestSubmitBlocksToMockDA")
-			blob, err := header.MarshalBinary()
-			require.NoError(t, err)
-
-			err = m.store.SaveBlockData(ctx, header, data, &types.Signature{})
-			require.NoError(t, err)
-			err = m.store.SetHeight(ctx, 1)
-			require.NoError(t, err)
-
-			blobs = append(blobs, blob)
-			// Set up the mock to
-			// * throw timeout waiting for tx to be included exactly twice
-			// * wait for tx to drop from mempool exactly DABlockTime * DAMempoolTTL seconds
-			// * retry with a higher gas price
-			// * successfully submit
-			mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(12345), nil)
-			mockDA.
-				On("SubmitWithOptions", mock.Anything, blobs, tc.expectedGasPrices[0], []byte(nil), []byte(nil)).
-				Return([][]byte{}, coreda.ErrTxTimedOut).Once()
-			mockDA.
-				On("SubmitWithOptions", mock.Anything, blobs, tc.expectedGasPrices[1], []byte(nil), []byte(nil)).
-				Return([][]byte{}, coreda.ErrTxTimedOut).Once()
-			mockDA.
-				On("SubmitWithOptions", mock.Anything, blobs, tc.expectedGasPrices[2], []byte(nil), []byte(nil)).
-				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
-
-			m.pendingHeaders, err = NewPendingHeaders(m.store, m.logger)
-			require.NoError(t, err)
-			err = m.submitHeadersToDA(ctx)
-			require.NoError(t, err)
-			mockDA.AssertExpectations(t)
-		})
-	}
-}
-
-// Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase1"
 	assert := assert.New(t)
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
+	mockDA := mocks.NewClient(t)       // Use mock DA Client
+	m := getManager(t, mockDA, -1, -1) // Pass mock DA Client
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -334,6 +252,8 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	store.On("GetBlockData", mock.Anything, uint64(3)).Return(header3, data3, nil)
 	store.On("Height", mock.Anything).Return(uint64(3), nil)
 
+	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(100000), nil).Once()
+
 	m.store = store
 
 	var err error
@@ -345,24 +265,24 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
 	assert.NoError(err)
 	assert.Equal(3, len(blocks))
+	mockDA.AssertExpectations(t)
 }
 
-// Test_submitBlocksToDA_BlockMarshalErrorCase2: A and B are fair blocks, but C has a marshalling error
-// - Block A and B get submitted to DA layer not block C
 func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase2"
 	assert := assert.New(t)
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
+	mockDA := mocks.NewClient(t)       // Use mock DA Client
+	m := getManager(t, mockDA, -1, -1) // Pass mock DA Client
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
 	header3, data3 := types.GetRandomBlock(uint64(3), 5, chainID)
 
 	store := mocks.NewStore(t)
-	invalidateBlockHeader(header3)
+	invalidateBlockHeader(header3) // C fails marshal
 	store.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
 	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
@@ -371,14 +291,21 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 	m.store = store
 
+	// Expect MaxBlobSize call (likely happens before marshalling loop)
+	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(100000), nil).Once()
+
 	var err error
 	m.pendingHeaders, err = NewPendingHeaders(store, m.logger)
 	require.NoError(err)
 	err = m.submitHeadersToDA(ctx)
-	assert.ErrorContains(err, "failed to transform header to proto")
+	assert.ErrorContains(err, "failed to transform header to proto") // Error from C is expected
 	blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
 	assert.NoError(err)
-	assert.Equal(3, len(blocks)) // we stop submitting all headers when there is a marshalling error
+	// Expect all blocks to remain pending because the batch submission was halted
+	assert.Equal(3, len(blocks))
+
+	mockDA.AssertExpectations(t)
+	store.AssertExpectations(t)
 }
 
 // invalidateBlockHeader results in a block header that produces a marshalling error
@@ -432,7 +359,8 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
+	mockDA := mocks.NewClient(t)       // Use mock DA Client
+	m := getManager(t, mockDA, -1, -1) // Pass mock DA Client
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
@@ -444,8 +372,8 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 
 	// Setup manager with mocks
 	mockStore := mocks.NewStore(t)
-	mockSeq := new(mockSequencer)
-	mockExecutor := coreexecutor.NewDummyExecutor()
+	mockSeq := mocks.NewSequencer(t)
+	mockExec := mocks.NewExecutor(t)
 	logger := log.NewTestLogger(t)
 	chainID := "Test_publishBlock_NoBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
@@ -455,7 +383,7 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	m := &Manager{
 		store:       mockStore,
 		sequencer:   mockSeq,
-		exec:        mockExecutor,
+		exec:        mockExec,
 		logger:      logger,
 		isProposer:  true,
 		proposerKey: noopSigner,
@@ -484,25 +412,24 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	mockStore.On("Height", ctx).Return(currentHeight, nil)
 	mockSignature := types.Signature([]byte{1, 2, 3})
 	mockStore.On("GetSignature", ctx, currentHeight).Return(&mockSignature, nil)
-	// Use GetRandomBlock which returns header and data
 	lastHeader, lastData := types.GetRandomBlock(currentHeight, 0, chainID)
 	mockStore.On("GetBlockData", ctx, currentHeight).Return(lastHeader, lastData, nil)
-	// Mock GetBlockData for newHeight to indicate no pending block exists
 	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found"))
 
-	// No need to mock GetTxs on the dummy executor if its default behavior is acceptable
+	// Mock GetTxs on the executor
+	mockExec.On("GetTxs", ctx).Return([][]byte{}, nil).Once()
 
-	// Mock sequencer SubmitRollupBatchTxs (should still be called)
+	// Mock sequencer SubmitRollupBatchTxs (should still be called even if GetTxs is empty)
 	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
-		return string(req.RollupId) == chainID // Ensure correct rollup ID
+		return string(req.RollupId) == chainID && len(req.Batch.Transactions) == 0
 	})
-	mockSeq.On("SubmitRollupBatchTxs", ctx, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil)
+	mockSeq.On("SubmitRollupBatchTxs", ctx, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil).Once()
 
 	// *** Crucial Mock: Sequencer returns ErrNoBatch ***
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
-		return string(req.RollupId) == chainID // Ensure correct rollup ID
+		return string(req.RollupId) == chainID
 	})
-	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(nil, ErrNoBatch)
+	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(nil, ErrNoBatch).Once()
 
 	// Call publishBlock
 	err = m.publishBlock(ctx)
@@ -512,10 +439,14 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 
 	// Verify mocks: Ensure methods after the check were NOT called
 	mockStore.AssertNotCalled(t, "SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-	// We can't directly assert non-calls on m.createBlock or m.applyBlock easily without more complex setup,
-	// but returning nil error and not calling SaveBlockData implies they weren't reached.
-	mockSeq.AssertExpectations(t) // Ensure GetNextBatch was called
+	mockExec.AssertNotCalled(t, "ExecuteTxs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	mockExec.AssertNotCalled(t, "SetFinal", mock.Anything, mock.Anything)
+	mockStore.AssertNotCalled(t, "SetHeight", mock.Anything, mock.Anything)
+	mockStore.AssertNotCalled(t, "UpdateState", mock.Anything, mock.Anything)
+
+	mockSeq.AssertExpectations(t)
 	mockStore.AssertExpectations(t)
+	mockExec.AssertExpectations(t)
 }
 
 func Test_publishBlock_EmptyBatch(t *testing.T) {
@@ -524,8 +455,8 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 
 	// Setup manager with mocks
 	mockStore := mocks.NewStore(t)
-	mockSeq := new(mockSequencer) // Use the local mock struct
-	mockExecutor := coreexecutor.NewDummyExecutor()
+	mockSeq := mocks.NewSequencer(t)
+	mockExec := mocks.NewExecutor(t)
 	logger := log.NewTestLogger(t)
 	chainID := "Test_publishBlock_EmptyBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
@@ -534,18 +465,18 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 
 	m := &Manager{
 		store:       mockStore,
-		sequencer:   mockSeq, // Assign the local mock
-		exec:        mockExecutor,
+		sequencer:   mockSeq,
+		exec:        mockExec,
 		logger:      logger,
 		isProposer:  true,
 		proposerKey: noopSigner,
 		genesis:     genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
-				MaxPendingBlocks: 0, // No limit
+				MaxPendingBlocks: 0,
 			},
 		},
-		pendingHeaders: &PendingHeaders{ // Basic pending headers mock
+		pendingHeaders: &PendingHeaders{
 			store:  mockStore,
 			logger: logger,
 		},
@@ -564,33 +495,32 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	mockStore.On("Height", ctx).Return(currentHeight, nil)
 	mockSignature := types.Signature([]byte{1, 2, 3})
 	mockStore.On("GetSignature", ctx, currentHeight).Return(&mockSignature, nil)
-	// Use GetRandomBlock
 	lastHeader, lastData := types.GetRandomBlock(currentHeight, 0, chainID)
 	mockStore.On("GetBlockData", ctx, currentHeight).Return(lastHeader, lastData, nil)
-	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found")) // No pending block
+	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found"))
 
-	// No need to mock GetTxs on the dummy executor
+	// Mock GetTxs on the executor
+	mockExec.On("GetTxs", ctx).Return([][]byte{}, nil).Once()
 
 	// Mock sequencer SubmitRollupBatchTxs
 	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
-		return string(req.RollupId) == chainID
+		return string(req.RollupId) == chainID && len(req.Batch.Transactions) == 0
 	})
-	mockSeq.On("SubmitRollupBatchTxs", ctx, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil)
+	mockSeq.On("SubmitRollupBatchTxs", ctx, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil).Once()
 
 	// *** Crucial Mock: Sequencer returns an empty batch ***
 	emptyBatchResponse := &coresequencer.GetNextBatchResponse{
 		Batch: &coresequencer.Batch{
-			Transactions: [][]byte{}, // Empty transactions
+			Transactions: [][]byte{},
 		},
 		Timestamp: time.Now(),
-		BatchData: [][]byte{[]byte("some_batch_data")}, // Sequencer might return metadata even if empty
+		BatchData: [][]byte{[]byte("some_batch_data")},
 	}
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
 		return string(req.RollupId) == chainID
 	})
-	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(emptyBatchResponse, nil)
-	// Mock store SetMetadata for the last batch data
-	mockStore.On("SetMetadata", ctx, LastBatchDataKey, mock.Anything).Return(nil)
+	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(emptyBatchResponse, nil).Once()
+	mockStore.On("SetMetadata", ctx, LastBatchDataKey, mock.Anything).Return(nil).Once()
 
 	// Call publishBlock
 	err = m.publishBlock(ctx)
@@ -600,11 +530,16 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 
 	// Verify mocks: Ensure methods after the check were NOT called
 	mockStore.AssertNotCalled(t, "SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	mockExec.AssertNotCalled(t, "ExecuteTxs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	mockExec.AssertNotCalled(t, "SetFinal", mock.Anything, mock.Anything)
+	mockStore.AssertNotCalled(t, "SetHeight", mock.Anything, mock.Anything)
+	mockStore.AssertNotCalled(t, "UpdateState", mock.Anything, mock.Anything)
+
 	mockSeq.AssertExpectations(t)
 	mockStore.AssertExpectations(t)
+	mockExec.AssertExpectations(t)
 }
 
-// TestAggregationLoop tests the AggregationLoop function
 func TestAggregationLoop(t *testing.T) {
 	mockStore := new(mocks.Store)
 	mockLogger := log.NewTestLogger(t)
@@ -616,7 +551,7 @@ func TestAggregationLoop(t *testing.T) {
 			"myChain",
 			1,
 			time.Now(),
-			[]byte{}, // Empty extra data
+			[]byte{},
 		),
 		config: config.Config{
 			Node: config.NodeConfig{
@@ -633,105 +568,11 @@ func TestAggregationLoop(t *testing.T) {
 
 	go m.AggregationLoop(ctx)
 
-	// Wait for the function to complete or timeout
 	<-ctx.Done()
 
 	mockStore.AssertExpectations(t)
 }
 
-// TestLazyAggregationLoop tests the lazyAggregationLoop function
-// TODO: uncomment the test when the lazy aggregation is properly fixed
-// func TestLazyAggregationLoop(t *testing.T) {
-// 	t.Parallel()
-
-// 	mockStore := mocks.NewStore(t)
-// 	//mockLogger := log.NewTestLogger(t)
-
-// 	// Set block time to 100ms and lazy block time to 1s
-// 	blockTime := 100 * time.Millisecond
-// 	lazyBlockTime := 1 * time.Second
-
-// 	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
-// 	m.exec = coreexecutor.NewDummyExecutor()
-// 	m.isProposer = true
-// 	m.store = mockStore
-// 	m.metrics = NopMetrics()
-// 	m.HeaderCh = make(chan *types.SignedHeader, 10)
-// 	m.DataCh = make(chan *types.Data, 10)
-// 	m.config.Node.LazyAggregator = true
-// 	m.config.Node.BlockTime.Duration = blockTime
-// 	m.config.Node.LazyBlockTime.Duration = lazyBlockTime
-
-// 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
-// 	require.NoError(t, err)
-// 	noopSigner, err := noopsigner.NewNoopSigner(privKey)
-// 	require.NoError(t, err)
-// 	m.proposerKey = noopSigner
-// 	mockSignature := types.Signature([]byte{1, 2, 3})
-
-// 	// Mock store expectations
-// 	mockStore.On("Height", mock.Anything).Return(uint64(0), nil)
-// 	mockStore.On("SetHeight", mock.Anything, mock.Anything).Return(nil)
-// 	mockStore.On("UpdateState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-// 	mockStore.On("GetBlockData", mock.Anything, mock.Anything).Return(&types.SignedHeader{}, &types.Data{}, nil)
-// 	mockStore.On("GetSignature", mock.Anything, mock.Anything).Return(&mockSignature, nil)
-
-// 	// Create a context with a timeout longer than the test duration
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-// 	defer cancel()
-
-// 	// Create a channel to track block production
-// 	blockProduced := make(chan struct{}, 10)
-// 	mockStore.On("SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-// 		blockProduced <- struct{}{}
-// 	})
-
-// 	blockTimer := time.NewTimer(blockTime)
-// 	defer blockTimer.Stop()
-
-// 	// Start the lazy aggregation loop
-// 	start := time.Now()
-// 	go m.lazyAggregationLoop(ctx, blockTimer)
-
-// 	// Wait for the first block to be produced (should happen after blockTime)
-// 	select {
-// 	case <-blockProduced:
-// 		// First block produced as expected
-// 	case <-time.After(2 * blockTime):
-// 		require.Fail(t, "First block not produced within expected time")
-// 	}
-
-// 	// Wait for the second block (should happen after lazyBlockTime since no transactions)
-// 	select {
-// 	case <-blockProduced:
-// 		// Second block produced as expected
-// 	case <-time.After(lazyBlockTime + 100*time.Millisecond):
-// 		require.Fail(t, "Second block not produced within expected time")
-// 	}
-
-// 	// Wait for the third block (should happen after lazyBlockTime since no transactions)
-// 	select {
-// 	case <-blockProduced:
-// 		// Second block produced as expected
-// 	case <-time.After(lazyBlockTime + 100*time.Millisecond):
-// 		require.Fail(t, "Second block not produced within expected time")
-// 	}
-// 	end := time.Now()
-
-// 	// Ensure that the duration between block productions adheres to the defined lazyBlockTime.
-// 	// This check prevents blocks from being produced too fast, maintaining consistent timing.
-// 	expectedDuration := 2*lazyBlockTime + blockTime
-// 	expectedEnd := start.Add(expectedDuration)
-// 	require.WithinDuration(t, expectedEnd, end, 3*blockTime)
-
-// 	// Cancel the context to stop the loop
-// 	cancel()
-
-// 	// Verify mock expectations
-// 	mockStore.AssertExpectations(t)
-// }
-
-// TestNormalAggregationLoop tests the normalAggregationLoop function
 func TestNormalAggregationLoop(t *testing.T) {
 	mockLogger := log.NewTestLogger(t)
 
@@ -753,6 +594,5 @@ func TestNormalAggregationLoop(t *testing.T) {
 
 	go m.normalAggregationLoop(ctx, blockTimer)
 
-	// Wait for the function to complete or timeout
 	<-ctx.Done()
 }

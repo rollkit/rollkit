@@ -172,23 +172,6 @@ func cleanUpNode(cancel context.CancelFunc, wg *sync.WaitGroup, errCh chan error
 	}
 }
 
-// initAndStartNodeWithCleanup initializes and starts a node of the specified type.
-func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) Node {
-	node, _ := setupTestNode(ctx, t, nodeType, chainID)
-	runner := startNodeWithCleanup(t, node)
-
-	return runner.Node
-}
-
-// setupTestNode sets up a test node based on the NodeType.
-func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, crypto.PrivKey) {
-	node, privKey, err := newTestNode(ctx, t, nodeType, chainID)
-	require.NoError(t, err)
-	require.NotNil(t, node)
-
-	return node, privKey
-}
-
 // newTestNode creates a new test node based on the NodeType.
 func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, crypto.PrivKey, error) {
 	config := rollkitconfig.Config{
@@ -236,8 +219,12 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 func TestNewNode(t *testing.T) {
 	ctx := context.Background()
 	chainID := "TestNewNode"
+
 	// ln := initAndStartNodeWithCleanup(ctx, t, Light, chainID)
 	// require.IsType(t, new(LightNode), ln)
-	fn := initAndStartNodeWithCleanup(ctx, t, Full, chainID)
-	require.IsType(t, new(FullNode), fn)
+	node, _, err := newTestNode(ctx, t, Full, chainID)
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	runner := startNodeWithCleanup(t, node)
+	require.IsType(t, new(FullNode), runner.Node)
 }
