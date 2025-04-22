@@ -1,7 +1,6 @@
 package genesis
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 func TestNewGenesis(t *testing.T) {
 	// Test valid genesis creation
 	validTime := time.Now()
-	appState := json.RawMessage(`{"key": "value"}`)
 	proposerAddress := []byte("proposer")
 
 	genesis := NewGenesis(
@@ -19,14 +17,12 @@ func TestNewGenesis(t *testing.T) {
 		1,
 		validTime,
 		proposerAddress,
-		appState,
 	)
 
 	assert.Equal(t, "test-chain", genesis.ChainID)
 	assert.Equal(t, uint64(1), genesis.InitialHeight)
 	assert.Equal(t, validTime, genesis.GenesisDAStartHeight)
 	assert.Equal(t, proposerAddress, genesis.ProposerAddress)
-	assert.Equal(t, appState, genesis.AppState)
 
 	// Test that NewGenesis validates and panics on invalid input
 	genesis = NewGenesis(
@@ -34,7 +30,6 @@ func TestNewGenesis(t *testing.T) {
 		1,
 		validTime,
 		proposerAddress,
-		appState,
 	)
 	err := genesis.Validate()
 	assert.Error(t, err)
@@ -44,7 +39,6 @@ func TestNewGenesis(t *testing.T) {
 		0, // Zero initial height should cause panic
 		validTime,
 		proposerAddress,
-		appState,
 	)
 	err = genesis.Validate()
 	assert.Error(t, err)
@@ -54,7 +48,6 @@ func TestNewGenesis(t *testing.T) {
 		1,
 		time.Time{}, // Zero time should cause panic
 		proposerAddress,
-		appState,
 	)
 	err = genesis.Validate()
 	assert.Error(t, err)
@@ -64,7 +57,6 @@ func TestNewGenesis(t *testing.T) {
 		1,
 		validTime,
 		nil, // Nil proposer address should cause panic
-		appState,
 	)
 	err = genesis.Validate()
 	assert.Error(t, err)
@@ -84,7 +76,6 @@ func TestGenesis_Validate(t *testing.T) {
 				GenesisDAStartHeight: validTime,
 				InitialHeight:        1,
 				ProposerAddress:      []byte("proposer"),
-				AppState:             json.RawMessage(`{}`),
 			},
 			wantErr: false,
 		},
