@@ -14,7 +14,6 @@ import (
 
 	"cosmossdk.io/log"
 	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/da"
 )
 
 // DefaultMaxBlobSize is the default max blob size
@@ -98,7 +97,7 @@ func (d *LocalDA) Get(ctx context.Context, ids []coreda.ID, _ []byte) ([]coreda.
 		}
 		if !found {
 			d.logger.Warn("Get: blob not found", "id", id, "height", height)
-			return nil, da.ErrBlobNotFound
+			return nil, coreda.ErrBlobNotFound
 		}
 	}
 	d.logger.Debug("Get successful", "count", len(blobs))
@@ -113,7 +112,7 @@ func (d *LocalDA) GetIDs(ctx context.Context, height uint64, _ []byte) (*coreda.
 
 	if height > d.height {
 		d.logger.Error("GetIDs: height in future", "requested", height, "current", d.height)
-		return nil, fmt.Errorf("height %d is in the future: %w", height, da.ErrFutureHeight)
+		return nil, fmt.Errorf("height %d is in the future: %w", height, coreda.ErrFutureHeight)
 	}
 
 	kvps, ok := d.data[height]

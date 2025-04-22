@@ -43,7 +43,7 @@ func TestMockDAErrors(t *testing.T) {
 			On("SubmitWithOptions", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
 			// On("SubmitWithOptions", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
 			After(submitTimeout).
-			Return(nil, ErrContextDeadline)
+			Return(nil, coreda.ErrContextDeadline)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
@@ -55,7 +55,7 @@ func TestMockDAErrors(t *testing.T) {
 		defer cancel()
 
 		resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
-		assert.Contains(resp.Message, ErrContextDeadline.Error(), "should return context timeout error")
+		assert.Contains(resp.Message, coreda.ErrContextDeadline.Error(), "should return context timeout error")
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
 		mockDA := &mocks.DA{}
@@ -78,7 +78,7 @@ func TestMockDAErrors(t *testing.T) {
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
 			On("SubmitWithOptions", mock.Anything, blobs, float64(-1), []byte(nil), []byte(nil)).
-			Return([]coreda.ID{}, ErrTxTooLarge)
+			Return([]coreda.ID{}, coreda.ErrTxTooLarge)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -88,7 +88,8 @@ func TestMockDAErrors(t *testing.T) {
 		assert.NoError(err)
 
 		resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
-		assert.Contains(resp.Message, ErrTxTooLarge.Error(), "should return tx too large error")
+		assert.Contains(resp.Message, coreda.ErrTxTooLarge.Error(), "should return tx too large error")
+		assert.Equal(resp.Code, coreda.StatusTooBig)
 		assert.Equal(resp.Code, coreda.StatusTooBig)
 	})
 }
@@ -253,7 +254,7 @@ func doTestRetrieveNoBlocksFound(t *testing.T, dalc coreda.Client) {
 	// Namespaces don't work on dummy da right now (https://github.com/rollkit/go-da/issues/94),
 	// when namespaces are implemented, this should be uncommented
 	assert.Equal(coreda.StatusNotFound, result.Code)
-	assert.Contains(result.Message, ErrBlobNotFound.Error())
+	assert.Contains(result.Message, coreda.ErrBlobNotFound.Error())
 	assert.Equal(coreda.StatusNotFound, result.Code)
 }
 

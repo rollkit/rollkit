@@ -62,7 +62,7 @@ func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint
 	for i := range data {
 		blob := data[i]
 		if blobSize+uint64(len(blob)) > maxBlobSize {
-			message = fmt.Sprint(ErrBlobSizeOverLimit.Error(), "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
+			message = fmt.Sprint(coreda.ErrBlobSizeOverLimit.Error(), "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
 			dac.Logger.Info(message)
 			break
 		}
@@ -82,15 +82,15 @@ func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint
 	if err != nil {
 		status := coreda.StatusError
 		switch {
-		case errors.Is(err, ErrTxTimedOut):
+		case errors.Is(err, coreda.ErrTxTimedOut):
 			status = coreda.StatusNotIncludedInBlock
-		case errors.Is(err, ErrTxAlreadyInMempool):
+		case errors.Is(err, coreda.ErrTxAlreadyInMempool):
 			status = coreda.StatusAlreadyInMempool
-		case errors.Is(err, ErrTxIncorrectAccountSequence):
+		case errors.Is(err, coreda.ErrTxIncorrectAccountSequence):
 			status = coreda.StatusAlreadyInMempool
-		case errors.Is(err, ErrTxTooLarge):
+		case errors.Is(err, coreda.ErrTxTooLarge):
 			status = coreda.StatusTooBig
-		case errors.Is(err, ErrContextDeadline):
+		case errors.Is(err, coreda.ErrContextDeadline):
 			status = coreda.StatusContextDeadline
 		}
 		return coreda.ResultSubmit{
@@ -138,7 +138,7 @@ func (dac *DAClient) Retrieve(ctx context.Context, dataLayerHeight uint64) cored
 		return coreda.ResultRetrieve{
 			BaseResult: coreda.BaseResult{
 				Code:    coreda.StatusNotFound,
-				Message: ErrBlobNotFound.Error(),
+				Message: coreda.ErrBlobNotFound.Error(),
 				Height:  dataLayerHeight,
 			},
 		}
