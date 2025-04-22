@@ -13,6 +13,7 @@ var ErrGenesisExists = fmt.Errorf("genesis file already exists")
 // CreateGenesis creates and saves a genesis file with the given app state.
 // If the genesis file already exists, it skips the creation and returns ErrGenesisExists.
 // The genesis file is saved in the config directory of the specified home path.
+// It should only be used when the application is NOT handling the genesis creation.
 func CreateGenesis(homePath string, chainID string, initialHeight uint64, proposerAddress []byte) error {
 	configDir := filepath.Join(homePath, "config")
 	genesisPath := filepath.Join(configDir, "genesis.json")
@@ -69,7 +70,6 @@ func LoadGenesis(genesisPath string) (Genesis, error) {
 }
 
 // Save saves the genesis state to the specified file path.
-// It should only be used when the application is NOT handling the genesis creation.
 func (g Genesis) Save(genesisPath string) error {
 	genesisJSON, err := json.MarshalIndent(g, "", "  ")
 	if err != nil {
