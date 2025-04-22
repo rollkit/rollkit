@@ -5,7 +5,43 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
+
+var ErrGenesisExists = fmt.Errorf("genesis file already exists")
+
+// CreateGenesis creates and saves a genesis file with the given app state.
+// If the genesis file already exists, it skips the creation and returns ErrGenesisExists.
+// The genesis file is saved in the config directory of the specified home path.
+func CreateGenesis(homePath string, chainID string, initialHeight uint64, proposerAddress []byte) error {
+	configDir := filepath.Join(homePath, "config")
+	genesisPath := filepath.Join(configDir, "genesis.json")
+
+	// Check if the genesis file already exists
+	if _, err := os.Stat(genesisPath); err == nil {
+		return ErrGenesisExists
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to check for existing genesis file at %s: %w", genesisPath, err)
+	}
+
+	// If the directory doesn't exist, create it
+	if err := os.MkdirAll(configDir, 0o750); err != nil {
+		return fmt.Errorf("error creating config directory: %w", err)
+	}
+
+	genesisData := NewGenesis(
+		chainID,
+		initialHeight,
+		time.Now(),      // Current time as genesis DA start height
+		proposerAddress, // Proposer address
+	)
+
+	if err := genesisData.Save(genesisPath); err != nil {
+		return fmt.Errorf("error writing genesis file: %w", err)
+	}
+
+	return nil
+}
 
 // LoadGenesis loads the genesis state from the specified file path.
 func LoadGenesis(genesisPath string) (Genesis, error) {

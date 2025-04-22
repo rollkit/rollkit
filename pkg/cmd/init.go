@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	rollconf "github.com/rollkit/rollkit/pkg/config"
-	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/hash"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer/file"
@@ -58,41 +56,6 @@ func LoadOrGenNodeKey(homePath string) error {
 	_, err := key.LoadOrGenNodeKey(nodeKeyFile)
 	if err != nil {
 		return fmt.Errorf("failed to create node key: %w", err)
-	}
-
-	return nil
-}
-
-var ErrGenesisExists = fmt.Errorf("genesis file already exists")
-
-// CreateGenesis creates and saves a genesis file with the given app state.
-// If the genesis file already exists, it skips the creation and returns ErrGenesisExists.
-// The genesis file is saved in the config directory of the specified home path.
-func CreateGenesis(homePath string, chainID string, initialHeight uint64, proposerAddress, appState []byte) error {
-	configDir := filepath.Join(homePath, "config")
-	genesisPath := filepath.Join(configDir, "genesis.json")
-
-	// Check if the genesis file already exists
-	if _, err := os.Stat(genesisPath); err == nil {
-		return ErrGenesisExists
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("failed to check for existing genesis file at %s: %w", genesisPath, err)
-	}
-
-	// If the directory doesn't exist, create it
-	if err := os.MkdirAll(configDir, 0o750); err != nil {
-		return fmt.Errorf("error creating config directory: %w", err)
-	}
-
-	genesisData := genesispkg.NewGenesis(
-		chainID,
-		initialHeight,
-		time.Now(),      // Current time as genesis DA start height
-		proposerAddress, // Proposer address
-	)
-
-	if err := genesisData.Save(genesisPath); err != nil {
-		return fmt.Errorf("error writing genesis file: %w", err)
 	}
 
 	return nil
