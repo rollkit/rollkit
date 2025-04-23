@@ -13,7 +13,7 @@ require (
 	github.com/celestiaorg/go-header v0.6.5
 	github.com/celestiaorg/utils v0.1.0
 	github.com/go-kit/kit v0.13.0
-	github.com/goccy/go-yaml v1.16.0
+	github.com/goccy/go-yaml v1.17.1
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/ipfs/go-ds-badger4 v0.1.8
 	github.com/libp2p/go-libp2p v0.41.1
