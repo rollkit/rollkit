@@ -52,7 +52,9 @@ func (s *DefaultPruningStore) PruneBlockData(ctx context.Context) error {
 	for i := startHeight; i <= endHeight; i++ {
 		err = s.DeleteBlockData(ctx, i)
 		if err != nil {
-			return err
+			// Could ignore for errors like not found.
+			// This err is a placeholder for warning if there is a logger in the Store.
+			continue
 		}
 	}
 
