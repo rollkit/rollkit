@@ -2,8 +2,6 @@ package store
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/types"
 )
@@ -42,10 +40,6 @@ func (s *DefaultPruningStore) Height(ctx context.Context) (uint64, error) {
 // SaveBlockData adds block header and data to the store along with corresponding signature.
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultPruningStore) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
-	if err := s.PruneBlockData(ctx); err != nil {
-		return fmt.Errorf("failed to prune block data: %w", err)
-	}
-
 	return s.Store.SaveBlockData(ctx, header, data, signature)
 }
 
@@ -113,13 +107,16 @@ func (s *DefaultPruningStore) PruneBlockData(ctx context.Context) error {
 	}
 
 	// Skip if it's a correct interval or latest height is less or equal than number of blocks need to keep.
-	if height%s.Config.Interval != 0 || height <= s.Config.KeepRecent {
+	if height%s.Config.Interval != 0 || height < s.Config.KeepRecent {
 		return nil
 	}
 
 	// Must keep at least 2 blocks(while strategy is everything).
-	endHeight := height - s.Config.KeepRecent
-	startHeight := min(0, endHeight-s.Config.KeepRecent)
+	endHeight := height + 1 - s.Config.KeepRecent
+	startHeight := uint64(0)
+	if endHeight > s.Config.Interval {
+		startHeight = endHeight - s.Config.Interval
+	}
 
 	for i := startHeight; i <= endHeight; i++ {
 		err = s.DeleteBlockData(ctx, i)
