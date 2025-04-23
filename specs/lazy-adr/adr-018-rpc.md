@@ -1,8 +1,9 @@
-# ADR 017: Store RPC Layer Implementation using Connect-RPC
+# ADR 018: Store RPC Layer Implementation using Connect-RPC
 
 ## Changelog
 
 - 2024-03-25: Initial proposal
+- 2025-04-23: Renumbered from ADR-017 to ADR-018 to maintain chronological order.
 
 ## Context
 
