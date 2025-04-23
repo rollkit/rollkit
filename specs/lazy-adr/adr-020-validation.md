@@ -1,8 +1,9 @@
-# ADR 013: Validation Flow for Single Sequencer Rollups
+# ADR 020: Validation Flow for Single Sequencer Rollups
 
 ## Changelog
 
 - 2025-04-08: Initial draft
+- 2025-04-23: Renumbered from ADR-013 to ADR-020 to maintain chronological order.
 
 ## Context
 
