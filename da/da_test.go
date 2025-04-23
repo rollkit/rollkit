@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/test/mocks"
+	"github.com/rollkit/rollkit/da/internal/mocks"
 )
 
 const (
