@@ -10,126 +10,124 @@ import (
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 	dsync "github.com/ipfs/go-datastore/sync"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
-	execution "github.com/rollkit/rollkit/core/execution"
-	sequencer "github.com/rollkit/rollkit/core/sequencer"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	testmocks "github.com/rollkit/rollkit/test/mocks"
 )
 
 func TestReaper_SubmitTxs_Success(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	exec := execution.NewDummyExecutor()
-	seq := sequencer.NewDummySequencer()
+	mockExec := testmocks.NewExecutor(t)
+	mockSeq := testmocks.NewSequencer(t)
 	store := dsync.MutexWrap(ds.NewMapDatastore())
 	logger := log.NewNopLogger()
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 
-	reaper := NewReaper(ctx, exec, seq, chainID, interval, logger, store)
+	reaper := NewReaper(ctx, mockExec, mockSeq, chainID, interval, logger, store)
 
-	// Inject a transaction
+	// Prepare transaction and its hash
 	tx := []byte("tx1")
-	exec.InjectTx(tx)
+
+	// Mock interactions for the first SubmitTxs call
+	mockExec.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
+	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
+		return string(req.RollupId) == chainID && len(req.Batch.Transactions) == 1 && string(req.Batch.Transactions[0]) == string(tx)
+	})
+	mockSeq.On("SubmitRollupBatchTxs", mock.Anything, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil).Once()
 
 	// Run once and ensure transaction is submitted
 	reaper.SubmitTxs()
+	mockSeq.AssertCalled(t, "SubmitRollupBatchTxs", mock.Anything, submitReqMatcher)
 
-	res, err := seq.GetNextBatch(ctx, sequencer.GetNextBatchRequest{RollupId: []byte(chainID)})
-	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
-	}
-	if len(res.Batch.Transactions) != 1 {
-		t.Fatalf("expected 1 transaction submitted, got %d", len(res.Batch.Transactions))
-	}
+	mockExec.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
 
 	// Run again, should not resubmit
 	reaper.SubmitTxs()
 
-	res, err = seq.GetNextBatch(ctx, sequencer.GetNextBatchRequest{RollupId: []byte(chainID)})
-	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
-	}
-	if len(res.Batch.Transactions) != 1 {
-		t.Fatalf("expected still 1 transaction, got %d", len(res.Batch.Transactions))
-	}
+	// Verify the final state: GetTxs called twice, SubmitRollupBatchTxs called only once
+	mockExec.AssertExpectations(t)
+	mockSeq.AssertExpectations(t)
 }
 
 func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	exec := execution.NewDummyExecutor()
-	seq := sequencer.NewDummySequencer()
+	mockExec := testmocks.NewExecutor(t)
+	mockSeq := testmocks.NewSequencer(t)
 	store := dsync.MutexWrap(ds.NewMapDatastore())
 	logger := log.NewNopLogger()
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 
-	reaper := NewReaper(ctx, exec, seq, chainID, interval, logger, store)
+	reaper := NewReaper(ctx, mockExec, mockSeq, chainID, interval, logger, store)
+
+	// Mock GetTxs returning no transactions
+	mockExec.On("GetTxs", mock.Anything).Return([][]byte{}, nil).Once()
 
 	// Run once and ensure nothing is submitted
 	reaper.SubmitTxs()
 
-	_, err := seq.GetNextBatch(ctx, sequencer.GetNextBatchRequest{RollupId: []byte(chainID)})
-	if err == nil {
-		t.Fatalf("expected error due to no batch submitted")
-	}
-}
-
-func TestReaper_SubmitTxs_InvalidChainID(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	exec := execution.NewDummyExecutor()
-	seq := sequencer.NewDummySequencer()
-	store := dsync.MutexWrap(ds.NewMapDatastore())
-	logger := log.NewNopLogger()
-	chainID := "test-chain"
-	interval := 100 * time.Millisecond
-
-	reaper := NewReaper(ctx, exec, seq, chainID, interval, logger, store)
-
-	// Inject a transaction
-	exec.InjectTx([]byte("tx1"))
-
-	// Run with correct ID to store the tx
-	reaper.SubmitTxs()
-
-	_, err := seq.GetNextBatch(ctx, sequencer.GetNextBatchRequest{RollupId: []byte("wrong-id")})
-	if err == nil {
-		t.Fatal("expected error due to invalid rollup ID")
-	}
+	// Verify GetTxs was called
+	mockExec.AssertExpectations(t)
+	mockSeq.AssertNotCalled(t, "SubmitRollupBatchTxs", mock.Anything, mock.Anything)
 }
 
 func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
+	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	exec := execution.NewDummyExecutor()
-	seq := sequencer.NewDummySequencer()
+	// Use separate mocks for each instance but share the store
+	mockExec1 := testmocks.NewExecutor(t)
+	mockSeq1 := testmocks.NewSequencer(t)
+	mockExec2 := testmocks.NewExecutor(t)
+	mockSeq2 := testmocks.NewSequencer(t)
+
 	store := dsync.MutexWrap(ds.NewMapDatastore())
 	logger := log.NewNopLogger()
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 
-	// First reaper instance
-	reaper := NewReaper(ctx, exec, seq, chainID, interval, logger, store)
+	// Prepare transaction and its hash
 	tx := []byte("tx-persist")
-	exec.InjectTx(tx)
-	reaper.SubmitTxs()
+	txHash := sha256.Sum256(tx)
+	txKey := ds.NewKey(hex.EncodeToString(txHash[:]))
+
+	// First reaper instance
+	reaper1 := NewReaper(ctx, mockExec1, mockSeq1, chainID, interval, logger, store)
+
+	// Mock interactions for the first instance
+	mockExec1.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
+	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
+		return string(req.RollupId) == chainID && len(req.Batch.Transactions) == 1 && string(req.Batch.Transactions[0]) == string(tx)
+	})
+	mockSeq1.On("SubmitRollupBatchTxs", mock.Anything, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil).Once()
+
+	reaper1.SubmitTxs()
+
+	// Verify the tx was marked as seen in the real store after the first run
+	has, err := store.Has(ctx, txKey)
+	require.NoError(err)
+	require.True(has, "Transaction should be marked as seen in the datastore after first submission")
 
 	// Create a new reaper instance simulating a restart
-	reaper2 := NewReaper(ctx, exec, seq, chainID, interval, logger, store)
-	exec.InjectTx(tx) // re-inject the same tx
+	reaper2 := NewReaper(ctx, mockExec2, mockSeq2, chainID, interval, logger, store)
+
+	// Mock interactions for the second instance
+	mockExec2.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
 
 	// Should not submit it again
 	reaper2.SubmitTxs()
 
-	txHash := sha256.Sum256(tx)
-	key := ds.NewKey(hex.EncodeToString(txHash[:]))
-	has, err := store.Has(ctx, key)
-	if err != nil || !has {
-		t.Fatalf("expected tx to be marked as seen, err=%v", err)
-	}
+	// Verify the final state:
+	mockExec1.AssertExpectations(t)
+	mockSeq1.AssertExpectations(t)
+	mockExec2.AssertExpectations(t)
+	mockSeq2.AssertNotCalled(t, "SubmitRollupBatchTxs", mock.Anything, mock.Anything)
 }

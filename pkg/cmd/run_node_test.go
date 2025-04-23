@@ -16,7 +16,6 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/da"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
@@ -28,8 +27,7 @@ func createTestComponents(_ context.Context, t *testing.T) (coreexecutor.Executo
 	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-	logger := log.NewLogger(os.Stdout)
-	dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte{}, logger)
+	dac := coreda.NewDummyClient(dummyDA, []byte("test"))
 	tmpDir := t.TempDir()
 	keyProvider, err := filesigner.CreateFileSystemSigner(filepath.Join(tmpDir, "config"), []byte{})
 	if err != nil {
