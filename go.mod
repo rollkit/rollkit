@@ -4,10 +4,7 @@ go 1.24.1
 
 retract v0.12.0 // Published by accident
 
-replace (
-	github.com/rollkit/rollkit/core => ./core
-	github.com/rollkit/rollkit/da => ./da
-)
+replace github.com/rollkit/rollkit/core => ./core
 
 require (
 	connectrpc.com/connect v1.18.1
@@ -16,7 +13,7 @@ require (
 	github.com/celestiaorg/go-header v0.6.5
 	github.com/celestiaorg/utils v0.1.0
 	github.com/go-kit/kit v0.13.0
-	github.com/goccy/go-yaml v1.16.0
+	github.com/goccy/go-yaml v1.17.1
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/ipfs/go-ds-badger4 v0.1.8
 	github.com/libp2p/go-libp2p v0.41.1
@@ -27,13 +24,12 @@ require (
 	github.com/prometheus/client_golang v1.21.1
 	github.com/rollkit/go-sequencing v0.4.1
 	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
-	github.com/rollkit/rollkit/da v0.0.0-00010101000000-000000000000
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/crypto v0.36.0
+	golang.org/x/crypto v0.37.0
 	golang.org/x/net v0.38.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.6
@@ -182,9 +178,9 @@ require (
 	golang.org/x/arch v0.15.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	golang.org/x/tools v0.31.0 // indirect
 	gonum.org/v1/gonum v0.15.1 // indirect

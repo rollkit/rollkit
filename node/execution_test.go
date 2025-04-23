@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	testmocks "github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -24,16 +26,38 @@ func TestBasicExecutionFlow(t *testing.T) {
 	err := waitForNodeInitialization(node)
 	require.NoError(err)
 
-	executor := getExecutorFromNode(t, node)
-	txs := getTransactions(t, executor, ctx)
+	// Get the original executor to retrieve transactions
+	originalExecutor := getExecutorFromNode(t, node)
+	txs := getTransactions(t, originalExecutor, ctx)
 
-	mockExec := coreexecutor.NewDummyExecutor()
+	// Use the generated mock executor for testing execution steps
+	mockExec := testmocks.NewExecutor(t)
+
+	// Define expected state and parameters
+	expectedInitialStateRoot := []byte("initial state root")
+	expectedMaxBytes := uint64(1024)
+	expectedNewStateRoot := []byte("new state root")
+	blockHeight := uint64(1)
+	chainID := "test-chain"
+
+	// Set expectations on the mock executor
+	mockExec.On("InitChain", mock.Anything, mock.AnythingOfType("time.Time"), blockHeight, chainID).
+		Return(expectedInitialStateRoot, expectedMaxBytes, nil).Once()
+	mockExec.On("ExecuteTxs", mock.Anything, txs, blockHeight, mock.AnythingOfType("time.Time"), expectedInitialStateRoot).
+		Return(expectedNewStateRoot, expectedMaxBytes, nil).Once()
+	mockExec.On("SetFinal", mock.Anything, blockHeight).
+		Return(nil).Once()
+
+	// Call helper functions with the mock executor
 	stateRoot, maxBytes := initializeChain(t, mockExec, ctx)
-	executor = mockExec
+	require.Equal(expectedInitialStateRoot, stateRoot)
+	require.Equal(expectedMaxBytes, maxBytes)
 
-	newStateRoot, _ := executeTransactions(t, executor, ctx, txs, stateRoot, maxBytes)
+	newStateRoot, newMaxBytes := executeTransactions(t, mockExec, ctx, txs, stateRoot, maxBytes)
+	require.Equal(expectedNewStateRoot, newStateRoot)
+	require.Equal(expectedMaxBytes, newMaxBytes)
 
-	finalizeExecution(t, executor, ctx)
+	finalizeExecution(t, mockExec, ctx)
 
 	require.NotEmpty(newStateRoot)
 }
@@ -69,18 +93,22 @@ func getTransactions(t *testing.T, executor coreexecutor.Executor, ctx context.C
 	return txs
 }
 
-func initializeChain(t *testing.T, executor coreexecutor.Executor, ctx context.Context) (types.Hash, uint64) {
-	stateRoot, maxBytes, err := executor.InitChain(ctx, time.Now(), 1, "test-chain")
+func initializeChain(t *testing.T, executor coreexecutor.Executor, ctx context.Context) ([]byte, uint64) {
+	genesisTime := time.Now()
+	initialHeight := uint64(1)
+	chainID := "test-chain"
+	stateRoot, maxBytes, err := executor.InitChain(ctx, genesisTime, initialHeight, chainID)
 	require.NoError(t, err)
 	require.Greater(t, maxBytes, uint64(0))
 	return stateRoot, maxBytes
 }
 
-func executeTransactions(t *testing.T, executor coreexecutor.Executor, ctx context.Context, txs [][]byte, stateRoot types.Hash, maxBytes uint64) (types.Hash, uint64) {
-	newStateRoot, newMaxBytes, err := executor.ExecuteTxs(ctx, txs, 1, time.Now(), stateRoot)
+func executeTransactions(t *testing.T, executor coreexecutor.Executor, ctx context.Context, txs [][]byte, stateRoot types.Hash, maxBytes uint64) ([]byte, uint64) {
+	blockHeight := uint64(1)
+	timestamp := time.Now()
+	newStateRoot, newMaxBytes, err := executor.ExecuteTxs(ctx, txs, blockHeight, timestamp, stateRoot)
 	require.NoError(t, err)
 	require.Greater(t, newMaxBytes, uint64(0))
-	require.Equal(t, maxBytes, newMaxBytes)
 	return newStateRoot, newMaxBytes
 }
 

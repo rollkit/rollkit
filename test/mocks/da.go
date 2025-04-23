@@ -218,6 +218,7 @@ func (_m *DA) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return r0, r1
 }
 
+// Submit provides a mock function with given fields: ctx, blobs, gasPrice, namespace
 func (_m *DA) Submit(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte) ([][]byte, error) {
 	ret := _m.Called(ctx, blobs, gasPrice, namespace)
 
@@ -247,12 +248,12 @@ func (_m *DA) Submit(ctx context.Context, blobs [][]byte, gasPrice float64, name
 	return r0, r1
 }
 
-// Submit provides a mock function with given fields: ctx, blobs, gasPrice, namespace, options
+// SubmitWithOptions provides a mock function with given fields: ctx, blobs, gasPrice, namespace, options
 func (_m *DA) SubmitWithOptions(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte, options []byte) ([][]byte, error) {
 	ret := _m.Called(ctx, blobs, gasPrice, namespace, options)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Submit")
+		panic("no return value specified for SubmitWithOptions")
 	}
 
 	var r0 [][]byte

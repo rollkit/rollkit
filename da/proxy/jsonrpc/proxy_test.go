@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	da "github.com/rollkit/rollkit/da"
 	proxy "github.com/rollkit/rollkit/da/proxy/jsonrpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -117,7 +116,7 @@ func CheckErrors(t *testing.T, d coreda.DA) {
 	ctx := context.TODO()
 	blob, err := d.Get(ctx, []coreda.ID{[]byte("invalid blob id")}, testNamespace)
 	assert.Error(t, err)
-	assert.ErrorContains(t, err, da.ErrBlobNotFound.Error())
+	assert.ErrorContains(t, err, coreda.ErrBlobNotFound.Error())
 	assert.Empty(t, blob)
 }
 
