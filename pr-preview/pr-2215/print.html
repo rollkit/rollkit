@@ -355,7 +355,7 @@ This block is marked as soft confirmed by the validating full node until the sam
 <p>See <a href="https://rollkit.dev/guides/full-node">tutorial</a> for running a multi-node network with both sequencer and non-sequencer full nodes.</p>
 <h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
 <p>[1] <a href="https://github.com/celestiaorg/go-header">Go Header</a></p>
-<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync</a></p>
+<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Block Sync</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
 <p>[5] <a href="https://rollkit.dev/guides/full-node">Tutorial</a></p>
@@ -503,39 +503,36 @@ Block.Verify()
 <h3 id="genesisdoc"><a class="header" href="#genesisdoc">genesisDoc</a></h3>
 <p>The <a href="https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md">genesis</a> document contains information about the initial state of the rollup chain, in particular its validator set.</p>
 <h3 id="conf"><a class="header" href="#conf">conf</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/config/config.go">node configuration</a> contains all the necessary settings for the node to be initialized and function properly.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/config/config.go">node configuration</a> contains all the necessary settings for the node to be initialized and function properly.</p>
 <h3 id="p2p"><a class="header" href="#p2p">P2P</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">peer-to-peer client</a> is used to gossip transactions between full nodes in the network.</p>
-<h3 id="mempool"><a class="header" href="#mempool">Mempool</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go">Mempool</a> is the transaction pool where all the transactions are stored before they are added to a block.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/p2p/client.go">peer-to-peer client</a> is used to gossip transactions between full nodes in the network.</p>
 <h3 id="store"><a class="header" href="#store">Store</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Store</a> is initialized with <code>DefaultStore</code>, an implementation of the <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go">store interface</a> which is used for storing and retrieving blocks, commits, and state. |</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go">Store</a> is initialized with <code>DefaultStore</code>, an implementation of the <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go">store interface</a> which is used for storing and retrieving blocks, commits, and state. |</p>
 <h3 id="blockmanager"><a class="header" href="#blockmanager">blockManager</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a> is responsible for managing the operations related to blocks such as creating and validating blocks.</p>
 <h3 id="dalc"><a class="header" href="#dalc">dalc</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">Data Availability Layer Client</a> is used to interact with the data availability layer. It is initialized with the DA Layer and DA Config specified in the node configuration.</p>
 <h3 id="hexservice"><a class="header" href="#hexservice">hExService</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync Service</a> is used for syncing block headers between nodes over P2P.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Header Sync Service</a> is used for syncing block headers between nodes over P2P.</p>
 <h3 id="bsyncservice"><a class="header" href="#bsyncservice">bSyncService</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync Service</a> is used for syncing blocks between nodes over P2P.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Block Sync Service</a> is used for syncing blocks between nodes over P2P.</p>
 <h2 id="message-structurecommunication-format-2"><a class="header" href="#message-structurecommunication-format-2">Message Structure/Communication Format</a></h2>
 <p>The Full Node communicates with other nodes in the network using the P2P client. It also communicates with the application using the ABCI proxy connections. The communication format is based on the P2P and ABCI protocols.</p>
 <h2 id="assumptions-and-considerations-2"><a class="header" href="#assumptions-and-considerations-2">Assumptions and Considerations</a></h2>
-<p>The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors.</p>
+<p>The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, block manager, and other services can be started and stopped without errors.</p>
 <h2 id="implementation-3"><a class="header" href="#implementation-3">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full node</a></p>
 <h2 id="references-3"><a class="header" href="#references-3">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[2] <a href="https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md">Genesis Document</a></p>
-<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/config/config.go">Node Configuration</a></p>
-<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">Peer to Peer Client</a></p>
-<p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go">Mempool</a></p>
-<p>[6] <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Store</a></p>
-<p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go">Store Interface</a></p>
-<p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
-<p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">Data Availability Layer Client</a></p>
-<p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync Service</a></p>
-<p>[11] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync Service</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/config/config.go">Node Configuration</a></p>
+<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/p2p/client.go">Peer to Peer Client</a></p>
+<p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go">Store</a></p>
+<p>[6] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go">Store Interface</a></p>
+<p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
+<p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">Data Availability Layer Client</a></p>
+<p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Header Sync Service</a></p>
+<p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Block Sync Service</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="header-sync"><a class="header" href="#header-sync">Header Sync</a></h1>
 <h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
 <p>The nodes in the P2P network sync headers using the header sync service that implements the <a href="https://github.com/celestiaorg/go-header">go-header</a> interface. The header sync service consists of several components as listed below.</p>
@@ -563,9 +560,9 @@ Block.Verify()
 <li>The node's context is passed down to all the components of the P2P header sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
 </ul>
 <h2 id="implementation-4"><a class="header" href="#implementation-4">Implementation</a></h2>
-<p>The header sync implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">block/sync_service.go</a>. The full and light nodes create and start the header sync service under <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a>.</p>
+<p>The header sync implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">block/sync_service.go</a>. The full and light nodes create and start the header sync service under <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a>.</p>
 <h2 id="references-4"><a class="header" href="#references-4">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync</a></p>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Header Sync</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">Light Node</a></p>
 <p>[4] <a href="https://github.com/celestiaorg/go-header">go-header</a></p>
@@ -933,7 +930,7 @@ type P2PConfig struct {
 }
 </code></pre>
 <p>A P2P client also instantiates a <a href="https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater">connection gator</a> to block and allow peers specified in the <code>P2PConfig</code>.</p>
-<p>It also sets up a gossiper using the gossip topic <code>&lt;chainID&gt;+&lt;txTopicSuffix&gt;</code> (<code>txTopicSuffix</code> is defined in <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">p2p/client.go</a>), a Distributed Hash Table (DHT) using the <code>Seeds</code> defined in the <code>P2PConfig</code> and peer discovery using go-libp2p's <code>discovery.RoutingDiscovery</code>.</p>
+<p>It also sets up a gossiper using the gossip topic <code>&lt;chainID&gt;+&lt;txTopicSuffix&gt;</code> (<code>txTopicSuffix</code> is defined in <a href="https://github.com/rollkit/rollkit/blob/main/pkg/p2p/client.go">p2p/client.go</a>), a Distributed Hash Table (DHT) using the <code>Seeds</code> defined in the <code>P2PConfig</code> and peer discovery using go-libp2p's <code>discovery.RoutingDiscovery</code>.</p>
 <p>A P2P client provides an interface <code>SetTxValidator(p2p.GossipValidator)</code> for specifying a gossip validator which can define how to handle the incoming <code>GossipMessage</code> in the P2P network. The <code>GossipMessage</code> represents message gossiped via P2P network (e.g. transaction, Block etc).</p>
 <pre><code class="language-go">// GossipValidator is a callback function type.
 type GossipValidator func(*GossipMessage) bool
@@ -947,7 +944,7 @@ func (n *FullNode) newTxValidator() p2p.GossipValidator {
 func (ln *LightNode) falseValidator() p2p.GossipValidator {
 </code></pre>
 <h2 id="references-7"><a class="header" href="#references-7">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">client.go</a></p>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/p2p/client.go">client.go</a></p>
 <p>[2] <a href="https://github.com/ipfs/go-datastore">go-datastore</a></p>
 <p>[3] <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a></p>
 <p>[4] <a href="https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater">conngater</a></p>
@@ -971,7 +968,7 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <li><code>SaveValidators</code>: Saves the validator set at a given height.</li>
 <li><code>GetValidators</code>: Returns the validator set at a given height.</li>
 </ul>
-<p>The <code>TxnDatastore</code> interface inside <a href="https://github.com/ipfs/go-datastore">go-datastore</a> is used for constructing different key-value stores for the underlying storage of a full node. The are two different implementations of <code>TxnDatastore</code> in <a href="https://github.com/rollkit/rollkit/blob/main/store/kv.go">kv.go</a>:</p>
+<p>The <code>TxnDatastore</code> interface inside <a href="https://github.com/ipfs/go-datastore">go-datastore</a> is used for constructing different key-value stores for the underlying storage of a full node. The are two different implementations of <code>TxnDatastore</code> in <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/kv.go">kv.go</a>:</p>
 <ul>
 <li>
 <p><code>NewDefaultInMemoryKVStore</code>: Builds a key-value store that uses the <a href="https://github.com/dgraph-io/badger">BadgerDB</a> library and operates in-memory, without accessing the disk. Used only across unit tests and integration tests.</p>
@@ -992,23 +989,22 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 </ul>
 <p>For example, in a call to <code>GetBlockByHash</code> for some block hash <code>&lt;block_hash&gt;</code>, the key used in the full node's base key-value store will be <code>/0/b/&lt;block_hash&gt;</code> where <code>0</code> is the main store prefix and <code>b</code> is the block prefix. Similarly, in a call to <code>GetValidators</code> for some height <code>&lt;height&gt;</code>, the key used in the full node's base key-value store will be <code>/0/v/&lt;height&gt;</code> where <code>0</code> is the main store prefix and <code>v</code> is the validator set prefix.</p>
 <p>Inside the key-value store, the value of these various types of data like <code>Block</code> is stored as a byte array which is encoded and decoded using the corresponding Protobuf <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">marshal and unmarshal methods</a>.</p>
-<p>The store is most widely used inside the <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block manager</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go">full client</a> to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, <code>lastStateMtx</code>, to synchronize read/write access to it and prevent race conditions.</p>
+<p>The store is most widely used inside the <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block manager</a> to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, <code>lastStateMtx</code>, to synchronize read/write access to it and prevent race conditions.</p>
 <h2 id="message-structurecommunication-format-5"><a class="header" href="#message-structurecommunication-format-5">Message Structure/Communication Format</a></h2>
 <p>The Store does not communicate over the network, so there is no message structure or communication format.</p>
 <h2 id="assumptions-and-considerations-5"><a class="header" href="#assumptions-and-considerations-5">Assumptions and Considerations</a></h2>
 <p>The Store assumes that the underlying datastore is reliable and provides atomicity for transactions. It also assumes that the data passed to it for storage is valid and correctly formatted.</p>
 <h2 id="implementation-7"><a class="header" href="#implementation-7">Implementation</a></h2>
-<p>See <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go#L11">Store Interface</a> and <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Default Store</a> for its implementation.</p>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go#L11">Store Interface</a> and <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go">Default Store</a> for its implementation.</p>
 <h2 id="references-8"><a class="header" href="#references-8">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go#L11">Store Interface</a></p>
-<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Default Store</a></p>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go#L11">Store Interface</a></p>
+<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go">Default Store</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">Full Node Store Initialization</a></p>
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
-<p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go">Full Client</a></p>
-<p>[6] <a href="https://github.com/dgraph-io/badger">Badger DB</a></p>
-<p>[7] <a href="https://github.com/ipfs/go-datastore">Go Datastore</a></p>
-<p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/store/kv.go">Key Value Store</a></p>
-<p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">Serialization</a></p>
+<p>[5] <a href="https://github.com/dgraph-io/badger">Badger DB</a></p>
+<p>[6] <a href="https://github.com/ipfs/go-datastore">Go Datastore</a></p>
+<p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/kv.go">Key Value Store</a></p>
+<p>[8 ] <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">Serialization</a></p>
 
                     </main>
 
