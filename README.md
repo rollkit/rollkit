@@ -44,8 +44,6 @@ You can spin up a local TestApp network (powered by Rollkit) with the following 
 testapp start
 ```
 
-Explore the CLI documentation [here](./docs/cmd/testapp.md)
-
 ## Building with Rollkit
 
 Rollkit is the first sovereign rollup framework that allows you to launch
