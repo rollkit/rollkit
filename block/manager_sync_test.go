@@ -3,6 +3,8 @@ package block
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -581,4 +583,205 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	assert.Nil(m.dataCache.GetItem(heightH1), "Data cache should be cleared for H+1")
 	assert.Nil(m.headerCache.GetItem(heightH2), "Header cache should be cleared for H+2")
 	assert.Nil(m.dataCache.GetItem(heightH2), "Data cache should be cleared for H+2")
+}
+
+// TestSyncLoop_IgnoreDuplicateEvents verifies that the SyncLoop correctly processes
+// a block once even if the header and data events are received multiple times.
+func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	initialHeight := uint64(40)
+	initialState := types.State{
+		LastBlockHeight: initialHeight,
+		AppHash:         []byte("initial_app_hash_dup"),
+		ChainID:         "syncLoopTest",
+		DAHeight:        35,
+	}
+	heightH1 := initialHeight + 1
+	daHeight := initialState.DAHeight + 1
+
+	m, mockStore, mockExec, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	defer cancel()
+
+	// --- Block H+1 Data ---
+	headerH1, dataH1, privKeyH1 := types.GenerateRandomBlockCustom(&types.BlockConfig{Height: heightH1, NTxs: 1}, initialState.ChainID)
+	require.NotNil(headerH1)
+	require.NotNil(dataH1)
+	require.NotNil(privKeyH1)
+	appHashH1 := []byte("app_hash_h1_dup")
+	stateH1 := initialState
+	stateH1.LastBlockHeight = heightH1
+	stateH1.AppHash = appHashH1
+	stateH1.LastBlockTime = headerH1.Time()
+	stateH1.DAHeight = daHeight
+	var txsH1 [][]byte
+	for _, tx := range dataH1.Txs {
+		txsH1 = append(txsH1, tx)
+	}
+
+	syncChanH1 := make(chan struct{})
+
+	// --- Mock Expectations (Expect processing exactly ONCE) ---
+	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash).
+		Return(appHashH1, uint64(1), nil).Once()
+	mockStore.On("SaveBlockData", mock.Anything, headerH1, dataH1, &headerH1.Signature).Return(nil).Once()
+	mockExec.On("SetFinal", mock.Anything, heightH1).Return(nil).Once()
+	mockStore.On("SetHeight", mock.Anything, heightH1).Return(nil).Once()
+	mockStore.On("UpdateState", mock.Anything, stateH1).Return(nil).
+		Run(func(args mock.Arguments) { close(syncChanH1) }).
+		Once()
+
+	ctx, testCancel := context.WithCancel(context.Background())
+	defer testCancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		m.SyncLoop(ctx)
+		t.Log("SyncLoop exited.")
+	}()
+
+	// --- Send First Set of Events ---
+	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
+	time.Sleep(10 * time.Millisecond)
+	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
+
+	t.Log("Waiting for first sync to complete...")
+	select {
+	case <-syncChanH1:
+		t.Log("First sync completed.")
+	case <-time.After(2 * time.Second):
+		testCancel()
+		wg.Wait()
+		t.Fatal("Timeout waiting for first sync to complete")
+	}
+
+	// --- Send Duplicate Events ---
+	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
+	time.Sleep(10 * time.Millisecond)
+	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
+
+	// Wait a bit to ensure duplicates are not processed
+	time.Sleep(100 * time.Millisecond)
+
+	// Cancel context and wait for SyncLoop goroutine to finish
+	testCancel()
+	wg.Wait()
+
+	// Assertions
+	mockStore.AssertExpectations(t) // Crucial: verifies calls happened exactly once
+	mockExec.AssertExpectations(t)  // Crucial: verifies calls happened exactly once
+
+	finalState := m.GetLastState()
+	assert.Equal(stateH1.LastBlockHeight, finalState.LastBlockHeight)
+	assert.Equal(stateH1.AppHash, finalState.AppHash)
+	assert.Equal(stateH1.LastBlockTime, finalState.LastBlockTime)
+	assert.Equal(stateH1.DAHeight, finalState.DAHeight)
+
+	// Assert caches are cleared
+	assert.Nil(m.headerCache.GetItem(heightH1), "Header cache should be cleared for H+1")
+	assert.Nil(m.dataCache.GetItem(heightH1), "Data cache should be cleared for H+1")
+}
+
+// TestSyncLoop_PanicOnApplyError verifies that the SyncLoop panics if ApplyBlock fails.
+func TestSyncLoop_PanicOnApplyError(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	initialHeight := uint64(50)
+	initialState := types.State{
+		LastBlockHeight: initialHeight,
+		AppHash:         []byte("initial_app_hash_panic"),
+		ChainID:         "syncLoopTest",
+		DAHeight:        45,
+	}
+	heightH1 := initialHeight + 1
+	daHeight := initialState.DAHeight + 1
+
+	m, mockStore, mockExec, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	defer cancel() // Ensure context cancellation happens even on panic
+
+	// --- Block H+1 Data ---
+	headerH1, dataH1, _ := types.GenerateRandomBlockCustom(&types.BlockConfig{Height: heightH1, NTxs: 1}, initialState.ChainID)
+	require.NotNil(headerH1)
+	require.NotNil(dataH1)
+	var txsH1 [][]byte
+	for _, tx := range dataH1.Txs {
+		txsH1 = append(txsH1, tx)
+	}
+
+	applyErrorSignal := make(chan struct{})
+	panicCaughtSignal := make(chan struct{})
+	applyError := errors.New("apply failed")
+
+	// --- Mock Expectations ---
+	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash).
+		Return(nil, uint64(1), applyError).                         // Return the error that should cause panic
+		Run(func(args mock.Arguments) { close(applyErrorSignal) }). // Signal *before* returning error
+		Once()
+	// NO further calls expected after Apply error
+
+	ctx, testCancel := context.WithCancel(context.Background())
+	defer testCancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				t.Logf("Caught expected panic: %v", r)
+				assert.Contains(fmt.Sprintf("%v", r), applyError.Error(), "Panic message should contain the original error")
+				close(panicCaughtSignal)
+			} else {
+				t.Error("SyncLoop did not panic as expected")
+			}
+		}()
+		m.SyncLoop(ctx)
+		t.Log("SyncLoop exited.")
+	}()
+
+	// --- Send Events ---
+	t.Logf("Sending header event for height %d", heightH1)
+	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
+	time.Sleep(10 * time.Millisecond)
+	t.Logf("Sending data event for height %d", heightH1)
+	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
+
+	t.Log("Waiting for ApplyBlock error...")
+	select {
+	case <-applyErrorSignal:
+		t.Log("ApplyBlock error occurred.")
+	case <-time.After(2 * time.Second):
+
+		testCancel()
+		wg.Wait()
+		t.Fatal("Timeout waiting for ApplyBlock error signal")
+	}
+
+	t.Log("Waiting for panic to be caught...")
+	select {
+	case <-panicCaughtSignal:
+		t.Log("Panic caught.")
+	case <-time.After(2 * time.Second):
+
+		testCancel()
+		wg.Wait()
+		t.Fatal("Timeout waiting for panic signal")
+	}
+
+	testCancel()
+	wg.Wait()
+
+	mockStore.AssertExpectations(t)
+	mockExec.AssertExpectations(t)
+
+	finalState := m.GetLastState()
+	assert.Equal(initialState.LastBlockHeight, finalState.LastBlockHeight, "State height should not change after panic")
+	assert.Equal(initialState.AppHash, finalState.AppHash, "State AppHash should not change after panic")
+
+	assert.NotNil(m.headerCache.GetItem(heightH1), "Header cache should still contain item for H+1")
+	assert.NotNil(m.dataCache.GetItem(heightH1), "Data cache should still contain item for H+1")
 }

@@ -204,8 +204,8 @@ func TestSignVerifySignature(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			m.proposerKey = c.signer
-			signature, err := m.proposerKey.Sign(payload)
+			m.signer = c.signer
+			signature, err := m.signer.Sign(payload)
 			require.NoError(err)
 			pubKey, err := c.signer.GetPublic()
 			require.NoError(err)

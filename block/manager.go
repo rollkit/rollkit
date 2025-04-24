@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	goheaderstore "github.com/celestiaorg/go-header/store"
+	goheaderstore "github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"google.golang.org/protobuf/proto"
@@ -107,7 +107,7 @@ type Manager struct {
 	config  config.Config
 	genesis genesis.Genesis
 
-	proposerKey signer.Signer
+	signer signer.Signer
 
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
@@ -116,10 +116,10 @@ type Manager struct {
 	DataCh   chan *types.Data
 
 	headerInCh  chan NewHeaderEvent
-	headerStore *goheaderstore.Store[*types.SignedHeader]
+	headerStore goheaderstore.Store[*types.SignedHeader]
 
 	dataInCh  chan NewDataEvent
-	dataStore *goheaderstore.Store[*types.Data]
+	dataStore goheaderstore.Store[*types.Data]
 
 	headerCache *cache.Cache[types.SignedHeader]
 	dataCache   *cache.Cache[types.Data]
@@ -252,7 +252,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 // NewManager creates new block Manager.
 func NewManager(
 	ctx context.Context,
-	proposerKey signer.Signer,
+	signer signer.Signer,
 	config config.Config,
 	genesis genesis.Genesis,
 	store store.Store,
@@ -260,13 +260,13 @@ func NewManager(
 	sequencer coresequencer.Sequencer,
 	dalc coreda.Client,
 	logger log.Logger,
-	headerStore *goheaderstore.Store[*types.SignedHeader],
-	dataStore *goheaderstore.Store[*types.Data],
+	headerStore goheaderstore.Store[*types.SignedHeader],
+	dataStore goheaderstore.Store[*types.Data],
 	seqMetrics *Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
 ) (*Manager, error) {
-	s, pubkey, err := getInitialState(ctx, genesis, proposerKey, store, exec, logger)
+	s, pubkey, err := getInitialState(ctx, genesis, signer, store, exec, logger)
 	if err != nil {
 		logger.Error("error while getting initial state", "error", err)
 		return nil, err
@@ -311,7 +311,7 @@ func NewManager(
 	//nolint:ineffassign // This assignment is needed
 	maxBlobSize -= blockProtocolOverhead
 
-	isProposer, err := isProposer(proposerKey, pubkey)
+	isProposer, err := isProposer(signer, pubkey)
 	if err != nil {
 		logger.Error("error while checking if proposer", "error", err)
 		return nil, err
@@ -334,13 +334,13 @@ func NewManager(
 	}
 
 	agg := &Manager{
-		proposerKey: proposerKey,
-		config:      config,
-		genesis:     genesis,
-		lastState:   s,
-		store:       store,
-		dalc:        dalc,
-		daHeight:    s.DAHeight,
+		signer:    signer,
+		config:    config,
+		genesis:   genesis,
+		lastState: s,
+		store:     store,
+		dalc:      dalc,
+		daHeight:  s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:       make(chan *types.SignedHeader, channelLength),
 		DataCh:         make(chan *types.Data, channelLength),
@@ -399,7 +399,7 @@ func (m *Manager) GetLastState() types.State {
 func (m *Manager) init(ctx context.Context) {
 	// initialize da included height
 	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
-		m.daIncludedHeight.Store(binary.BigEndian.Uint64(height))
+		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
 	}
 }
 
@@ -411,7 +411,7 @@ func (m *Manager) setDAIncludedHeight(ctx context.Context, newHeight uint64) err
 		}
 		if m.daIncludedHeight.CompareAndSwap(currentHeight, newHeight) {
 			heightBytes := make([]byte, 8)
-			binary.BigEndian.PutUint64(heightBytes, newHeight)
+			binary.LittleEndian.PutUint64(heightBytes, newHeight)
 			return m.store.SetMetadata(ctx, DAIncludedHeightKey, heightBytes)
 		}
 	}
@@ -885,7 +885,13 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 
 // DataStoreRetrieveLoop is responsible for retrieving data from the Data Store.
 func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
-	lastDataStoreHeight := uint64(0)
+	// height is always >0
+	initialHeight, err := m.store.Height(ctx)
+	if err != nil {
+		m.logger.Error("failed to get initial store height for DataStoreRetrieveLoop", "error", err)
+		return
+	}
+	lastDataStoreHeight := initialHeight
 	for {
 		select {
 		case <-ctx.Done():
@@ -1107,7 +1113,7 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 }
 
 func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
-	return getSignature(header, m.proposerKey)
+	return getSignature(header, m.signer)
 }
 
 // publishBlockInternal is the internal implementation for publishing a block.
@@ -1506,13 +1512,13 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	data := batchData.Data
 	batchdata := convertBatchDataToBytes(data)
 
-	key, err := m.proposerKey.GetPublic()
+	key, err := m.signer.GetPublic()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get proposer public key: %w", err)
 	}
 
 	// check that the proposer address is the same as the genesis proposer address
-	address, err := m.proposerKey.GetAddress()
+	address, err := m.signer.GetAddress()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get proposer address: %w", err)
 	}

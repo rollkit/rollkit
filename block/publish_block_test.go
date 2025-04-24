@@ -70,7 +70,7 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 		store:          mockStore,
 		exec:           mockExec,
 		sequencer:      mockSeq,
-		proposerKey:    testSigner,
+		signer:         testSigner,
 		config:         cfg,
 		genesis:        genesis,
 		logger:         logger,
@@ -203,13 +203,13 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	require.NoError(err)
 
 	m := &Manager{
-		store:       mockStore,
-		sequencer:   mockSeq,
-		exec:        mockExec,
-		logger:      logger,
-		isProposer:  true,
-		proposerKey: noopSigner,
-		genesis:     genesisData,
+		store:      mockStore,
+		sequencer:  mockSeq,
+		exec:       mockExec,
+		logger:     logger,
+		isProposer: true,
+		signer:     noopSigner,
+		genesis:    genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
 				MaxPendingBlocks: 0,
@@ -288,13 +288,13 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	require.NoError(err)
 
 	m := &Manager{
-		store:       mockStore,
-		sequencer:   mockSeq,
-		exec:        mockExec,
-		logger:      logger,
-		isProposer:  true,
-		proposerKey: noopSigner,
-		genesis:     genesisData,
+		store:      mockStore,
+		sequencer:  mockSeq,
+		exec:       mockExec,
+		logger:     logger,
+		isProposer: true,
+		signer:     noopSigner,
+		genesis:    genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
 				MaxPendingBlocks: 0,
