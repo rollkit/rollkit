@@ -1,8 +1,9 @@
-# ADR 010: Remote Signing Service for Fast and Secure Digital Signatures
+# ADR 011: Remote Signing Service for Fast and Secure Digital Signatures
 
 ## Changelog
 
 - 2025-03-14: Initial ADR creation including remote and local signing implementations, gRPC client/server flow.
+- 2025-04-23: Renumbered from ADR-010 to ADR-011 to maintain chronological order.
 
 ## Context
 

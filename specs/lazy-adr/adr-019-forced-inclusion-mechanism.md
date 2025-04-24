@@ -1,8 +1,9 @@
-# ADR 018: Forced Inclusion Mechanism
+# ADR 019: Forced Inclusion Mechanism
 
 ## Changelog
 
 - 2025-03-24: Initial draft
+- 2025-04-23: Renumbered from ADR-018 to ADR-019 to maintain chronological order.
 
 ## Context
 
