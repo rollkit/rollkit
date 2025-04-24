@@ -18,7 +18,8 @@ The easiest way to understand how to use Rollkit is by exploring our example imp
 
 Requires Go version >= 1.22.
 
-TestApp is a CLI tool that demonstrates how to run different kinds of nodes using the Rollkit framework. It serves as a reference implementation and helps you understand how to build your own Rollkit-based blockchain.
+TestApp is a CLI tool that demonstrates how to run different kinds of nodes using the Rollkit framework.
+It serves as a reference implementation and helps you understand how to build your own Rollkit-based blockchain.
 
 #### Install
 
@@ -48,7 +49,8 @@ Explore the CLI documentation [here](./docs/cmd/testapp.md)
 ## Building with Rollkit
 
 Rollkit is the first sovereign rollup framework that allows you to launch
-a sovereign, customizable blockchain as easily as a smart contract. TestApp serves as a reference implementation to help you get started with your own Rollkit-based blockchain.
+a sovereign, customizable blockchain as easily as a smart contract.
+TestApp serves as a reference implementation to help you get started with your own Rollkit-based blockchain.
 
 Check out our tutorials on our [website][docs].
 

@@ -159,8 +159,8 @@ By default, the based sequencing supports max bytes along with max height drift 
 
 Rollup light clients (once implemented) are not expected to re-execute transactions to derive rollup headers. Instead, they will perform verification only. These clients will typically receive headers either:
 
-* via the p2p network along with accompanying proofs, or
-* from a connected full node, in which case they will still require validity proofs for the received headers.
+- via the p2p network along with accompanying proofs, or
+- from a connected full node, in which case they will still require validity proofs for the received headers.
 
 This design ensures that rollup light clients remain lightweight and efficient, relying on cryptographic proofs rather than execution to validate the rollup state.
 
@@ -177,13 +177,13 @@ This design ensures that rollup light clients remain lightweight and efficient, 
 
 In fully decentralized based sequencing, full nodes do not need VerifyBatch to participate in consensus or build the canonical rollup state — because they derive everything deterministically from L1. However, VerifyBatch may still be useful in sync, light clients, testing, or cross-domain verification.
 
-* Light Clients: L1 or cross-domain light clients can use VerifyBatch to validate that a given rollup state root or message was derived according to the forkchoice rule and execution logic.
+- Light Clients: L1 or cross-domain light clients can use VerifyBatch to validate that a given rollup state root or message was derived according to the forkchoice rule and execution logic.
 
-* Syncing Peers: During peer synchronization or state catch-up, nodes may download batches and use VerifyBatch to confirm correctness before trusting the result.
+- Syncing Peers: During peer synchronization or state catch-up, nodes may download batches and use VerifyBatch to confirm correctness before trusting the result.
 
-* Auditing / Indexers: Off-chain services may verify batches as part of building state snapshots, fraud monitoring, or historical replays.
+- Auditing / Indexers: Off-chain services may verify batches as part of building state snapshots, fraud monitoring, or historical replays.
 
-* Testing: Developers and test frameworks can validate batch formation correctness and execution determinism using VerifyBatch.
+- Testing: Developers and test frameworks can validate batch formation correctness and execution determinism using VerifyBatch.
 
 In all of these cases, VerifyBatch acts as a stateless, replayable re-computation check using base-layer data and rollup rules.
 
@@ -197,10 +197,10 @@ The user transaction itself includes a maxFeePerGas and maxPriorityFeePerGas—s
 
 This design ensures:
 
-* Fee accountability: Users pay for DA inclusion via standard gas fees.
-* Node neutrality: Any full node can relay a transaction and get compensated.
-* No execution-layer changes: Works with unmodified reth/op-geth clients.
-* Security: Users retain flexibility to either self-submit or rely on decentralized relayers.
+- Fee accountability: Users pay for DA inclusion via standard gas fees.
+- Node neutrality: Any full node can relay a transaction and get compensated.
+- No execution-layer changes: Works with unmodified reth/op-geth clients.
+- Security: Users retain flexibility to either self-submit or rely on decentralized relayers.
 
 Additional enhancements like dynamic fee markets, relayer reputation, or rollup-native incentives can be layered atop this base mechanism in the future.
 

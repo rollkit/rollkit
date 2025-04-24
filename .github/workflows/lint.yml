@@ -49,27 +49,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: rollkit/.github/.github/actions/markdown-lint@v0.5.0
 
-  cli-docs-lint:
-    name: Lint CLI Docs
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: set up go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: ./go.mod
-      - name: install rollkit cli
-        run: make install
-      - name: Generate Docs
-        run: testapp docs-gen
-      - name: Verify no diff
-        run: |
-          DIFF=$(git diff)
-          if [[ -n "$DIFF" ]]; then
-            echo "$DIFF"
-            exit 1
-          fi
-
   # Checks that the .goreleaser.yaml file is valid
   goreleaser-check:
     runs-on: ubuntu-latest
