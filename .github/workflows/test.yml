@@ -3,14 +3,6 @@
 name: Tests / Code Coverage
 on:
   workflow_call:
-  pull_request:
-    branches:
-      - main
-      - 'v*'
-  push:
-    branches:
-      - main
-      - 'v*'
 
 jobs:
   build_all-apps:
