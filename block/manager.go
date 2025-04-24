@@ -74,6 +74,10 @@ var (
 	initialBackoff = 100 * time.Millisecond
 )
 
+// publishBlockFunc defines the function signature for publishing a block.
+// This allows for overriding the behavior in tests.
+type publishBlockFunc func(ctx context.Context) error
+
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
 	Header   *types.SignedHeader
@@ -153,6 +157,10 @@ type Manager struct {
 
 	sequencer     coresequencer.Sequencer
 	lastBatchData [][]byte
+
+	// publishBlock is the function used to publish blocks. It defaults to
+	// the manager's publishBlock method but can be overridden for testing.
+	publishBlock publishBlockFunc
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -358,6 +366,8 @@ func NewManager(
 		gasMultiplier:  gasMultiplier,
 	}
 	agg.init(ctx)
+	// Set the default publishBlock implementation
+	agg.publishBlock = agg.publishBlockInternal
 	return agg, nil
 }
 
@@ -1100,7 +1110,9 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 	return getSignature(header, m.proposerKey)
 }
 
-func (m *Manager) publishBlock(ctx context.Context) error {
+// publishBlockInternal is the internal implementation for publishing a block.
+// It's assigned to the publishBlock field by default.
+func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
