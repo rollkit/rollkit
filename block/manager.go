@@ -844,7 +844,13 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 // HeaderStoreRetrieveLoop is responsible for retrieving headers from the Header Store.
 func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
-	lastHeaderStoreHeight := uint64(0)
+	// height is always > 0
+	initialHeight, err := m.store.Height(ctx)
+	if err != nil {
+		m.logger.Error("failed to get initial store height for DataStoreRetrieveLoop", "error", err)
+		return
+	}
+	lastHeaderStoreHeight := initialHeight
 	for {
 		select {
 		case <-ctx.Done():
@@ -885,7 +891,7 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 
 // DataStoreRetrieveLoop is responsible for retrieving data from the Data Store.
 func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
-	// height is always >0
+	// height is always > 0
 	initialHeight, err := m.store.Height(ctx)
 	if err != nil {
 		m.logger.Error("failed to get initial store height for DataStoreRetrieveLoop", "error", err)

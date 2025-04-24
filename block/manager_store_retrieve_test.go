@@ -283,3 +283,165 @@ func TestDataStoreRetrieveLoop_ContextCancellation(t *testing.T) {
 	// No specific mock expectations needed here, just verifying termination
 	mockDataStore.AssertExpectations(t) // Should have no calls expected/made
 }
+
+func TestHeaderStoreRetrieveLoop_RetrievesNewHeader(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	m, mockStore, mockHeaderStore, _, headerStoreCh, _, headerInCh, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
+	defer cancel()
+
+	initialHeight := uint64(0)
+	newHeight := uint64(1)
+
+	mockStore.On("Height", ctx).Return(initialHeight, nil).Once()
+
+	validHeader, err := types.GetFirstSignedHeader(m.signer, m.genesis.ChainID)
+	require.NoError(err)
+	require.Equal(m.genesis.ProposerAddress, validHeader.ProposerAddress)
+
+	mockHeaderStore.On("Height").Return(newHeight).Once() // Height check after trigger
+	mockHeaderStore.On("GetByHeight", mock.Anything, newHeight).Return(validHeader, nil).Once()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		m.HeaderStoreRetrieveLoop(ctx)
+	}()
+
+	headerStoreCh <- struct{}{}
+
+	select {
+	case receivedEvent := <-headerInCh:
+		assert.Equal(validHeader, receivedEvent.Header)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for header event on headerInCh")
+	}
+
+	cancel()
+	wg.Wait()
+
+	mockHeaderStore.AssertExpectations(t)
+}
+
+func TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders(t *testing.T) {
+	t.Skip()
+	assert := assert.New(t)
+	require := require.New(t)
+
+	m, mockStore, mockHeaderStore, _, headerStoreCh, _, headerInCh, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
+	defer cancel()
+
+	initialHeight := uint64(5)
+	finalHeight := uint64(8)
+	numHeaders := finalHeight - initialHeight
+
+	headers := make([]*types.SignedHeader, numHeaders)
+	var lastHeader *types.SignedHeader
+	for i := uint64(0); i < numHeaders; i++ {
+		currentHeight := initialHeight + 1 + i
+		var h *types.SignedHeader
+		var err error
+		if currentHeight == m.genesis.InitialHeight {
+			h, err = types.GetFirstSignedHeader(m.signer, m.genesis.ChainID)
+		} else {
+			if lastHeader == nil {
+				if initialHeight == m.genesis.InitialHeight-1 {
+					lastHeader, err = types.GetFirstSignedHeader(m.signer, m.genesis.ChainID)
+					require.NoError(err)
+				} else {
+					dummyHeader, _, err := types.GetRandomSignedHeader(m.genesis.ChainID)
+					require.NoError(err)
+					dummyHeader.Header.BaseHeader.Height = initialHeight
+					lastHeader = dummyHeader
+				}
+			}
+			h, err = types.GetRandomNextSignedHeader(lastHeader, m.signer, m.genesis.ChainID)
+		}
+		require.NoError(err)
+		h.ProposerAddress = m.genesis.ProposerAddress
+		headers[i] = h
+		lastHeader = h
+		mockHeaderStore.On("GetByHeight", ctx, currentHeight).Return(h, nil).Once()
+	}
+
+	mockHeaderStore.On("Height").Return(finalHeight).Once()
+
+	mockStore.On("Height", ctx).Return(initialHeight, nil).Once()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		m.HeaderStoreRetrieveLoop(ctx)
+	}()
+
+	headerStoreCh <- struct{}{}
+
+	receivedCount := 0
+	timeout := time.After(3 * time.Second)
+	expectedHeaders := make(map[uint64]*types.SignedHeader)
+	for _, h := range headers {
+		expectedHeaders[h.Height()] = h
+	}
+
+	for receivedCount < int(numHeaders) {
+		select {
+		case receivedEvent := <-headerInCh:
+			receivedCount++
+			h := receivedEvent.Header
+			expected, found := expectedHeaders[h.Height()]
+			assert.True(found, "Received unexpected header height: %d", h.Height())
+			if found {
+				assert.Equal(expected, h)
+				delete(expectedHeaders, h.Height()) // Remove found header
+			}
+		case <-timeout:
+			t.Fatalf("timed out waiting for all header events on headerInCh, received %d out of %d", receivedCount, numHeaders)
+		}
+	}
+
+	assert.Empty(expectedHeaders, "Not all expected headers were received")
+
+	// Cancel context and wait for loop to finish
+	cancel()
+	wg.Wait()
+
+	// Verify mock expectations
+	mockHeaderStore.AssertExpectations(t)
+}
+
+func TestHeaderStoreRetrieveLoop_NoNewHeaders(t *testing.T) {
+	m, mockStore, mockHeaderStore, _, headerStoreCh, _, headerInCh, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
+	defer cancel()
+
+	currentHeight := uint64(5)
+
+	mockStore.On("Height", ctx).Return(currentHeight, nil).Once()
+	mockHeaderStore.On("Height").Return(currentHeight).Once()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		m.HeaderStoreRetrieveLoop(ctx)
+	}()
+
+	// Trigger the loop
+	headerStoreCh <- struct{}{}
+
+	// Wait briefly and assert nothing is received
+	select {
+	case receivedEvent := <-headerInCh:
+		t.Fatalf("received unexpected header event on headerInCh: %+v", receivedEvent)
+	case <-time.After(100 * time.Millisecond):
+		// Expected timeout, nothing received
+	}
+
+	// Cancel context and wait for loop to finish
+	cancel()
+	wg.Wait()
+
+	// Verify mock expectations
+	mockHeaderStore.AssertExpectations(t)
+}

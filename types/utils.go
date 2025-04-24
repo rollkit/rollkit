@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/signer"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
@@ -163,13 +164,18 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig, chainID string) (*SignedH
 
 // GetRandomNextSignedHeader returns a signed header with random data and height of +1 from
 // the provided signed header
-func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey crypto.PrivKey, chainID string) (*SignedHeader, error) {
+func GetRandomNextSignedHeader(signedHeader *SignedHeader, signer signer.Signer, chainID string) (*SignedHeader, error) {
 	newSignedHeader := &SignedHeader{
 		Header: GetRandomNextHeader(signedHeader.Header, chainID),
 		Signer: signedHeader.Signer,
 	}
 
-	signature, err := GetSignature(newSignedHeader.Header, privKey)
+	b, err := signedHeader.Header.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	signature, err := signer.Sign(b)
 	if err != nil {
 		return nil, err
 	}
@@ -178,8 +184,17 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey crypto.PrivKe
 }
 
 // GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
-func GetFirstSignedHeader(privkey crypto.PrivKey, chainID string) (*SignedHeader, error) {
-	signer, err := NewSigner(privkey.GetPublic())
+func GetFirstSignedHeader(signer signer.Signer, chainID string) (*SignedHeader, error) {
+	pk, err := signer.GetPublic()
+	if err != nil {
+		return nil, err
+	}
+	sig, err := NewSigner(pk)
+	if err != nil {
+		return nil, err
+	}
+
+	addr, err := signer.GetAddress()
 	if err != nil {
 		return nil, err
 	}
@@ -197,16 +212,22 @@ func GetFirstSignedHeader(privkey crypto.PrivKey, chainID string) (*SignedHeader
 		LastCommitHash:  GetRandomBytes(32),
 		DataHash:        GetRandomBytes(32),
 		AppHash:         make([]byte, 32),
-		ProposerAddress: signer.Address,
+		ProposerAddress: addr,
 	}
 	signedHeader := SignedHeader{
 		Header: header,
-		Signer: signer,
+		Signer: sig,
 	}
-	signature, err := GetSignature(header, privkey)
+
+	b, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
+	signature, err := signer.Sign(b)
+	if err != nil {
+		return nil, err
+	}
+
 	signedHeader.Signature = signature
 	return &signedHeader, nil
 }

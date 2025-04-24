@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/go-header"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,8 +16,11 @@ func TestSignedHeader(t *testing.T) {
 	// Generate a random signed header
 	trusted, privKey, err := GetRandomSignedHeader(chainID)
 	require.NoError(t, err)
+
+	signer, err := noop.NewNoopSigner(privKey)
+	require.NoError(t, err)
 	// Get the next random header
-	untrustedAdj, err := GetRandomNextSignedHeader(trusted, privKey, chainID)
+	untrustedAdj, err := GetRandomNextSignedHeader(trusted, signer, chainID)
 	require.NoError(t, err)
 	t.Run("Test Verify", func(t *testing.T) {
 		testVerify(t, trusted, untrustedAdj, privKey)
