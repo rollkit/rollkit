@@ -165,7 +165,7 @@ sequenceDiagram
     participant S as sequencer
     participant R as Rollkit
     participant E as exec-env
-    
+
     R ->> +E: InitChain
     E -->> -R: stateRoot, maxBytes
     loop Every block time

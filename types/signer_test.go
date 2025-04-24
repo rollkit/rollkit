@@ -54,12 +54,12 @@ func TestSignerVerify(t *testing.T) {
 
 	// Verify invalid signature (tampered signature)
 	invalidSignature := append(signature[:len(signature)-1], signature[len(signature)-1]+1) // Modify last byte
-	invalid, err := signer.Verify(message, invalidSignature)
+	invalid, _ := signer.Verify(message, invalidSignature)
 	assert.False(invalid, "Verification should fail with an invalid signature")
 
 	// Verify wrong message
 	wrongMessage := []byte("this is not the signed message")
-	invalid, err = signer.Verify(wrongMessage, signature)
+	invalid, _ = signer.Verify(wrongMessage, signature)
 	assert.False(invalid, "Verification should fail with the wrong message")
 
 	// Verify with a different key
@@ -67,7 +67,7 @@ func TestSignerVerify(t *testing.T) {
 	require.NoError(err)
 	otherSigner, err := NewSigner(otherPubKey)
 	require.NoError(err)
-	invalid, err = otherSigner.Verify(message, signature)
+	invalid, _ = otherSigner.Verify(message, signature)
 	assert.False(invalid, "Verification should fail with the wrong public key")
 }
 

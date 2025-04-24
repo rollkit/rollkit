@@ -100,7 +100,7 @@ func TestDataGetters(t *testing.T) {
 
 	assert.Equal(t, "getter-test", data.ChainID())
 	assert.Equal(t, uint64(5), data.Height())
-	assert.Equal(t, data.Metadata.LastDataHash, data.LastHeader())
+	assert.Equal(t, data.LastDataHash, data.LastHeader())
 	assert.Equal(t, time.Unix(0, int64(data.Metadata.Time)), data.Time())
 
 	nilMetaData := &Data{Txs: data.Txs}
@@ -116,7 +116,7 @@ func TestVerify(t *testing.T) {
 	_, untrustedData := GetRandomBlock(2, 5, "verify-test")
 
 	trustedDataHash := trustedData.Hash()
-	untrustedData.Metadata.LastDataHash = trustedDataHash
+	untrustedData.LastDataHash = trustedDataHash
 
 	// Case 1: Valid verification
 	t.Run("valid verification", func(t *testing.T) {
@@ -130,7 +130,7 @@ func TestVerify(t *testing.T) {
 		*invalidUntrustedData = *untrustedData
 		invalidUntrustedData.Metadata = &Metadata{}
 		*invalidUntrustedData.Metadata = *untrustedData.Metadata
-		invalidUntrustedData.Metadata.LastDataHash = []byte("clearly wrong hash")
+		invalidUntrustedData.LastDataHash = []byte("clearly wrong hash")
 		err := trustedData.Verify(invalidUntrustedData)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "data hash of the trusted data does not match with last data hash of the untrusted data")
@@ -144,7 +144,7 @@ func TestVerify(t *testing.T) {
 	})
 
 	_, data3 := GetRandomBlock(3, 2, "another-chain")
-	data3.Metadata.LastDataHash = trustedDataHash
+	data3.LastDataHash = trustedDataHash
 	err := trustedData.Verify(data3)
 	assert.NoError(t, err, "Verify should only compare trusted.Hash() and untrusted.LastDataHash")
 }
