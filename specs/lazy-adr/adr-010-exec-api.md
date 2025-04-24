@@ -3,6 +3,7 @@
 ## Changelog
 
 - 2025.01.13: Initial draft
+- 2025.04.24: Various improvements
 
 ## Context
 
@@ -154,6 +155,36 @@ The Execution API was designed to be highly generic. As a result, the types intr
 2. `types.Tx` represents a transaction in the most basic form. It is also defined as an alias for `[]byte`.
 
 This design choice ensures maximum flexibility and allows the API to remain independent of specific implementations or formats. It facilitates interoperability across different execution environments while keeping the API lightweight and adaptable.
+
+### Block Size Management
+
+The Execution API includes `maxBytes` as a return value in both `InitChain` and `ExecuteTxs` methods. This parameter plays a crucial role in block size management:
+
+1. **Initial Configuration**: During `InitChain`, the execution environment returns the maximum block size allowed by its genesis configuration. This value is used by Rollkit to enforce block size limits during block production.
+
+2. **Dynamic Adjustment**: In `ExecuteTxs`, the execution environment can return an updated `maxBytes` value. This allows for dynamic adjustment of block size limits based on:
+   - Network conditions
+   - Resource availability
+   - Protocol-specific requirements
+   - Other runtime factors
+
+3. **Implementation Requirements**:
+   - The execution environment must ensure that blocks produced do not exceed the returned `maxBytes` value
+   - If a block would exceed the limit, the execution environment should return an error
+   - The value should be consistent with the execution environment's capabilities and constraints
+   - A protocol overhead buffer is subtracted from the DA layer's max blob size to account for block headers and encoding
+
+4. **System-wide Coordination**:
+   - Rollkit gets the initial `maxBytes` value from the DA layer and passes it to the sequencer
+   - The sequencer uses this value to limit the size of transaction batches it creates
+   - The sequencer's `PopUpToMaxBytes` method ensures transactions don't exceed the size limit
+   - This coordination ensures consistent block size constraints across the entire system
+   - Both Rollkit and sequencer independently validate block sizes to prevent oversized blocks
+
+5. **Usage in Rollkit**:
+   - Rollkit uses this value to validate block sizes before submission
+   - Helps prevent oversized blocks from being produced
+   - Enables dynamic adjustment of block size limits without protocol changes
 
 ### Sequence Diagrams
 
