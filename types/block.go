@@ -44,12 +44,6 @@ type IntermediateStateRoots struct {
 	RawRootsList [][]byte
 }
 
-// ValidateBasic performs basic validation of block data.
-// Actually it's a placeholder, because nothing is checked.
-func (d *Data) ValidateBasic() error {
-	return nil
-}
-
 // ValidateBasic performs basic validation of a signature.
 func (signature *Signature) ValidateBasic() error {
 	if len(*signature) == 0 {
@@ -121,8 +115,9 @@ func (d *Data) Verify(untrustedData *Data) error {
 }
 
 // Validate performs basic validation of a block.
+// this is used to implement the header interface for go header
 func (d *Data) Validate() error {
-	return d.ValidateBasic()
+	return nil
 }
 
 // Size returns size of the block in bytes.
