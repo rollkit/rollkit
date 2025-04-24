@@ -174,3 +174,9 @@ func TestIsZero(t *testing.T) {
 	_, data = GetRandomBlock(1, 1, "not-zero")
 	assert.False(t, data.IsZero())
 }
+
+// TestDataValidate tests the Validate method of Data returns nil
+func TestDataValidate(t *testing.T) {
+	_, data := GetRandomBlock(1, 5, "validate-test")
+	assert.NoError(t, data.Validate())
+}
