@@ -968,7 +968,7 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <li><code>SaveValidators</code>: Saves the validator set at a given height.</li>
 <li><code>GetValidators</code>: Returns the validator set at a given height.</li>
 </ul>
-<p>The <code>TxnDatastore</code> interface inside <a href="https://github.com/ipfs/go-datastore">go-datastore</a> is used for constructing different key-value stores for the underlying storage of a full node. The are two different implementations of <code>TxnDatastore</code> in <a href="https://github.com/rollkit/rollkit/blob/main/store/kv.go">kv.go</a>:</p>
+<p>The <code>TxnDatastore</code> interface inside <a href="https://github.com/ipfs/go-datastore">go-datastore</a> is used for constructing different key-value stores for the underlying storage of a full node. The are two different implementations of <code>TxnDatastore</code> in <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/kv.go">kv.go</a>:</p>
 <ul>
 <li>
 <p><code>NewDefaultInMemoryKVStore</code>: Builds a key-value store that uses the <a href="https://github.com/dgraph-io/badger">BadgerDB</a> library and operates in-memory, without accessing the disk. Used only across unit tests and integration tests.</p>
@@ -1003,7 +1003,7 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
 <p>[5] <a href="https://github.com/dgraph-io/badger">Badger DB</a></p>
 <p>[6] <a href="https://github.com/ipfs/go-datastore">Go Datastore</a></p>
-<p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/store/kv.go">Key Value Store</a></p>
+<p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/kv.go">Key Value Store</a></p>
 <p>[8 ] <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">Serialization</a></p>
 
                     </main>
