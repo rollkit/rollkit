@@ -77,8 +77,8 @@ See [Store Interface][store_interface] and [Default Store][default_store] for it
 
 [9] [Serialization][serialization]
 
-[store_interface]: https://github.com/rollkit/rollkit/blob/main/store/types.go#L11
-[default_store]: https://github.com/rollkit/rollkit/blob/main/store/store.go
+[store_interface]: https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go#L11
+[default_store]: https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go
 [full_node_store_initialization]: https://github.com/rollkit/rollkit/blob/main/node/full.go#L96
 [block manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
 [full client]: https://github.com/rollkit/rollkit/blob/main/node/full_client.go
