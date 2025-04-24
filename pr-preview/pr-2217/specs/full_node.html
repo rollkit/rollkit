@@ -151,8 +151,6 @@
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/config/config.go">node configuration</a> contains all the necessary settings for the node to be initialized and function properly.</p>
 <h3 id="p2p"><a class="header" href="#p2p">P2P</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/p2p/client.go">peer-to-peer client</a> is used to gossip transactions between full nodes in the network.</p>
-<h3 id="mempool"><a class="header" href="#mempool">Mempool</a></h3>
-<p>The [Mempool] is the transaction pool where all the transactions are stored before they are added to a block.</p>
 <h3 id="store"><a class="header" href="#store">Store</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go">Store</a> is initialized with <code>DefaultStore</code>, an implementation of the <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go">store interface</a> which is used for storing and retrieving blocks, commits, and state. |</p>
 <h3 id="blockmanager"><a class="header" href="#blockmanager">blockManager</a></h3>
@@ -166,7 +164,7 @@
 <h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
 <p>The Full Node communicates with other nodes in the network using the P2P client. It also communicates with the application using the ABCI proxy connections. The communication format is based on the P2P and ABCI protocols.</p>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
-<p>The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors.</p>
+<p>The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, block manager, and other services can be started and stopped without errors.</p>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full node</a></p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>

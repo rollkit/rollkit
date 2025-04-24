@@ -178,7 +178,7 @@
 </ul>
 <p>For example, in a call to <code>GetBlockByHash</code> for some block hash <code>&lt;block_hash&gt;</code>, the key used in the full node's base key-value store will be <code>/0/b/&lt;block_hash&gt;</code> where <code>0</code> is the main store prefix and <code>b</code> is the block prefix. Similarly, in a call to <code>GetValidators</code> for some height <code>&lt;height&gt;</code>, the key used in the full node's base key-value store will be <code>/0/v/&lt;height&gt;</code> where <code>0</code> is the main store prefix and <code>v</code> is the validator set prefix.</p>
 <p>Inside the key-value store, the value of these various types of data like <code>Block</code> is stored as a byte array which is encoded and decoded using the corresponding Protobuf <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">marshal and unmarshal methods</a>.</p>
-<p>The store is most widely used inside the <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block manager</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go">full client</a> to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, <code>lastStateMtx</code>, to synchronize read/write access to it and prevent race conditions.</p>
+<p>The store is most widely used inside the <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block manager</a> to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, <code>lastStateMtx</code>, to synchronize read/write access to it and prevent race conditions.</p>
 <h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
 <p>The Store does not communicate over the network, so there is no message structure or communication format.</p>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
@@ -190,11 +190,10 @@
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go">Default Store</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">Full Node Store Initialization</a></p>
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
-<p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go">Full Client</a></p>
-<p>[6] <a href="https://github.com/dgraph-io/badger">Badger DB</a></p>
-<p>[7] <a href="https://github.com/ipfs/go-datastore">Go Datastore</a></p>
-<p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/store/kv.go">Key Value Store</a></p>
-<p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">Serialization</a></p>
+<p>[5] <a href="https://github.com/dgraph-io/badger">Badger DB</a></p>
+<p>[6] <a href="https://github.com/ipfs/go-datastore">Go Datastore</a></p>
+<p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/store/kv.go">Key Value Store</a></p>
+<p>[8 ] <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">Serialization</a></p>
 
                     </main>
 
