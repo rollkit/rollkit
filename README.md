@@ -3,8 +3,8 @@
 Rollkit is the first sovereign rollup framework. For more in-depth information about Rollkit, please visit our [website][docs].
 
 <!-- markdownlint-disable MD013 -->
-[![build-and-test](https://github.com/rollkit/rollkit/actions/workflows/test.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/test.yml)
-[![golangci-lint](https://github.com/rollkit/rollkit/actions/workflows/lint.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/lint.yml)
+[![build-and-test](https://github.com/rollkit/rollkit/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/rollkit/rollkit/actions/workflows/test.yml)
+[![golangci-lint](https://github.com/rollkit/rollkit/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/rollkit/rollkit/actions/workflows/lint.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rollkit/rollkit)](https://goreportcard.com/report/github.com/rollkit/rollkit)
 [![codecov](https://codecov.io/gh/rollkit/rollkit/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/rollkit/rollkit)
 [![GoDoc](https://godoc.org/github.com/rollkit/rollkit?status.svg)](https://godoc.org/github.com/rollkit/rollkit)
