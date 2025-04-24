@@ -25,7 +25,7 @@ func main() {
 		cmd.InitCmd(),
 		cmd.RunCmd,
 		rollcmd.VersionCmd,
-		rollcmd.NodeInfoCmd,
+		rollcmd.NetInfoCmd,
 		rollcmd.StoreUnsafeCleanCmd,
 	)
 
