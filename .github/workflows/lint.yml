@@ -3,6 +3,14 @@
 name: lint
 on:
   workflow_call:
+  pull_request:
+    branches:
+      - main
+      - 'v*'
+  push:
+    branches:
+      - main
+      - 'v*'
 
 jobs:
   golangci-lint:
