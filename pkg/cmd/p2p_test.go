@@ -24,6 +24,10 @@ import (
 	"github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
 )
 
+type contextKey string
+
+const viperKey contextKey = "viper"
+
 // executeCommandC executes the command and captures its output
 func executeCommandC(root *cobra.Command, args ...string) (string, error) {
 	buf := new(bytes.Buffer)
@@ -98,7 +102,7 @@ func TestNetInfoCmd_Success(t *testing.T) {
 	err = v.BindPFlag(config.FlagRPCAddress, rootCmd.PersistentFlags().Lookup(config.FlagRPCAddress))
 	require.NoError(err)
 
-	NetInfoCmd.SetContext(context.WithValue(context.Background(), "viper", v))
+	NetInfoCmd.SetContext(context.WithValue(context.Background(), viperKey, v))
 	rootCmd.AddCommand(NetInfoCmd)
 
 	output, err := executeCommandC(rootCmd, "net-info", "--rollkit.rpc.address="+rpcAddr)
@@ -176,7 +180,7 @@ func TestNetInfoCmd_NoPeers(t *testing.T) {
 	err = v.BindPFlag(config.FlagRPCAddress, rootCmd.PersistentFlags().Lookup(config.FlagRPCAddress))
 	require.NoError(err)
 
-	NetInfoCmd.SetContext(context.WithValue(context.Background(), "viper", v))
+	NetInfoCmd.SetContext(context.WithValue(context.Background(), viperKey, v))
 	rootCmd.AddCommand(NetInfoCmd)
 
 	output, err := executeCommandC(rootCmd, "net-info", "--rollkit.rpc.address="+rpcAddr)
