@@ -104,6 +104,7 @@ var NetInfoCmd = &cobra.Command{
 		}
 
 		fmt.Fprintf(w, "%s\n", strings.Repeat("=", 50))
+		w.Flush()
 
 		return nil
 	},

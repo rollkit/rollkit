@@ -156,14 +156,13 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to create based sequencer: %w", err)
 			}
 
-			// Remove --evm and --based args from os.Args
+			// Filter --evm and --based args without modifying os.Args
 			filteredArgs := []string{os.Args[0]}
 			for _, arg := range os.Args[1:] {
 				if !((len(arg) > 6 && arg[:6] == "--evm.") || (len(arg) > 7 && arg[:7] == "--based.")) {
 					filteredArgs = append(filteredArgs, arg)
 				}
 			}
-			os.Args = filteredArgs
 
 			nodeKey, err := key.LoadNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 			if err != nil {
