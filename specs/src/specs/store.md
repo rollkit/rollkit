@@ -81,5 +81,5 @@ See [Store Interface][store_interface] and [Default Store][default_store] for it
 [block manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
 [BadgerDB]: https://github.com/dgraph-io/badger
 [go-datastore]: https://github.com/ipfs/go-datastore
-[kv.go]: https://github.com/rollkit/rollkit/blob/main/store/kv.go
+[kv.go]: https://github.com/rollkit/rollkit/blob/main/pkg/store/kv.go
 [serialization]: https://github.com/rollkit/rollkit/blob/main/types/serialization.go
