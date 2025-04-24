@@ -1,6 +1,7 @@
 package block
 
 import (
+	"bytes"
 	"context"
 	"sync"
 	"testing"
@@ -27,6 +28,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 	context.CancelFunc,
 	chan NewHeaderEvent,
 	chan NewDataEvent,
+	*uint64,
 ) {
 	t.Helper()
 
@@ -71,9 +73,14 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 
 	_, cancel := context.WithCancel(context.Background())
 
-	mockStore.On("Height", mock.Anything).Return(initialState.LastBlockHeight, nil).Maybe()
+	currentMockHeight := initialState.LastBlockHeight
+	heightPtr := &currentMockHeight
 
-	return m, mockStore, mockExec, cancel, headerInCh, dataInCh
+	mockStore.On("Height", mock.Anything).Return(func(context.Context) uint64 {
+		return *heightPtr
+	}, nil).Maybe()
+
+	return m, mockStore, mockExec, cancel, headerInCh, dataInCh, heightPtr
 }
 
 // TestSyncLoop_ProcessSingleBlock_HeaderFirst verifies the basic scenario:
@@ -96,7 +103,7 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	newHeight := initialHeight + 1
 	daHeight := initialState.DAHeight + 1
 
-	m, mockStore, mockExec, cancel, headerInCh, dataInCh := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// Create test block data
@@ -186,7 +193,7 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	newHeight := initialHeight + 1
 	daHeight := initialState.DAHeight + 1
 
-	m, mockStore, mockExec, cancel, headerInCh, dataInCh := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// Create test block data
@@ -270,7 +277,6 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 // 4. Block H+2 is processed.
 // 5. Final state is H+2.
 func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
-	t.Skip()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -285,7 +291,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	heightH2 := initialHeight + 2
 	daHeight := initialState.DAHeight + 1
 
-	m, mockStore, mockExec, cancel, headerInCh, dataInCh := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, cancel, headerInCh, dataInCh, heightPtr := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// --- Block H+1 Data ---
@@ -328,8 +334,17 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 		Return(appHashH1, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH1, dataH1, &headerH1.Signature).Return(nil).Once()
 	mockExec.On("SetFinal", mock.Anything, heightH1).Return(nil).Once()
-	mockStore.On("SetHeight", mock.Anything, heightH1).Return(nil).Once()
-	mockStore.On("UpdateState", mock.Anything, stateH1).Return(nil).
+
+	mockStore.On("SetHeight", mock.Anything, heightH1).Return(nil).
+		Run(func(args mock.Arguments) {
+			newHeight := args.Get(1).(uint64)
+			*heightPtr = newHeight // Update the mocked height
+			t.Logf("Mock SetHeight called for H+1, updated mock height to %d", newHeight)
+		}).
+		Once()
+	mockStore.On("UpdateState", mock.Anything, mock.MatchedBy(func(s types.State) bool {
+		return s.LastBlockHeight == heightH1 && bytes.Equal(s.AppHash, appHashH1)
+	})).Return(nil).
 		Run(func(args mock.Arguments) { close(syncChanH1) }).
 		Once()
 
@@ -338,13 +353,22 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 		Return(appHashH2, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH2, dataH2, &headerH2.Signature).Return(nil).Once()
 	mockExec.On("SetFinal", mock.Anything, heightH2).Return(nil).Once()
-	mockStore.On("SetHeight", mock.Anything, heightH2).Return(nil).Once()
-	mockStore.On("UpdateState", mock.Anything, stateH2).Return(nil).
+
+	mockStore.On("SetHeight", mock.Anything, heightH2).Return(nil).
+		Run(func(args mock.Arguments) {
+			newHeight := args.Get(1).(uint64)
+			*heightPtr = newHeight // Update the mocked height
+			t.Logf("Mock SetHeight called for H+2, updated mock height to %d", newHeight)
+		}).
+		Once()
+	mockStore.On("UpdateState", mock.Anything, mock.MatchedBy(func(s types.State) bool {
+		// Note: Check against expected H+2 values
+		return s.LastBlockHeight == heightH2 && bytes.Equal(s.AppHash, appHashH2)
+	})).Return(nil).
 		Run(func(args mock.Arguments) { close(syncChanH2) }).
 		Once()
 
 	ctx, testCancel := context.WithCancel(context.Background())
-	defer testCancel()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -355,13 +379,10 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	}()
 
 	// --- Process H+1 ---
-	t.Logf("Sending header event for height %d", heightH1)
 	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
 	time.Sleep(10 * time.Millisecond)
-	t.Logf("Sending data event for height %d", heightH1)
 	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
 
-	t.Log("Waiting for sync H+1 to complete...")
 	select {
 	case <-syncChanH1:
 		t.Log("Sync H+1 completed.")
@@ -372,13 +393,10 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	}
 
 	// --- Process H+2 ---
-	t.Logf("Sending header event for height %d", heightH2)
 	headerInCh <- NewHeaderEvent{Header: headerH2, DAHeight: daHeight}
 	time.Sleep(10 * time.Millisecond)
-	t.Logf("Sending data event for height %d", heightH2)
 	dataInCh <- NewDataEvent{Data: dataH2, DAHeight: daHeight}
 
-	t.Log("Waiting for sync H+2 to complete...")
 	select {
 	case <-syncChanH2:
 		t.Log("Sync H+2 completed.")
@@ -428,7 +446,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	heightH2 := initialHeight + 2
 	daHeight := initialState.DAHeight + 1
 
-	m, mockStore, mockExec, cancel, headerInCh, dataInCh := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, cancel, headerInCh, dataInCh, heightPtr := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// --- Block H+1 Data ---
@@ -473,7 +491,13 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 		Return(appHashH1, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH1, dataH1, &headerH1.Signature).Return(nil).Once()
 	mockExec.On("SetFinal", mock.Anything, heightH1).Return(nil).Once()
-	mockStore.On("SetHeight", mock.Anything, heightH1).Return(nil).Once()
+	mockStore.On("SetHeight", mock.Anything, heightH1).Return(nil).
+		Run(func(args mock.Arguments) {
+			newHeight := args.Get(1).(uint64)
+			*heightPtr = newHeight // Update the mocked height
+			t.Logf("Mock SetHeight called for H+2, updated mock height to %d", newHeight)
+		}).
+		Once()
 	mockStore.On("UpdateState", mock.Anything, stateH1).Return(nil).
 		Run(func(args mock.Arguments) { close(syncChanH1) }).
 		Once()
@@ -485,7 +509,13 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 		Return(appHashH2, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH2, dataH2, &headerH2.Signature).Return(nil).Once()
 	mockExec.On("SetFinal", mock.Anything, heightH2).Return(nil).Once()
-	mockStore.On("SetHeight", mock.Anything, heightH2).Return(nil).Once()
+	mockStore.On("SetHeight", mock.Anything, heightH2).Return(nil).
+		Run(func(args mock.Arguments) {
+			newHeight := args.Get(1).(uint64)
+			*heightPtr = newHeight // Update the mocked height
+			t.Logf("Mock SetHeight called for H+2, updated mock height to %d", newHeight)
+		}).
+		Once()
 	mockStore.On("UpdateState", mock.Anything, stateH2).Return(nil).
 		Run(func(args mock.Arguments) { close(syncChanH2) }).
 		Once()
@@ -502,10 +532,8 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	}()
 
 	// --- Send H+2 Events First ---
-	t.Logf("Sending header event for height %d (out of order)", heightH2)
 	headerInCh <- NewHeaderEvent{Header: headerH2, DAHeight: daHeight}
 	time.Sleep(10 * time.Millisecond)
-	t.Logf("Sending data event for height %d (out of order)", heightH2)
 	dataInCh <- NewDataEvent{Data: dataH2, DAHeight: daHeight}
 
 	time.Sleep(50 * time.Millisecond)
@@ -514,14 +542,11 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	assert.NotNil(m.dataCache.GetItem(heightH2), "Data H+2 should be in cache")
 
 	// --- Send H+1 Events Second ---
-	t.Logf("Sending header event for height %d", heightH1)
 	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
 	time.Sleep(10 * time.Millisecond)
-	t.Logf("Sending data event for height %d", heightH1)
 	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
 
 	// --- Wait for Processing (H+1 then H+2) ---
-	t.Log("Waiting for sync H+1 to complete...")
 	select {
 	case <-syncChanH1:
 		t.Log("Sync H+1 completed.")
@@ -531,7 +556,6 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 		t.Fatal("Timeout waiting for sync H+1 to complete")
 	}
 
-	t.Log("Waiting for sync H+2 to complete...")
 	select {
 	case <-syncChanH2:
 		t.Log("Sync H+2 completed.")
