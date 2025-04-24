@@ -43,7 +43,7 @@ For example, in a call to `GetBlockByHash` for some block hash `<block_hash>`, t
 
 Inside the key-value store, the value of these various types of data like `Block` is stored as a byte array which is encoded and decoded using the corresponding Protobuf [marshal and unmarshal methods][serialization].
 
-The store is most widely used inside the [block manager] and [full client] to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, `lastStateMtx`, to synchronize read/write access to it and prevent race conditions.
+The store is most widely used inside the [block manager] to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, `lastStateMtx`, to synchronize read/write access to it and prevent race conditions.
 
 ## Message Structure/Communication Format
 
@@ -67,22 +67,19 @@ See [Store Interface][store_interface] and [Default Store][default_store] for it
 
 [4] [Block Manager][block manager]
 
-[5] [Full Client][full client]
+[5] [Badger DB][BadgerDB]
 
-[6] [Badger DB][BadgerDB]
+[6] [Go Datastore][go-datastore]
 
-[7] [Go Datastore][go-datastore]
+[7] [Key Value Store][kv.go]
 
-[8] [Key Value Store][kv.go]
+[8 ] [Serialization][serialization]
 
-[9] [Serialization][serialization]
-
-[store_interface]: https://github.com/rollkit/rollkit/blob/main/store/types.go#L11
-[default_store]: https://github.com/rollkit/rollkit/blob/main/store/store.go
+[store_interface]: https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go#L11
+[default_store]: https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go
 [full_node_store_initialization]: https://github.com/rollkit/rollkit/blob/main/node/full.go#L96
 [block manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
-[full client]: https://github.com/rollkit/rollkit/blob/main/node/full_client.go
 [BadgerDB]: https://github.com/dgraph-io/badger
 [go-datastore]: https://github.com/ipfs/go-datastore
-[kv.go]: https://github.com/rollkit/rollkit/blob/main/store/kv.go
+[kv.go]: https://github.com/rollkit/rollkit/blob/main/pkg/store/kv.go
 [serialization]: https://github.com/rollkit/rollkit/blob/main/types/serialization.go

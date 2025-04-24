@@ -214,7 +214,6 @@ func main() {
 	rootCmd := RootCmd
 	ctx := context.Background()
 	rootCmd.AddCommand(
-		rollcmd.NewDocsGenCmd(rootCmd, AppName),
 		NewExtendedRunNodeCmd(ctx),
 		rollcmd.VersionCmd,
 		cmd.InitCmd(),
