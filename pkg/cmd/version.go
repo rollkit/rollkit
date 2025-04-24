@@ -3,7 +3,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"os"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -28,7 +27,8 @@ var VersionCmd = &cobra.Command{
 		if Version == "" {
 			return errors.New("version not set")
 		}
-		w := tabwriter.NewWriter(os.Stdout, 2, 0, 2, ' ', 0)
+		out := cmd.OutOrStdout()
+		w := tabwriter.NewWriter(out, 2, 0, 2, ' ', 0)
 		_, err1 := fmt.Fprintf(w, "\nrollkit version:\t%v\n", Version)
 		_, err2 := fmt.Fprintf(w, "rollkit git sha:\t%v\n", GitSHA)
 		_, err3 := fmt.Fprintln(w, "")
