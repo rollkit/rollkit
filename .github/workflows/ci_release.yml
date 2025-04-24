@@ -6,6 +6,7 @@ on:
     # Trigger on version tags
     tags:
       - "v*"
+  pull_request:
   merge_group:
   workflow_dispatch:
     # Inputs the workflow accepts.
