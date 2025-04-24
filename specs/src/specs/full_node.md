@@ -26,10 +26,6 @@ The [node configuration] contains all the necessary settings for the node to be 
 
 The [peer-to-peer client] is used to gossip transactions between full nodes in the network.
 
-### Mempool
-
-The [Mempool] is the transaction pool where all the transactions are stored before they are added to a block.
-
 ### Store
 
 The [Store] is initialized with `DefaultStore`, an implementation of the [store interface] which is used for storing and retrieving blocks, commits, and state. |
@@ -56,7 +52,7 @@ The Full Node communicates with other nodes in the network using the P2P client.
 
 ## Assumptions and Considerations
 
-The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors.
+The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, block manager, and other services can be started and stopped without errors.
 
 ## Implementation
 
@@ -72,28 +68,25 @@ See [full node]
 
 [4] [Peer to Peer Client][peer-to-peer client]
 
-[5] [Mempool][Mempool]
+[5] [Store][Store]
 
-[6] [Store][Store]
+[6] [Store Interface][store interface]
 
-[7] [Store Interface][store interface]
+[7] [Block Manager][block manager]
 
-[8] [Block Manager][block manager]
+[8] [Data Availability Layer Client][dalc]
 
-[9] [Data Availability Layer Client][dalc]
+[9] [Header Sync Service][Header Sync Service]
 
-[10] [Header Sync Service][Header Sync Service]
-
-[11] [Block Sync Service][Block Sync Service]
+[10] [Block Sync Service][Block Sync Service]
 
 [full node]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [genesis]: https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md
-[node configuration]: https://github.com/rollkit/rollkit/blob/main/config/config.go
-[peer-to-peer client]: https://github.com/rollkit/rollkit/blob/main/p2p/client.go
-[Mempool]: https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go
-[Store]: https://github.com/rollkit/rollkit/blob/main/store/store.go
-[store interface]: https://github.com/rollkit/rollkit/blob/main/store/types.go
+[node configuration]: https://github.com/rollkit/rollkit/blob/main/pkg/config/config.go
+[peer-to-peer client]: https://github.com/rollkit/rollkit/blob/main/pkg/p2p/client.go
+[Store]: https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go
+[store interface]: https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go
 [Block Manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
 [dalc]: https://github.com/rollkit/rollkit/blob/main/da/da.go
-[Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/sync_service.go
-[Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/sync_service.go
+[Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go
+[Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go

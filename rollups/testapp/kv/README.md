@@ -2,7 +2,7 @@
 
 This is a simple key-value store executor implementation for testing Rollkit nodes.
 
-### Server Lifecycle
+## Server Lifecycle
 
 The HTTP server starts when the Rollkit node starts and is automatically shut down when the node stops (including when receiving CTRL+C or other termination signals). The server is context-aware, meaning:
 
