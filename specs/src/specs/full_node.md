@@ -26,10 +26,6 @@ The [node configuration] contains all the necessary settings for the node to be 
 
 The [peer-to-peer client] is used to gossip transactions between full nodes in the network.
 
-### Mempool
-
-The [Mempool] is the transaction pool where all the transactions are stored before they are added to a block.
-
 ### Store
 
 The [Store] is initialized with `DefaultStore`, an implementation of the [store interface] which is used for storing and retrieving blocks, commits, and state. |
@@ -56,7 +52,7 @@ The Full Node communicates with other nodes in the network using the P2P client.
 
 ## Assumptions and Considerations
 
-The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors.
+The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, block manager, and other services can be started and stopped without errors.
 
 ## Implementation
 
