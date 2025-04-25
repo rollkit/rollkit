@@ -341,3 +341,93 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	mockStore.AssertExpectations(t)
 	mockExec.AssertExpectations(t)
 }
+
+// Test_publishBlock_Success tests the happy path where a block with transactions
+// is successfully created, applied, and published.
+func Test_publishBlock_Success(t *testing.T) {
+	require := require.New(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	initialHeight := uint64(5)
+	newHeight := initialHeight + 1
+	chainID := "testchain"
+
+	manager, mockStore, mockExec, mockSeq, _, headerCh, dataCh, _ := setupManagerForPublishBlockTest(t, true, initialHeight, 0)
+	manager.lastState.LastBlockHeight = initialHeight
+
+	mockStore.On("Height", ctx).Return(initialHeight, nil).Once()
+	mockSignature := types.Signature([]byte{1, 2, 3})
+	mockStore.On("GetSignature", ctx, initialHeight).Return(&mockSignature, nil).Once()
+	lastHeader, lastData := types.GetRandomBlock(initialHeight, 5, chainID)
+	lastHeader.ProposerAddress = manager.genesis.ProposerAddress
+	mockStore.On("GetBlockData", ctx, initialHeight).Return(lastHeader, lastData, nil).Once()
+	mockStore.On("GetBlockData", ctx, newHeight).Return(nil, nil, errors.New("not found")).Once()
+	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
+	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
+	mockStore.On("SetHeight", ctx, newHeight).Return(nil).Once()
+	mockStore.On("UpdateState", ctx, mock.AnythingOfType("types.State")).Return(nil).Once()
+	mockStore.On("SetMetadata", ctx, LastBatchDataKey, mock.AnythingOfType("[]uint8")).Return(nil).Once()
+
+	// --- Mock Executor ---
+	sampleTxs := [][]byte{[]byte("tx1"), []byte("tx2")}
+	mockExec.On("GetTxs", ctx).Return(sampleTxs, nil).Once()
+	newAppHash := []byte("newAppHash")
+	mockExec.On("ExecuteTxs", ctx, mock.Anything, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
+	mockExec.On("SetFinal", ctx, newHeight).Return(nil).Once()
+
+	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
+		return string(req.RollupId) == chainID && len(req.Batch.Transactions) == len(sampleTxs)
+	})
+	mockSeq.On("SubmitRollupBatchTxs", ctx, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil).Once()
+	batchTimestamp := lastHeader.Time().Add(1 * time.Second)
+	batchDataBytes := [][]byte{[]byte("batch_data_1")}
+	batchResponse := &coresequencer.GetNextBatchResponse{
+		Batch: &coresequencer.Batch{
+			Transactions: sampleTxs,
+		},
+		Timestamp: batchTimestamp,
+		BatchData: batchDataBytes,
+	}
+	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
+		return string(req.RollupId) == chainID
+	})
+	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(batchResponse, nil).Once()
+	err := manager.publishBlock(ctx)
+	require.NoError(err, "publishBlock should succeed")
+
+	select {
+	case publishedHeader := <-headerCh:
+		assert.Equal(t, newHeight, publishedHeader.Height(), "Published header height mismatch")
+		assert.Equal(t, manager.genesis.ProposerAddress, publishedHeader.ProposerAddress, "Published header proposer mismatch")
+		assert.Equal(t, batchTimestamp.UnixNano(), publishedHeader.Time().UnixNano(), "Published header time mismatch")
+
+	case <-time.After(1 * time.Second):
+		t.Fatal("Timed out waiting for header on HeaderCh")
+	}
+
+	select {
+	case publishedData := <-dataCh:
+		assert.Equal(t, len(sampleTxs), len(publishedData.Txs), "Published data tx count mismatch")
+		var txs [][]byte
+		for _, tx := range publishedData.Txs {
+			txs = append(txs, tx)
+		}
+		assert.Equal(t, sampleTxs, txs, "Published data txs mismatch")
+		assert.NotNil(t, publishedData.Metadata, "Published data metadata should not be nil")
+		if publishedData.Metadata != nil {
+			assert.Equal(t, newHeight, publishedData.Metadata.Height, "Published data metadata height mismatch")
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("Timed out waiting for data on DataCh")
+	}
+
+	mockStore.AssertExpectations(t)
+	mockExec.AssertExpectations(t)
+	mockSeq.AssertExpectations(t)
+
+	finalState := manager.GetLastState()
+	assert.Equal(t, newHeight, finalState.LastBlockHeight, "Final state height mismatch")
+	assert.Equal(t, newAppHash, finalState.AppHash, "Final state AppHash mismatch")
+	assert.Equal(t, batchTimestamp, finalState.LastBlockTime, "Final state time mismatch")
+}
