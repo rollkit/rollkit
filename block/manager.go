@@ -194,7 +194,11 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				return types.State{}, pubKey, fmt.Errorf("failed to get public key: %w", err)
 			}
 
-			signature, err = getSignature(header, signer)
+			b, err := header.MarshalBinary()
+			if err != nil {
+				return types.State{}, pubKey, err
+			}
+			signature, err = signer.Sign(b)
 			if err != nil {
 				return types.State{}, pubKey, fmt.Errorf("failed to get header signature: %w", err)
 			}
@@ -755,7 +759,11 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 }
 
 func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
-	return getSignature(header, m.signer)
+	b, err := header.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return m.signer.Sign(b)
 }
 
 // publishBlockInternal is the internal implementation for publishing a block.
@@ -1302,12 +1310,4 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 	}
 
 	return result, nil
-}
-
-func getSignature(header types.Header, proposerKey signer.Signer) (types.Signature, error) {
-	b, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return proposerKey.Sign(b)
 }

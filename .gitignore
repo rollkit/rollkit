@@ -11,3 +11,4 @@ types/pb/tendermint
 build
 .aider*
 .DS_Store
+coverage.out

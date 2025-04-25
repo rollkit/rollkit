@@ -374,3 +374,30 @@ func Test_isProposer(t *testing.T) {
 		})
 	}
 }
+
+// TestBytesToBatchData tests conversion between bytes and batch data.
+func TestBytesToBatchData(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	// empty input returns empty slice
+	out, err := bytesToBatchData(nil)
+	require.NoError(err)
+	require.Empty(out)
+	out, err = bytesToBatchData([]byte{})
+	require.NoError(err)
+	require.Empty(out)
+
+	// valid multi-entry data
+	orig := [][]byte{[]byte("foo"), []byte("bar"), {}}
+	b := convertBatchDataToBytes(orig)
+	out, err = bytesToBatchData(b)
+	require.NoError(err)
+	require.Equal(orig, out)
+
+	// corrupted length prefix (declared length greater than available bytes)
+	bad := []byte{0, 0, 0, 5, 'x', 'y'}
+	_, err = bytesToBatchData(bad)
+	assert.Error(err)
+	assert.Contains(err.Error(), "corrupted data")
+}
