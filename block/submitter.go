@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	coreda "github.com/rollkit/rollkit/core/da"
 	"google.golang.org/protobuf/proto"
+
+	coreda "github.com/rollkit/rollkit/core/da"
 )
 
 // HeaderSubmissionLoop is responsible for submitting blocks to the DA layer.
