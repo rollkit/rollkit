@@ -109,52 +109,6 @@ func TestInitialStateStored(t *testing.T) {
 	mockExecutor.AssertExpectations(t)
 }
 
-func TestHandleEmptyDataHash(t *testing.T) {
-	require := require.New(t)
-	ctx := context.Background()
-
-	// Mock store and data cache
-	store := mocks.NewStore(t)
-	dataCache := cache.NewCache[types.Data]()
-
-	// Setup the manager with the mock and data cache
-	m := &Manager{
-		store:     store,
-		dataCache: dataCache,
-	}
-
-	// Define the test data
-	headerHeight := 2
-	header := &types.Header{
-		DataHash: dataHashForEmptyTxs,
-		BaseHeader: types.BaseHeader{
-			Height: 2,
-			Time:   uint64(time.Now().UnixNano()),
-		},
-	}
-
-	// Mock data for the previous block
-	lastData := &types.Data{}
-	lastDataHash := lastData.Hash()
-
-	// header.DataHash equals dataHashForEmptyTxs and no error occurs
-	store.On("GetBlockData", ctx, uint64(headerHeight-1)).Return(nil, lastData, nil)
-
-	// Execute the method under test
-	m.handleEmptyDataHash(ctx, header)
-
-	// Assertions
-	store.AssertExpectations(t)
-
-	// make sure that the store has the correct data
-	d := dataCache.GetItem(header.Height())
-	require.NotNil(d)
-	require.Equal(d.LastDataHash, lastDataHash)
-	require.Equal(d.Metadata.ChainID, header.ChainID())
-	require.Equal(d.Metadata.Height, header.Height())
-	require.Equal(d.Metadata.Time, header.BaseHeader.Time)
-}
-
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)

@@ -91,3 +91,13 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 		}
 	}
 }
+
+func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
+	elapsed := time.Since(start)
+
+	if elapsed < interval {
+		return interval - elapsed
+	}
+
+	return 0
+}

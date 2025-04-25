@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,7 +28,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 const (
@@ -305,14 +303,11 @@ func NewManager(
 		config.DA.MempoolTTL = defaultMempoolTTL
 	}
 
-	//proposerAddress := s.Validators.Proposer.Address.Bytes()
-
 	maxBlobSize, err := dalc.MaxBlobSize(ctx)
 	if err != nil {
 		return nil, err
 	}
-	// allow buffer for the block header and protocol encoding
-	//nolint:ineffassign // This assignment is needed
+
 	maxBlobSize -= blockProtocolOverhead
 
 	isProposer, err := isProposer(signer, pubkey)
@@ -407,30 +402,10 @@ func (m *Manager) init(ctx context.Context) {
 	}
 }
 
-func (m *Manager) setDAIncludedHeight(ctx context.Context, newHeight uint64) error {
-	for {
-		currentHeight := m.daIncludedHeight.Load()
-		if newHeight <= currentHeight {
-			break
-		}
-		if m.daIncludedHeight.CompareAndSwap(currentHeight, newHeight) {
-			heightBytes := make([]byte, 8)
-			binary.LittleEndian.PutUint64(heightBytes, newHeight)
-			return m.store.SetMetadata(ctx, DAIncludedHeightKey, heightBytes)
-		}
-	}
-	return nil
-}
-
 // GetDAIncludedHeight returns the rollup height at which all blocks have been
 // included in the DA
 func (m *Manager) GetDAIncludedHeight() uint64 {
 	return m.daIncludedHeight.Load()
-}
-
-// SetDALC is used to set DataAvailabilityLayerClient used by Manager.
-func (m *Manager) SetDALC(dalc coreda.Client) {
-	m.dalc = dalc
 }
 
 // isProposer returns whether or not the manager is a proposer
@@ -463,40 +438,22 @@ func (m *Manager) GetStoreHeight(ctx context.Context) (uint64, error) {
 	return m.store.Height(ctx)
 }
 
-// GetHeaderInCh returns the manager's blockInCh
-func (m *Manager) GetHeaderInCh() chan NewHeaderEvent {
-	return m.headerInCh
-}
-
-// GetDataInCh returns the manager's dataInCh
-func (m *Manager) GetDataInCh() chan NewDataEvent {
-	return m.dataInCh
-}
-
 // IsBlockHashSeen returns true if the block with the given hash has been seen.
 func (m *Manager) IsBlockHashSeen(blockHash string) bool {
 	return m.headerCache.IsSeen(blockHash)
 }
 
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
+// TODO(tac0turtle): should we use this for pending header system to verify how far ahead a rollup is?
 func (m *Manager) IsDAIncluded(hash types.Hash) bool {
 	return m.headerCache.IsDAIncluded(hash.String())
-}
-
-func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
-	elapsed := time.Since(start)
-
-	if elapsed < interval {
-		return interval - elapsed
-	}
-
-	return 0
 }
 
 // GetExecutor returns the executor used by the manager.
 //
 // Note: this is a temporary method to allow testing the manager.
 // It will be removed once the manager is fully integrated with the execution client.
+// TODO(tac0turtle): remove
 func (m *Manager) GetExecutor() coreexecutor.Executor {
 	return m.exec
 }
@@ -554,216 +511,8 @@ func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
 	}
 }
 
-func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header) {
-	headerHeight := header.Height()
-	if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
-		var lastDataHash types.Hash
-		var err error
-		var lastData *types.Data
-		if headerHeight > 1 {
-			_, lastData, err = m.store.GetBlockData(ctx, headerHeight-1)
-			if lastData != nil {
-				lastDataHash = lastData.Hash()
-			}
-		}
-		// if no error then populate data, otherwise just skip and wait for Data to be synced
-		if err == nil {
-			metadata := &types.Metadata{
-				ChainID:      header.ChainID(),
-				Height:       headerHeight,
-				Time:         header.BaseHeader.Time,
-				LastDataHash: lastDataHash,
-			}
-			d := &types.Data{
-				Metadata: metadata,
-			}
-			m.dataCache.SetItem(headerHeight, d)
-		}
-	}
-}
-
-func (m *Manager) sendNonBlockingSignalToHeaderStoreCh() {
-	select {
-	case m.headerStoreCh <- struct{}{}:
-	default:
-	}
-}
-
-func (m *Manager) sendNonBlockingSignalToDataStoreCh() {
-	select {
-	case m.dataStoreCh <- struct{}{}:
-	default:
-	}
-}
-
-func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
-	select {
-	case m.retrieveCh <- struct{}{}:
-	default:
-	}
-}
-
-// RetrieveLoop is responsible for interacting with DA layer.
-func (m *Manager) RetrieveLoop(ctx context.Context) {
-	// blockFoundCh is used to track when we successfully found a block so
-	// that we can continue to try and find blocks that are in the next DA height.
-	// This enables syncing faster than the DA block time.
-	headerFoundCh := make(chan struct{}, 1)
-	defer close(headerFoundCh)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-m.retrieveCh:
-		case <-headerFoundCh:
-		}
-		daHeight := atomic.LoadUint64(&m.daHeight)
-		err := m.processNextDAHeader(ctx)
-		if err != nil && ctx.Err() == nil {
-			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
-			if !m.areAllErrorsHeightFromFuture(err) {
-				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
-			}
-			continue
-		}
-		// Signal the headerFoundCh to try and retrieve the next block
-		select {
-		case headerFoundCh <- struct{}{}:
-		default:
-		}
-		atomic.AddUint64(&m.daHeight, 1)
-	}
-}
-
-func (m *Manager) processNextDAHeader(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-
-	// TODO(tzdybal): extract configuration option
-	maxRetries := 10
-	daHeight := atomic.LoadUint64(&m.daHeight)
-
-	var err error
-	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
-	for r := 0; r < maxRetries; r++ {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		headerResp, fetchErr := m.fetchHeaders(ctx, daHeight)
-		if fetchErr == nil {
-			if headerResp.Code == coreda.StatusNotFound {
-				m.logger.Debug("no header found", "daHeight", daHeight, "reason", headerResp.Message)
-				return nil
-			}
-			m.logger.Debug("retrieved potential headers", "n", len(headerResp.Data), "daHeight", daHeight)
-			for _, bz := range headerResp.Data {
-				header := new(types.SignedHeader)
-				// decode the header
-				var headerPb pb.SignedHeader
-				err := proto.Unmarshal(bz, &headerPb)
-				if err != nil {
-					m.logger.Debug("failed to unmarshal header", "error", err, "DAHeight", daHeight)
-					continue
-				}
-				err = header.FromProto(&headerPb)
-				if err != nil {
-					m.logger.Error("failed to create local header", "error", err, "DAHeight", daHeight)
-					continue
-				}
-				// early validation to reject junk headers
-				if !m.isUsingExpectedCentralizedSequencer(header) {
-					m.logger.Debug("skipping header from unexpected sequencer",
-						"headerHeight", header.Height(),
-						"headerHash", header.Hash().String())
-					continue
-				}
-				blockHash := header.Hash().String()
-				m.headerCache.SetDAIncluded(blockHash)
-				err = m.setDAIncludedHeight(ctx, header.Height())
-				if err != nil {
-					return err
-				}
-				m.logger.Info("block marked as DA included", "blockHeight", header.Height(), "blockHash", blockHash)
-				if !m.headerCache.IsSeen(blockHash) {
-					// Check for shut down event prior to logging
-					// and sending block to blockInCh. The reason
-					// for checking for the shutdown event
-					// separately is due to the inconsistent nature
-					// of the select statement when multiple cases
-					// are satisfied.
-					select {
-					case <-ctx.Done():
-						return fmt.Errorf("unable to send block to blockInCh, context done: %w", ctx.Err())
-					default:
-					}
-					m.headerInCh <- NewHeaderEvent{header, daHeight}
-				}
-			}
-			return nil
-		}
-
-		// Track the error
-		err = errors.Join(err, fetchErr)
-		// Delay before retrying
-		select {
-		case <-ctx.Done():
-			return err
-		case <-time.After(100 * time.Millisecond):
-		}
-	}
-	return err
-}
-
 func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
 	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
-}
-
-// areAllErrorsHeightFromFuture checks if all errors in a joined error are ErrHeightFromFutureStr
-func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	// Check if the error itself is ErrHeightFromFutureStr
-	if strings.Contains(err.Error(), ErrHeightFromFutureStr.Error()) {
-		return true
-	}
-
-	// If it's a joined error, check each error recursively
-	if joinedErr, ok := err.(interface{ Unwrap() []error }); ok {
-		for _, e := range joinedErr.Unwrap() {
-			if !m.areAllErrorsHeightFromFuture(e) {
-				return false
-			}
-		}
-		return true
-	}
-
-	return false
-}
-
-func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
-	var err error
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
-	defer cancel()
-	headerRes := m.dalc.Retrieve(ctx, daHeight)
-	if headerRes.Code == coreda.StatusError {
-		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
-	}
-	return headerRes, err
-}
-
-func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
-	b, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return m.signer.Sign(b)
 }
 
 // publishBlockInternal is the internal implementation for publishing a block.
@@ -1115,20 +864,6 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 		backoff = m.config.DA.BlockTime.Duration
 	}
 	return backoff
-}
-
-// Updates the state stored in manager's store along the manager's lastState
-func (m *Manager) updateState(ctx context.Context, s types.State) error {
-	m.logger.Debug("updating state", "newState", s)
-	m.lastStateMtx.Lock()
-	defer m.lastStateMtx.Unlock()
-	err := m.store.UpdateState(ctx, s)
-	if err != nil {
-		return err
-	}
-	m.lastState = s
-	m.metrics.Height.Set(float64(s.LastBlockHeight))
-	return nil
 }
 
 func (m *Manager) getLastBlockTime() time.Time {

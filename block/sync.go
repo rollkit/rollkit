@@ -1,9 +1,12 @@
 package block
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/rollkit/rollkit/types"
 )
 
 // SyncLoop is responsible for syncing blocks.
@@ -160,4 +163,67 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		m.headerCache.DeleteItem(currentHeight + 1)
 		m.dataCache.DeleteItem(currentHeight + 1)
 	}
+}
+
+func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header) {
+	headerHeight := header.Height()
+	if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
+		var lastDataHash types.Hash
+		var err error
+		var lastData *types.Data
+		if headerHeight > 1 {
+			_, lastData, err = m.store.GetBlockData(ctx, headerHeight-1)
+			if lastData != nil {
+				lastDataHash = lastData.Hash()
+			}
+		}
+		// if no error then populate data, otherwise just skip and wait for Data to be synced
+		if err == nil {
+			metadata := &types.Metadata{
+				ChainID:      header.ChainID(),
+				Height:       headerHeight,
+				Time:         header.BaseHeader.Time,
+				LastDataHash: lastDataHash,
+			}
+			d := &types.Data{
+				Metadata: metadata,
+			}
+			m.dataCache.SetItem(headerHeight, d)
+		}
+	}
+}
+
+func (m *Manager) sendNonBlockingSignalToHeaderStoreCh() {
+	select {
+	case m.headerStoreCh <- struct{}{}:
+	default:
+	}
+}
+
+func (m *Manager) sendNonBlockingSignalToDataStoreCh() {
+	select {
+	case m.dataStoreCh <- struct{}{}:
+	default:
+	}
+}
+
+func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
+	select {
+	case m.retrieveCh <- struct{}{}:
+	default:
+	}
+}
+
+// Updates the state stored in manager's store along the manager's lastState
+func (m *Manager) updateState(ctx context.Context, s types.State) error {
+	m.logger.Debug("updating state", "newState", s)
+	m.lastStateMtx.Lock()
+	defer m.lastStateMtx.Unlock()
+	err := m.store.UpdateState(ctx, s)
+	if err != nil {
+		return err
+	}
+	m.lastState = s
+	m.metrics.Height.Set(float64(s.LastBlockHeight))
+	return nil
 }
