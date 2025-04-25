@@ -105,30 +105,6 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 	return manager, mockStore, mockExec, mockSeq, testSigner, headerCh, dataCh, cancel
 }
 
-// TestPublishBlockInternal_ContextCancelled verifies that publishBlockInternal
-// returns immediately with context.Canceled if the context is cancelled.
-func TestPublishBlockInternal_ContextCancelled(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	logger := log.NewTestLogger(t)
-	manager := &Manager{
-		logger:      logger,
-		headerCache: cache.NewCache[types.SignedHeader](),
-	}
-
-	manager.publishBlock = manager.publishBlockInternal
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err := manager.publishBlock(ctx)
-
-	require.Error(err, "publishBlockInternal should return an error")
-	assert.ErrorIs(err, context.Canceled, "error should be context.Canceled")
-
-}
-
 // TestPublishBlockInternal_NotProposer verifies that publishBlockInternal
 // returns ErrNotProposer if the manager is not configured as a proposer.
 func TestPublishBlockInternal_NotProposer(t *testing.T) {

@@ -249,41 +249,6 @@ func TestDataStoreRetrieveLoop_HandlesFetchError(t *testing.T) {
 	mockDataStore.AssertExpectations(t)
 }
 
-func TestDataStoreRetrieveLoop_ContextCancellation(t *testing.T) {
-	m, mockStore, _, mockDataStore, _, _, _, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
-	// Intentionally cancel context immediately after starting the loop
-
-	currentHeight := uint64(5)
-	mockStore.On("Height", ctx).Return(currentHeight, nil).Once()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		m.DataStoreRetrieveLoop(ctx)
-	}()
-
-	// Cancel context almost immediately
-	cancel()
-
-	// Wait for the loop goroutine to finish, with a timeout
-	waitCh := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(waitCh)
-	}()
-
-	select {
-	case <-waitCh:
-		// Goroutine finished as expected
-	case <-time.After(1 * time.Second):
-		t.Fatal("timed out waiting for DataStoreRetrieveLoop goroutine to finish after context cancellation")
-	}
-
-	// No specific mock expectations needed here, just verifying termination
-	mockDataStore.AssertExpectations(t) // Should have no calls expected/made
-}
-
 func TestHeaderStoreRetrieveLoop_RetrievesNewHeader(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)

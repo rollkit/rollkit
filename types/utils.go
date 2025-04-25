@@ -269,12 +269,12 @@ func GetRandomBytes(n uint) []byte {
 }
 
 // GetSignature returns a signature from the given private key over the given header
-func GetSignature(header Header, proposerKey crypto.PrivKey) (Signature, error) {
+func GetSignature(header Header, pk crypto.PrivKey) (Signature, error) {
 	b, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	return proposerKey.Sign(b)
+	return pk.Sign(b)
 }
 
 func getBlockDataWith(nTxs int) *Data {

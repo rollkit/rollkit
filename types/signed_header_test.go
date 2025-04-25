@@ -39,7 +39,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 		// Verify valid adjacent headers
 		// Expect success
 		{
-			prepare: func() (*SignedHeader, bool) { return untrustedAdj, false },
+			prepare: func() (*SignedHeader, bool) { return untrustedAdj, true },
 			err:     nil,
 		},
 		// 1. Test invalid LastHeaderHash link
