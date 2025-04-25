@@ -82,7 +82,6 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 		dataCache:      cache.NewCache[types.Data](),
 		lastStateMtx:   &sync.RWMutex{},
 		metrics:        NopMetrics(),
-		isProposer:     isProposer,
 		pendingHeaders: nil,
 	}
 	manager.publishBlock = manager.publishBlockInternal
@@ -103,27 +102,6 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 	}
 
 	return manager, mockStore, mockExec, mockSeq, testSigner, headerCh, dataCh, cancel
-}
-
-// TestPublishBlockInternal_NotProposer verifies that publishBlockInternal
-// returns ErrNotProposer if the manager is not configured as a proposer.
-func TestPublishBlockInternal_NotProposer(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	manager, mockStore, mockExec, mockSeq, _, _, _, cancel := setupManagerForPublishBlockTest(t, false, 1, 0)
-	defer cancel()
-
-	ctx := context.Background()
-
-	err := manager.publishBlock(ctx)
-
-	require.Error(err, "publishBlockInternal should return an error")
-	assert.ErrorIs(err, ErrNotProposer, "error should be ErrNotProposer")
-
-	mockStore.AssertNotCalled(t, "Height", mock.Anything)
-	mockExec.AssertNotCalled(t, "GetTxs", mock.Anything)
-	mockSeq.AssertNotCalled(t, "GetNextBatch", mock.Anything, mock.Anything)
 }
 
 // TestPublishBlockInternal_MaxPendingBlocksReached verifies that publishBlockInternal
@@ -155,15 +133,6 @@ func TestPublishBlockInternal_MaxPendingBlocksReached(t *testing.T) {
 	mockStore.AssertNotCalled(t, "GetSignature", mock.Anything, mock.Anything)
 }
 
-func Test_publishBlock_ManagerNotProposer(t *testing.T) {
-	require := require.New(t)
-	mockDA := mocks.NewClient(t)       // Use mock DA Client
-	m := getManager(t, mockDA, -1, -1) // Pass mock DA Client
-	m.isProposer = false
-	err := m.publishBlock(context.Background())
-	require.ErrorIs(err, ErrNotProposer)
-}
-
 func Test_publishBlock_NoBatch(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -179,13 +148,12 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	require.NoError(err)
 
 	m := &Manager{
-		store:      mockStore,
-		sequencer:  mockSeq,
-		exec:       mockExec,
-		logger:     logger,
-		isProposer: true,
-		signer:     noopSigner,
-		genesis:    genesisData,
+		store:     mockStore,
+		sequencer: mockSeq,
+		exec:      mockExec,
+		logger:    logger,
+		signer:    noopSigner,
+		genesis:   genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
 				MaxPendingBlocks: 0,
@@ -264,13 +232,12 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	require.NoError(err)
 
 	m := &Manager{
-		store:      mockStore,
-		sequencer:  mockSeq,
-		exec:       mockExec,
-		logger:     logger,
-		isProposer: true,
-		signer:     noopSigner,
-		genesis:    genesisData,
+		store:     mockStore,
+		sequencer: mockSeq,
+		exec:      mockExec,
+		logger:    logger,
+		signer:    noopSigner,
+		genesis:   genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
 				MaxPendingBlocks: 0,

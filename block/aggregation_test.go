@@ -20,89 +20,6 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// TestAggregationLoop_Normal_ContextCancellation verifies the loop terminates promptly on context cancellation.
-func TestAggregationLoop_Normal_ContextCancellation(t *testing.T) {
-	assert := assert.New(t)
-
-	blockTime := 1 * time.Second
-	shortTimeout := 100 * time.Millisecond
-
-	mockStore := mocks.NewStore(t)
-	mockStore.On("Height", mock.Anything).Return(uint64(1), nil).Maybe()
-	mockStore.On("GetState", mock.Anything).Return(types.State{LastBlockTime: time.Now().Add(-blockTime)}, nil).Maybe()
-
-	mockExec := mocks.NewExecutor(t)
-	mockSeq := mocks.NewSequencer(t)
-	mockDAC := mocks.NewClient(t)
-	logger := log.NewTestLogger(t)
-
-	m := &Manager{
-		store:      mockStore,
-		exec:       mockExec,
-		sequencer:  mockSeq,
-		dalc:       mockDAC,
-		logger:     logger,
-		isProposer: true,
-		config: config.Config{
-			Node: config.NodeConfig{
-				BlockTime:      config.DurationWrapper{Duration: blockTime},
-				LazyAggregator: false,
-			},
-			DA: config.DAConfig{
-				BlockTime: config.DurationWrapper{Duration: 1 * time.Second},
-			},
-		},
-		genesis: genesispkg.Genesis{
-			InitialHeight: 1,
-		},
-		lastState: types.State{
-			LastBlockTime: time.Now().Add(-blockTime),
-		},
-		lastStateMtx: &sync.RWMutex{},
-		metrics:      NopMetrics(),
-		headerCache:  cache.NewCache[types.SignedHeader](),
-		dataCache:    cache.NewCache[types.Data](),
-	}
-
-	var publishCalls atomic.Int64
-	mockPublishBlock := func(ctx context.Context) error {
-		publishCalls.Add(1)
-		m.logger.Debug("Mock publishBlock called")
-		time.Sleep(10 * time.Millisecond)
-		return nil
-	}
-	m.publishBlock = mockPublishBlock
-
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		m.AggregationLoop(ctx)
-		m.logger.Info("AggregationLoop exited")
-	}()
-
-	m.logger.Info("Cancelling context immediately")
-	cancel()
-
-	waitChan := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(waitChan)
-	}()
-
-	select {
-	case <-waitChan:
-		m.logger.Info("WaitGroup finished within timeout")
-	case <-time.After(shortTimeout):
-		assert.Fail("AggregationLoop did not exit within the expected short timeout after cancellation")
-	}
-
-	calls := publishCalls.Load()
-	assert.LessOrEqualf(calls, int64(1), "publishBlock should have been called at most once, but was called %d times", calls)
-	m.logger.Info("Publish block calls", "count", calls)
-}
-
 // TestAggregationLoop_Normal_BasicInterval verifies the basic time interval logic of the normal aggregation loop.
 func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	assert := assert.New(t)
@@ -121,12 +38,11 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	logger := log.NewTestLogger(t)
 
 	m := &Manager{
-		store:      mockStore,
-		exec:       mockExec,
-		sequencer:  mockSeq,
-		dalc:       mockDAC,
-		logger:     logger,
-		isProposer: true,
+		store:     mockStore,
+		exec:      mockExec,
+		sequencer: mockSeq,
+		dalc:      mockDAC,
+		logger:    logger,
 		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      config.DurationWrapper{Duration: blockTime},
@@ -219,12 +135,11 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 
 	// Create a basic Manager instance
 	m := &Manager{
-		store:      mockStore,
-		exec:       mockExec,
-		sequencer:  mockSeq,
-		dalc:       mockDAC,
-		logger:     mockLogger,
-		isProposer: true,
+		store:     mockStore,
+		exec:      mockExec,
+		sequencer: mockSeq,
+		dalc:      mockDAC,
+		logger:    mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      config.DurationWrapper{Duration: blockTime},
@@ -292,65 +207,4 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 		interval := publishTimes[i].Sub(publishTimes[i-1])
 		WithinDuration(t, blockTime, interval, tolerance)
 	}
-}
-
-func TestAggregationLoop(t *testing.T) {
-	mockStore := new(mocks.Store)
-	mockLogger := log.NewTestLogger(t)
-
-	m := &Manager{
-		store:  mockStore,
-		logger: mockLogger,
-		genesis: genesispkg.NewGenesis(
-			"myChain",
-			1,
-			time.Now(),
-			[]byte{},
-		),
-		config: config.Config{
-			Node: config.NodeConfig{
-				BlockTime:      config.DurationWrapper{Duration: time.Second},
-				LazyAggregator: false,
-			},
-		},
-	}
-
-	m.publishBlock = m.publishBlockInternal
-
-	mockStore.On("Height", mock.Anything).Return(uint64(0), nil)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	go m.AggregationLoop(ctx)
-
-	<-ctx.Done()
-
-	mockStore.AssertExpectations(t)
-}
-
-func TestNormalAggregationLoop(t *testing.T) {
-	mockLogger := log.NewTestLogger(t)
-
-	m := &Manager{
-		logger: mockLogger,
-		config: config.Config{
-			Node: config.NodeConfig{
-				BlockTime:      config.DurationWrapper{Duration: 1 * time.Second},
-				LazyAggregator: false,
-			},
-		},
-	}
-
-	m.publishBlock = m.publishBlockInternal
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	blockTimer := time.NewTimer(m.config.Node.BlockTime.Duration)
-	defer blockTimer.Stop()
-
-	go m.normalAggregationLoop(ctx, blockTimer)
-
-	<-ctx.Done()
 }

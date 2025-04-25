@@ -141,9 +141,6 @@ type Manager struct {
 	// for reporting metrics
 	metrics *Metrics
 
-	// true if the manager is a proposer
-	isProposer bool
-
 	exec coreexecutor.Executor
 
 	// daIncludedHeight is rollup height at which all blocks have been included
@@ -162,11 +159,9 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
-func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, crypto.PubKey, error) {
+func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(ctx)
-
-	var pubKey crypto.PubKey
 
 	if errors.Is(err, ds.ErrNotFound) {
 		logger.Info("No state found in store, initializing new state")
@@ -183,22 +178,23 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 
 		var signature types.Signature
 
+		var pubKey crypto.PubKey
 		// The signer is only provided in aggregator nodes. This enables the creation of a signed genesis header,
 		// which includes a public key and a cryptographic signature for the header.
 		// In a full node (non-aggregator), the signer will be nil, and only an unsigned genesis header will be initialized locally.
 		if signer != nil {
 			pubKey, err = signer.GetPublic()
 			if err != nil {
-				return types.State{}, pubKey, fmt.Errorf("failed to get public key: %w", err)
+				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
 			}
 
 			b, err := header.MarshalBinary()
 			if err != nil {
-				return types.State{}, pubKey, err
+				return types.State{}, err
 			}
 			signature, err = signer.Sign(b)
 			if err != nil {
-				return types.State{}, pubKey, fmt.Errorf("failed to get header signature: %w", err)
+				return types.State{}, fmt.Errorf("failed to get header signature: %w", err)
 			}
 		}
 
@@ -215,7 +211,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			&signature,
 		)
 		if err != nil {
-			return types.State{}, pubKey, fmt.Errorf("failed to save genesis block: %w", err)
+			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
 		}
 
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
@@ -223,7 +219,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartHeight, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
 			logger.Error("error while initializing chain", "error", err)
-			return types.State{}, pubKey, err
+			return types.State{}, err
 		}
 
 		s := types.State{
@@ -235,20 +231,20 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			AppHash:         stateRoot,
 			DAHeight:        0,
 		}
-		return s, pubKey, nil
+		return s, nil
 	} else if err != nil {
 		logger.Error("error while getting state", "error", err)
-		return types.State{}, pubKey, err
+		return types.State{}, err
 	} else {
 		// Perform a sanity-check to stop the user from
 		// using a higher genesis than the last stored state.
 		// if they meant to hard-fork, they should have cleared the stored State
 		if uint64(genesis.InitialHeight) > s.LastBlockHeight { //nolint:unconvert
-			return types.State{}, pubKey, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
+			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
 		}
 	}
 
-	return s, pubKey, nil
+	return s, nil
 }
 
 // NewManager creates new block Manager.
@@ -268,7 +264,7 @@ func NewManager(
 	gasPrice float64,
 	gasMultiplier float64,
 ) (*Manager, error) {
-	s, pubkey, err := getInitialState(ctx, genesis, signer, store, exec, logger)
+	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
 	if err != nil {
 		logger.Error("error while getting initial state", "error", err)
 		return nil, err
@@ -307,14 +303,10 @@ func NewManager(
 	if err != nil {
 		return nil, err
 	}
-
+	// allow buffer for the block header and protocol encoding
+	// TODO: why is this needed?
+	//nolint:ineffassign // This assignment is needed
 	maxBlobSize -= blockProtocolOverhead
-
-	isProposer, err := isProposer(signer, pubkey)
-	if err != nil {
-		logger.Error("error while checking if proposer", "error", err)
-		return nil, err
-	}
 
 	pendingHeaders, err := NewPendingHeaders(store, logger)
 	if err != nil {
@@ -358,7 +350,6 @@ func NewManager(
 		buildingBlock:  false,
 		pendingHeaders: pendingHeaders,
 		metrics:        seqMetrics,
-		isProposer:     isProposer,
 		sequencer:      sequencer,
 		exec:           exec,
 		gasPrice:       gasPrice,
@@ -378,11 +369,6 @@ func (m *Manager) DALCInitialized() bool {
 // PendingHeaders returns the pending headers.
 func (m *Manager) PendingHeaders() *PendingHeaders {
 	return m.pendingHeaders
-}
-
-// IsProposer returns true if the manager is acting as proposer.
-func (m *Manager) IsProposer() bool {
-	return m.isProposer
 }
 
 // SeqClient returns the grpc sequencing client.
@@ -524,10 +510,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	default:
 	}
 
-	if !m.isProposer {
-		return ErrNotProposer
-	}
-
 	if m.config.Node.MaxPendingBlocks != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingBlocks {
 		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
 			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingBlocks)
@@ -583,7 +565,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 			// Continue but log the state
 			m.logger.Info("Current state",
 				"height", height,
-				"isProposer", m.isProposer,
 				"pendingHeaders", m.pendingHeaders.numPendingHeaders())
 		}
 

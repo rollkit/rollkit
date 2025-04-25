@@ -21,14 +21,11 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	coreda "github.com/rollkit/rollkit/core/da"
-
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
-	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
-	mocksda "github.com/rollkit/rollkit/test/mocks"
-	mocksstore "github.com/rollkit/rollkit/test/mocks"
+	rollmocks "github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -44,10 +41,10 @@ func (m *MockLogger) With(keyvals ...any) log.Logger   { return m }
 func (m *MockLogger) Impl() any                        { return m }
 
 // setupManagerForRetrieverTest initializes a Manager with mocked dependencies.
-func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manager, *mocksda.Client, *mocksstore.Store, *MockLogger, *cache.Cache[types.SignedHeader], context.CancelFunc) {
+func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.Client, *rollmocks.Store, *MockLogger, *cache.Cache[types.SignedHeader], context.CancelFunc) {
 	t.Helper()
-	mockDAClient := mocksda.NewClient(t)
-	mockStore := mocksstore.NewStore(t)
+	mockDAClient := rollmocks.NewClient(t)
+	mockStore := rollmocks.NewStore(t)
 	mockLogger := new(MockLogger)
 
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe()
@@ -68,6 +65,7 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 	// Create a mock signer
 	src := rand.Reader
 	pk, _, err := crypto.GenerateEd25519Key(src)
+	require.NoError(t, err)
 	noopSigner, err := noop.NewNoopSigner(pk)
 	require.NoError(t, err)
 
@@ -98,22 +96,6 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 	t.Cleanup(cancel)
 
 	return manager, mockDAClient, mockStore, mockLogger, manager.headerCache, cancel
-}
-
-// Helper to create a valid serialized SignedHeader protobuf message
-func createSerializedSignedHeader(t *testing.T, height uint64, m *Manager, signer signer.Signer) []byte {
-	t.Helper()
-	hc := types.HeaderConfig{
-		Height: height,
-		Signer: signer,
-	}
-	header, err := types.GetRandomSignedHeaderCustom(&hc, m.genesis.ChainID)
-	require.NoError(t, err)
-	headerProto, err := header.ToProto()
-	require.NoError(t, err)
-	bz, err := proto.Marshal(headerProto)
-	require.NoError(t, err)
-	return bz
 }
 
 func TestProcessNextDAHeader_Success_SingleHeader(t *testing.T) {

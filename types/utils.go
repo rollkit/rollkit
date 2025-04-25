@@ -131,6 +131,9 @@ func GetRandomSignedHeader(chainID string) (*SignedHeader, crypto.PrivKey, error
 	}
 
 	noopSigner, err := noop.NewNoopSigner(pk)
+	if err != nil {
+		return nil, nil, err
+	}
 	config := HeaderConfig{
 		Height:      uint64(rand.Int63()), //nolint:gosec
 		DataHash:    GetRandomBytes(32),
