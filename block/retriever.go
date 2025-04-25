@@ -16,6 +16,11 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
+const (
+	dAefetcherTimeout = 30 * time.Second
+	dAFetcherRetries  = 10
+)
+
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
 	// blockFoundCh is used to track when we successfully found a block so
@@ -55,13 +60,11 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 	default:
 	}
 
-	// TODO(tzdybal): extract configuration option
-	maxRetries := 10
 	daHeight := atomic.LoadUint64(&m.daHeight)
 
 	var err error
 	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
-	for r := 0; r < maxRetries; r++ {
+	for r := 0; r < dAFetcherRetries; r++ {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -80,6 +83,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 				var headerPb pb.SignedHeader
 				err := proto.Unmarshal(bz, &headerPb)
 				if err != nil {
+					// we can fail to unmarshal the header if the header as we fetch all data from the DA layer, which includes Data as well
 					m.logger.Debug("failed to unmarshal header", "error", err, "DAHeight", daHeight)
 					continue
 				}
@@ -156,9 +160,10 @@ func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
 	return false
 }
 
+// featchHeaders retrieves headers from the DA layer
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
 	var err error
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
+	ctx, cancel := context.WithTimeout(ctx, dAefetcherTimeout)
 	defer cancel()
 	headerRes := m.dalc.Retrieve(ctx, daHeight)
 	if headerRes.Code == coreda.StatusError {
@@ -167,14 +172,7 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 	return headerRes, err
 }
 
-func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
-	b, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return m.signer.Sign(b)
-}
-
+// setDAIncludedHeight sets the DA included height in the store
 func (m *Manager) setDAIncludedHeight(ctx context.Context, newHeight uint64) error {
 	for {
 		currentHeight := m.daIncludedHeight.Load()

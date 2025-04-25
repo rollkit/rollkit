@@ -10,6 +10,7 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer"
+	"github.com/rollkit/rollkit/pkg/signer/noop"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
@@ -49,10 +50,15 @@ func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHead
 		config.PrivKey = pk
 	}
 
+	noopSigner, err := noop.NewNoopSigner(config.PrivKey)
+	if err != nil {
+		panic(err)
+	}
+
 	headerConfig := HeaderConfig{
 		Height:   config.Height,
 		DataHash: dataHash,
-		PrivKey:  config.PrivKey,
+		Signer:   noopSigner,
 	}
 
 	signedHeader, err := GetRandomSignedHeaderCustom(&headerConfig, chainID)
@@ -78,7 +84,7 @@ func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHead
 type HeaderConfig struct {
 	Height      uint64
 	DataHash    header.Hash
-	PrivKey     crypto.PrivKey
+	Signer      signer.Signer
 	VotingPower int64
 }
 
@@ -123,10 +129,12 @@ func GetRandomSignedHeader(chainID string) (*SignedHeader, crypto.PrivKey, error
 	if err != nil {
 		return nil, nil, err
 	}
+
+	noopSigner, err := noop.NewNoopSigner(pk)
 	config := HeaderConfig{
 		Height:      uint64(rand.Int63()), //nolint:gosec
 		DataHash:    GetRandomBytes(32),
-		PrivKey:     pk,
+		Signer:      noopSigner,
 		VotingPower: 1,
 	}
 
@@ -139,7 +147,11 @@ func GetRandomSignedHeader(chainID string) (*SignedHeader, crypto.PrivKey, error
 
 // GetRandomSignedHeaderCustom creates a signed header based on the provided HeaderConfig.
 func GetRandomSignedHeaderCustom(config *HeaderConfig, chainID string) (*SignedHeader, error) {
-	signer, err := NewSigner(config.PrivKey.GetPublic())
+	pk, err := config.Signer.GetPublic()
+	if err != nil {
+		return nil, err
+	}
+	signer, err := NewSigner(pk)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +166,11 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig, chainID string) (*SignedH
 	signedHeader.ValidatorHash = signer.Address
 	signedHeader.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10
 
-	signature, err := GetSignature(signedHeader.Header, config.PrivKey)
+	b, err := signedHeader.Header.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	signature, err := config.Signer.Sign(b)
 	if err != nil {
 		return nil, err
 	}

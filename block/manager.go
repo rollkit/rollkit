@@ -1046,3 +1046,11 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 
 	return result, nil
 }
+
+func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
+	b, err := header.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return m.signer.Sign(b)
+}
