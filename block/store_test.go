@@ -16,11 +16,10 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
-	extmocks "github.com/rollkit/rollkit/test/mocks/external"
-	"github.com/rollkit/rollkit/types"
-
 	// Use existing store mock if available, or define one
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
+	extmocks "github.com/rollkit/rollkit/test/mocks/external"
+	"github.com/rollkit/rollkit/types"
 )
 
 func setupManagerForStoreRetrieveTest(t *testing.T) (
@@ -318,7 +317,7 @@ func TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders(t *testing.T) {
 				} else {
 					dummyHeader, _, err := types.GetRandomSignedHeader(m.genesis.ChainID)
 					require.NoError(err)
-					dummyHeader.Header.BaseHeader.Height = initialHeight
+					dummyHeader.BaseHeader.Height = initialHeight
 					lastHeader = dummyHeader
 				}
 			}

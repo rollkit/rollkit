@@ -6,9 +6,10 @@ import (
 
 	"github.com/celestiaorg/go-header"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rollkit/rollkit/pkg/signer/noop"
 )
 
 func TestSignedHeader(t *testing.T) {
