@@ -143,10 +143,9 @@ type Manager struct {
 	// daIncludedHeight is rollup height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
-	da               coreda.DA // Changed from dalc coreda.Client
-	daNamespace      []byte    // Added namespace field
-	gasPrice         float64   // Note: gasPrice and gasMultiplier might be removable if handled solely by DA impls
-	gasMultiplier    float64   // Note: gasPrice and gasMultiplier might be removable if handled solely by DA impls
+	da               coreda.DA
+	gasPrice         float64
+	gasMultiplier    float64
 
 	sequencer     coresequencer.Sequencer
 	lastBatchData [][]byte
@@ -247,14 +246,13 @@ func NewManager(
 	store store.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	da coreda.DA, // Changed parameter type
-	daNamespace []byte, // Added namespace parameter
+	da coreda.DA,
 	logger log.Logger,
 	headerStore *goheaderstore.Store[*types.SignedHeader],
 	dataStore *goheaderstore.Store[*types.Data],
 	seqMetrics *Metrics,
-	gasPrice float64, // Note: gasPrice and gasMultiplier might be removable if handled solely by DA impls
-	gasMultiplier float64, // Note: gasPrice and gasMultiplier might be removable if handled solely by DA impls
+	gasPrice float64,
+	gasMultiplier float64,
 ) (*Manager, error) {
 	s, pubkey, err := getInitialState(ctx, genesis, proposerKey, store, exec, logger)
 	if err != nil {
@@ -290,17 +288,6 @@ func NewManager(
 		logger.Info("Using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
 		config.DA.MempoolTTL = defaultMempoolTTL
 	}
-
-	//proposerAddress := s.Validators.Proposer.Address.Bytes()
-
-	// maxBlobSize is now handled within the DA implementations or helpers
-	// maxBlobSize, err := da.MaxBlobSize(ctx) // Removed dalc usage
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// allow buffer for the block header and protocol encoding
-	//nolint:ineffassign // This assignment is needed
-	// maxBlobSize -= blockProtocolOverhead // Removed dalc usage
 
 	isProposer, err := isProposer(proposerKey, pubkey)
 	if err != nil {
@@ -352,10 +339,9 @@ func NewManager(
 		isProposer:     isProposer,
 		sequencer:      sequencer,
 		exec:           exec,
-		da:             da,            // Store the DA interface
-		daNamespace:    daNamespace,   // Store the namespace
-		gasPrice:       gasPrice,      // Keep for now, might be removable later
-		gasMultiplier:  gasMultiplier, // Keep for now, might be removable later
+		da:             da,
+		gasPrice:       gasPrice,
+		gasMultiplier:  gasMultiplier,
 	}
 	agg.init(ctx)
 	return agg, nil
@@ -1076,13 +1062,10 @@ func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
 }
 
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
-	// Use the helper function from the types package
-	// Note: The helper function itself handles error mapping and returns ResultRetrieve directly.
-	// We don't need to wrap the error here. The helper also handles timeouts internally if needed.
-	res := types.RetrieveWithHelpers(ctx, m.da, m.logger, daHeight, m.daNamespace)
+	res := types.RetrieveWithHelpers(ctx, m.da, m.logger, daHeight)
 	var err error
 	if res.Code == coreda.StatusError {
-		err = errors.New(res.Message) // Convert message back to error for the caller if needed
+		err = fmt.Errorf("failed to retrieve block: %s", res.Message)
 	}
 	return res, err
 }
@@ -1333,14 +1316,8 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	}
 	numSubmittedHeaders := 0
 	attempt := 0
-	// maxBlobSize is handled by the helper/DA implementation
-	// maxBlobSize, err := m.da.MaxBlobSize(ctx) // Removed dalc usage
-	// if err != nil {
-	// 	return err
-	// }
-	// initialMaxBlobSize := maxBlobSize // Removed dalc usage
-	gasPrice := m.gasPrice      // Keep for now
-	initialGasPrice := gasPrice // Keep for now
+	gasPrice := m.gasPrice
+	initialGasPrice := gasPrice
 
 daSubmitRetryLoop:
 	for !submittedAllHeaders && attempt < maxSubmitAttempts {
@@ -1363,14 +1340,12 @@ daSubmitRetryLoop:
 				return fmt.Errorf("failed to marshal header: %w", err)
 			}
 		}
-
-		// Use the helper function from the types package
-		// The helper handles timeouts internally if needed.
-		// Pass nil for options for now, assuming default behavior.
-		res := types.SubmitWithHelpers(ctx, m.da, m.logger, headersBz, gasPrice, m.daNamespace, nil)
+		ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		res := types.SubmitWithHelpers(ctx, m.da, m.logger, headersBz, gasPrice, []byte("placeholder"), nil)
+		cancel()
 		switch res.Code {
 		case coreda.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount) // gasPrice might be irrelevant now
+			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount)
 			if res.SubmittedCount == uint64(len(headersToSubmit)) {
 				submittedAllHeaders = true
 			}
@@ -1389,24 +1364,21 @@ daSubmitRetryLoop:
 			}
 			m.pendingHeaders.setLastSubmittedHeight(ctx, lastSubmittedHeight)
 			headersToSubmit = notSubmittedBlocks
-			// reset submission options when successful
-			// scale back gasPrice gradually (if still needed)
 			backoff = 0
-			// maxBlobSize = initialMaxBlobSize // Removed dalc usage
-			if m.gasMultiplier > 0 && gasPrice != -1 { // Keep gas price logic for now
+			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice / m.gasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
 				}
 			}
-			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice) // Removed maxBlobSize log
+			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL) //nolint:gosec
-			if m.gasMultiplier > 0 && gasPrice != -1 {                                       // Keep gas price logic for now
+			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL)
+			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * m.gasMultiplier
 			}
-			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice) // Removed maxBlobSize log
+			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
 
 		// StatusTooBig is now handled within the helper/DA implementation
 		// case coreda.StatusTooBig:

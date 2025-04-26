@@ -76,7 +76,6 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyDA,
-		[]byte(MockDANamespace),
 		remoteSigner,
 		*nodeKey,
 		p2pClient,

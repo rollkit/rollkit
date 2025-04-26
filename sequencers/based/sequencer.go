@@ -59,9 +59,7 @@ type Sequencer struct {
 	// DA represents the Data Availability layer interface used by the Sequencer.
 	DA coreda.DA
 
-	// dalc coreda.Client // Removed dalc field
-
-	daNamespace []byte // Added field to store namespace
+	daNamespace []byte
 
 	// pendingTxs is a persistent storage for transactions that are pending inclusion
 	// in the rollup blocks.
@@ -78,8 +76,8 @@ type Sequencer struct {
 // NewSequencer creates a new Sequencer instance.
 func NewSequencer(
 	logger log.Logger,
-	daImpl coreda.DA, // Renamed parameter to avoid conflict with field name
-	daNamespace []byte, // Added namespace parameter
+	daImpl coreda.DA,
+	daNamespace []byte,
 	rollupId []byte,
 	daStartHeight uint64,
 	maxHeightDrift uint64,
@@ -93,8 +91,8 @@ func NewSequencer(
 		logger:         logger,
 		maxHeightDrift: maxHeightDrift,
 		rollupId:       rollupId,
-		DA:             daImpl,      // Use renamed parameter
-		daNamespace:    daNamespace, // Store namespace
+		DA:             daImpl,
+		daNamespace:    daNamespace,
 		daStartHeight:  daStartHeight,
 		pendingTxs:     pending,
 		store:          ds,
@@ -173,7 +171,7 @@ OuterLoop:
 			break OuterLoop
 		}
 		// fetch the next batch of transactions from DA using the helper
-		res := types.RetrieveWithHelpers(ctx, s.DA, s.logger, nextDAHeight, s.daNamespace)
+		res := types.RetrieveWithHelpers(ctx, s.DA, s.logger, nextDAHeight)
 		if res.Code == coreda.StatusError {
 			// stop fetching more transactions and return the current batch
 			s.logger.Warn("failed to retrieve transactions from DA layer via helper", "error", res.Message)
@@ -183,17 +181,17 @@ OuterLoop:
 			// stop fetching more transactions and return the current batch
 			s.logger.Debug("no transactions to retrieve from DA layer via helper for", "height", nextDAHeight)
 			// don't break yet, wait for maxHeightDrift to elapse
-		} else if res.Code == coreda.StatusSuccess { // Process only on success
+		} else if res.Code == coreda.StatusSuccess {
 			for i, tx := range res.Data {
 				txSize := uint64(len(tx))
 				if size+txSize >= maxBytes {
 					// Push remaining transactions back to the queue
-					s.pendingTxs.Push(res.Data[i:], res.IDs[i:], res.Timestamp) // Use fields from BaseResult
+					s.pendingTxs.Push(res.Data[i:], res.IDs[i:], res.Timestamp)
 					break OuterLoop
 				}
 				resp.Batch.Transactions = append(resp.Batch.Transactions, tx)
-				resp.BatchData = append(resp.BatchData, res.IDs[i]) // Use fields from BaseResult
-				resp.Timestamp = res.Timestamp                      // update timestamp to the last one
+				resp.BatchData = append(resp.BatchData, res.IDs[i])
+				resp.Timestamp = res.Timestamp // update timestamp to the last one
 				size += txSize
 			}
 		}
@@ -223,15 +221,13 @@ func (s *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 		return nil, ErrInvalidRollupId
 	}
 	// Use stored namespace
-	namespace := s.daNamespace
-	// get the proofs
-	proofs, err := s.DA.GetProofs(ctx, req.BatchData, namespace)
+	proofs, err := s.DA.GetProofs(ctx, req.BatchData, s.daNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proofs: %w", err)
 	}
 
 	// verify the proof
-	valid, err := s.DA.Validate(ctx, req.BatchData, proofs, namespace)
+	valid, err := s.DA.Validate(ctx, req.BatchData, proofs, s.daNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate proof: %w", err)
 	}

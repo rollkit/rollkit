@@ -405,7 +405,7 @@ func TestStartNodeErrors(t *testing.T) {
 
 			runFunc := func() {
 				// Pass the final nodeConfig to StartNode
-				err := StartNode(logger, cmd, executor, sequencer, dac, []byte(MockDANamespace), nodeKey, p2pClient, ds, nodeConfig)
+				err := StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, ds, nodeConfig)
 				if tc.expectedError != "" {
 					assert.ErrorContains(t, err, tc.expectedError)
 				} else {
@@ -422,7 +422,7 @@ func TestStartNodeErrors(t *testing.T) {
 				assert.NotPanics(t, runFunc)
 				// Re-check error after NotPanics confirms no panic occurred
 				// Need to re-run StartNode as the original runFunc only checks error if !tc.expectPanic
-				err := StartNode(logger, cmd, executor, sequencer, dac, []byte(MockDANamespace), nodeKey, p2pClient, ds, nodeConfig)
+				err := StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, ds, nodeConfig)
 				if tc.expectedError != "" {
 					assert.ErrorContains(t, err, tc.expectedError)
 				}
@@ -459,7 +459,7 @@ func newRunNodeCmd(
 		Short:   "Run the rollkit node",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Use the nodeConfig passed into this function closure
-			return StartNode(log.NewNopLogger(), cmd, executor, sequencer, dac, []byte(MockDANamespace), nodeKey, p2pClient, datastore, nodeConfig)
+			return StartNode(log.NewNopLogger(), cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
 

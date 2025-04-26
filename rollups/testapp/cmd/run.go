@@ -53,7 +53,7 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		daJrpc, err := da.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		daJrpc, err := da.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 		if err != nil {
 			return err
 		}
@@ -107,6 +107,6 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, daJrpc, []byte(nodeConfig.DA.Namespace), nodeKey, p2pClient, datastore, nodeConfig)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, daJrpc, nodeKey, p2pClient, datastore, nodeConfig)
 	},
 }

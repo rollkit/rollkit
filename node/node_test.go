@@ -204,7 +204,6 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		executor,
 		sequencer,
 		dac,
-		[]byte(MockDANamespace),
 		remoteSigner,
 		*nodeKey,
 		p2pClient,

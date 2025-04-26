@@ -53,6 +53,8 @@ type FullNode struct {
 
 	nodeConfig config.Config
 
+	da coreda.DA
+
 	p2pClient    *p2p.Client
 	hSyncService *sync.HeaderSyncService
 	dSyncService *sync.DataSyncService
@@ -77,7 +79,6 @@ func newFullNode(
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
-	daNamespace []byte,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
@@ -114,8 +115,7 @@ func newFullNode(
 		genesis,
 		store,
 		sequencer,
-		da,          // Pass coreda.DA
-		daNamespace, // Pass namespace
+		da,
 		logger,
 		headerSyncService,
 		dataSyncService,
@@ -133,7 +133,7 @@ func newFullNode(
 		p2pClient:    p2pClient,
 		blockManager: blockManager,
 		reaper:       reaper,
-		// dalc:         dac, // Removed dalc field
+		da:           da,
 		Store:        store,
 		hSyncService: headerSyncService,
 		dSyncService: dataSyncService,
@@ -179,8 +179,7 @@ func initDataSyncService(
 // - genesis: the genesis document
 // - store: the store
 // - seqClient: the sequencing client
-// - dalc: the DA client
-
+// - da: the DA
 func initBlockManager(
 	ctx context.Context,
 	signer signer.Signer,
@@ -189,8 +188,7 @@ func initBlockManager(
 	genesis genesispkg.Genesis,
 	store store.Store,
 	sequencer coresequencer.Sequencer,
-	da coreda.DA, // Changed from dalc coreda.Client to da coreda.DA
-	daNamespace []byte, // Added daNamespace parameter
+	da coreda.DA,
 	logger log.Logger,
 	headerSyncService *sync.HeaderSyncService,
 	dataSyncService *sync.DataSyncService,
@@ -208,8 +206,7 @@ func initBlockManager(
 		store,
 		exec,
 		sequencer,
-		da,          // Pass coreda.DA
-		daNamespace, // Pass namespace
+		da,
 		logger.With("module", "BlockManager"),
 		headerSyncService.Store(),
 		dataSyncService.Store(),

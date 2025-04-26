@@ -188,8 +188,8 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
-	mockDAC := mocks.NewDA(t)           // Use mock DA Client
-	m := getManager(t, mockDAC, -1, -1) // Pass mock DA Client
+	mockDAC := mocks.NewDA(t)
+	m := getManager(t, mockDAC, -1, -1)
 	payload := []byte("test")
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
@@ -239,8 +239,8 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	mockDA := mocks.NewDA(t)           // Use mock DA Client
-	m := getManager(t, mockDA, -1, -1) // Pass mock DA Client
+	mockDA := mocks.NewDA(t)
+	m := getManager(t, mockDA, -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -253,8 +253,6 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
 	store.On("GetBlockData", mock.Anything, uint64(3)).Return(header3, data3, nil)
 	store.On("Height", mock.Anything).Return(uint64(3), nil)
-
-	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(100000), nil).Once()
 
 	m.store = store
 
@@ -276,15 +274,15 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	mockDA := mocks.NewDA(t)           // Use mock DA Client
-	m := getManager(t, mockDA, -1, -1) // Pass mock DA Client
+	mockDA := mocks.NewDA(t)
+	m := getManager(t, mockDA, -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
 	header3, data3 := types.GetRandomBlock(uint64(3), 5, chainID)
 
 	store := mocks.NewStore(t)
-	invalidateBlockHeader(header3) // C fails marshal
+	invalidateBlockHeader(header3)
 	store.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
 	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
@@ -293,14 +291,11 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 	m.store = store
 
-	// Expect MaxBlobSize call (likely happens before marshalling loop)
-	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(100000), nil).Once()
-
 	var err error
 	m.pendingHeaders, err = NewPendingHeaders(store, m.logger)
 	require.NoError(err)
 	err = m.submitHeadersToDA(ctx)
-	assert.ErrorContains(err, "failed to transform header to proto") // Error from C is expected
+	assert.ErrorContains(err, "failed to transform header to proto")
 	blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
 	assert.NoError(err)
 	// Expect all blocks to remain pending because the batch submission was halted
@@ -376,8 +371,8 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	mockDA := mocks.NewDA(t)           // Use mock DA Client
-	m := getManager(t, mockDA, -1, -1) // Pass mock DA Client
+	mockDA := mocks.NewDA(t)
+	m := getManager(t, mockDA, -1, -1)
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)

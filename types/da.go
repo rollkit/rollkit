@@ -35,7 +35,7 @@ func SubmitWithHelpers(
 		case errors.Is(err, coreda.ErrTxAlreadyInMempool):
 			status = coreda.StatusAlreadyInMempool
 		case errors.Is(err, coreda.ErrTxIncorrectAccountSequence):
-			status = coreda.StatusAlreadyInMempool // Assuming same handling
+			status = coreda.StatusAlreadyInMempool
 		case errors.Is(err, coreda.ErrBlobSizeOverLimit):
 			status = coreda.StatusTooBig
 		case errors.Is(err, coreda.ErrContextDeadline):
@@ -46,20 +46,18 @@ func SubmitWithHelpers(
 			BaseResult: coreda.BaseResult{
 				Code:    status,
 				Message: "failed to submit blobs: " + err.Error(),
-				// Include IDs if available, even on error (might indicate partial success if DA impl returns them)
+
 				IDs:            ids,
 				SubmittedCount: uint64(len(ids)),
 			},
 		}
 	}
 
-	// Handle successful submission (potentially partial if DA impl filtered blobs)
 	if len(ids) == 0 && len(data) > 0 {
-		// If no IDs were returned but we submitted data, it implies an issue (e.g., all filtered out)
 		logger.Warn("DA submission via helper returned no IDs for non-empty input data")
 		return coreda.ResultSubmit{
 			BaseResult: coreda.BaseResult{
-				Code:    coreda.StatusError, // Or potentially StatusTooBig if filtering is the only reason
+				Code:    coreda.StatusError,
 				Message: "failed to submit blobs: no IDs returned despite non-empty input",
 			},
 		}
@@ -69,11 +67,10 @@ func SubmitWithHelpers(
 	return coreda.ResultSubmit{
 		BaseResult: coreda.BaseResult{
 			Code:           coreda.StatusSuccess,
-			IDs:            ids,              // Set IDs within BaseResult
-			SubmittedCount: uint64(len(ids)), // Set SubmittedCount within BaseResult
-			// Height and BlobSize might not be available from SubmitWithOptions interface.
-			Height:   0,
-			BlobSize: 0,
+			IDs:            ids,
+			SubmittedCount: uint64(len(ids)),
+			Height:         0,
+			BlobSize:       0,
 		},
 	}
 }
@@ -83,14 +80,13 @@ func SubmitWithHelpers(
 // It mimics the logic previously found in da.DAClient.Retrieve.
 func RetrieveWithHelpers(
 	ctx context.Context,
-	da coreda.DA, // Use the core DA interface
+	da coreda.DA,
 	logger log.Logger,
 	dataLayerHeight uint64,
-	namespace []byte,
-) coreda.ResultRetrieve { // Return core ResultRetrieve type
+) coreda.ResultRetrieve {
 
 	// 1. Get IDs
-	idsResult, err := da.GetIDs(ctx, dataLayerHeight, namespace)
+	idsResult, err := da.GetIDs(ctx, dataLayerHeight, []byte{})
 	if err != nil {
 		// Handle specific "not found" error
 		if errors.Is(err, coreda.ErrBlobNotFound) {
@@ -127,7 +123,7 @@ func RetrieveWithHelpers(
 	}
 
 	// 2. Get Blobs using the retrieved IDs
-	blobs, err := da.Get(ctx, idsResult.IDs, namespace)
+	blobs, err := da.Get(ctx, idsResult.IDs, []byte("namespace")) // Assuming "namespace" is a placeholder
 	if err != nil {
 		// Handle errors during Get
 		logger.Error("Retrieve helper: Failed to get blobs", "height", dataLayerHeight, "num_ids", len(idsResult.IDs), "error", err)

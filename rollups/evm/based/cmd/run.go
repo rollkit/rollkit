@@ -112,7 +112,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 
 			var rollDA coreda.DA
 			if nodeConfig.DA.AuthToken != "" {
-				client, err := jsonrpc.NewClient(ctx, logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+				client, err := jsonrpc.NewClient(ctx, logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 				if err != nil {
 					return fmt.Errorf("failed to create DA client: %w", err)
 				}
@@ -120,11 +120,10 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			} else {
 				rollDA = coreda.NewDummyDA(100_000, 0, 0)
 			}
-			// rollDALC := da.NewDAClient(rollDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), nil, logger) // Removed DAClient usage
 
 			var basedDA coreda.DA
 			if basedAuth != "" {
-				client, err := jsonrpc.NewClient(ctx, logger, basedURL, basedAuth)
+				client, err := jsonrpc.NewClient(ctx, logger, basedURL, basedAuth, basedNamespace)
 				if err != nil {
 					return fmt.Errorf("failed to create based client: %w", err)
 				}
@@ -136,7 +135,6 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to decode based namespace: %w", err)
 			}
-			// basedDALC := da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, nsBytes, nil, logger) // Removed DAClient usage
 
 			datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "based")
 			if err != nil {
@@ -179,8 +177,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			// StartNode might need adjustment if it strictly requires coreda.Client methods.
 			// For now, assume it can work with coreda.DA or will be adjusted later.
 			// We also need to pass the namespace config for rollDA.
-			rollDANamespace := []byte(nodeConfig.DA.Namespace)
-			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, rollDANamespace, nodeKey, p2pClient, datastore, nodeConfig)
+			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
 

@@ -42,7 +42,7 @@ func TestProxy(t *testing.T) {
 		}
 	}()
 
-	client, err := proxy.NewClient(context.Background(), logger, ClientURL, "")
+	client, err := proxy.NewClient(context.Background(), logger, ClientURL, "", "test")
 	require.NoError(t, err)
 	RunDATestSuite(t, &client.DA)
 }

@@ -60,7 +60,6 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		executor,
 		sequencer,
 		dac,
-		[]byte(MockDANamespace),
 		remoteSigner,
 		*nodeKey,
 		p2pClient,

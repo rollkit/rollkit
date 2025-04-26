@@ -32,8 +32,7 @@ func NewNode(
 	conf config.Config,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	da coreda.DA, // Changed from dac coreda.Client to da coreda.DA
-	daNamespace []byte, // Added daNamespace parameter
+	da coreda.DA,
 	signer signer.Signer,
 	nodeKey key.NodeKey,
 	p2pClient *p2p.Client,
@@ -56,8 +55,7 @@ func NewNode(
 		database,
 		exec,
 		sequencer,
-		da,          // Pass coreda.DA
-		daNamespace, // Pass namespace
+		da,
 		metricsProvider,
 		logger,
 	)
