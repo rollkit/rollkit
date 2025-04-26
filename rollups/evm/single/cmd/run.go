@@ -14,9 +14,7 @@ import (
 
 	evm "github.com/rollkit/go-execution-evm"
 
-	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/core/execution"
-	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/proxy"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
@@ -82,10 +80,6 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		// Create DA client with dummy DA
-		dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-		dac := da.NewDAClient(dummyDA, 0, 1.0, []byte("test"), []byte(""), logger)
-
 		nodeKey, err := key.LoadNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 		if err != nil {
 			return err
@@ -96,7 +90,7 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, daJrpc, []byte(nodeConfig.DA.Namespace), nodeKey, p2pClient, datastore, nodeConfig)
 	},
 }
 

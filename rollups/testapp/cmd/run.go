@@ -9,7 +9,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
-	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/proxy"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
@@ -58,15 +57,6 @@ var RunCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
-		dac := da.NewDAClient(
-			daJrpc,
-			nodeConfig.DA.GasPrice,
-			nodeConfig.DA.GasMultiplier,
-			[]byte(nodeConfig.DA.Namespace),
-			[]byte(nodeConfig.DA.SubmitOptions),
-			logger,
-		)
 
 		nodeKey, err := key.LoadNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 		if err != nil {
@@ -117,6 +107,6 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, daJrpc, []byte(nodeConfig.DA.Namespace), nodeKey, p2pClient, datastore, nodeConfig)
 	},
 }

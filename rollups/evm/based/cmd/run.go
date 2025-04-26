@@ -11,7 +11,6 @@ import (
 	"github.com/rollkit/go-execution-evm"
 	coreda "github.com/rollkit/rollkit/core/da"
 
-	// "github.com/rollkit/rollkit/da" // No longer needed directly, helpers are used elsewhere
 	"github.com/rollkit/rollkit/da/proxy/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
