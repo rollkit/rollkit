@@ -5,7 +5,6 @@ go 1.24.1
 replace (
 	github.com/rollkit/rollkit => ../../
 	github.com/rollkit/rollkit/core => ../../core
-	github.com/rollkit/rollkit/da => ../../da
 )
 
 require (
@@ -15,7 +14,6 @@ require (
 	github.com/prometheus/client_golang v1.21.1
 	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
-	github.com/rollkit/rollkit/da v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/protobuf v1.36.6
 )

@@ -41,10 +41,10 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 }
 
 // Returns a minimalistic block manager using a mock DA Client
-func getManager(t *testing.T, dac da.Client, gasPrice float64, gasMultiplier float64) *Manager {
+func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) *Manager {
 	logger := log.NewTestLogger(t)
 	return &Manager{
-		dalc:          dac,
+		da:            da,
 		headerCache:   cache.NewCache[types.SignedHeader](),
 		logger:        logger,
 		gasPrice:      gasPrice,
@@ -188,7 +188,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
-	mockDAC := mocks.NewClient(t)       // Use mock DA Client
+	mockDAC := mocks.NewDA(t)           // Use mock DA Client
 	m := getManager(t, mockDAC, -1, -1) // Pass mock DA Client
 	payload := []byte("test")
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
@@ -239,7 +239,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	mockDA := mocks.NewClient(t)       // Use mock DA Client
+	mockDA := mocks.NewDA(t)           // Use mock DA Client
 	m := getManager(t, mockDA, -1, -1) // Pass mock DA Client
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
@@ -276,7 +276,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	mockDA := mocks.NewClient(t)       // Use mock DA Client
+	mockDA := mocks.NewDA(t)           // Use mock DA Client
 	m := getManager(t, mockDA, -1, -1) // Pass mock DA Client
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
@@ -376,7 +376,7 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	mockDA := mocks.NewClient(t)       // Use mock DA Client
+	mockDA := mocks.NewDA(t)           // Use mock DA Client
 	m := getManager(t, mockDA, -1, -1) // Pass mock DA Client
 	m.isProposer = false
 	err := m.publishBlock(context.Background())

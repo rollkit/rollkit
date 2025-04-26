@@ -2,6 +2,7 @@ package da
 
 import (
 	"context"
+	"encoding/binary"
 	"time"
 )
 
@@ -60,4 +61,72 @@ type Proof = []byte
 type GetIDsResult struct {
 	IDs       []ID
 	Timestamp time.Time
+}
+
+// ResultSubmit contains information returned from DA layer after block headers/data submission.
+type ResultSubmit struct {
+	BaseResult
+}
+
+// ResultRetrieveHeaders contains batch of block headers returned from DA layer client.
+type ResultRetrieve struct {
+	BaseResult
+	// Data is the block data retrieved from Data Availability Layer.
+	// If Code is not equal to StatusSuccess, it has to be nil.
+	Data [][]byte
+}
+
+// StatusCode is a type for DA layer return status.
+// TODO: define an enum of different non-happy-path cases
+// that might need to be handled by Rollkit independent of
+// the underlying DA chain.
+type StatusCode uint64
+
+// Data Availability return codes.
+const (
+	StatusUnknown StatusCode = iota
+	StatusSuccess
+	StatusNotFound
+	StatusNotIncludedInBlock
+	StatusAlreadyInMempool
+	StatusTooBig
+	StatusContextDeadline
+	StatusError
+	StatusIncorrectAccountSequence
+)
+
+// BaseResult contains basic information returned by DA layer.
+type BaseResult struct {
+	// Code is to determine if the action succeeded.
+	Code StatusCode
+	// Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
+	Message string
+	// Height is the height of the block on Data Availability Layer for given result.
+	Height uint64
+	// SubmittedCount is the number of successfully submitted blocks.
+	SubmittedCount uint64
+	// BlobSize is the size of the blob submitted.
+	BlobSize uint64
+	// IDs is the list of IDs of the blobs submitted.
+	IDs [][]byte
+	// Timestamp is the timestamp of the posted data on Data Availability Layer.
+	Timestamp time.Time
+}
+
+// makeID creates an ID from a height and a commitment.
+func makeID(height uint64, commitment []byte) []byte {
+	id := make([]byte, len(commitment)+8)
+	binary.LittleEndian.PutUint64(id, height)
+	copy(id[8:], commitment)
+	return id
+}
+
+// SplitID splits an ID into a height and a commitment.
+// if len(id) <= 8, it returns 0 and nil.
+func SplitID(id []byte) (uint64, []byte) {
+	if len(id) <= 8 {
+		return 0, nil
+	}
+	commitment := id[8:]
+	return binary.LittleEndian.Uint64(id[:8]), commitment
 }

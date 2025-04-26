@@ -91,7 +91,8 @@ func StartNode(
 	cmd *cobra.Command,
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	dac coreda.Client,
+	da coreda.DA, // Changed from dac coreda.Client to da coreda.DA
+	daNamespace []byte, // Added daNamespace parameter
 	nodeKey *key.NodeKey,
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
@@ -132,7 +133,8 @@ func StartNode(
 		nodeConfig,
 		executor,
 		sequencer,
-		dac,
+		da,          // Pass the coreda.DA instance
+		daNamespace, // Pass the namespace
 		signer,
 		*nodeKey,
 		p2pClient,

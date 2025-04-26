@@ -45,7 +45,7 @@ func TestNewSequencer(t *testing.T) {
 	if seq.queue == nil {
 		t.Fatal("Expected batch queue to not be nil")
 	}
-	if seq.dalc == nil {
+	if seq.da == nil {
 		t.Fatal("Expected DA client to not be nil")
 	}
 }
@@ -244,14 +244,13 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 	t.Run("Proposer Mode", func(t *testing.T) {
 		mockDA := damocks.NewDA(t)
-		mockDALC := coreda.NewDummyClient(mockDA, namespace)
 
 		seq := &Sequencer{
 			logger:           log.NewNopLogger(),
 			rollupId:         rollupId,
 			proposer:         true,
-			dalc:             mockDALC,
 			da:               mockDA,
+			daNamespace:      namespace,
 			queue:            NewBatchQueue(db, "proposer_queue"),
 			daSubmissionChan: make(chan coresequencer.Batch, 1),
 		}
@@ -268,12 +267,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	t.Run("Non-Proposer Mode", func(t *testing.T) {
 		t.Run("Valid Proofs", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
-			mockDALC := coreda.NewDummyClient(mockDA, namespace)
 			seq := &Sequencer{
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				dalc:             mockDALC,
+				daNamespace:      namespace,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "valid_proofs_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -291,12 +289,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 		t.Run("Invalid Proof", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
-			mockDALC := coreda.NewDummyClient(mockDA, namespace)
 			seq := &Sequencer{
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				dalc:             mockDALC,
+				daNamespace:      namespace,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "invalid_proof_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -314,12 +311,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 		t.Run("GetProofs Error", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
-			mockDALC := coreda.NewDummyClient(mockDA, namespace)
 			seq := &Sequencer{
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				dalc:             mockDALC,
+				daNamespace:      namespace,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "getproofs_err_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -338,12 +334,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 		t.Run("Validate Error", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
-			mockDALC := coreda.NewDummyClient(mockDA, namespace)
 			seq := &Sequencer{
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				dalc:             mockDALC,
+				daNamespace:      namespace,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "validate_err_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -362,12 +357,12 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 		t.Run("Invalid Rollup ID", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
-			mockDALC := coreda.NewDummyClient(mockDA, namespace)
+
 			seq := &Sequencer{
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				dalc:             mockDALC,
+				daNamespace:      namespace,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "invalid_rollup_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),

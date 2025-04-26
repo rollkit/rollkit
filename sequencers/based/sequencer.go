@@ -11,8 +11,10 @@ import (
 	"cosmossdk.io/log"
 
 	datastore "github.com/ipfs/go-datastore"
+
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/types"
 )
 
 var (
@@ -57,8 +59,9 @@ type Sequencer struct {
 	// DA represents the Data Availability layer interface used by the Sequencer.
 	DA coreda.DA
 
-	// dalc is the client used to interact with the Data Availability layer.
-	dalc coreda.Client
+	// dalc coreda.Client // Removed dalc field
+
+	daNamespace []byte // Added field to store namespace
 
 	// pendingTxs is a persistent storage for transactions that are pending inclusion
 	// in the rollup blocks.
@@ -75,8 +78,8 @@ type Sequencer struct {
 // NewSequencer creates a new Sequencer instance.
 func NewSequencer(
 	logger log.Logger,
-	da coreda.DA,
-	dalc coreda.Client,
+	daImpl coreda.DA, // Renamed parameter to avoid conflict with field name
+	daNamespace []byte, // Added namespace parameter
 	rollupId []byte,
 	daStartHeight uint64,
 	maxHeightDrift uint64,
@@ -90,8 +93,8 @@ func NewSequencer(
 		logger:         logger,
 		maxHeightDrift: maxHeightDrift,
 		rollupId:       rollupId,
-		DA:             da,
-		dalc:           dalc,
+		DA:             daImpl,      // Use renamed parameter
+		daNamespace:    daNamespace, // Store namespace
 		daStartHeight:  daStartHeight,
 		pendingTxs:     pending,
 		store:          ds,
@@ -108,8 +111,11 @@ func (s *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 	if !s.isValid(req.RollupId) {
 		return nil, ErrInvalidRollupId
 	}
-	if err := s.submitBatchToDA(ctx, *req.Batch); err != nil {
-		return nil, err
+	// Use the helper function for submission
+	// Assuming default gas price (-1) and no options, similar to how DAClient was used before
+	res := types.SubmitWithHelpers(ctx, s.DA, s.logger, req.Batch.Transactions, -1, s.daNamespace, nil)
+	if res.Code != coreda.StatusSuccess {
+		return nil, fmt.Errorf("failed to submit batch to DA via helper: %s", res.Message)
 	}
 	return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
 }
@@ -166,31 +172,32 @@ OuterLoop:
 			s.logger.Debug("exceeded max height drift, stopping fetching more transactions")
 			break OuterLoop
 		}
-		// fetch the next batch of transactions from DA
-		res := s.dalc.Retrieve(ctx, nextDAHeight)
-		if res.BaseResult.Code == coreda.StatusError {
+		// fetch the next batch of transactions from DA using the helper
+		res := types.RetrieveWithHelpers(ctx, s.DA, s.logger, nextDAHeight, s.daNamespace)
+		if res.Code == coreda.StatusError {
 			// stop fetching more transactions and return the current batch
-			s.logger.Warn("failed to retrieve transactions from DA layer", "error", res.BaseResult.Message)
+			s.logger.Warn("failed to retrieve transactions from DA layer via helper", "error", res.Message)
 			break OuterLoop
 		}
 		if len(res.Data) == 0 { // TODO: some heights may not have rollup blobs, find a better way to handle this
 			// stop fetching more transactions and return the current batch
-			s.logger.Debug("no transactions to retrieve from DA layer for", "height", nextDAHeight)
+			s.logger.Debug("no transactions to retrieve from DA layer via helper for", "height", nextDAHeight)
 			// don't break yet, wait for maxHeightDrift to elapse
-		}
-
-		for i, tx := range res.Data {
-			txSize := uint64(len(tx))
-			if size+txSize >= maxBytes {
-				// Push remaining transactions back to the queue
-				s.pendingTxs.Push(res.Data[i:], res.BaseResult.IDs[i:], res.BaseResult.Timestamp)
-				break OuterLoop
+		} else if res.Code == coreda.StatusSuccess { // Process only on success
+			for i, tx := range res.Data {
+				txSize := uint64(len(tx))
+				if size+txSize >= maxBytes {
+					// Push remaining transactions back to the queue
+					s.pendingTxs.Push(res.Data[i:], res.IDs[i:], res.Timestamp) // Use fields from BaseResult
+					break OuterLoop
+				}
+				resp.Batch.Transactions = append(resp.Batch.Transactions, tx)
+				resp.BatchData = append(resp.BatchData, res.IDs[i]) // Use fields from BaseResult
+				resp.Timestamp = res.Timestamp                      // update timestamp to the last one
+				size += txSize
 			}
-			resp.Batch.Transactions = append(resp.Batch.Transactions, tx)
-			resp.BatchData = append(resp.BatchData, res.BaseResult.IDs[i])
-			resp.Timestamp = res.BaseResult.Timestamp // update timestamp to the last one
-			size += txSize
 		}
+		// Always increment height to continue scanning, even if StatusNotFound or StatusError occurred for this height
 		nextDAHeight++
 	}
 
@@ -215,10 +222,8 @@ func (s *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 	if !s.isValid(req.RollupId) {
 		return nil, ErrInvalidRollupId
 	}
-	namespace, err := s.dalc.GetNamespace(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get namespace: %w", err)
-	}
+	// Use stored namespace
+	namespace := s.daNamespace
 	// get the proofs
 	proofs, err := s.DA.GetProofs(ctx, req.BatchData, namespace)
 	if err != nil {
@@ -261,113 +266,20 @@ func (s *Sequencer) lastDAHeight(ids [][]byte) uint64 {
 // - On other errors: Uses exponential backoff
 //
 // It returns an error if not all transactions could be submitted after all attempts.
+// This function is now simplified as it uses the SubmitWithHelpers function.
 func (s *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Batch) error {
-	currentBatch := batch
-	submittedAllTxs := false
-	var backoff time.Duration
-	totalTxCount := len(batch.Transactions)
-	submittedTxCount := 0
-	attempt := 0
+	// The complex retry logic is now encapsulated within the helper or the caller that needs it.
+	// This sequencer's responsibility is simplified to just calling the helper.
+	// Assuming default gas price (-1) and no options for this specific call context.
+	res := types.SubmitWithHelpers(ctx, s.DA, s.logger, batch.Transactions, -1, s.daNamespace, nil)
 
-	// Store initial values to be able to reset or compare later
-	initialGasPrice, err := s.dalc.GasPrice(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial gas price: %w", err)
+	if res.Code != coreda.StatusSuccess {
+		// Log the error returned by the helper
+		s.logger.Error("Failed to submit batch to DA via helper", "error", res.Message, "status", res.Code)
+		return fmt.Errorf("failed to submit batch to DA: %s (code: %d)", res.Message, res.Code)
 	}
 
-	initialMaxBlobSize, err := s.dalc.MaxBlobSize(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial max blob size: %w", err)
-	}
-	maxBlobSize := initialMaxBlobSize
-	gasPrice := initialGasPrice
-
-daSubmitRetryLoop:
-	for !submittedAllTxs && attempt < maxSubmitAttempts {
-		// Wait for backoff duration or exit if context is done
-		select {
-		case <-ctx.Done():
-			break daSubmitRetryLoop
-		case <-time.After(backoff):
-		}
-
-		// Attempt to submit the batch to the DA layer
-		res := s.dalc.Submit(ctx, currentBatch.Transactions, maxBlobSize, gasPrice)
-
-		gasMultiplier, err := s.dalc.GasMultiplier(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get gas multiplier: %w", err)
-		}
-
-		switch res.Code {
-		case coreda.StatusSuccess:
-			// Count submitted transactions for this attempt
-			submittedTxs := int(res.SubmittedCount)
-			s.logger.Info("[based] successfully submitted transactions to DA layer",
-				"gasPrice", gasPrice,
-				"height", res.Height,
-				"submittedTxs", submittedTxs,
-				"remainingTxs", len(currentBatch.Transactions)-submittedTxs)
-
-			// Update overall progress
-			submittedTxCount += submittedTxs
-
-			// Check if all transactions in the current batch were submitted
-			if submittedTxs == len(currentBatch.Transactions) {
-				submittedAllTxs = true
-			} else {
-				// Update the current batch to contain only the remaining transactions
-				currentBatch.Transactions = currentBatch.Transactions[submittedTxs:]
-			}
-
-			// Reset submission parameters after success
-			backoff = 0
-			maxBlobSize = initialMaxBlobSize
-
-			// Gradually reduce gas price on success, but not below initial price
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice / gasMultiplier
-				if gasPrice < initialGasPrice {
-					gasPrice = initialGasPrice
-				}
-			}
-			s.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
-
-		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
-			// For mempool-related issues, use a longer backoff and increase gas price
-			s.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = batchTime * time.Duration(defaultMempoolTTL)
-
-			// Increase gas price to prioritize the transaction
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice * gasMultiplier
-			}
-			s.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
-
-		case coreda.StatusTooBig:
-			// if the blob size is too big, it means we are trying to consume the entire block on Celestia
-			// If the blob is too big, reduce the max blob size
-			maxBlobSize = maxBlobSize / 4 // TODO: this should be fetched from the DA layer?
-			fallthrough
-
-		default:
-			// For other errors, use exponential backoff
-			s.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = s.exponentialBackoff(backoff)
-		}
-
-		attempt += 1
-	}
-
-	// Return error if not all transactions were submitted after all attempts
-	if !submittedAllTxs {
-		return fmt.Errorf(
-			"failed to submit all transactions to DA layer, submitted %d txs (%d left) after %d attempts",
-			submittedTxCount,
-			totalTxCount-submittedTxCount,
-			attempt,
-		)
-	}
+	s.logger.Info("[based] successfully submitted batch to DA layer via helper", "submitted_count", res.SubmittedCount)
 	return nil
 }
 

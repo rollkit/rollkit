@@ -12,7 +12,7 @@ import (
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	dac "github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/types"
 )
 
 // ErrInvalidRollupId is returned when the rollup id is invalid
@@ -33,10 +33,10 @@ type Sequencer struct {
 
 	proposer bool
 
-	rollupId  []byte
-	dalc      coreda.Client
-	da        coreda.DA
-	batchTime time.Duration
+	rollupId    []byte
+	da          coreda.DA
+	daNamespace []byte // Added field to store namespace
+	batchTime   time.Duration
 
 	queue            *BatchQueue              // single queue for immediate availability
 	daSubmissionChan chan coresequencer.Batch // channel for ordered DA submission
@@ -57,12 +57,12 @@ func NewSequencer(
 	proposer bool,
 ) (*Sequencer, error) {
 
-	dalc := dac.NewDAClient(da, -1, -1, daNamespace, nil, logger)
+	// Removed DAClient instantiation
 
 	s := &Sequencer{
 		logger:           logger,
-		dalc:             dalc,
 		da:               da,
+		daNamespace:      daNamespace, // Store namespace
 		batchTime:        batchTime,
 		rollupId:         rollupId,
 		queue:            NewBatchQueue(db, "batches"),
@@ -177,15 +177,16 @@ func (c *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Bat
 	attempt := 0
 
 	// Store initial values to be able to reset or compare later
-	initialGasPrice, err := c.dalc.GasPrice(ctx)
+	initialGasPrice, err := c.da.GasPrice(ctx) // Use c.da
 	if err != nil {
 		return fmt.Errorf("failed to get initial gas price: %w", err)
 	}
-	initialMaxBlobSize, err := c.dalc.MaxBlobSize(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial max blob size: %w", err)
-	}
-	maxBlobSize := initialMaxBlobSize
+	// MaxBlobSize check is now handled within da.SubmitWithOptions, no need to fetch it here explicitly for the loop
+	// initialMaxBlobSize, err := c.da.MaxBlobSize(ctx) // Use c.da
+	// if err != nil {
+	// 	return fmt.Errorf("failed to get initial max blob size: %w", err)
+	// }
+	// maxBlobSize := initialMaxBlobSize // Removed maxBlobSize usage here
 	gasPrice := initialGasPrice
 
 daSubmitRetryLoop:
@@ -197,28 +198,28 @@ daSubmitRetryLoop:
 		case <-time.After(backoff):
 		}
 
-		// Attempt to submit the batch to the DA layer
-		res := c.dalc.Submit(ctx, currentBatch.Transactions, maxBlobSize, gasPrice)
+		// Attempt to submit the batch to the DA layer using the helper function
+		res := types.SubmitWithHelpers(ctx, c.da, c.logger, currentBatch.Transactions, gasPrice, c.daNamespace, nil)
 
-		gasMultiplier, err := c.dalc.GasMultiplier(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get gas multiplier: %w", err)
+		gasMultiplier, multErr := c.da.GasMultiplier(ctx) // Use c.da
+		if multErr != nil {
+			c.logger.Error("failed to get gas multiplier", "error", multErr)
+			gasMultiplier = 0 // Prevent panic if gasPrice is non-zero
 		}
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			// Count submitted transactions for this attempt
 			submittedTxs := int(res.SubmittedCount)
 			c.logger.Info("successfully submitted transactions to DA layer",
 				"gasPrice", gasPrice,
-				"height", res.Height,
+				"height", res.Height, // Note: Height might be 0 from helper
 				"submittedTxs", submittedTxs,
 				"remainingTxs", len(currentBatch.Transactions)-submittedTxs)
 
-			// Update overall progress
 			submittedTxCount += submittedTxs
 
 			// Check if all transactions in the current batch were submitted
+			// Compare submittedTxs count with the original number intended for this attempt
 			if submittedTxs == len(currentBatch.Transactions) {
 				submittedAllTxs = true
 			} else {
@@ -228,7 +229,7 @@ daSubmitRetryLoop:
 
 			// Reset submission parameters after success
 			backoff = 0
-			maxBlobSize = initialMaxBlobSize
+			// maxBlobSize = initialMaxBlobSize // No longer needed to reset here
 
 			// Gradually reduce gas price on success, but not below initial price
 			if gasMultiplier > 0 && gasPrice != 0 {
@@ -240,32 +241,27 @@ daSubmitRetryLoop:
 			c.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
-			// For mempool-related issues, use a longer backoff and increase gas price
-			c.logger.Error("single sequcner: DA layer submission failed", "error", res.Message, "attempt", attempt)
+			c.logger.Error("single sequencer: DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.batchTime * time.Duration(defaultMempoolTTL)
-
-			// Increase gas price to prioritize the transaction
 			if gasMultiplier > 0 && gasPrice != 0 {
 				gasPrice = gasPrice * gasMultiplier
 			}
 			c.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
 
 		case coreda.StatusTooBig:
-			// if the blob size is too big, it means we are trying to consume the entire block on Celestia
-			// If the blob is too big, reduce the max blob size
-			maxBlobSize = maxBlobSize / 4 // TODO: this should be fetched from the DA layer?
+			// Blob size adjustment is handled within DA impl or SubmitWithOptions call
+			// fallthrough to default exponential backoff
 			fallthrough
 
-		default:
-			// For other errors, use exponential backoff
-			c.logger.Error("single sequcner: DA layer submission failed", "error", res.Message, "attempt", attempt)
+		default: // Includes StatusError, StatusContextDeadline etc. from helper
+			c.logger.Error("single sequencer: DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.exponentialBackoff(backoff)
 		}
 
 		// Record metrics for monitoring
-		c.recordMetrics(gasPrice, res.BlobSize, res.Code, len(currentBatch.Transactions), res.Height)
-		attempt += 1
-	}
+		c.recordMetrics(gasPrice, res.BlobSize, res.Code, len(currentBatch.Transactions), res.Height) // BlobSize/Height might be 0 from helper
+		attempt++
+	} // End of daSubmitRetryLoop
 
 	// Return error if not all transactions were submitted after all attempts
 	if !submittedAllTxs {
@@ -306,10 +302,8 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 	}
 
 	if !c.proposer {
-		namespace, err := c.dalc.GetNamespace(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get namespace: %w", err)
-		}
+		// Use stored namespace
+		namespace := c.daNamespace
 		// get the proofs
 		proofs, err := c.da.GetProofs(ctx, req.BatchData, namespace)
 		if err != nil {

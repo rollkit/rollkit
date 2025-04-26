@@ -10,7 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rollkit/go-execution-evm"
 	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/da"
+
+	// "github.com/rollkit/rollkit/da" // No longer needed directly, helpers are used elsewhere
 	"github.com/rollkit/rollkit/da/proxy/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
@@ -120,7 +121,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			} else {
 				rollDA = coreda.NewDummyDA(100_000, 0, 0)
 			}
-			rollDALC := da.NewDAClient(rollDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), nil, logger)
+			// rollDALC := da.NewDAClient(rollDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), nil, logger) // Removed DAClient usage
 
 			var basedDA coreda.DA
 			if basedAuth != "" {
@@ -136,17 +137,18 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to decode based namespace: %w", err)
 			}
-			basedDALC := da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, nsBytes, nil, logger)
+			// basedDALC := da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, nsBytes, nil, logger) // Removed DAClient usage
 
 			datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "based")
 			if err != nil {
 				return fmt.Errorf("failed to create datastore: %w", err)
 			}
 
+			// Pass raw DA implementation and namespace to NewSequencer
 			sequencer, err := based.NewSequencer(
 				logger,
 				basedDA,
-				basedDALC,
+				nsBytes, // Pass namespace bytes
 				[]byte("rollkit-test"),
 				basedStartHeight,
 				basedMaxHeightDrift,
@@ -174,7 +176,12 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to create P2P client: %w", err)
 			}
 
-			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDALC, nodeKey, p2pClient, datastore, nodeConfig)
+			// Pass the raw rollDA implementation to StartNode.
+			// StartNode might need adjustment if it strictly requires coreda.Client methods.
+			// For now, assume it can work with coreda.DA or will be adjusted later.
+			// We also need to pass the namespace config for rollDA.
+			rollDANamespace := []byte(nodeConfig.DA.Namespace)
+			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, rollDANamespace, nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
 

@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,8 @@ import (
 
 	"github.com/rollkit/rollkit/core/da"
 )
+
+// Define a package-level logger for the client
 
 // Define a package-level logger for the client
 
@@ -54,10 +57,11 @@ func (api *API) Get(ctx context.Context, ids []da.ID, ns []byte) ([]da.Blob, err
 	res, err := api.Internal.Get(ctx, ids, ns)
 	if err != nil {
 		api.logger.Error("RPC call failed", "method", "Get", "error", err)
-	} else {
-		api.logger.Debug("RPC call successful", "method", "Get", "num_blobs_returned", len(res))
+		// Wrap error for context, potentially using the translated error from the RPC library
+		return nil, fmt.Errorf("failed to get blobs: %w", err)
 	}
-	return res, err
+	api.logger.Debug("RPC call successful", "method", "Get", "num_blobs_returned", len(res))
+	return res, nil
 }
 
 // GetIDs returns IDs of all Blobs located in DA at given height.
@@ -65,11 +69,23 @@ func (api *API) GetIDs(ctx context.Context, height uint64, ns []byte) (*da.GetID
 	api.logger.Debug("Making RPC call", "method", "GetIDs", "height", height, "namespace", string(ns))
 	res, err := api.Internal.GetIDs(ctx, height, ns)
 	if err != nil {
+		// Check if the error is specifically BlobNotFound, otherwise log and return
+		if errors.Is(err, da.ErrBlobNotFound) { // Use the error variable directly
+			api.logger.Debug("RPC call indicates blobs not found", "method", "GetIDs", "height", height)
+			return nil, err // Return the specific ErrBlobNotFound
+		}
 		api.logger.Error("RPC call failed", "method", "GetIDs", "error", err)
-	} else {
-		api.logger.Debug("RPC call successful", "method", "GetIDs")
+		return nil, err
 	}
-	return res, err
+
+	// Handle cases where the RPC call succeeds but returns no IDs
+	if res == nil || len(res.IDs) == 0 {
+		api.logger.Debug("RPC call successful but no IDs found", "method", "GetIDs", "height", height)
+		return nil, da.ErrBlobNotFound // Return specific error for not found (use variable directly)
+	}
+
+	api.logger.Debug("RPC call successful", "method", "GetIDs")
+	return res, nil
 }
 
 // GetProofs returns inclusion Proofs for Blobs specified by their IDs.
@@ -121,14 +137,60 @@ func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, n
 }
 
 // SubmitWithOptions submits the Blobs to Data Availability layer with additional options.
-func (api *API) SubmitWithOptions(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
-	api.logger.Debug("Making RPC call", "method", "SubmitWithOptions", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns))
-	res, err := api.Internal.SubmitWithOptions(ctx, blobs, gasPrice, ns, options)
+// It checks blobs against MaxBlobSize and submits only those that fit.
+func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
+	maxBlobSize, err := api.MaxBlobSize(ctx)
+	if err != nil {
+		api.logger.Error("Failed to get MaxBlobSize for blob filtering", "error", err)
+		// Returning error here prevents submission if MaxBlobSize is unavailable
+		return nil, fmt.Errorf("failed to get max blob size for submission: %w", err)
+	}
+
+	var (
+		blobsToSubmit [][]byte = make([][]byte, 0, len(inputBlobs))
+		currentSize   uint64
+	)
+
+	for i, blob := range inputBlobs {
+		blobLen := uint64(len(blob))
+		if blobLen > maxBlobSize {
+			// Individual blob exceeds max size, log and skip all further blobs in this batch
+			api.logger.Warn("Individual blob exceeds MaxBlobSize, cannot submit", "index", i, "blobSize", blobLen, "maxBlobSize", maxBlobSize)
+			// If this is the first blob, return error, otherwise submit what we have collected so far.
+			if i == 0 {
+				return nil, da.ErrBlobSizeOverLimit // Use specific error type (use variable directly)
+			}
+			break // Stop processing further blobs for this batch
+		}
+		if currentSize+blobLen > maxBlobSize {
+			// Cumulative size exceeds max size, stop collecting blobs for this batch
+			api.logger.Info("Blob size limit reached for batch", "maxBlobSize", maxBlobSize, "index", i, "currentSize", currentSize, "nextBlobSize", blobLen)
+			break
+		}
+		currentSize += blobLen
+		blobsToSubmit = append(blobsToSubmit, blob)
+	}
+
+	if len(blobsToSubmit) == 0 {
+		// This can happen if the input was empty or the first blob was too large individually.
+		api.logger.Info("No blobs to submit after filtering by size")
+		// Check if input was non-empty; if so, the first blob must have been too large.
+		if len(inputBlobs) > 0 {
+			return nil, da.ErrBlobSizeOverLimit // Use variable directly
+		}
+		return []da.ID{}, nil // Return empty slice and no error if input was empty
+	}
+
+	api.logger.Debug("Making RPC call", "method", "SubmitWithOptions", "num_blobs_original", len(inputBlobs), "num_blobs_to_submit", len(blobsToSubmit), "gas_price", gasPrice, "namespace", string(ns))
+	res, err := api.Internal.SubmitWithOptions(ctx, blobsToSubmit, gasPrice, ns, options)
 	if err != nil {
 		api.logger.Error("RPC call failed", "method", "SubmitWithOptions", "error", err)
+		// Error translation should be handled by the jsonrpc library based on errors.go
 	} else {
 		api.logger.Debug("RPC call successful", "method", "SubmitWithOptions", "num_ids_returned", len(res))
 	}
+	// Return the result from the RPC call (potentially with translated error)
+	// The caller needs to handle partial success by comparing len(res) with len(blobsToSubmit) if necessary.
 	return res, err
 }
 

@@ -28,7 +28,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
-	"github.com/rollkit/rollkit/types"
+	"github.com/rollkit/rollkit/types" // Import the types package where helpers now reside
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
@@ -47,7 +47,7 @@ const (
 
 	// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
 	// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
-	blockProtocolOverhead = 1 << 16
+	blockProtocolOverhead = 1 << 16 // TODO: This might be irrelevant now if MaxBlobSize is handled by DA impl
 
 	// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 	// This is temporary solution. It will be removed in future versions.
@@ -147,9 +147,10 @@ type Manager struct {
 	// daIncludedHeight is rollup height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
-	dalc             coreda.Client
-	gasPrice         float64
-	gasMultiplier    float64
+	da               coreda.DA // Changed from dalc coreda.Client
+	daNamespace      []byte    // Added namespace field
+	gasPrice         float64   // Note: gasPrice and gasMultiplier might be removable if handled solely by DA impls
+	gasMultiplier    float64   // Note: gasPrice and gasMultiplier might be removable if handled solely by DA impls
 
 	sequencer     coresequencer.Sequencer
 	lastBatchData [][]byte
@@ -250,13 +251,14 @@ func NewManager(
 	store store.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	dalc coreda.Client,
+	da coreda.DA, // Changed parameter type
+	daNamespace []byte, // Added namespace parameter
 	logger log.Logger,
 	headerStore *goheaderstore.Store[*types.SignedHeader],
 	dataStore *goheaderstore.Store[*types.Data],
 	seqMetrics *Metrics,
-	gasPrice float64,
-	gasMultiplier float64,
+	gasPrice float64, // Note: gasPrice and gasMultiplier might be removable if handled solely by DA impls
+	gasMultiplier float64, // Note: gasPrice and gasMultiplier might be removable if handled solely by DA impls
 ) (*Manager, error) {
 	s, pubkey, err := getInitialState(ctx, genesis, proposerKey, store, exec, logger)
 	if err != nil {
@@ -295,13 +297,14 @@ func NewManager(
 
 	//proposerAddress := s.Validators.Proposer.Address.Bytes()
 
-	maxBlobSize, err := dalc.MaxBlobSize(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// maxBlobSize is now handled within the DA implementations or helpers
+	// maxBlobSize, err := da.MaxBlobSize(ctx) // Removed dalc usage
+	// if err != nil {
+	// 	return nil, err
+	// }
 	// allow buffer for the block header and protocol encoding
 	//nolint:ineffassign // This assignment is needed
-	maxBlobSize -= blockProtocolOverhead
+	// maxBlobSize -= blockProtocolOverhead // Removed dalc usage
 
 	isProposer, err := isProposer(proposerKey, pubkey)
 	if err != nil {
@@ -331,7 +334,6 @@ func NewManager(
 		genesis:     genesis,
 		lastState:   s,
 		store:       store,
-		dalc:        dalc,
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:       make(chan *types.SignedHeader, channelLength),
@@ -354,16 +356,13 @@ func NewManager(
 		isProposer:     isProposer,
 		sequencer:      sequencer,
 		exec:           exec,
-		gasPrice:       gasPrice,
-		gasMultiplier:  gasMultiplier,
+		da:             da,            // Store the DA interface
+		daNamespace:    daNamespace,   // Store the namespace
+		gasPrice:       gasPrice,      // Keep for now, might be removable later
+		gasMultiplier:  gasMultiplier, // Keep for now, might be removable later
 	}
 	agg.init(ctx)
 	return agg, nil
-}
-
-// DALCInitialized returns true if DALC is initialized.
-func (m *Manager) DALCInitialized() bool {
-	return m.dalc != nil
 }
 
 // PendingHeaders returns the pending headers.
@@ -412,11 +411,6 @@ func (m *Manager) setDAIncludedHeight(ctx context.Context, newHeight uint64) err
 // included in the DA
 func (m *Manager) GetDAIncludedHeight() uint64 {
 	return m.daIncludedHeight.Load()
-}
-
-// SetDALC is used to set DataAvailabilityLayerClient used by Manager.
-func (m *Manager) SetDALC(dalc coreda.Client) {
-	m.dalc = dalc
 }
 
 // isProposer returns whether or not the manager is a proposer
@@ -1086,14 +1080,15 @@ func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
 }
 
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
+	// Use the helper function from the types package
+	// Note: The helper function itself handles error mapping and returns ResultRetrieve directly.
+	// We don't need to wrap the error here. The helper also handles timeouts internally if needed.
+	res := types.RetrieveWithHelpers(ctx, m.da, m.logger, daHeight, m.daNamespace)
 	var err error
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
-	defer cancel()
-	headerRes := m.dalc.Retrieve(ctx, daHeight)
-	if headerRes.Code == coreda.StatusError {
-		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
+	if res.Code == coreda.StatusError {
+		err = errors.New(res.Message) // Convert message back to error for the caller if needed
 	}
-	return headerRes, err
+	return res, err
 }
 
 func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
@@ -1342,13 +1337,14 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	}
 	numSubmittedHeaders := 0
 	attempt := 0
-	maxBlobSize, err := m.dalc.MaxBlobSize(ctx)
-	if err != nil {
-		return err
-	}
-	initialMaxBlobSize := maxBlobSize
-	gasPrice := m.gasPrice
-	initialGasPrice := gasPrice
+	// maxBlobSize is handled by the helper/DA implementation
+	// maxBlobSize, err := m.da.MaxBlobSize(ctx) // Removed dalc usage
+	// if err != nil {
+	// 	return err
+	// }
+	// initialMaxBlobSize := maxBlobSize // Removed dalc usage
+	gasPrice := m.gasPrice      // Keep for now
+	initialGasPrice := gasPrice // Keep for now
 
 daSubmitRetryLoop:
 	for !submittedAllHeaders && attempt < maxSubmitAttempts {
@@ -1372,12 +1368,13 @@ daSubmitRetryLoop:
 			}
 		}
 
-		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
-		defer cancel()
-		res := m.dalc.Submit(ctx, headersBz, maxBlobSize, gasPrice)
+		// Use the helper function from the types package
+		// The helper handles timeouts internally if needed.
+		// Pass nil for options for now, assuming default behavior.
+		res := types.SubmitWithHelpers(ctx, m.da, m.logger, headersBz, gasPrice, m.daNamespace, nil)
 		switch res.Code {
 		case coreda.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount)
+			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount) // gasPrice might be irrelevant now
 			if res.SubmittedCount == uint64(len(headersToSubmit)) {
 				submittedAllHeaders = true
 			}
@@ -1397,27 +1394,28 @@ daSubmitRetryLoop:
 			m.pendingHeaders.setLastSubmittedHeight(ctx, lastSubmittedHeight)
 			headersToSubmit = notSubmittedBlocks
 			// reset submission options when successful
-			// scale back gasPrice gradually
+			// scale back gasPrice gradually (if still needed)
 			backoff = 0
-			maxBlobSize = initialMaxBlobSize
-			if m.gasMultiplier > 0 && gasPrice != -1 {
+			// maxBlobSize = initialMaxBlobSize // Removed dalc usage
+			if m.gasMultiplier > 0 && gasPrice != -1 { // Keep gas price logic for now
 				gasPrice = gasPrice / m.gasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
 				}
 			}
-			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
+			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice) // Removed maxBlobSize log
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL) //nolint:gosec
-			if m.gasMultiplier > 0 && gasPrice != -1 {
+			if m.gasMultiplier > 0 && gasPrice != -1 {                                       // Keep gas price logic for now
 				gasPrice = gasPrice * m.gasMultiplier
 			}
-			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
+			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice) // Removed maxBlobSize log
 
-		case coreda.StatusTooBig:
-			maxBlobSize = maxBlobSize / 4
-			fallthrough
+		// StatusTooBig is now handled within the helper/DA implementation
+		// case coreda.StatusTooBig:
+		// 	maxBlobSize = maxBlobSize / 4
+		// 	fallthrough
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.exponentialBackoff(backoff)

@@ -23,11 +23,12 @@ import (
 	filesigner "github.com/rollkit/rollkit/pkg/signer/file"
 )
 
-func createTestComponents(_ context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.Signer, *p2p.Client, datastore.Batching) {
+const MockDANamespace = "test"
+
+func createTestComponents(_ context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.DA, signer.Signer, *p2p.Client, datastore.Batching) {
 	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-	dac := coreda.NewDummyClient(dummyDA, []byte("test"))
 	tmpDir := t.TempDir()
 	keyProvider, err := filesigner.CreateFileSystemSigner(filepath.Join(tmpDir, "config"), []byte{})
 	if err != nil {
@@ -37,7 +38,7 @@ func createTestComponents(_ context.Context, t *testing.T) (coreexecutor.Executo
 	p2pClient := &p2p.Client{}
 	ds := datastore.NewMapDatastore()
 
-	return executor, sequencer, dac, keyProvider, p2pClient, ds
+	return executor, sequencer, dummyDA, keyProvider, p2pClient, ds
 }
 
 func TestParseFlags(t *testing.T) {
@@ -404,7 +405,7 @@ func TestStartNodeErrors(t *testing.T) {
 
 			runFunc := func() {
 				// Pass the final nodeConfig to StartNode
-				err := StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, ds, nodeConfig)
+				err := StartNode(logger, cmd, executor, sequencer, dac, []byte(MockDANamespace), nodeKey, p2pClient, ds, nodeConfig)
 				if tc.expectedError != "" {
 					assert.ErrorContains(t, err, tc.expectedError)
 				} else {
@@ -421,7 +422,7 @@ func TestStartNodeErrors(t *testing.T) {
 				assert.NotPanics(t, runFunc)
 				// Re-check error after NotPanics confirms no panic occurred
 				// Need to re-run StartNode as the original runFunc only checks error if !tc.expectPanic
-				err := StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, ds, nodeConfig)
+				err := StartNode(logger, cmd, executor, sequencer, dac, []byte(MockDANamespace), nodeKey, p2pClient, ds, nodeConfig)
 				if tc.expectedError != "" {
 					assert.ErrorContains(t, err, tc.expectedError)
 				}
@@ -435,7 +436,7 @@ func newRunNodeCmd(
 	ctx context.Context,
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	dac coreda.Client,
+	dac coreda.DA,
 	remoteSigner signer.Signer,
 	nodeKey *key.NodeKey,
 	p2pClient *p2p.Client,
@@ -458,7 +459,7 @@ func newRunNodeCmd(
 		Short:   "Run the rollkit node",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Use the nodeConfig passed into this function closure
-			return StartNode(log.NewNopLogger(), cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
+			return StartNode(log.NewNopLogger(), cmd, executor, sequencer, dac, []byte(MockDANamespace), nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
 
