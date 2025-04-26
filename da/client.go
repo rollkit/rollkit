@@ -1,4 +1,4 @@
-package proxy
+package da
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"cosmossdk.io/log"
 
 	"github.com/rollkit/rollkit/core/da"
-	proxyjsonrpc "github.com/rollkit/rollkit/da/proxy/jsonrpc"
+	proxyjsonrpc "github.com/rollkit/rollkit/da/jsonrpc"
 )
 
 // NewClient returns a DA backend based on the uri

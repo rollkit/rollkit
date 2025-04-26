@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/sequencers/single"
 	"github.com/rs/zerolog"
 
@@ -15,7 +16,6 @@ import (
 	evm "github.com/rollkit/go-execution-evm"
 
 	"github.com/rollkit/rollkit/core/execution"
-	"github.com/rollkit/rollkit/da/proxy"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -50,7 +50,7 @@ var RunCmd = &cobra.Command{
 
 		logger := rollcmd.SetupLogger(nodeConfig.Log)
 
-		daJrpc, err := proxy.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		daJrpc, err := da.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
 		if err != nil {
 			return err
 		}

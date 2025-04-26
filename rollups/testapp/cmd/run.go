@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
-	"github.com/rollkit/rollkit/da/proxy"
+	"github.com/rollkit/rollkit/da"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -53,7 +53,7 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		daJrpc, err := proxy.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		daJrpc, err := da.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
 		if err != nil {
 			return err
 		}

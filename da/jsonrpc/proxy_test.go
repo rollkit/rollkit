@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	proxy "github.com/rollkit/rollkit/da/proxy/jsonrpc"
+	proxy "github.com/rollkit/rollkit/da/jsonrpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

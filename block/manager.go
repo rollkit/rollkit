@@ -45,10 +45,6 @@ const (
 	// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
 	defaultMempoolTTL = 25
 
-	// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
-	// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
-	blockProtocolOverhead = 1 << 16 // TODO: This might be irrelevant now if MaxBlobSize is handled by DA impl
-
 	// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 	// This is temporary solution. It will be removed in future versions.
 	maxSubmitAttempts = 30

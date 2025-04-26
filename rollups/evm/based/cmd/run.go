@@ -11,7 +11,7 @@ import (
 	"github.com/rollkit/go-execution-evm"
 	coreda "github.com/rollkit/rollkit/core/da"
 
-	"github.com/rollkit/rollkit/da/proxy/jsonrpc"
+	"github.com/rollkit/rollkit/da/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
