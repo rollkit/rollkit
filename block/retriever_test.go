@@ -79,7 +79,7 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 		store:         mockStore,
 		config:        config.Config{DA: config.DAConfig{BlockTime: config.DurationWrapper{Duration: 1 * time.Second}}},
 		genesis:       genesis.Genesis{ProposerAddress: addr},
-		daHeight:      daH,
+		daHeight:      &daH,
 		headerInCh:    make(chan NewHeaderEvent, headerInChLength),
 		headerStore:   headerStore,
 		dataInCh:      make(chan NewDataEvent, headerInChLength),

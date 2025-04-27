@@ -106,7 +106,7 @@ type Manager struct {
 
 	signer signer.Signer
 
-	daHeight atomic.Uint64
+	daHeight *atomic.Uint64
 
 	HeaderCh chan *types.SignedHeader
 	DataCh   chan *types.Data
@@ -332,7 +332,7 @@ func NewManager(
 		lastState: s,
 		store:     store,
 		dalc:      dalc,
-		daHeight:  daH,
+		daHeight:  &daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:       make(chan *types.SignedHeader, channelLength),
 		DataCh:         make(chan *types.Data, channelLength),

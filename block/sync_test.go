@@ -67,7 +67,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 		headerStoreCh:  headerStoreCh,
 		dataStoreCh:    dataStoreCh,
 		retrieveCh:     retrieveCh,
-		daHeight:       atomic.Uint64{},
+		daHeight:       &atomic.Uint64{},
 		metrics:        NopMetrics(),
 		headerStore:    &goheaderstore.Store[*types.SignedHeader]{},
 		dataStore:      &goheaderstore.Store[*types.Data]{},
