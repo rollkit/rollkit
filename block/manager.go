@@ -106,8 +106,7 @@ type Manager struct {
 
 	signer signer.Signer
 
-	// daHeight is the height of the latest processed DA block
-	daHeight uint64
+	daHeight atomic.Uint64
 
 	HeaderCh chan *types.SignedHeader
 	DataCh   chan *types.Data
@@ -323,6 +322,9 @@ func NewManager(
 		logger.Error("error while converting last batch hash", "error", err)
 	}
 
+	daH := atomic.Uint64{}
+	daH.Store(s.DAHeight)
+
 	agg := &Manager{
 		signer:    signer,
 		config:    config,
@@ -330,7 +332,7 @@ func NewManager(
 		lastState: s,
 		store:     store,
 		dalc:      dalc,
-		daHeight:  s.DAHeight,
+		daHeight:  daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:       make(chan *types.SignedHeader, channelLength),
 		DataCh:         make(chan *types.Data, channelLength),
@@ -664,7 +666,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return err
 	}
 
-	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
+	newState.DAHeight = m.daHeight.Load()
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
 	m.logger.Debug("updating state", "newState", newState)

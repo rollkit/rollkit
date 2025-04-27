@@ -3,7 +3,6 @@ package block
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 
 	"github.com/rollkit/rollkit/types"
 )
@@ -30,7 +29,7 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 				m.logger.Error("failed to get headers from Header Store", "lastHeaderHeight", lastHeaderStoreHeight, "headerStoreHeight", headerStoreHeight, "errors", err.Error())
 				continue
 			}
-			daHeight := atomic.LoadUint64(&m.daHeight)
+			daHeight := m.daHeight.Load()
 			for _, header := range headers {
 				// Check for shut down event prior to logging
 				// and sending header to headerInCh. The reason
@@ -77,7 +76,7 @@ func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
 				m.logger.Error("failed to get data from Data Store", "lastDataStoreHeight", lastDataStoreHeight, "dataStoreHeight", dataStoreHeight, "errors", err.Error())
 				continue
 			}
-			daHeight := atomic.LoadUint64(&m.daHeight)
+			daHeight := m.daHeight.Load()
 			for _, d := range data {
 				// Check for shut down event prior to logging
 				// and sending header to dataInCh. The reason

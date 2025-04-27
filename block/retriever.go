@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -34,7 +33,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		case <-m.retrieveCh:
 		case <-headerFoundCh:
 		}
-		daHeight := atomic.LoadUint64(&m.daHeight)
+		daHeight := m.daHeight.Load()
 		err := m.processNextDAHeader(ctx)
 		if err != nil && ctx.Err() == nil {
 			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
@@ -48,7 +47,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		case headerFoundCh <- struct{}{}:
 		default:
 		}
-		atomic.AddUint64(&m.daHeight, 1)
+		m.daHeight.Store(daHeight + 1)
 	}
 }
 
@@ -59,7 +58,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 	default:
 	}
 
-	daHeight := atomic.LoadUint64(&m.daHeight)
+	daHeight := m.daHeight.Load()
 
 	var err error
 	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
@@ -106,16 +105,12 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 				}
 				m.logger.Info("block marked as DA included", "blockHeight", header.Height(), "blockHash", blockHash)
 				if !m.headerCache.IsSeen(blockHash) {
-					// Check for shut down event prior to logging
-					// and sending block to blockInCh. The reason
-					// for checking for the shutdown event
-					// separately is due to the inconsistent nature
-					// of the select statement when multiple cases
-					// are satisfied.
+					// fast path
 					select {
 					case <-ctx.Done():
 						return fmt.Errorf("unable to send block to blockInCh, context done: %w", ctx.Err())
 					default:
+						m.logger.Warn("headerInCh backlog full, dropping header", "daHeight", daHeight)
 					}
 					m.headerInCh <- NewHeaderEvent{header, daHeight}
 				}

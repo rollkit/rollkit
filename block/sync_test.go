@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -66,13 +67,13 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 		headerStoreCh:  headerStoreCh,
 		dataStoreCh:    dataStoreCh,
 		retrieveCh:     retrieveCh,
-		daHeight:       uint64(0),
+		daHeight:       atomic.Uint64{},
 		metrics:        NopMetrics(),
 		headerStore:    &goheaderstore.Store[*types.SignedHeader]{},
 		dataStore:      &goheaderstore.Store[*types.Data]{},
 		pendingHeaders: &PendingHeaders{logger: log.NewNopLogger()},
 	}
-	m.daHeight = initialState.DAHeight
+	m.daHeight.Store(initialState.DAHeight)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

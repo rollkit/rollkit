@@ -72,11 +72,14 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 	addr, err := noopSigner.GetAddress()
 	require.NoError(t, err)
 
+	daH := atomic.Uint64{}
+	daH.Store(initialDAHeight)
+
 	manager := &Manager{
 		store:         mockStore,
 		config:        config.Config{DA: config.DAConfig{BlockTime: config.DurationWrapper{Duration: 1 * time.Second}}},
 		genesis:       genesis.Genesis{ProposerAddress: addr},
-		daHeight:      initialDAHeight,
+		daHeight:      daH,
 		headerInCh:    make(chan NewHeaderEvent, headerInChLength),
 		headerStore:   headerStore,
 		dataInCh:      make(chan NewDataEvent, headerInChLength),
@@ -360,7 +363,7 @@ func TestRetrieveLoop_DAHeightIncrement(t *testing.T) {
 	wg.Wait()
 
 	// Verify DA height was incremented
-	finalDAHeight := atomic.LoadUint64(&manager.daHeight)
+	finalDAHeight := manager.daHeight.Load()
 	if finalDAHeight != startDAHeight+2 {
 		t.Errorf("Expected final DA height %d, got %d", startDAHeight+1, finalDAHeight)
 	}
@@ -408,7 +411,7 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 	if errorLogged.Load() {
 		t.Error("Error should not have been logged for ErrHeightFromFutureStr")
 	}
-	finalDAHeight := atomic.LoadUint64(&manager.daHeight)
+	finalDAHeight := manager.daHeight.Load()
 	if finalDAHeight != startDAHeight {
 		t.Errorf("Expected final DA height %d, got %d (should not increment on future height error)", startDAHeight, finalDAHeight)
 	}
@@ -461,7 +464,7 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	loopCancel()
 	wg.Wait()
 
-	finalDAHeight := atomic.LoadUint64(&manager.daHeight)
+	finalDAHeight := manager.daHeight.Load()
 	if finalDAHeight != startDAHeight {
 		t.Errorf("Expected final DA height %d, got %d (should not increment on error)", startDAHeight, finalDAHeight)
 	}
