@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -137,7 +138,7 @@ func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
 	}
 
 	// Check if the error itself is ErrHeightFromFutureStr
-	if errors.Is(err, ErrHeightFromFutureStr) {
+	if strings.Contains(err.Error(), ErrHeightFromFutureStr.Error()) {
 		return true
 	}
 
@@ -159,6 +160,7 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 	var err error
 	ctx, cancel := context.WithTimeout(ctx, dAefetcherTimeout)
 	defer cancel()
+	//TODO: we should maintain the original error instead of creating a new one as we lose context by creating a new error.
 	headerRes := m.dalc.Retrieve(ctx, daHeight)
 	if headerRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)

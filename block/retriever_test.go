@@ -72,14 +72,11 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 	addr, err := noopSigner.GetAddress()
 	require.NoError(t, err)
 
-	daH := atomic.Uint64{}
-	daH.Store(initialDAHeight)
-
 	manager := &Manager{
 		store:         mockStore,
 		config:        config.Config{DA: config.DAConfig{BlockTime: config.DurationWrapper{Duration: 1 * time.Second}}},
 		genesis:       genesis.Genesis{ProposerAddress: addr},
-		daHeight:      &daH,
+		daHeight:      &atomic.Uint64{},
 		headerInCh:    make(chan NewHeaderEvent, headerInChLength),
 		headerStore:   headerStore,
 		dataInCh:      make(chan NewDataEvent, headerInChLength),
@@ -95,6 +92,7 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 		signer:        noopSigner,
 	}
 	manager.daIncludedHeight.Store(0)
+	manager.daHeight.Store(initialDAHeight)
 
 	t.Cleanup(cancel)
 

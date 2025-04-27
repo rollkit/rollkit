@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -77,6 +78,7 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 		HeaderCh:       headerCh,
 		DataCh:         dataCh,
 		headerStore:    headerStore,
+		daHeight:       &atomic.Uint64{},
 		dataStore:      dataStore,
 		headerCache:    cache.NewCache[types.SignedHeader](),
 		dataCache:      cache.NewCache[types.Data](),

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+
 	// Use existing store mock if available, or define one
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	extmocks "github.com/rollkit/rollkit/test/mocks/external"
@@ -71,10 +73,10 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 		dataInCh:      dataInCh,
 		logger:        logger,
 		genesis:       genDoc,
-		// Initialize daHeight, lastStateMtx etc. if needed, though likely not critical for these loops
-		lastStateMtx: new(sync.RWMutex),
-		config:       nodeConf,
-		signer:       signer,
+		daHeight:      &atomic.Uint64{},
+		lastStateMtx:  new(sync.RWMutex),
+		config:        nodeConf,
+		signer:        signer,
 	}
 	// Initialize daHeight atomic variable
 	m.init(ctx) // Call init to handle potential DAIncludedHeightKey loading
@@ -290,7 +292,7 @@ func TestHeaderStoreRetrieveLoop_RetrievesNewHeader(t *testing.T) {
 }
 
 func TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders(t *testing.T) {
-	t.Skip()
+	t.Skip() // TODO: fix in followup
 	assert := assert.New(t)
 	require := require.New(t)
 
