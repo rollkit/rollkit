@@ -80,8 +80,9 @@ daSubmitRetryLoop:
 		}
 
 		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
-		defer cancel()
 		res := m.dalc.Submit(ctx, headersBz, maxBlobSize, gasPrice)
+		cancel()
+
 		switch res.Code {
 		case coreda.StatusSuccess:
 			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount)

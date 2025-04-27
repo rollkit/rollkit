@@ -27,6 +27,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 	*Manager,
 	*mocks.Store,
 	*mocks.Executor,
+	context.Context,
 	context.CancelFunc,
 	chan NewHeaderEvent,
 	chan NewDataEvent,
@@ -73,7 +74,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 	}
 	m.daHeight = initialState.DAHeight
 
-	_, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 
 	currentMockHeight := initialState.LastBlockHeight
 	heightPtr := &currentMockHeight
@@ -82,7 +83,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 		return *heightPtr
 	}, nil).Maybe()
 
-	return m, mockStore, mockExec, cancel, headerInCh, dataInCh, heightPtr
+	return m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, heightPtr
 }
 
 // TestSyncLoop_ProcessSingleBlock_HeaderFirst verifies the basic scenario:
@@ -105,7 +106,7 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	newHeight := initialHeight + 1
 	daHeight := initialState.DAHeight + 1
 
-	m, mockStore, mockExec, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// Create test block data
@@ -140,7 +141,7 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(context.Background())
+		m.SyncLoop(ctx)
 	}()
 
 	t.Logf("Sending header event for height %d", newHeight)
@@ -195,7 +196,7 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	newHeight := initialHeight + 1
 	daHeight := initialState.DAHeight + 1
 
-	m, mockStore, mockExec, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// Create test block data
@@ -226,7 +227,7 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 		Run(func(args mock.Arguments) { close(syncChan) }).
 		Once()
 
-	ctx, testCancel := context.WithCancel(context.Background())
+	ctx, testCancel := context.WithCancel(ctx)
 	defer testCancel()
 
 	var wg sync.WaitGroup
@@ -293,7 +294,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	heightH2 := initialHeight + 2
 	daHeight := initialState.DAHeight + 1
 
-	m, mockStore, mockExec, cancel, headerInCh, dataInCh, heightPtr := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, heightPtr := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// --- Block H+1 Data ---
@@ -370,7 +371,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 		Run(func(args mock.Arguments) { close(syncChanH2) }).
 		Once()
 
-	ctx, testCancel := context.WithCancel(context.Background())
+	ctx, testCancel := context.WithCancel(ctx)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -433,7 +434,6 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 // 4. Block H+2 is processed immediately after H+1 from the cache.
 // 5. Final state is H+2.
 func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
-	t.Skip()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -448,7 +448,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	heightH2 := initialHeight + 2
 	daHeight := initialState.DAHeight + 1
 
-	m, mockStore, mockExec, cancel, headerInCh, dataInCh, heightPtr := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, heightPtr := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// --- Block H+1 Data ---
@@ -522,7 +522,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 		Run(func(args mock.Arguments) { close(syncChanH2) }).
 		Once()
 
-	ctx, testCancel := context.WithCancel(context.Background())
+	ctx, testCancel := context.WithCancel(ctx)
 	defer testCancel()
 
 	var wg sync.WaitGroup
@@ -601,7 +601,7 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	heightH1 := initialHeight + 1
 	daHeight := initialState.DAHeight + 1
 
-	m, mockStore, mockExec, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// --- Block H+1 Data ---
@@ -632,9 +632,6 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 		Run(func(args mock.Arguments) { close(syncChanH1) }).
 		Once()
 
-	ctx, testCancel := context.WithCancel(context.Background())
-	defer testCancel()
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -653,7 +650,7 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	case <-syncChanH1:
 		t.Log("First sync completed.")
 	case <-time.After(2 * time.Second):
-		testCancel()
+
 		wg.Wait()
 		t.Fatal("Timeout waiting for first sync to complete")
 	}
@@ -667,7 +664,7 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Cancel context and wait for SyncLoop goroutine to finish
-	testCancel()
+	cancel()
 	wg.Wait()
 
 	// Assertions
@@ -700,7 +697,7 @@ func TestSyncLoop_PanicOnApplyError(t *testing.T) {
 	heightH1 := initialHeight + 1
 	daHeight := initialState.DAHeight + 1
 
-	m, mockStore, mockExec, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel() // Ensure context cancellation happens even on panic
 
 	// --- Block H+1 Data ---
@@ -723,7 +720,7 @@ func TestSyncLoop_PanicOnApplyError(t *testing.T) {
 		Once()
 	// NO further calls expected after Apply error
 
-	ctx, testCancel := context.WithCancel(context.Background())
+	ctx, testCancel := context.WithCancel(ctx)
 	defer testCancel()
 
 	var wg sync.WaitGroup

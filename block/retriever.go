@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -143,7 +142,7 @@ func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
 	}
 
 	// Check if the error itself is ErrHeightFromFutureStr
-	if strings.Contains(err.Error(), ErrHeightFromFutureStr.Error()) {
+	if errors.Is(err, ErrHeightFromFutureStr) {
 		return true
 	}
 

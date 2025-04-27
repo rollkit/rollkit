@@ -898,5 +898,8 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 	if err != nil {
 		return nil, err
 	}
+	if m.signer == nil {
+		return nil, fmt.Errorf("signer is nil; cannot sign header")
+	}
 	return m.signer.Sign(b)
 }
