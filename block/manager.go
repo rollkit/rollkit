@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	goheaderstore "github.com/celestiaorg/go-header"
+	goheader "github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
@@ -113,10 +113,10 @@ type Manager struct {
 	DataCh   chan *types.Data
 
 	headerInCh  chan NewHeaderEvent
-	headerStore goheaderstore.Store[*types.SignedHeader]
+	headerStore goheader.Store[*types.SignedHeader]
 
 	dataInCh  chan NewDataEvent
-	dataStore goheaderstore.Store[*types.Data]
+	dataStore goheader.Store[*types.Data]
 
 	headerCache *cache.Cache[types.SignedHeader]
 	dataCache   *cache.Cache[types.Data]
@@ -172,7 +172,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			BaseHeader: types.BaseHeader{
 				ChainID: genesis.ChainID,
 				Height:  genesis.InitialHeight,
-				Time:    uint64(genesis.GenesisDAStartHeight.UnixNano()),
+				Time:    uint64(genesis.GenesisDAStartTime.UnixNano()),
 			}}
 
 		var signature types.Signature
@@ -215,7 +215,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		// TODO(tzdybal): handle max bytes
-		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartHeight, genesis.InitialHeight, genesis.ChainID)
+		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
 			logger.Error("error while initializing chain", "error", err)
 			return types.State{}, err
@@ -226,7 +226,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			ChainID:         genesis.ChainID,
 			InitialHeight:   genesis.InitialHeight,
 			LastBlockHeight: genesis.InitialHeight - 1,
-			LastBlockTime:   genesis.GenesisDAStartHeight,
+			LastBlockTime:   genesis.GenesisDAStartTime,
 			AppHash:         stateRoot,
 			DAHeight:        0,
 		}
@@ -257,8 +257,8 @@ func NewManager(
 	sequencer coresequencer.Sequencer,
 	dalc coreda.Client,
 	logger log.Logger,
-	headerStore goheaderstore.Store[*types.SignedHeader],
-	dataStore goheaderstore.Store[*types.Data],
+	headerStore goheader.Store[*types.SignedHeader],
+	dataStore goheader.Store[*types.Data],
 	seqMetrics *Metrics,
 	gasPrice float64,
 	gasMultiplier float64,

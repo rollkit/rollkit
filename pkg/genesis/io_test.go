@@ -30,40 +30,40 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 		{
 			name: "valid genesis",
 			genesis: Genesis{
-				ChainID:              "test-chain-1",
-				InitialHeight:        1,
-				GenesisDAStartHeight: validTime,
-				ProposerAddress:      []byte("proposer-address"),
+				ChainID:            "test-chain-1",
+				InitialHeight:      1,
+				GenesisDAStartTime: validTime,
+				ProposerAddress:    []byte("proposer-address"),
 			},
 			wantErr: false,
 		},
 		{
 			name: "valid genesis - minimal",
 			genesis: Genesis{
-				ChainID:              "test-chain-2",
-				InitialHeight:        1,
-				GenesisDAStartHeight: validTime,
-				ProposerAddress:      []byte("proposer-address"),
+				ChainID:            "test-chain-2",
+				InitialHeight:      1,
+				GenesisDAStartTime: validTime,
+				ProposerAddress:    []byte("proposer-address"),
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid genesis - empty chain ID",
 			genesis: Genesis{
-				ChainID:              "",
-				InitialHeight:        1,
-				GenesisDAStartHeight: validTime,
-				ProposerAddress:      []byte("proposer-address"),
+				ChainID:            "",
+				InitialHeight:      1,
+				GenesisDAStartTime: validTime,
+				ProposerAddress:    []byte("proposer-address"),
 			},
 			wantErr: true,
 		},
 		{
 			name: "invalid genesis - zero initial height",
 			genesis: Genesis{
-				ChainID:              "test-chain",
-				InitialHeight:        0,
-				GenesisDAStartHeight: validTime,
-				ProposerAddress:      []byte("proposer-address"),
+				ChainID:            "test-chain",
+				InitialHeight:      0,
+				GenesisDAStartTime: validTime,
+				ProposerAddress:    []byte("proposer-address"),
 			},
 			wantErr: true,
 		},
@@ -177,10 +177,10 @@ func TestSaveGenesis_InvalidPath(t *testing.T) {
 			}
 
 			genesis := Genesis{
-				ChainID:              "test-chain",
-				InitialHeight:        1,
-				GenesisDAStartHeight: time.Now().UTC(),
-				ProposerAddress:      []byte("proposer-address"),
+				ChainID:            "test-chain",
+				InitialHeight:      1,
+				GenesisDAStartTime: time.Now().UTC(),
+				ProposerAddress:    []byte("proposer-address"),
 			}
 
 			err := genesis.Save(tc.path)

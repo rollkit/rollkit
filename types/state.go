@@ -51,7 +51,7 @@ func NewFromGenesisDoc(genDoc genesis.Genesis) (State, error) {
 		DAHeight: 1,
 
 		LastBlockHeight: genDoc.InitialHeight - 1,
-		LastBlockTime:   genDoc.GenesisDAStartHeight,
+		LastBlockTime:   genDoc.GenesisDAStartTime,
 	}
 
 	return s, nil

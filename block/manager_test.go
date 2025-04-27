@@ -67,7 +67,7 @@ func TestInitialStateClean(t *testing.T) {
 	mockExecutor := mocks.NewExecutor(t)
 
 	// Set expectation for InitChain call within getInitialState
-	mockExecutor.On("InitChain", ctx, genesisData.GenesisDAStartHeight, genesisData.InitialHeight, genesisData.ChainID).
+	mockExecutor.On("InitChain", ctx, genesisData.GenesisDAStartTime, genesisData.InitialHeight, genesisData.ChainID).
 		Return([]byte("mockAppHash"), uint64(1000), nil).Once()
 
 	s, err := getInitialState(ctx, genesisData, nil, emptyStore, mockExecutor, logger)
@@ -120,7 +120,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	genesis := genesispkg.NewGenesis(
 		genesisData.ChainID,
 		uint64(2), // Set initial height to 2
-		genesisData.GenesisDAStartHeight,
+		genesisData.GenesisDAStartTime,
 		genesisData.ProposerAddress,
 	)
 	sampleState := types.State{
