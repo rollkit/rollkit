@@ -189,12 +189,7 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, signer signer.Signer,
 		Signer: signedHeader.Signer,
 	}
 
-	b, err := signedHeader.Header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	signature, err := signer.Sign(b)
+	signature, err := GetSignature(signedHeader.Header, signer)
 	if err != nil {
 		return nil, err
 	}
@@ -238,11 +233,7 @@ func GetFirstSignedHeader(signer signer.Signer, chainID string) (*SignedHeader, 
 		Signer: sig,
 	}
 
-	b, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	signature, err := signer.Sign(b)
+	signature, err := GetSignature(header, signer)
 	if err != nil {
 		return nil, err
 	}
@@ -288,12 +279,12 @@ func GetRandomBytes(n uint) []byte {
 }
 
 // GetSignature returns a signature from the given private key over the given header
-func GetSignature(header Header, pk crypto.PrivKey) (Signature, error) {
+func GetSignature(header Header, signer signer.Signer) (Signature, error) {
 	b, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	return pk.Sign(b)
+	return signer.Sign(b)
 }
 
 func getBlockDataWith(nTxs int) *Data {

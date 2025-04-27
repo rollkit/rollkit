@@ -101,13 +101,16 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 		t.Run(fmt.Sprintf("Test #%d", testIndex), func(t *testing.T) {
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
+			noopSigner, err := noop.NewNoopSigner(privKey)
+			require.NoError(t, err)
+
 			if shouldRecomputeCommit {
-				signature, err := GetSignature(preparedHeader.Header, privKey)
+				signature, err := GetSignature(preparedHeader.Header, noopSigner)
 				require.NoError(t, err)
 				preparedHeader.Signature = signature
 			}
 
-			err := trusted.Verify(preparedHeader)
+			err = trusted.Verify(preparedHeader)
 
 			if test.err == nil {
 				assert.NoError(t, err)
@@ -215,13 +218,16 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 		t.Run(fmt.Sprintf("Test #%d", testIndex), func(t *testing.T) {
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
+			noopSigner, err := noop.NewNoopSigner(privKey)
+			require.NoError(t, err)
+
 			if shouldRecomputeCommit {
-				signature, err := GetSignature(preparedHeader.Header, privKey)
+				signature, err := GetSignature(preparedHeader.Header, noopSigner)
 				require.NoError(t, err)
 				preparedHeader.Signature = signature
 			}
 
-			err := preparedHeader.ValidateBasic()
+			err = preparedHeader.ValidateBasic()
 
 			if test.err == nil {
 				assert.NoError(t, err)
