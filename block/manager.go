@@ -847,7 +847,7 @@ func convertBatchDataToBytes(batchData [][]byte) []byte {
 	for _, data := range batchData {
 		// Encode length as 4-byte big-endian integer
 		lengthBytes := make([]byte, 4)
-		binary.BigEndian.PutUint32(lengthBytes, uint32(len(data)))
+		binary.LittleEndian.PutUint32(lengthBytes, uint32(len(data)))
 
 		// Append length prefix
 		result = append(result, lengthBytes...)
@@ -875,7 +875,7 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 		}
 
 		// Read the length prefix
-		length := binary.BigEndian.Uint32(data[offset : offset+4])
+		length := binary.LittleEndian.Uint32(data[offset : offset+4])
 		offset += 4
 
 		// Check if we have enough bytes for the data
