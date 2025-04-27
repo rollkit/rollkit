@@ -33,10 +33,10 @@ type Sequencer struct {
 
 	proposer bool
 
-	rollupId    []byte
-	da          coreda.DA
-	daNamespace []byte
-	batchTime   time.Duration
+	rollupId []byte
+	da       coreda.DA
+
+	batchTime time.Duration
 
 	queue            *BatchQueue
 	daSubmissionChan chan coresequencer.Batch
@@ -50,7 +50,6 @@ func NewSequencer(
 	logger log.Logger,
 	db ds.Batching,
 	da coreda.DA,
-	daNamespace,
 	rollupId []byte,
 	batchTime time.Duration,
 	metrics *Metrics,
@@ -59,7 +58,6 @@ func NewSequencer(
 	s := &Sequencer{
 		logger:           logger,
 		da:               da,
-		daNamespace:      daNamespace,
 		batchTime:        batchTime,
 		rollupId:         rollupId,
 		queue:            NewBatchQueue(db, "batches"),
@@ -188,7 +186,7 @@ daSubmitRetryLoop:
 		}
 
 		// Attempt to submit the batch to the DA layer using the helper function
-		res := types.SubmitWithHelpers(ctx, c.da, c.logger, currentBatch.Transactions, gasPrice, c.daNamespace, nil)
+		res := types.SubmitWithHelpers(ctx, c.da, c.logger, currentBatch.Transactions, gasPrice, []byte("placeholder"), nil)
 
 		gasMultiplier, multErr := c.da.GasMultiplier(ctx)
 		if multErr != nil {
@@ -280,12 +278,12 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 
 	if !c.proposer {
 
-		proofs, err := c.da.GetProofs(ctx, req.BatchData, c.daNamespace)
+		proofs, err := c.da.GetProofs(ctx, req.BatchData, []byte("placeholder"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get proofs: %w", err)
 		}
 
-		valid, err := c.da.Validate(ctx, req.BatchData, proofs, c.daNamespace)
+		valid, err := c.da.Validate(ctx, req.BatchData, proofs, []byte("placeholder"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate proof: %w", err)
 		}

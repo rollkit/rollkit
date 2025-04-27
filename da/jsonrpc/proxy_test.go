@@ -3,13 +3,16 @@ package jsonrpc_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/da/internal/mocks"
 	proxy "github.com/rollkit/rollkit/da/jsonrpc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	coreda "github.com/rollkit/rollkit/core/da"
@@ -193,7 +196,155 @@ func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 // HeightFromFutureTest tests the case when the given height is from the future
 func HeightFromFutureTest(t *testing.T, d coreda.DA) {
 	ctx := context.TODO()
-	ret, err := d.GetIDs(ctx, 999999999, []byte{})
-	assert.NoError(t, err)
-	assert.Empty(t, ret.IDs)
+	_, err := d.GetIDs(ctx, 999999999, []byte("test"))
+	assert.Error(t, err)
+	// Specifically check if the error is ErrBlobNotFound (or contains its message)
+	assert.ErrorContains(t, err, coreda.ErrBlobNotFound.Error())
+}
+
+// TestSubmitWithOptions tests the SubmitWithOptions method with various scenarios
+func TestSubmitWithOptions(t *testing.T) {
+	ctx := context.Background()
+	testNamespace := []byte("options_test")
+	testOptions := []byte("test_options")
+	gasPrice := 0.0
+
+	// Helper function to create a client with a mocked internal API
+	createMockedClient := func(internalAPI *mocks.DA) *proxy.Client {
+		client := &proxy.Client{}
+		client.DA.Internal.MaxBlobSize = internalAPI.MaxBlobSize
+		client.DA.Internal.SubmitWithOptions = internalAPI.SubmitWithOptions
+		client.DA.Namespace = testNamespace
+		client.DA.Logger = log.NewTestLogger(t)
+		return client
+	}
+
+	t.Run("Happy Path - All blobs fit", func(t *testing.T) {
+		mockAPI := mocks.NewDA(t)
+		client := createMockedClient(mockAPI)
+
+		blobs := []coreda.Blob{[]byte("blob1"), []byte("blob2")}
+		expectedIDs := []coreda.ID{[]byte("id1"), []byte("id2")}
+		maxSize := uint64(100)
+
+		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
+		mockAPI.On("SubmitWithOptions", ctx, blobs, gasPrice, testNamespace, testOptions).Return(expectedIDs, nil).Once()
+
+		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+
+		require.NoError(t, err)
+		assert.Equal(t, expectedIDs, ids)
+		mockAPI.AssertExpectations(t)
+	})
+
+	t.Run("Single Blob Too Large", func(t *testing.T) {
+		mockAPI := mocks.NewDA(t)
+		client := createMockedClient(mockAPI)
+
+		blobs := []coreda.Blob{[]byte("small"), []byte("this blob is definitely too large")}
+		maxSize := uint64(20)
+
+		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
+		expectedSubmitBlobs := []coreda.Blob{blobs[0]}
+		expectedIDs := []coreda.ID{[]byte("id_small")}
+		mockAPI.On("SubmitWithOptions", ctx, expectedSubmitBlobs, gasPrice, testNamespace, testOptions).Return(expectedIDs, nil).Once()
+
+		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+
+		require.NoError(t, err)
+		assert.Equal(t, expectedIDs, ids)
+		mockAPI.AssertExpectations(t)
+	})
+
+	t.Run("Total Size Exceeded", func(t *testing.T) {
+		mockAPI := mocks.NewDA(t)
+		client := createMockedClient(mockAPI)
+
+		blobs := []coreda.Blob{[]byte("blobA"), []byte("blobB"), []byte("blobC")}
+		maxSize := uint64(12)
+
+		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
+		expectedSubmitBlobs := []coreda.Blob{blobs[0], blobs[1]}
+		expectedIDs := []coreda.ID{[]byte("idA"), []byte("idB")}
+		mockAPI.On("SubmitWithOptions", ctx, expectedSubmitBlobs, gasPrice, testNamespace, testOptions).Return(expectedIDs, nil).Once()
+
+		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+
+		require.NoError(t, err)
+		assert.Equal(t, expectedIDs, ids)
+		mockAPI.AssertExpectations(t)
+	})
+
+	t.Run("First Blob Too Large", func(t *testing.T) {
+		mockAPI := mocks.NewDA(t)
+		client := createMockedClient(mockAPI)
+
+		blobs := []coreda.Blob{[]byte("this first blob is too large"), []byte("small")}
+		maxSize := uint64(20)
+
+		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
+
+		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, coreda.ErrBlobSizeOverLimit)
+		assert.Nil(t, ids)
+
+		mockAPI.AssertNotCalled(t, "SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		mockAPI.AssertExpectations(t)
+	})
+
+	t.Run("Empty Input Blobs", func(t *testing.T) {
+		mockAPI := mocks.NewDA(t)
+		client := createMockedClient(mockAPI)
+
+		var blobs []coreda.Blob
+		maxSize := uint64(100)
+		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
+
+		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+
+		require.NoError(t, err)
+		assert.Empty(t, ids)
+
+		mockAPI.AssertNotCalled(t, "SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		mockAPI.AssertExpectations(t)
+	})
+
+	t.Run("Error Getting MaxBlobSize", func(t *testing.T) {
+		mockAPI := mocks.NewDA(t)
+		client := createMockedClient(mockAPI)
+
+		blobs := []coreda.Blob{[]byte("blob1")}
+		expectedError := errors.New("failed to get max size")
+
+		mockAPI.On("MaxBlobSize", ctx).Return(uint64(0), expectedError).Once()
+
+		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "failed to get max blob size for submission")
+		assert.ErrorIs(t, err, expectedError)
+		assert.Nil(t, ids)
+		mockAPI.AssertExpectations(t)
+	})
+
+	t.Run("Error During SubmitWithOptions RPC", func(t *testing.T) {
+		mockAPI := mocks.NewDA(t)
+		client := createMockedClient(mockAPI)
+
+		blobs := []coreda.Blob{[]byte("blob1")}
+		maxSize := uint64(100)
+		expectedError := errors.New("rpc submit failed")
+
+		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
+		mockAPI.On("SubmitWithOptions", ctx, blobs, gasPrice, testNamespace, testOptions).Return(nil, expectedError).Once()
+
+		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, expectedError)
+		assert.Nil(t, ids)
+		mockAPI.AssertExpectations(t)
+	})
 }

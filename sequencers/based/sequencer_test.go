@@ -17,7 +17,7 @@ import (
 func newTestSequencer(t *testing.T) *based.Sequencer {
 	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
 	store := ds.NewMapDatastore()
-	seq, err := based.NewSequencer(log.NewNopLogger(), dummyDA, []byte("ns"), []byte("rollup1"), 0, 2, store)
+	seq, err := based.NewSequencer(log.NewNopLogger(), dummyDA, []byte("rollup1"), 0, 2, store)
 	assert.NoError(t, err)
 	return seq
 }
@@ -88,7 +88,7 @@ func TestSequencer_GetNextBatch_InvalidRollup(t *testing.T) {
 func TestSequencer_GetNextBatch_ExceedsMaxDrift(t *testing.T) {
 	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
 	store := ds.NewMapDatastore()
-	sequencer, err := based.NewSequencer(log.NewNopLogger(), dummyDA, []byte("ns"), []byte("rollup1"), 0, 0, store)
+	sequencer, err := based.NewSequencer(log.NewNopLogger(), dummyDA, []byte("rollup1"), 0, 0, store)
 	assert.NoError(t, err)
 
 	ctx := context.Background()

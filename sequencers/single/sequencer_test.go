@@ -26,7 +26,7 @@ func TestNewSequencer(t *testing.T) {
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("namespace"), []byte("rollup1"), 10*time.Second, metrics, false)
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("rollup1"), 10*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestSequencer_SubmitRollupBatchTxs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	rollupId := []byte("rollup1")
-	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("namespace"), rollupId, 10*time.Second, metrics, false)
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, rollupId, 10*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestSequencer_SubmitRollupBatchTxs_EmptyBatch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	rollupId := []byte("rollup1")
-	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("namespace"), rollupId, 10*time.Second, metrics, false)
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, rollupId, 10*time.Second, metrics, false)
 	require.NoError(t, err, "Failed to create sequencer")
 	defer func() {
 		err := db.Close()
@@ -250,7 +250,6 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			rollupId:         rollupId,
 			proposer:         true,
 			da:               mockDA,
-			daNamespace:      namespace,
 			queue:            NewBatchQueue(db, "proposer_queue"),
 			daSubmissionChan: make(chan coresequencer.Batch, 1),
 		}
@@ -271,7 +270,6 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				daNamespace:      namespace,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "valid_proofs_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -293,7 +291,6 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				daNamespace:      namespace,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "invalid_proof_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -315,7 +312,6 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				daNamespace:      namespace,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "getproofs_err_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -338,7 +334,6 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				daNamespace:      namespace,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "validate_err_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -362,7 +357,6 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				daNamespace:      namespace,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "invalid_rollup_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -387,7 +381,7 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, mockDA, []byte("namespace"), []byte("rollup1"), 1*time.Second, metrics, false)
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, mockDA, []byte("rollup1"), 1*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}

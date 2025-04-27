@@ -59,8 +59,6 @@ type Sequencer struct {
 	// DA represents the Data Availability layer interface used by the Sequencer.
 	DA coreda.DA
 
-	daNamespace []byte
-
 	// pendingTxs is a persistent storage for transactions that are pending inclusion
 	// in the rollup blocks.
 	pendingTxs *PersistentPendingTxs
@@ -77,7 +75,6 @@ type Sequencer struct {
 func NewSequencer(
 	logger log.Logger,
 	daImpl coreda.DA,
-	daNamespace []byte,
 	rollupId []byte,
 	daStartHeight uint64,
 	maxHeightDrift uint64,
@@ -92,7 +89,6 @@ func NewSequencer(
 		maxHeightDrift: maxHeightDrift,
 		rollupId:       rollupId,
 		DA:             daImpl,
-		daNamespace:    daNamespace,
 		daStartHeight:  daStartHeight,
 		pendingTxs:     pending,
 		store:          ds,
@@ -111,7 +107,7 @@ func (s *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 	}
 	// Use the helper function for submission
 	// Assuming default gas price (-1) and no options, similar to how DAClient was used before
-	res := types.SubmitWithHelpers(ctx, s.DA, s.logger, req.Batch.Transactions, -1, s.daNamespace, nil)
+	res := types.SubmitWithHelpers(ctx, s.DA, s.logger, req.Batch.Transactions, -1, []byte("placeholder"), nil)
 	if res.Code != coreda.StatusSuccess {
 		return nil, fmt.Errorf("failed to submit batch to DA via helper: %s", res.Message)
 	}
@@ -221,13 +217,13 @@ func (s *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 		return nil, ErrInvalidRollupId
 	}
 	// Use stored namespace
-	proofs, err := s.DA.GetProofs(ctx, req.BatchData, s.daNamespace)
+	proofs, err := s.DA.GetProofs(ctx, req.BatchData, []byte("placeholder"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proofs: %w", err)
 	}
 
 	// verify the proof
-	valid, err := s.DA.Validate(ctx, req.BatchData, proofs, s.daNamespace)
+	valid, err := s.DA.Validate(ctx, req.BatchData, proofs, []byte("placeholder"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate proof: %w", err)
 	}
@@ -267,7 +263,7 @@ func (s *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Bat
 	// The complex retry logic is now encapsulated within the helper or the caller that needs it.
 	// This sequencer's responsibility is simplified to just calling the helper.
 	// Assuming default gas price (-1) and no options for this specific call context.
-	res := types.SubmitWithHelpers(ctx, s.DA, s.logger, batch.Transactions, -1, s.daNamespace, nil)
+	res := types.SubmitWithHelpers(ctx, s.DA, s.logger, batch.Transactions, -1, []byte("placeholder"), nil)
 
 	if res.Code != coreda.StatusSuccess {
 		// Log the error returned by the helper

@@ -92,7 +92,6 @@ var RunCmd = &cobra.Command{
 			logger,
 			datastore,
 			daJrpc,
-			[]byte(nodeConfig.DA.Namespace),
 			[]byte(nodeConfig.ChainID),
 			nodeConfig.Node.BlockTime.Duration,
 			singleMetrics,

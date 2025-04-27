@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -131,10 +130,6 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			} else {
 				basedDA = coreda.NewDummyDA(100_000, 0, 0)
 			}
-			nsBytes, err := hex.DecodeString(basedNamespace)
-			if err != nil {
-				return fmt.Errorf("failed to decode based namespace: %w", err)
-			}
 
 			datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "based")
 			if err != nil {
@@ -145,7 +140,6 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			sequencer, err := based.NewSequencer(
 				logger,
 				basedDA,
-				nsBytes, // Pass namespace bytes
 				[]byte("rollkit-test"),
 				basedStartHeight,
 				basedMaxHeightDrift,
