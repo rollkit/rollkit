@@ -62,7 +62,7 @@ func (s *DefaultPruningStore) PruneBlockData(ctx context.Context) error {
 		startHeight = endHeight - s.Config.Interval
 	}
 
-	for i := startHeight; i <= endHeight; i++ {
+	for i := startHeight; i < endHeight; i++ {
 		err = s.DeleteBlockData(ctx, i)
 		if err != nil {
 			// Could ignore for errors like not found.
