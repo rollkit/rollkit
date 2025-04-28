@@ -177,13 +177,8 @@ func (s *NodeIntegrationTestSuite) TestBlockProduction() {
 	// Wait for at least one block to be produced and transactions to be included
 	time.Sleep(5 * time.Second) // Give more time for the full flow
 
-	// Get transactions from executor to verify they are being injected
-	execTxs, err := s.node.(*FullNode).blockManager.GetExecutor().GetTxs(s.ctx)
-	s.NoError(err)
-	s.T().Logf("Number of transactions from executor: %d", len(execTxs))
-
 	// Wait for at least one block to be produced
-	err = s.waitForHeight(1)
+	err := s.waitForHeight(1)
 	s.NoError(err, "Failed to produce first block")
 
 	// Get the current height

@@ -281,7 +281,6 @@ func (s *FullNodeTestSuite) TestDAInclusion() {
 
 	s.T().Logf("=== Initial State ===")
 	s.T().Logf("Block height: %d, DA height: %d", initialHeight, initialDAHeight)
-	s.T().Logf("Is proposer: %v", s.node.blockManager.IsProposer())
 	s.T().Logf("DA client initialized: %v", s.node.blockManager.DALCInitialized())
 	s.T().Logf("Aggregator enabled: %v", s.node.nodeConfig.Node.Aggregator)
 
