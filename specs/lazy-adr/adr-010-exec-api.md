@@ -27,9 +27,6 @@ This separation enables:
 2. Migrate to Engine API.
    - Pros: Standard interface for EVM-based chains
    - Cons: Too specific to EVM, not suitable for other VMs
-3. Create new API generic enough to handle any arbitrary VM.
-   - Pros: Maximum flexibility, clean separation of concerns
-   - Cons: Requires significant refactoring
 
 ## Decision
 
@@ -201,7 +198,6 @@ The Execution API includes `maxBytes` as a return value in both `InitChain` and 
    - The sequencer uses this value to limit the size of transaction batches it creates
    - The sequencer's `PopUpToMaxBytes` method ensures transactions don't exceed the size limit
    - This coordination ensures consistent block size constraints across the entire system
-   - Both Rollkit and sequencer independently validate block sizes to prevent oversized blocks
 
 5. **Usage in Rollkit**:
    - Rollkit uses this value to validate block sizes before submission
