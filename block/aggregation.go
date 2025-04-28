@@ -99,5 +99,5 @@ func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
 		return interval - elapsed
 	}
 
-	return 0
+	return time.Millisecond
 }
