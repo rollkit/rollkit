@@ -20,11 +20,10 @@ func SubmitWithHelpers(
 	logger log.Logger,
 	data [][]byte,
 	gasPrice float64,
-	namespace []byte,
 	options []byte,
 ) coreda.ResultSubmit { // Return core ResultSubmit type
 
-	ids, err := da.SubmitWithOptions(ctx, data, gasPrice, namespace, options)
+	ids, err := da.SubmitWithOptions(ctx, data, gasPrice, []byte("placeholder"), options)
 
 	// Handle errors returned by SubmitWithOptions
 	if err != nil {
@@ -86,7 +85,7 @@ func RetrieveWithHelpers(
 ) coreda.ResultRetrieve {
 
 	// 1. Get IDs
-	idsResult, err := da.GetIDs(ctx, dataLayerHeight, []byte{})
+	idsResult, err := da.GetIDs(ctx, dataLayerHeight, []byte("placeholder"))
 	if err != nil {
 		// Handle specific "not found" error
 		if errors.Is(err, coreda.ErrBlobNotFound) {
@@ -123,7 +122,7 @@ func RetrieveWithHelpers(
 	}
 
 	// 2. Get Blobs using the retrieved IDs
-	blobs, err := da.Get(ctx, idsResult.IDs, []byte("namespace")) // Assuming "namespace" is a placeholder
+	blobs, err := da.Get(ctx, idsResult.IDs, []byte("placeholder"))
 	if err != nil {
 		// Handle errors during Get
 		logger.Error("Retrieve helper: Failed to get blobs", "height", dataLayerHeight, "num_ids", len(idsResult.IDs), "error", err)

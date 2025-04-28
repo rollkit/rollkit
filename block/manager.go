@@ -1341,7 +1341,7 @@ daSubmitRetryLoop:
 			}
 		}
 		ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
-		res := types.SubmitWithHelpers(ctx, m.da, m.logger, headersBz, gasPrice, []byte("placeholder"), nil)
+		res := types.SubmitWithHelpers(ctx, m.da, m.logger, headersBz, gasPrice, nil)
 		cancel()
 		switch res.Code {
 		case coreda.StatusSuccess:

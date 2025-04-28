@@ -175,7 +175,7 @@ func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 	go func() {
 		defer wg.Done()
 		for i := uint64(1); i <= 100; i++ {
-			ret, err := d.GetIDs(ctx, i, []byte{})
+			ret, err := d.GetIDs(ctx, i, []byte("test"))
 			if err != nil {
 				assert.Empty(t, ret.IDs)
 			}

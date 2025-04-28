@@ -186,7 +186,7 @@ daSubmitRetryLoop:
 		}
 
 		// Attempt to submit the batch to the DA layer using the helper function
-		res := types.SubmitWithHelpers(ctx, c.da, c.logger, currentBatch.Transactions, gasPrice, []byte("placeholder"), nil)
+		res := types.SubmitWithHelpers(ctx, c.da, c.logger, currentBatch.Transactions, gasPrice, nil)
 
 		gasMultiplier, multErr := c.da.GasMultiplier(ctx)
 		if multErr != nil {
