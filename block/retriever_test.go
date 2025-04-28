@@ -125,9 +125,6 @@ func TestProcessNextDAHeader_Success_SingleHeader(t *testing.T) {
 		Data:       [][]byte{headerBytes},
 	}, nil).Once()
 
-	heightBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(heightBytes, blockHeight)
-
 	ctx := context.Background()
 	err = manager.processNextDAHeader(ctx)
 	require.NoError(t, err)
@@ -363,7 +360,7 @@ func TestRetrieveLoop_DAHeightIncrement(t *testing.T) {
 	// Verify DA height was incremented
 	finalDAHeight := manager.daHeight.Load()
 	if finalDAHeight != startDAHeight+2 {
-		t.Errorf("Expected final DA height %d, got %d", startDAHeight+1, finalDAHeight)
+		t.Errorf("Expected final DA height %d, got %d", startDAHeight+2, finalDAHeight)
 	}
 }
 
