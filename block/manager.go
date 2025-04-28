@@ -746,6 +746,10 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	data := batchData.Data
 	batchdata := convertBatchDataToBytes(data)
 
+	if m.signer == nil {
+		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
+	}
+
 	key, err := m.signer.GetPublic()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get proposer public key: %w", err)
