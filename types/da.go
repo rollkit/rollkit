@@ -34,7 +34,7 @@ func SubmitWithHelpers(
 		case errors.Is(err, coreda.ErrTxAlreadyInMempool):
 			status = coreda.StatusAlreadyInMempool
 		case errors.Is(err, coreda.ErrTxIncorrectAccountSequence):
-			status = coreda.StatusAlreadyInMempool
+			status = coreda.StatusIncorrectAccountSequence
 		case errors.Is(err, coreda.ErrBlobSizeOverLimit):
 			status = coreda.StatusTooBig
 		case errors.Is(err, coreda.ErrContextDeadline):

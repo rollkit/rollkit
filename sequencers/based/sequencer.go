@@ -151,7 +151,10 @@ func (s *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 	nextDAHeight := lastDAHeight
 
 	if len(req.LastBatchData) > 0 {
-		scanned := s.lastDAHeight(req.LastBatchData)
+		scanned, err := s.lastDAHeight(req.LastBatchData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get last DA height: %w", err)
+		}
 		if scanned > lastDAHeight {
 			lastDAHeight = scanned
 			nextDAHeight = lastDAHeight + 1
@@ -238,9 +241,12 @@ func (c *Sequencer) isValid(rollupId []byte) bool {
 	return bytes.Equal(c.rollupId, rollupId)
 }
 
-func (s *Sequencer) lastDAHeight(ids [][]byte) uint64 {
-	height, _ := coreda.SplitID(ids[len(ids)-1])
-	return height
+func (s *Sequencer) lastDAHeight(ids [][]byte) (uint64, error) {
+	height, _, err := coreda.SplitID(ids[len(ids)-1])
+	if err != nil {
+		return 0, fmt.Errorf("failed to split ID: %w", err)
+	}
+	return height, nil
 }
 
 // submitBatchToDA submits a batch of transactions to the Data Availability (DA) layer.

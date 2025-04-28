@@ -102,7 +102,7 @@ func BasicDATest(t *testing.T, d coreda.DA) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, commitment2)
 
-	ids := [][]byte{id1[0], id2[0], id3[0]}
+	ids := []coreda.ID{id1[0], id2[0], id3[0]}
 	proofs, err := d.GetProofs(ctx, ids, testNamespace)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, proofs)
@@ -125,13 +125,12 @@ func CheckErrors(t *testing.T, d coreda.DA) {
 
 // GetIDsTest tests iteration over DA
 func GetIDsTest(t *testing.T, d coreda.DA) {
-	msgs := [][]byte{[]byte("msg1"), []byte("msg2"), []byte("msg3")}
+	msgs := []coreda.Blob{[]byte("msg1"), []byte("msg2"), []byte("msg3")}
 
 	ctx := context.TODO()
 	ids, err := d.Submit(ctx, msgs, 0, testNamespace)
 	assert.NoError(t, err)
 	assert.Len(t, ids, len(msgs))
-
 	found := false
 	end := time.Now().Add(1 * time.Second)
 
@@ -185,7 +184,7 @@ func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 	go func() {
 		defer wg.Done()
 		for i := uint64(1); i <= 100; i++ {
-			_, err := d.Submit(ctx, [][]byte{[]byte("test")}, 0, []byte{})
+			_, err := d.Submit(ctx, []coreda.Blob{[]byte("test")}, 0, []byte{})
 			assert.NoError(t, err)
 		}
 	}()
