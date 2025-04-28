@@ -6,6 +6,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/types"
 )
 
 type DefaultPruningStore struct {
@@ -22,6 +23,16 @@ func NewDefaultPruningStore(ds ds.Batching, config config.PruningConfig) Pruning
 		Store:  &DefaultStore{db: ds},
 		Config: config,
 	}
+}
+
+// SaveBlockData adds block header and data to the store along with corresponding signature.
+// It also prunes the block data if needed.
+func (s *DefaultPruningStore) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
+	if err := s.PruneBlockData(ctx); err != nil {
+		return err
+	}
+
+	return s.Store.SaveBlockData(ctx, header, data, signature)
 }
 
 func (s *DefaultPruningStore) PruneBlockData(ctx context.Context) error {
