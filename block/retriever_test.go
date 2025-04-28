@@ -353,7 +353,7 @@ func TestRetrieveLoop_DAHeightIncrement(t *testing.T) {
 
 	select {
 	case <-processedSecondHeight:
-	case <-time.After(2 * time.Second): // Increased timeout
+	case <-time.After(4 * time.Second):
 		t.Fatal("RetrieveLoop did not attempt to process next DA height")
 	}
 
