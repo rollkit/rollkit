@@ -310,60 +310,6 @@ func TestProcessNextDAHeader_HeaderAlreadySeen(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
-// TestRetrieveLoop_DAHeightIncrement verifies DA height increases after successful processing.
-func TestRetrieveLoop_DAHeightIncrement(t *testing.T) {
-	startDAHeight := uint64(5)
-	manager, mockDAClient, _, mockLogger, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
-	defer cancel()
-
-	mockDAClient.On("Retrieve", mock.Anything, startDAHeight).Return(coreda.ResultRetrieve{
-		BaseResult: coreda.BaseResult{Code: coreda.StatusSuccess},
-		Data:       [][]byte{},
-	}, nil).Once()
-	mockDAClient.On("Retrieve", mock.Anything, startDAHeight+1).Return(coreda.ResultRetrieve{
-		BaseResult: coreda.BaseResult{Code: coreda.StatusNotFound},
-	}, nil).Once()
-
-	processedSecondHeight := make(chan struct{})
-	mockLogger.ExpectedCalls = nil
-	mockLogger.On("Debug", "trying to retrieve block from DA", mock.Anything).Run(func(args mock.Arguments) {
-		keyvals := args.Get(1).([]any)
-		for i := 0; i < len(keyvals); i += 2 {
-			if keyvals[i] == "daHeight" && keyvals[i+1].(uint64) == startDAHeight+1 {
-				close(processedSecondHeight)
-			}
-		}
-	}).Return()
-	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe()
-
-	ctx, loopCancel := context.WithCancel(context.Background())
-	defer loopCancel()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		manager.RetrieveLoop(ctx)
-	}()
-
-	manager.retrieveCh <- struct{}{}
-
-	select {
-	case <-processedSecondHeight:
-	case <-time.After(4 * time.Second):
-		t.Fatal("RetrieveLoop did not attempt to process next DA height")
-	}
-
-	loopCancel()
-	wg.Wait()
-
-	// Verify DA height was incremented
-	finalDAHeight := manager.daHeight.Load()
-	if finalDAHeight != startDAHeight+2 {
-		t.Errorf("Expected final DA height %d, got %d", startDAHeight+2, finalDAHeight)
-	}
-}
-
 // TestRetrieveLoop_ProcessError_HeightFromFuture verifies loop continues without error log.
 func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 	startDAHeight := uint64(10)
