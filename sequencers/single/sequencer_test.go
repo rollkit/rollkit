@@ -393,7 +393,6 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	}()
 
 	// Set up mock expectations
-	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(100_000_000), nil)
 	mockDA.On("GasPrice", mock.Anything).Return(float64(0), nil)
 	mockDA.On("GasMultiplier", mock.Anything).Return(float64(0), nil)
 	mockDA.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
