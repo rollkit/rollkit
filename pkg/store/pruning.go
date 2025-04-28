@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 
+	ds "github.com/ipfs/go-datastore"
+
 	"github.com/rollkit/rollkit/pkg/config"
 )
 
@@ -15,9 +17,9 @@ type DefaultPruningStore struct {
 var _ PruningStore = &DefaultPruningStore{}
 
 // NewDefaultPruningStore returns default pruning store.
-func NewDefaultPruningStore(store Store, config config.PruningConfig) PruningStore {
+func NewDefaultPruningStore(ds ds.Batching, config config.PruningConfig) PruningStore {
 	return &DefaultPruningStore{
-		Store:  store,
+		Store:  &DefaultStore{db: ds},
 		Config: config,
 	}
 }

@@ -94,7 +94,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	store := store.New(mainKV)
+	store := store.NewDefaultPruningStore(mainKV, nodeConfig.Node.Pruning)
 
 	reaper := block.NewReaper(
 		ctx,
