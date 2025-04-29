@@ -9,4 +9,4 @@ coverage:
 ignore:
   - "test"
   - "types/pb"
-  - "pkg/cmd/docs_gen.go"
+  - "scripts/"

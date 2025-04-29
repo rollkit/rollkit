@@ -18,9 +18,9 @@ func TestNewFromGenesisDoc(t *testing.T) {
 	// Case 1: Valid Genesis Document
 	genTime := time.Now()
 	genDoc := genesis.Genesis{
-		ChainID:              "test-chain",
-		InitialHeight:        10,
-		GenesisDAStartHeight: genTime,
+		ChainID:            "test-chain",
+		InitialHeight:      10,
+		GenesisDAStartTime: genTime,
 	}
 
 	state, err := NewFromGenesisDoc(genDoc)
@@ -31,15 +31,15 @@ func TestNewFromGenesisDoc(t *testing.T) {
 	assert.Equal(genDoc.InitialHeight, state.InitialHeight)
 	assert.Equal(uint64(1), state.DAHeight, "Initial DAHeight should be 1")
 	assert.Equal(genDoc.InitialHeight-1, state.LastBlockHeight)
-	assert.Equal(genDoc.GenesisDAStartHeight, state.LastBlockTime)
+	assert.Equal(genDoc.GenesisDAStartTime, state.LastBlockTime)
 	assert.Nil(state.LastResultsHash)
 	assert.Nil(state.AppHash)
 
 	// Case 2: Invalid Genesis Document (InitialHeight = 0)
 	invalidGenDoc := genesis.Genesis{
-		ChainID:              "invalid-chain",
-		InitialHeight:        0,
-		GenesisDAStartHeight: genTime,
+		ChainID:            "invalid-chain",
+		InitialHeight:      0,
+		GenesisDAStartTime: genTime,
 	}
 
 	_, err = NewFromGenesisDoc(invalidGenDoc)

@@ -8,6 +8,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rollkit/rollkit/pkg/signer/noop"
 )
 
 func TestSignedHeader(t *testing.T) {
@@ -15,8 +17,11 @@ func TestSignedHeader(t *testing.T) {
 	// Generate a random signed header
 	trusted, privKey, err := GetRandomSignedHeader(chainID)
 	require.NoError(t, err)
+
+	signer, err := noop.NewNoopSigner(privKey)
+	require.NoError(t, err)
 	// Get the next random header
-	untrustedAdj, err := GetRandomNextSignedHeader(trusted, privKey, chainID)
+	untrustedAdj, err := GetRandomNextSignedHeader(trusted, signer, chainID)
 	require.NoError(t, err)
 	t.Run("Test Verify", func(t *testing.T) {
 		testVerify(t, trusted, untrustedAdj, privKey)
@@ -35,7 +40,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 		// Verify valid adjacent headers
 		// Expect success
 		{
-			prepare: func() (*SignedHeader, bool) { return untrustedAdj, false },
+			prepare: func() (*SignedHeader, bool) { return untrustedAdj, true },
 			err:     nil,
 		},
 		// 1. Test invalid LastHeaderHash link
@@ -96,13 +101,16 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 		t.Run(fmt.Sprintf("Test #%d", testIndex), func(t *testing.T) {
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
+			noopSigner, err := noop.NewNoopSigner(privKey)
+			require.NoError(t, err)
+
 			if shouldRecomputeCommit {
-				signature, err := GetSignature(preparedHeader.Header, privKey)
+				signature, err := GetSignature(preparedHeader.Header, noopSigner)
 				require.NoError(t, err)
 				preparedHeader.Signature = signature
 			}
 
-			err := trusted.Verify(preparedHeader)
+			err = trusted.Verify(preparedHeader)
 
 			if test.err == nil {
 				assert.NoError(t, err)
@@ -210,13 +218,16 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 		t.Run(fmt.Sprintf("Test #%d", testIndex), func(t *testing.T) {
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
+			noopSigner, err := noop.NewNoopSigner(privKey)
+			require.NoError(t, err)
+
 			if shouldRecomputeCommit {
-				signature, err := GetSignature(preparedHeader.Header, privKey)
+				signature, err := GetSignature(preparedHeader.Header, noopSigner)
 				require.NoError(t, err)
 				preparedHeader.Signature = signature
 			}
 
-			err := preparedHeader.ValidateBasic()
+			err = preparedHeader.ValidateBasic()
 
 			if test.err == nil {
 				assert.NoError(t, err)
