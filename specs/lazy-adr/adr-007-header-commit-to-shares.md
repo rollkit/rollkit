@@ -48,7 +48,23 @@ In order to avoid having to include many different messages with PayForMessage o
 
 ## Detailed Design
 
-TODO
+The detailed design consists of the following components:
+
+1. **Rollup Transaction Layout**: Rollup transactions are formatted and aligned to start at power-of-2 share boundaries. This ensures consistent commitment structure regardless of the data square size.
+
+2. **Footer Approach**: The rollup block header is appended after the transactions as a footer, rather than preceding them. This allows for:
+   - Preserving the power-of-2 alignment requirement for transaction data
+   - Enabling rollup nodes to download the last X shares of each message to extract the header/footer for verification
+
+3. **Commitment Structure**: The rollup block header includes a commitment to the transactions in share form, similar to the structure used in PayForMessage. The commitment uses Merkle subtree roots that correspond to the shares containing the transaction data.
+
+4. **Modified WirePayForMessage**: The WirePayForMessage structure is extended with a new `footers` field that contains a footer for each witness. When verifying a witness, the corresponding footer is appended to the message.
+
+5. **Verification Process**:
+   - Rollup nodes verify the commitment in the footer against the actual transaction data
+   - Full nodes on Celestia verify that the PayForMessage transaction correctly commits to both the rollup transactions and the footer
+
+This design ensures data availability guarantees while maintaining compatibility with different data square sizes and the non-interactive message inclusion mechanism.
 
 ## Status
 
@@ -58,15 +74,25 @@ Proposed
 
 ### Positive
 
-TODO
+- Maintains data availability guarantees for rollup data by ensuring proper commitment to subtree roots
+- Allows for seamless handling of different block sizes without requiring multiple different messages over the wire
+- Preserves the non-interactive message inclusion capability
+- Simplifies the verification process for rollup nodes by having a predictable location (end of message) for the header/footer
+- Reduces networking overhead compared to alternative approaches
+- Maintains backward compatibility with Celestia's existing PayForMessage structure with minimal modifications
 
 ### Negative
 
-TODO
+- Slightly increases complexity by using a footer approach rather than the more traditional header-first design
+- Requires modifications to the WirePayForMessage structure to include the new footers field
+- May increase storage requirements by potentially requiring multiple footers for the same data (one per possible square size)
+- Introduces a small verification overhead as nodes need to process both the message and its footer
 
 ### Neutral
 
-TODO
+- Changes the conceptual model from header-first to footer-last, which is different from many blockchain designs but functionally equivalent
+- Shifts some verification responsibility from Celestia's consensus layer to the rollup verification layer
+- Requires coordination between Celestia and rollup teams for implementation
 
 ## References
 
