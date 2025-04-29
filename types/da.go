@@ -25,7 +25,6 @@ func SubmitWithHelpers(
 	gasPrice float64,
 	options []byte,
 ) coreda.ResultSubmit { // Return core ResultSubmit type
-
 	ids, err := da.SubmitWithOptions(ctx, data, gasPrice, nameSpacePlaceholder, options)
 
 	// Handle errors returned by SubmitWithOptions
@@ -46,9 +45,8 @@ func SubmitWithHelpers(
 		logger.Error("DA submission failed via helper", "error", err, "status", status)
 		return coreda.ResultSubmit{
 			BaseResult: coreda.BaseResult{
-				Code:    status,
-				Message: "failed to submit blobs: " + err.Error(),
-
+				Code:           status,
+				Message:        "failed to submit blobs: " + err.Error(),
 				IDs:            ids,
 				SubmittedCount: uint64(len(ids)),
 			},

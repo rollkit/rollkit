@@ -143,16 +143,15 @@ func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gas
 	var (
 		blobsToSubmit [][]byte = make([][]byte, 0, len(inputBlobs))
 		currentSize   uint64
+		oversizeBlobs int
 	)
 
 	for i, blob := range inputBlobs {
 		blobLen := uint64(len(blob))
 		if blobLen > maxBlobSize {
 			api.Logger.Warn("Individual blob exceeds MaxBlobSize, cannot submit", "index", i, "blobSize", blobLen, "maxBlobSize", maxBlobSize)
-			if i == 0 {
-				return nil, da.ErrBlobSizeOverLimit
-			}
-			break
+			oversizeBlobs++
+			continue
 		}
 		if currentSize+blobLen > maxBlobSize {
 			api.Logger.Info("Blob size limit reached for batch", "maxBlobSize", maxBlobSize, "index", i, "currentSize", currentSize, "nextBlobSize", blobLen)
@@ -162,10 +161,13 @@ func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gas
 		blobsToSubmit = append(blobsToSubmit, blob)
 	}
 
+	if oversizeBlobs > 0 {
+		api.Logger.Error("Blobs exceeded size limit", "oversize_count", oversizeBlobs, "total_blobs", len(inputBlobs))
+		return nil, da.ErrBlobSizeOverLimit
+	}
+
 	if len(blobsToSubmit) == 0 {
-
 		api.Logger.Info("No blobs to submit after filtering by size")
-
 		if len(inputBlobs) > 0 {
 			return nil, da.ErrBlobSizeOverLimit
 		}
@@ -176,7 +178,6 @@ func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gas
 	res, err := api.Internal.SubmitWithOptions(ctx, blobsToSubmit, gasPrice, api.Namespace, options)
 	if err != nil {
 		api.Logger.Error("RPC call failed", "method", "SubmitWithOptions", "error", err)
-
 	} else {
 		api.Logger.Debug("RPC call successful", "method", "SubmitWithOptions", "num_ids_returned", len(res))
 	}
