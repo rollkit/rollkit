@@ -233,11 +233,7 @@ func (n *FullNode) initGenesisChunks() error {
 	}
 
 	for i := 0; i < len(data); i += genesisChunkSize {
-		end := i + genesisChunkSize
-
-		if end > len(data) {
-			end = len(data)
-		}
+		end := min(i+genesisChunkSize, len(data))
 
 		n.genChunks = append(n.genChunks, base64.StdEncoding.EncodeToString(data[i:end]))
 	}

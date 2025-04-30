@@ -43,7 +43,7 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 				default:
 				}
 				// early validation to reject junk headers
-				if !m.isUsingExpectedCentralizedSequencer(header) {
+				if !m.isUsingExpectedSingleSequencer(header) {
 					continue
 				}
 				m.logger.Debug("header retrieved from p2p header sync", "headerHeight", header.Height(), "daHeight", daHeight)

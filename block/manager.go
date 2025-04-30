@@ -16,8 +16,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	"github.com/rollkit/go-sequencing"
-
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -465,12 +463,12 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 			"txCount", len(res.Batch.Transactions),
 			"timestamp", res.Timestamp)
 
+		if len(res.Batch.Transactions) == 0 {
+			return nil, ErrNoBatch
+		}
 		h := convertBatchDataToBytes(res.BatchData)
 		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
 			m.logger.Error("error while setting last batch hash", "error", err)
-		}
-		if len(res.Batch.Transactions) == 0 {
-			return nil, ErrNoBatch
 		}
 		m.lastBatchData = res.BatchData
 		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
@@ -478,7 +476,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 	return nil, ErrNoBatch
 }
 
-func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
+func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) bool {
 	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 
@@ -540,29 +538,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		execTxs, err := m.exec.GetTxs(ctx)
-		if err != nil {
-			m.logger.Error("failed to get txs from executor", "err", err)
-			// Continue but log the state
-			m.logger.Info("Current state",
-				"height", height,
-				"pendingHeaders", m.pendingHeaders.numPendingHeaders())
-		}
-
-		m.logger.Debug("Submitting transaction to sequencer",
-			"txCount", len(execTxs))
-		_, err = m.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
-			RollupId: sequencing.RollupId(m.genesis.ChainID),
-			Batch:    &coresequencer.Batch{Transactions: execTxs},
-		})
-		if err != nil {
-			m.logger.Error("failed to submit rollup transaction to sequencer",
-				"err", err,
-				"chainID", m.genesis.ChainID)
-			// Add retry logic or proper error handling
-		}
-		m.logger.Debug("Successfully submitted transaction to sequencer")
-
 		batchData, err := m.retrieveBatch(ctx)
 		if errors.Is(err, ErrNoBatch) {
 			m.logger.Info("No batch retrieved from sequencer, skipping block production")
@@ -582,28 +557,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 		m.logger.Debug("block info", "num_tx", len(data.Txs))
 
-		/*
-		   here we set the SignedHeader.DataHash, and SignedHeader.Signature as a hack
-		   to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
-		   these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
-		*/
-		header.DataHash = data.Hash()
-		//header.Validators = m.getLastStateValidators()
-		//header.ValidatorHash = header.Validators.Hash()
-
-		signature, err = m.getSignature(header.Header)
-		if err != nil {
-			return err
-		}
-
-		// set the signature to current block's signed header
-		header.Signature = signature
-
-		if err := header.ValidateBasic(); err != nil {
-			// TODO(tzdybal): I think this is could be even a panic, because if this happens, header is FUBAR
-			m.logger.Error("header validation error", "error", err)
-		}
-
 		err = m.store.SaveBlockData(ctx, header, data, &signature)
 		if err != nil {
 			return SaveBlockError{err}
@@ -618,8 +571,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
 		panic(err)
 	}
-	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
-	header.DataHash = data.Hash()
 
 	signature, err = m.getSignature(header.Header)
 	if err != nil {
@@ -628,6 +579,11 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	// set the signature to current block's signed header
 	header.Signature = signature
+
+	if err := header.ValidateBasic(); err != nil {
+		// TODO(tzdybal): I think this is could be even a panic, because if this happens, header is FUBAR
+		m.logger.Error("header validation error", "error", err)
+	}
 
 	// append metadata to Data before validating and saving
 	data.Metadata = &types.Metadata{
@@ -743,8 +699,7 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 }
 
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
-	data := batchData.Data
-	batchdata := convertBatchDataToBytes(data)
+	batchDataIDs := convertBatchDataToBytes(batchData.Data)
 
 	if m.signer == nil {
 		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
@@ -776,7 +731,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash:  lastHeaderHash,
-			DataHash:        batchdata,
+			DataHash:        batchDataIDs,
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,

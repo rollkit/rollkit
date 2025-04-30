@@ -1,20 +1,20 @@
-# ADR 012: Fully Decentralized Based Sequencing
+# ADR 012: Based Sequencing
 
 ## Changelog
 
 - 2025-04-09: Initial draft
 - 2025-04-09: Added optional UX optimization where full nodes can relay user rollup txs to base layer
-- 2025-04-09: Added rationale for VerifyBatch utility in fully decentralized setup
+- 2025-04-09: Added rationale for VerifyBatch utility in abased setup
 - 2025-04-09: Reworded forkchoice rule to use maxHeightDrift instead of time-based maxLatency
 - 2025-04-10: Added Relaying Costs and Fee Compensation via EVM
 
 ## Context
 
-Most rollups today rely on centralized or semi-centralized sequencers to form batches of user transactions, despite the availability of base layers (like Celestia) that provide data availability and canonical ordering guarantees. Centralized sequencers introduce liveness and censorship risks, as well as complexity in proposer election, fault tolerance, and bridge security.
+Most rollups today rely on single sequencers to form batches of user transactions, despite the availability of base layers (like Celestia) that provide data availability and canonical ordering guarantees. A Single sequencer introduces liveness and censorship risks, as well as complexity in proposer election, fault tolerance, and bridge security.
 
 Based sequencing eliminates this reliance by having the base layer determine transaction ordering. However, previous implementations still assumed the existence of a proposer to prepare rollup batches.
 
-This ADR proposes a **fully decentralized based sequencing model** in which **every full node acts as its own proposer** by independently:
+This ADR proposes a **based sequencing model** in which **every full node acts as its own proposer** by independently:
 
 - Reading rollup blobs from the base layer
 - Applying a deterministic forkchoice rule
@@ -25,7 +25,7 @@ This approach ensures consistency, removes the need for trusted intermediaries, 
 
 ## Alternative Approaches
 
-### Centralized Sequencer
+### Single Sequencer
 
 - A designated sequencer collects rollup transactions and publishes them to the base layer.
 - Simpler for UX and latency control, but introduces centralization and failure points.
@@ -44,7 +44,7 @@ None of these provide the decentralization and self-sovereignty enabled by a ful
 
 ## Decision
 
-We adopt a fully decentralized based sequencing model where **every full node in the rollup network acts as its own proposer** by deterministically deriving the next batch using only:
+We adopt a based sequencing model where **every full node in the rollup network acts as its own proposer** by deterministically deriving the next batch using only:
 
 - Base-layer data (e.g., Celestia blobs tagged by rollup ID)
 - A forkchoice rule: MaxBytes + Bounded L1 Height Drift (maxHeightDrift)
@@ -175,7 +175,7 @@ This design ensures that rollup light clients remain lightweight and efficient, 
 - `VerifyBatch(batchData)`: re-derives and checks state
 - `SubmitRollupBatchTxs(batch [][]byte)`: relays a user transaction(s) to the base layer
 
-In fully decentralized based sequencing, full nodes do not need VerifyBatch to participate in consensus or build the canonical rollup state — because they derive everything deterministically from L1. However, VerifyBatch may still be useful in sync, light clients, testing, or cross-domain verification.
+In based sequencing, full nodes do not need VerifyBatch to participate in consensus or build the canonical rollup state — because they derive everything deterministically from L1. However, VerifyBatch may still be useful in sync, light clients, testing, or cross-domain verification.
 
 - Light Clients: L1 or cross-domain light clients can use VerifyBatch to validate that a given rollup state root or message was derived according to the forkchoice rule and execution logic.
 
@@ -189,7 +189,7 @@ In all of these cases, VerifyBatch acts as a stateless, replayable re-computatio
 
 ### Relaying Costs and Fee Compensation via EVM
 
-In a fully decentralized based sequencing architecture, users may choose to submit their rollup transactions directly to the base layer (e.g., Celestia) or rely on full nodes to relay the transactions on their behalf. When full nodes act as relayers, they are responsible for covering the base layer data availability (DA) fees. To make this economically viable and decentralized, the protocol must include a mechanism to compensate these full nodes for their relaying service—ideally without modifying the EVM or execution engine.
+In a based sequencing architecture, users may choose to submit their rollup transactions directly to the base layer (e.g., Celestia) or rely on full nodes to relay the transactions on their behalf. When full nodes act as relayers, they are responsible for covering the base layer data availability (DA) fees. To make this economically viable, the protocol must include a mechanism to compensate these full nodes for their relaying service—ideally without modifying the EVM or execution engine.
 
 To achieve this, we leverage existing EVM transaction fee mechanisms and Engine API standards. Specifically, we utilize the suggestedFeeRecipient field in the engine_forkchoiceUpdatedV3 call. This field is included in the PayloadAttributes sent by the consensus client (Rollkit) to the execution client (reth) when proposing a new block payload. By setting suggestedFeeRecipient to the full node’s address, we instruct the execution engine to assign the transaction priority fees (tip) and base fees to the relaying full node when the payload is created.
 
@@ -243,7 +243,7 @@ Proposed
 
 ### Positive
 
-- Removes centralized sequencer
+- Adds an alternate to single sequencer
 - Fully deterministic and transparent
 - Enables trustless bridges and light clients
 - Optional relayer support improves UX for walletless or mobile users
