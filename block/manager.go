@@ -581,6 +581,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	header.Signature = signature
 
 	if err := header.ValidateBasic(); err != nil {
+		// If this ever happens, for reovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
 		panic(fmt.Errorf("critical: newly produced header failed validation: %w", err))
 	}
 
