@@ -291,7 +291,6 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		return string(req.RollupId) == chainID
 	})
 	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(emptyBatchResponse, nil).Once()
-	mockStore.On("SetMetadata", ctx, LastBatchDataKey, mock.Anything).Return(nil).Once()
 
 	// Call publishBlock
 	err = m.publishBlock(ctx)
