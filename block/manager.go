@@ -478,7 +478,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 	return nil, ErrNoBatch
 }
 
-func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
+func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) bool {
 	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 

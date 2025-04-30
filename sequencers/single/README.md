@@ -1,10 +1,10 @@
-# Centralized Sequencer
+# Single Sequencer
 
-The centralized sequencer is a component of the Rollkit framework that handles transaction ordering and batch submission to a Data Availability (DA) layer. It provides a reliable way to sequence transactions for rollups in a centralized manner.
+The single sequencer is a component of the Rollkit framework that handles transaction ordering and batch submission to a Data Availability (DA) layer. It provides a reliable way to sequence transactions for rollups via a designed node called the sequencer.
 
 ## Overview
 
-The centralized sequencer receives transactions from rollup clients, batches them together, and submits these batches to a Data Availability layer. It maintains transaction and batch queues, handles recovery from crashes, and provides verification mechanisms for batches.
+The sequencer receives transactions from rollup clients, batches them together, and submits these batches to a Data Availability layer. It maintains transaction and batch queues, handles recovery from crashes, and provides verification mechanisms for batches.
 
 ```mermaid
 flowchart LR
@@ -103,7 +103,7 @@ flowchart TD
 
 ## Database Layout
 
-The centralized sequencer uses a key-value database to store transactions, batches, and metadata. Here's the layout of the database:
+The single sequencer uses a key-value database to store transactions, batches, and metadata. Here's the layout of the database:
 
 ### Keys
 
@@ -142,7 +142,7 @@ The centralized sequencer uses a key-value database to store transactions, batch
 
 ## Recovery Mechanism
 
-The centralized sequencer implements a robust recovery mechanism to handle crashes:
+The single sequencer implements a robust recovery mechanism to handle crashes:
 
 1. On startup, it loads the last batch hash from the database
 2. It loads all seen batch hashes into memory
@@ -168,7 +168,7 @@ These metrics can be used to monitor the health and performance of the sequencer
 
 ## Usage
 
-To create a new centralized sequencer:
+To create a new single sequencer:
 
 ```go
 seq, err := NewSequencer(

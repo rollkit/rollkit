@@ -1,4 +1,4 @@
 /*
-This package implements a centralized rollup for ABCI
+This package implements a single sequencer rollup for ABCI
 */
-package centralized
+package single

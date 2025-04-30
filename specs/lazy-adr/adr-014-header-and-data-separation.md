@@ -2,13 +2,13 @@
 
 ## Abstract
 
-The separation of header and data structures in Rollkit unlocks expanding the sequencing scheme beyond centralized sequencing and unlocks the use of a decentralized sequencer mode. This means that the creation of list of the transactions can be done by another network as well while rollup nodes still produce headers after executing that list of transactions. This overall change is akin to the proposer-builder separation in the Ethereum protocol, where the Rollkit header producer acts as the proposer, and the sequencer, which produces a list of transactions, acts as the builder.
+The separation of header and data structures in Rollkit unlocks expanding the sequencing scheme beyond single sequencing and unlocks the use of a decentralized sequencer mode. This means that the creation of list of the transactions can be done by another network as well while rollup nodes still produce headers after executing that list of transactions. This overall change is akin to the proposer-builder separation in the Ethereum protocol, where the Rollkit header producer acts as the proposer, and the sequencer, which produces a list of transactions, acts as the builder.
 
 ### Before Separation
 
 ```mermaid
 flowchart LR
-    CS[Centralized Sequencer] -->|Creates| B[Block]
+    CS[Single Sequencer] -->|Creates| B[Block]
     B -->|Contains| SH1[SignedHeader]
     B -->|Contains| D1[Data]
 
@@ -28,7 +28,7 @@ flowchart LR
 
 ## Protocol/Component Description
 
-Before, Rollkit only supported the use of a centralized sequencer that was responsible for creating a list of rollup tx by reaping its mempool, executing them to produce a header, and putting them together in a rollup block. Rollkit headers and data were encapsulated within a single block structure. The block struct looked like this:
+Before, Rollkit only supported the use of a single sequencer that was responsible for creating a list of rollup tx by reaping its mempool, executing them to produce a header, and putting them together in a rollup block. Rollkit headers and data were encapsulated within a single block structure. The block struct looked like this:
 
 ```go
 // Block defines the structure of Rollkit block.
@@ -72,7 +72,7 @@ classDiagram
     SignedHeader *-- Header
 ```
 
-This change also affects how rollup full nodes sync. Previously, rollup full nodes would apply the transactions from the `Block` struct and verify that the `header` in `SignedHeader` matched their locally produced header. Now, with the separation, full nodes obtain the transaction data separately (via the DA layer directly in based sequencer mode, or via p2p gossip/DA layer in centralized sequencer mode) and verify it against the header signed by the header producer once they have both components. If a full node receives the header/data via a p2p gossip layer, they should wait to see the same header/data on the DA layer before marking the corresponding block as finalized in their view.
+This change also affects how rollup full nodes sync. Previously, rollup full nodes would apply the transactions from the `Block` struct and verify that the `header` in `SignedHeader` matched their locally produced header. Now, with the separation, full nodes obtain the transaction data separately (via the DA layer directly in based sequencer mode, or via p2p gossip/DA layer in single sequencer mode) and verify it against the header signed by the header producer once they have both components. If a full node receives the header/data via a p2p gossip layer, they should wait to see the same header/data on the DA layer before marking the corresponding block as finalized in their view.
 
 This ensures that the data integrity and consistency are maintained across the network.
 
@@ -109,7 +109,7 @@ type Data struct {
 }
 ```
 
-The `publishBlock` method in `manager.go` now creates the header and data structures separately. This decoupling allows for the header to be submitted to the DA layer independently of the rollup block data, which can be built by a separate network. This change supports the transition from a centralized sequencer mode to a decentralized sequencer mode, making the system more modular.
+The `publishBlock` method in `manager.go` now creates the header and data structures separately. This decoupling allows for the header to be submitted to the DA layer independently of the rollup block data, which can be built by a separate network. This change supports the transition from a single sequencer mode to a decentralized sequencer mode, making the system more modular.
 
 ## Message Structure/Communication Format
 
@@ -126,19 +126,19 @@ In based sequencing mode, the header producer is equivalent to a full node.
 ```mermaid
 flowchart LR
 
-    CS1[Centralized Sequencer] -->|Submits Block| DA1[DA Layer]
+    CS1[Single Sequencer] -->|Submits Block| DA1[DA Layer]
     CS1 -->|Gossips Block| FN1[Full Nodes]
     CS1 -->|Gossips SignedHeader| LN1[Light Nodes]
 
     class CS1,DA1,FN1,LN1 node
 ```
 
-### After Separation - Centralized Mode
+### After Separation - Single Sequencer Mode
 
 ```mermaid
 flowchart LR
 
-    CS2[Centralized Sequencer] -->|Submits Data| DA2[DA Layer]
+    CS2[Single Sequencer] -->|Submits Data| DA2[DA Layer]
     HP2[Header Producer] -->|Submits SignedHeader| DA2
 
     CS2 -->|Gossips Data| FN2[Full Nodes]
@@ -184,7 +184,7 @@ sequenceDiagram
     FN->>FN: Mark block as finalized
 ```
 
-In a centralized sequencer mode, before, a full node marks a block finalized, it should verify that both the `SignedHeader` and `Data` associated to it were made available on the DA layer by checking it directly or verifying DA inclusion proofs.
+In a single sequencer mode, before, a full node marks a block finalized, it should verify that both the `SignedHeader` and `Data` associated to it were made available on the DA layer by checking it directly or verifying DA inclusion proofs.
 
 In based sequencing mode, blocks can be instantly finalized since the `Data` is directly always derived from the DA layer and already exists there. There's no need for a `SignedHeader` to exist on the DA layer.
 
@@ -211,7 +211,7 @@ sequenceDiagram
 - Ensure that all components interacting with headers and data are updated to handle them as separate entities.
 - Security measures should be in place to prevent unauthorized access or tampering with headers and data during transmission and storage.
 - Performance optimizations may be necessary to handle the increased complexity of managing separate header and data structures, especially in high-throughput environments.
-- Testing and validation processes should be updated to account for the new structure and ensure that all components function correctly in both centralized and decentralized sequencer modes.
+- Testing and validation processes should be updated to account for the new structure and ensure that all components function correctly in both single and decentralized sequencer modes.
 
 ## Implementation
 
