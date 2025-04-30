@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,13 +20,15 @@ const (
 
 func main() {
 	var (
-		host      string
-		port      string
-		listenAll bool
+		host        string
+		port        string
+		listenAll   bool
+		maxBlobSize uint64
 	)
 	flag.StringVar(&port, "port", defaultPort, "listening port")
 	flag.StringVar(&host, "host", defaultHost, "listening address")
 	flag.BoolVar(&listenAll, "listen-all", false, "listen on all network interfaces (0.0.0.0) instead of just localhost")
+	flag.Uint64Var(&maxBlobSize, "max-blob-size", DefaultMaxBlobSize, "maximum blob size in bytes")
 	flag.Parse()
 
 	if listenAll {
@@ -36,12 +37,18 @@ func main() {
 
 	// create logger
 	logger := log.NewLogger(os.Stdout).With("module", "da")
-	da := NewLocalDA(logger)
+
+	// Create LocalDA instance with custom maxBlobSize if provided
+	var opts []func(*LocalDA) *LocalDA
+	if maxBlobSize != DefaultMaxBlobSize {
+		opts = append(opts, WithMaxBlobSize(maxBlobSize))
+	}
+	da := NewLocalDA(logger, opts...)
 
 	srv := proxy.NewServer(logger, host, port, da)
-	logger.Info("Listening on", host, port)
+	logger.Info("Listening on", "host", host, "port", port, "maxBlobSize", maxBlobSize)
 	if err := srv.Start(context.Background()); err != nil {
-		logger.Info("error while serving:", err)
+		logger.Error("error while serving", "error", err)
 	}
 
 	interrupt := make(chan os.Signal, 1)
