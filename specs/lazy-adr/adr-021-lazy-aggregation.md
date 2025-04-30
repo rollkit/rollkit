@@ -20,29 +20,30 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
 1. **Modified Batch Retrieval**:
 
     ```go
-    func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
-        res, err := m.sequencer.GetBatch(ctx)
-        if err != nil {
-            return nil, err
-        }
+func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
+	res, err := m.sequencer.GetBatch(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-        if res != nil && res.Batch != nil {
-            // Even if there are no transactions, return the batch with timestamp
-            // This allows empty blocks to maintain proper timing
-            if len(res.Batch.Transactions) == 0 {
-                return &BatchData{
-                    Batch: res.Batch,
-                    Time: res.Timestamp,
-                    Data: res.BatchData,
-                }, ErrNoBatch
-            }
-            return &BatchData{
-                Batch: res.Batch,
-                Time: res.Timestamp,
-                Data: res.BatchData,
-            }, nil
-        }
-        return nil, ErrNoBatch
+	if res != nil && res.Batch != nil {
+		// Even if there are no transactions, return the batch with timestamp
+		// This allows empty blocks to maintain proper timing
+		if len(res.Batch.Transactions) == 0 {
+			return &BatchData{
+				Batch: res.Batch,
+				Time:  res.Timestamp,
+				Data:  res.BatchData,
+			}, ErrNoBatch
+		}
+		return &BatchData{
+			Batch: res.Batch,
+			Time:  res.Timestamp,
+			Data:  res.BatchData,
+		}, nil
+	}
+	return nil, ErrNoBatch
+}
     }
     ```
 
