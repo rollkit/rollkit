@@ -563,15 +563,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 	}
 
-	newState, err := m.applyBlock(ctx, header, data)
-	if err != nil {
-		if ctx.Err() != nil {
-			return err
-		}
-		// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
-		panic(err)
-	}
-
 	signature, err = m.getSignature(header.Header)
 	if err != nil {
 		return err
@@ -581,8 +572,17 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	header.Signature = signature
 
 	if err := header.ValidateBasic(); err != nil {
-		// If this ever happens, for reovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
+		// If this ever happens, for recovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
 		panic(fmt.Errorf("critical: newly produced header failed validation: %w", err))
+	}
+
+	newState, err := m.applyBlock(ctx, header, data)
+	if err != nil {
+		if ctx.Err() != nil {
+			return err
+		}
+		// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
+		panic(err)
 	}
 
 	// append metadata to Data before validating and saving
