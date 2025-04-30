@@ -16,21 +16,27 @@ import (
 
 // mockPublishBlock is used to control the behavior of publishBlock during tests
 type mockPublishBlock struct {
+	mu    sync.Mutex
 	calls chan struct{}
 	err   error
 	delay time.Duration // Optional delay to simulate processing time
 }
 
 func (m *mockPublishBlock) publish(ctx context.Context) error {
-	if m.delay > 0 {
-		time.Sleep(m.delay)
+	m.mu.Lock()
+	err := m.err
+	delay := m.delay
+	m.mu.Unlock()
+
+	if delay > 0 {
+		time.Sleep(delay)
 	}
 	// Non-blocking send in case the channel buffer is full or receiver is not ready
 	select {
 	case m.calls <- struct{}{}:
 	default:
 	}
-	return m.err
+	return err
 }
 
 func setupTestManager(t *testing.T, blockTime, lazyTime time.Duration) (*Manager, *mockPublishBlock) {
@@ -151,8 +157,9 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 	lazyTime := 100 * time.Millisecond
 	m, pubMock := setupTestManager(t, blockTime, lazyTime)
 
-	// Simulate an error during publish
+	pubMock.mu.Lock()
 	pubMock.err = errors.New("publish failed")
+	pubMock.mu.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -170,18 +177,18 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 	// Wait for the first publish attempt (which will fail)
 	select {
 	case <-pubMock.calls:
-		// Good, first attempt happened
 	case <-time.After(2 * blockTime):
 		require.Fail("timed out waiting for first block publication attempt")
 	}
 
 	// Remove the error for subsequent calls
+	pubMock.mu.Lock()
 	pubMock.err = nil
+	pubMock.mu.Unlock()
 
 	// Wait for the second publish attempt (should succeed)
 	select {
 	case <-pubMock.calls:
-		// Good, second attempt happened and loop continued
 	case <-time.After(2 * blockTime):
 		require.Fail("timed out waiting for second block publication attempt after error")
 	}
