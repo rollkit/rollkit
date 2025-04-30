@@ -582,19 +582,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 		m.logger.Debug("block info", "num_tx", len(data.Txs))
 
-		signature, err = m.getSignature(header.Header)
-		if err != nil {
-			return err
-		}
-
-		// set the signature to current block's signed header
-		header.Signature = signature
-
-		if err := header.ValidateBasic(); err != nil {
-			// TODO(tzdybal): I think this is could be even a panic, because if this happens, header is FUBAR
-			m.logger.Error("header validation error", "error", err)
-		}
-
 		err = m.store.SaveBlockData(ctx, header, data, &signature)
 		if err != nil {
 			return SaveBlockError{err}
@@ -617,6 +604,11 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	// set the signature to current block's signed header
 	header.Signature = signature
+
+	if err := header.ValidateBasic(); err != nil {
+		// TODO(tzdybal): I think this is could be even a panic, because if this happens, header is FUBAR
+		m.logger.Error("header validation error", "error", err)
+	}
 
 	// append metadata to Data before validating and saving
 	data.Metadata = &types.Metadata{
@@ -732,8 +724,7 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 }
 
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
-	data := batchData.Data
-	batchdata := convertBatchDataToBytes(data)
+	batchDataIDs := convertBatchDataToBytes(batchData.Data)
 
 	if m.signer == nil {
 		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
@@ -765,7 +756,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash:  lastHeaderHash,
-			DataHash:        batchdata,
+			DataHash:        batchDataIDs,
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
