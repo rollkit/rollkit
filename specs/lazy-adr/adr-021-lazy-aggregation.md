@@ -133,6 +133,11 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
             case <-m.txNotifyCh:
                 m.txsAvailable = true
             }
+            return &BatchData{
+                Batch: res.Batch,
+                Time: res.Timestamp,
+                Data: res.BatchData,
+            }, nil
         }
     }
     ```
