@@ -465,12 +465,12 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 			"txCount", len(res.Batch.Transactions),
 			"timestamp", res.Timestamp)
 
+		if len(res.Batch.Transactions) == 0 {
+			return nil, ErrNoBatch
+		}
 		h := convertBatchDataToBytes(res.BatchData)
 		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
 			m.logger.Error("error while setting last batch hash", "error", err)
-		}
-		if len(res.Batch.Transactions) == 0 {
-			return nil, ErrNoBatch
 		}
 		m.lastBatchData = res.BatchData
 		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
