@@ -463,8 +463,14 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 			"txCount", len(res.Batch.Transactions),
 			"timestamp", res.Timestamp)
 
+		// Even if there are no transactions, return the batch with timestamp
+		// This allows empty blocks to maintain proper timing
 		if len(res.Batch.Transactions) == 0 {
-			return nil, ErrNoBatch
+			return &BatchData{
+				Batch: res.Batch,
+				Time:  res.Timestamp,
+				Data:  res.BatchData,
+			}, ErrNoBatch
 		}
 		h := convertBatchDataToBytes(res.BatchData)
 		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
@@ -540,26 +546,44 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	} else {
 		batchData, err := m.retrieveBatch(ctx)
 		if errors.Is(err, ErrNoBatch) {
-			m.logger.Info("No batch retrieved from sequencer, skipping block production")
-			return nil // Indicate no block was produced
+			// Even with no transactions, we still want to create a block with an empty batch
+			if batchData != nil {
+				m.logger.Info("Creating empty block", "height", newHeight)
+
+				// For empty blocks, use dataHashForEmptyTxs to indicate empty batch
+				header, data, err = m.createEmptyBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
+				if err != nil {
+					return err
+				}
+
+				err = m.store.SaveBlockData(ctx, header, data, &signature)
+				if err != nil {
+					return SaveBlockError{err}
+				}
+			} else {
+				// If we don't have a batch at all (not even an empty one), skip block production
+				m.logger.Info("No batch retrieved from sequencer, skipping block production")
+				return nil
+			}
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
-		}
+		} else {
+			// We have a batch with transactions
+			// sanity check timestamp for monotonically increasing
+			if batchData.Before(lastHeaderTime) {
+				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
+			}
+			m.logger.Info("Creating and publishing block", "height", newHeight)
+			header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
+			if err != nil {
+				return err
+			}
+			m.logger.Debug("block info", "num_tx", len(data.Txs))
 
-		// sanity check timestamp for monotonically increasing
-		if batchData.Before(lastHeaderTime) {
-			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
-		}
-		m.logger.Info("Creating and publishing block", "height", newHeight)
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
-		if err != nil {
-			return err
-		}
-		m.logger.Debug("block info", "num_tx", len(data.Txs))
-
-		err = m.store.SaveBlockData(ctx, header, data, &signature)
-		if err != nil {
-			return SaveBlockError{err}
+			err = m.store.SaveBlockData(ctx, header, data, &signature)
+			if err != nil {
+				return SaveBlockError{err}
+			}
 		}
 	}
 
@@ -696,6 +720,60 @@ func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Da
 func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
 	err := m.exec.SetFinal(ctx, h.Height())
 	return newState.AppHash, err
+}
+
+func (m *Manager) createEmptyBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+
+	if m.signer == nil {
+		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
+	}
+
+	key, err := m.signer.GetPublic()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get proposer public key: %w", err)
+	}
+
+	// check that the proposer address is the same as the genesis proposer address
+	address, err := m.signer.GetAddress()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get proposer address: %w", err)
+	}
+	if !bytes.Equal(m.genesis.ProposerAddress, address) {
+		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
+	}
+
+	header := &types.SignedHeader{
+		Header: types.Header{
+			Version: types.Version{
+				Block: m.lastState.Version.Block,
+				App:   m.lastState.Version.App,
+			},
+			BaseHeader: types.BaseHeader{
+				ChainID: m.lastState.ChainID,
+				Height:  height,
+				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
+			},
+			LastHeaderHash:  lastHeaderHash,
+			DataHash:        dataHashForEmptyTxs, // Use dataHashForEmptyTxs for empty blocks
+			ConsensusHash:   make(types.Hash, 32),
+			AppHash:         m.lastState.AppHash,
+			ProposerAddress: m.genesis.ProposerAddress,
+		},
+		Signature: *lastSignature,
+		Signer: types.Signer{
+			PubKey:  key,
+			Address: m.genesis.ProposerAddress,
+		},
+	}
+
+	// Create an empty block data
+	blockData := &types.Data{
+		Txs: make(types.Txs, 0), // Empty transaction list
+	}
+
+	return header, blockData, nil
 }
 
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
