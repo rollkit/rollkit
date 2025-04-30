@@ -582,15 +582,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 		m.logger.Debug("block info", "num_tx", len(data.Txs))
 
-		/*
-		   here we set the SignedHeader.DataHash, and SignedHeader.Signature as a hack
-		   to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
-		   these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
-		*/
-		header.DataHash = data.Hash()
-		//header.Validators = m.getLastStateValidators()
-		//header.ValidatorHash = header.Validators.Hash()
-
 		signature, err = m.getSignature(header.Header)
 		if err != nil {
 			return err
@@ -618,8 +609,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
 		panic(err)
 	}
-	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
-	header.DataHash = data.Hash()
 
 	signature, err = m.getSignature(header.Header)
 	if err != nil {
