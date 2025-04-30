@@ -16,8 +16,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	"github.com/rollkit/go-sequencing"
-
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -540,29 +538,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		execTxs, err := m.exec.GetTxs(ctx)
-		if err != nil {
-			m.logger.Error("failed to get txs from executor", "err", err)
-			// Continue but log the state
-			m.logger.Info("Current state",
-				"height", height,
-				"pendingHeaders", m.pendingHeaders.numPendingHeaders())
-		}
-
-		m.logger.Debug("Submitting transaction to sequencer",
-			"txCount", len(execTxs))
-		_, err = m.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
-			RollupId: sequencing.RollupId(m.genesis.ChainID),
-			Batch:    &coresequencer.Batch{Transactions: execTxs},
-		})
-		if err != nil {
-			m.logger.Error("failed to submit rollup transaction to sequencer",
-				"err", err,
-				"chainID", m.genesis.ChainID)
-			// Add retry logic or proper error handling
-		}
-		m.logger.Debug("Successfully submitted transaction to sequencer")
-
 		batchData, err := m.retrieveBatch(ctx)
 		if errors.Is(err, ErrNoBatch) {
 			m.logger.Info("No batch retrieved from sequencer, skipping block production")
