@@ -228,3 +228,11 @@ func (d *LocalDA) getProof(id, blob []byte) []byte {
 	sign, _ := d.privKey.Sign(rand.Reader, d.getHash(blob), &ed25519.Options{})
 	return sign
 }
+
+// WithMaxBlobSize returns a function that sets the max blob size of LocalDA
+func WithMaxBlobSize(maxBlobSize uint64) func(*LocalDA) *LocalDA {
+	return func(da *LocalDA) *LocalDA {
+		da.maxBlobSize = maxBlobSize
+		return da
+	}
+}
