@@ -86,12 +86,12 @@ Block.Verify()
 | **Field Name** | **Valid State**                                                          | **Validation**                                                                              |
 |----------------|--------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
 | Header         | Valid header for the block                                               | `Header` passes `ValidateBasic()` and `Verify()`                                            |
-| Signature         | 1 valid signature from the centralized sequencer                      | `Signature` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
+| Signature         | 1 valid signature from the single sequencer                      | `Signature` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
 | Validators     | Array of Aggregators, must have length exactly 1. | `Validators` passes `ValidateBasic()`                                                       |
 
 ## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go#L39)
 
-***Note***: The `AggregatorsHash` and `NextAggregatorsHash` fields have been removed. Rollkit vA should ignore all Valset updates from the ABCI app, and always enforce that the proposer is the centralized sequencer set as the 1 validator in the genesis block.
+***Note***: The `AggregatorsHash` and `NextAggregatorsHash` fields have been removed. Rollkit vA should ignore all Valset updates from the ABCI app, and always enforce that the proposer is the single sequencer set as the 1 validator in the genesis block.
 
 | **Field Name**      | **Valid State**                                                                            | **Validation**                        |
 |---------------------|--------------------------------------------------------------------------------------------|---------------------------------------|

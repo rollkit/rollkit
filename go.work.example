@@ -4,9 +4,9 @@ use (
 	.
 	./core
 	./rollups/abci/based
-	./rollups/abci/centralized
+	./rollups/abci/single
 	./rollups/evm/based
-	./rollups/evm/centralized
+	./rollups/evm/single
 	./sequencers/based
 	./sequencers/single
 )

@@ -1,4 +1,4 @@
 /*
-This package implements a centralized sequencer.
+This package implements a single sequencer.
 */
 package single

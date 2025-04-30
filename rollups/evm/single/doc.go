@@ -1,4 +1,4 @@
 /*
-This package implements a centralized rollup for RETH
+This package implements a single rollup for RETH
 */
 package main
