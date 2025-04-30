@@ -581,8 +581,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	header.Signature = signature
 
 	if err := header.ValidateBasic(); err != nil {
-		// TODO(tzdybal): I think this is could be even a panic, because if this happens, header is FUBAR
-		m.logger.Error("header validation error", "error", err)
+		panic(fmt.Errorf("critical: newly produced header failed validation: %w", err))
 	}
 
 	// append metadata to Data before validating and saving
