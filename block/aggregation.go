@@ -67,7 +67,6 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 
 		case <-m.txNotifyCh:
 			m.txsAvailable = true
-			m.produceBlock(ctx, "tx_notification", lazyTimer, blockTimer)
 		}
 	}
 }
