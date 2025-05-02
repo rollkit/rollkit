@@ -10,6 +10,7 @@ import (
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 
+	"github.com/rollkit/rollkit/block"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -42,6 +43,8 @@ type Sequencer struct {
 	daSubmissionChan chan coresequencer.Batch
 
 	metrics *Metrics
+
+	manager *block.Manager // pointer to Manager
 }
 
 // NewSequencer creates a new Single Sequencer
@@ -225,6 +228,20 @@ daSubmitRetryLoop:
 			}
 			c.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 
+			// Set DA included in manager's dataCache if all txs submitted and manager is set
+			if submittedAllTxs && c.manager != nil {
+				data := &types.Data{
+					Txs: make(types.Txs, len(currentBatch.Transactions)),
+				}
+				for i, tx := range currentBatch.Transactions {
+					data.Txs[i] = types.Tx(tx)
+				}
+				hash := data.DACommitment()
+				if err == nil {
+					c.manager.DataCache().SetDAIncluded(string(hash))
+				}
+			}
+
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			c.logger.Error("single sequencer: DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.batchTime * time.Duration(defaultMempoolTTL)
@@ -300,4 +317,9 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 
 func (c *Sequencer) isValid(rollupId []byte) bool {
 	return bytes.Equal(c.rollupId, rollupId)
+}
+
+// SetManager sets the manager pointer for the sequencer
+func (s *Sequencer) SetManager(m *block.Manager) {
+	s.manager = m
 }
