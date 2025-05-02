@@ -290,20 +290,15 @@ func GetSignature(header Header, signer signer.Signer) (Signature, error) {
 func getBlockDataWith(nTxs int) *Data {
 	data := &Data{
 		Txs: make(Txs, nTxs),
-		// IntermediateStateRoots: IntermediateStateRoots{
-		// 	RawRootsList: make([][]byte, nTxs),
-		// },
 	}
 
 	for i := 0; i < nTxs; i++ {
 		data.Txs[i] = GetRandomTx()
-		// block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
 	}
 
 	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
 	if nTxs == 0 {
 		data.Txs = nil
-		// block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 	return data
 }

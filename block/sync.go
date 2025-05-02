@@ -64,7 +64,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 		case dataEvent := <-m.dataInCh:
 			data := dataEvent.Data
 			daHeight := dataEvent.DAHeight
-			dataHash := data.Hash().String()
+			dataHash := data.DACommitment().String()
 			dataHeight := data.Metadata.Height
 			m.logger.Debug("data retrieved",
 				"height", dataHash,
@@ -206,6 +206,13 @@ func (m *Manager) sendNonBlockingSignalToDataStoreCh() {
 func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
 	select {
 	case m.retrieveCh <- struct{}{}:
+	default:
+	}
+}
+
+func (m *Manager) sendNonBlockingSignalToDAIncluderCh() {
+	select {
+	case m.daIncluderCh <- struct{}{}:
 	default:
 	}
 }
