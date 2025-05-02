@@ -226,3 +226,130 @@ func TestGetRemainingSleep(t *testing.T) {
 	sleep4 := getRemainingSleep(start4, interval)
 	assert.InDelta(interval, sleep4, float64(5*time.Millisecond), "Case 4 failed")
 }
+
+// TestLazyAggregationLoop_TxNotification tests that transaction notifications trigger block production in lazy mode
+func TestLazyAggregationLoop_TxNotification(t *testing.T) {
+	require := require.New(t)
+
+	blockTime := 200 * time.Millisecond
+	lazyTime := 500 * time.Millisecond
+	m, pubMock := setupTestManager(t, blockTime, lazyTime)
+	m.config.Node.LazyMode = true
+
+	// Create the notification channel
+	m.txNotifyCh = make(chan struct{}, 1)
+	m.minTxNotifyInterval = 50 * time.Millisecond
+	m.lastTxNotifyTime = time.Time{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		blockTimer := time.NewTimer(blockTime)
+		defer blockTimer.Stop()
+		m.lazyAggregationLoop(ctx, blockTimer)
+	}()
+
+	// Wait a bit to ensure the loop is running
+	time.Sleep(20 * time.Millisecond)
+
+	// Send a transaction notification
+	m.NotifyNewTransactions()
+
+	// Wait for the block to be published
+	select {
+	case <-pubMock.calls:
+		// Block was published, which is what we expect
+	case <-time.After(100 * time.Millisecond):
+		require.Fail("Block was not published after transaction notification")
+	}
+
+	// Send another notification immediately - it should be throttled
+	m.NotifyNewTransactions()
+
+	// No block should be published immediately due to throttling
+	select {
+	case <-pubMock.calls:
+		require.Fail("Block was published despite throttling")
+	case <-time.After(30 * time.Millisecond):
+		// This is expected - no immediate block
+	}
+
+	// Wait for the throttle period to pass
+	time.Sleep(m.minTxNotifyInterval)
+
+	// Now a block should be published
+	select {
+	case <-pubMock.calls:
+		// Block was published after throttle period
+	case <-time.After(100 * time.Millisecond):
+		require.Fail("Block was not published after throttle period")
+	}
+
+	cancel()
+	wg.Wait()
+}
+
+// TestNormalAggregationLoop_TxNotification tests that transaction notifications are handled in normal mode
+func TestNormalAggregationLoop_TxNotification(t *testing.T) {
+	require := require.New(t)
+
+	blockTime := 100 * time.Millisecond
+	m, pubMock := setupTestManager(t, blockTime, 0)
+	m.config.Node.LazyMode = false
+
+	// Create the notification channel
+	m.txNotifyCh = make(chan struct{}, 1)
+	m.minTxNotifyInterval = 50 * time.Millisecond
+	m.lastTxNotifyTime = time.Time{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		blockTimer := time.NewTimer(blockTime)
+		defer blockTimer.Stop()
+		m.normalAggregationLoop(ctx, blockTimer)
+	}()
+
+	// Wait for the first block to be published by the timer
+	select {
+	case <-pubMock.calls:
+		// Block was published by timer, which is expected
+	case <-time.After(blockTime * 2):
+		require.Fail("Block was not published by timer")
+	}
+
+	// Reset the publish mock to track new calls
+	pubMock.reset()
+
+	// Send a transaction notification
+	m.NotifyNewTransactions()
+
+	// In normal mode, the notification should not trigger an immediate block
+	select {
+	case <-pubMock.calls:
+		// If we enable the optional enhancement to reset the timer, this might happen
+		// But with the current implementation, this should not happen
+		require.Fail("Block was published immediately after notification in normal mode")
+	case <-time.After(blockTime / 2):
+		// This is expected - no immediate block
+	}
+
+	// Wait for the next regular block
+	select {
+	case <-pubMock.calls:
+		// Block was published by timer, which is expected
+	case <-time.After(blockTime * 2):
+		require.Fail("Block was not published by timer after notification")
+	}
+
+	cancel()
+	wg.Wait()
+}

@@ -96,16 +96,6 @@ func newFullNode(
 
 	store := store.New(mainKV)
 
-	reaper := block.NewReaper(
-		ctx,
-		exec,
-		sequencer,
-		genesis.ChainID,
-		nodeConfig.Node.BlockTime.Duration,
-		logger.With("module", "Reaper"),
-		mainKV,
-	)
-
 	blockManager, err := initBlockManager(
 		ctx,
 		signer,
@@ -125,6 +115,19 @@ func newFullNode(
 	if err != nil {
 		return nil, err
 	}
+
+	reaper := block.NewReaper(
+		ctx,
+		exec,
+		sequencer,
+		genesis.ChainID,
+		nodeConfig.Node.BlockTime.Duration,
+		logger.With("module", "Reaper"),
+		mainKV,
+	)
+
+	// Connect the reaper to the manager for transaction notifications
+	reaper.SetManager(blockManager)
 
 	node := &FullNode{
 		genesis:      genesis,

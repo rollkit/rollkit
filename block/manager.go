@@ -152,6 +152,18 @@ type Manager struct {
 	// publishBlock is the function used to publish blocks. It defaults to
 	// the manager's publishBlock method but can be overridden for testing.
 	publishBlock publishBlockFunc
+
+	// txNotifyCh is used to signal when new transactions are available
+	txNotifyCh chan struct{}
+
+	// txNotifyThrottle controls how frequently we can produce blocks in response to tx notifications
+	txNotifyThrottle *time.Timer
+
+	// lastTxNotifyTime tracks when we last produced a block due to tx notification
+	lastTxNotifyTime time.Time
+
+	// minTxNotifyInterval is the minimum time between tx-triggered block productions
+	minTxNotifyInterval time.Duration
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -323,6 +335,9 @@ func NewManager(
 	daH := atomic.Uint64{}
 	daH.Store(s.DAHeight)
 
+	// Default minimum interval between tx-triggered blocks (can be made configurable)
+	minTxNotifyInterval := 500 * time.Millisecond
+
 	agg := &Manager{
 		signer:    signer,
 		config:    config,
@@ -332,27 +347,30 @@ func NewManager(
 		dalc:      dalc,
 		daHeight:  &daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:       make(chan *types.SignedHeader, channelLength),
-		DataCh:         make(chan *types.Data, channelLength),
-		headerInCh:     make(chan NewHeaderEvent, headerInChLength),
-		dataInCh:       make(chan NewDataEvent, headerInChLength),
-		headerStoreCh:  make(chan struct{}, 1),
-		dataStoreCh:    make(chan struct{}, 1),
-		headerStore:    headerStore,
-		dataStore:      dataStore,
-		lastStateMtx:   new(sync.RWMutex),
-		lastBatchData:  lastBatchData,
-		headerCache:    cache.NewCache[types.SignedHeader](),
-		dataCache:      cache.NewCache[types.Data](),
-		retrieveCh:     make(chan struct{}, 1),
-		logger:         logger,
-		buildingBlock:  false,
-		pendingHeaders: pendingHeaders,
-		metrics:        seqMetrics,
-		sequencer:      sequencer,
-		exec:           exec,
-		gasPrice:       gasPrice,
-		gasMultiplier:  gasMultiplier,
+		HeaderCh:            make(chan *types.SignedHeader, channelLength),
+		DataCh:              make(chan *types.Data, channelLength),
+		headerInCh:          make(chan NewHeaderEvent, headerInChLength),
+		dataInCh:            make(chan NewDataEvent, headerInChLength),
+		headerStoreCh:       make(chan struct{}, 1),
+		dataStoreCh:         make(chan struct{}, 1),
+		headerStore:         headerStore,
+		dataStore:           dataStore,
+		lastStateMtx:        new(sync.RWMutex),
+		lastBatchData:       lastBatchData,
+		headerCache:         cache.NewCache[types.SignedHeader](),
+		dataCache:           cache.NewCache[types.Data](),
+		retrieveCh:          make(chan struct{}, 1),
+		logger:              logger,
+		buildingBlock:       false,
+		pendingHeaders:      pendingHeaders,
+		metrics:             seqMetrics,
+		sequencer:           sequencer,
+		exec:                exec,
+		gasPrice:            gasPrice,
+		gasMultiplier:       gasMultiplier,
+		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
+		minTxNotifyInterval: minTxNotifyInterval,
+		lastTxNotifyTime:    time.Time{}, // Zero time
 	}
 	agg.init(ctx)
 	// Set the default publishBlock implementation
@@ -941,4 +959,17 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 		return nil, fmt.Errorf("signer is nil; cannot sign header")
 	}
 	return m.signer.Sign(b)
+}
+
+// NotifyNewTransactions signals that new transactions are available for processing
+// This method will be called by the Reaper when it receives new transactions
+func (m *Manager) NotifyNewTransactions() {
+	// Non-blocking send to avoid slowing down the transaction submission path
+	select {
+	case m.txNotifyCh <- struct{}{}:
+		// Successfully sent notification
+	default:
+		// Channel buffer is full, which means a notification is already pending
+		// This is fine, as we just need to trigger one block production
+	}
 }

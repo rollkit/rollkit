@@ -27,6 +27,7 @@ type Reaper struct {
 	logger    log.Logger
 	ctx       context.Context
 	seenStore ds.Batching
+	manager   *Manager
 }
 
 // NewReaper creates a new Reaper instance with persistent seenTx storage.
@@ -43,6 +44,11 @@ func NewReaper(ctx context.Context, exec coreexecutor.Executor, sequencer corese
 		ctx:       ctx,
 		seenStore: store,
 	}
+}
+
+// SetManager sets the Manager reference for transaction notifications
+func (r *Reaper) SetManager(manager *Manager) {
+	r.manager = manager
 }
 
 // Start begins the reaping process at the specified interval.
@@ -72,6 +78,11 @@ func (r *Reaper) SubmitTxs() {
 		return
 	}
 
+	if len(txs) == 0 {
+		r.logger.Debug("Reaper found no new txs to submit")
+		return
+	}
+
 	var newTxs [][]byte
 	for _, tx := range txs {
 		txHash := hashTx(tx)
@@ -84,11 +95,6 @@ func (r *Reaper) SubmitTxs() {
 		if !has {
 			newTxs = append(newTxs, tx)
 		}
-	}
-
-	if len(newTxs) == 0 {
-		r.logger.Debug("Reaper found no new txs to submit")
-		return
 	}
 
 	r.logger.Debug("Reaper submitting txs to sequencer", "txCount", len(newTxs))
@@ -108,6 +114,12 @@ func (r *Reaper) SubmitTxs() {
 		if err := r.seenStore.Put(r.ctx, key, []byte{1}); err != nil {
 			r.logger.Error("Failed to persist seen tx", "txHash", txHash, "error", err)
 		}
+	}
+
+	// Notify the manager that new transactions are available
+	if r.manager != nil && len(newTxs) > 0 {
+		r.logger.Debug("Notifying manager of new transactions")
+		r.manager.NotifyNewTransactions()
 	}
 
 	r.logger.Debug("Reaper successfully submitted txs")
