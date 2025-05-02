@@ -22,8 +22,8 @@ const (
 
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
-	// headerFoundCh is used to track when we successfully found a block so
-	// that we can continue to try and find blocks that are in the next DA height.
+	// headerFoundCh is used to track when we successfully found a header so
+	// that we can continue to try and find headers that are in the next DA height.
 	// This enables syncing faster than the DA block time.
 	headerFoundCh := make(chan struct{}, 1)
 	defer close(headerFoundCh)
@@ -32,18 +32,19 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-m.retrieveCh:
+		case <-m.dataStoreCh:
 		case <-headerFoundCh:
 		}
 		daHeight := m.daHeight.Load()
-		err := m.processNextDAHeader(ctx)
+		err := m.processNextDAHeaderAndBlock(ctx)
 		if err != nil && ctx.Err() == nil {
 			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
 			if !m.areAllErrorsHeightFromFuture(err) {
-				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
+				m.logger.Error("failed to retrieve data from DALC", "daHeight", daHeight, "errors", err.Error())
 			}
 			continue
 		}
-		// Signal the headerFoundCh to try and retrieve the next block
+		// Signal the headerFoundCh to try and retrieve the next header
 		select {
 		case headerFoundCh <- struct{}{}:
 		default:
@@ -52,7 +53,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	}
 }
 
-func (m *Manager) processNextDAHeader(ctx context.Context) error {
+func (m *Manager) processNextDAHeaderAndBlock(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -62,58 +63,73 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 	daHeight := m.daHeight.Load()
 
 	var err error
-	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
+	m.logger.Debug("trying to retrieve data from DA", "daHeight", daHeight)
 	for r := 0; r < dAFetcherRetries; r++ {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
-		headerResp, fetchErr := m.fetchHeaders(ctx, daHeight)
+		blobsResp, fetchErr := m.fetchBlobs(ctx, daHeight)
 		if fetchErr == nil {
-			if headerResp.Code == coreda.StatusNotFound {
-				m.logger.Debug("no header found", "daHeight", daHeight, "reason", headerResp.Message)
+			if blobsResp.Code == coreda.StatusNotFound {
+				m.logger.Debug("no data found", "daHeight", daHeight, "reason", blobsResp.Message)
 				return nil
 			}
-			m.logger.Debug("retrieved potential headers", "n", len(headerResp.Data), "daHeight", daHeight)
-			for _, bz := range headerResp.Data {
+			m.logger.Debug("retrieved potential data", "n", len(blobsResp.Data), "daHeight", daHeight)
+			for _, bz := range blobsResp.Data {
+				// Try to decode as header first
 				header := new(types.SignedHeader)
-				// decode the header
 				var headerPb pb.SignedHeader
 				err := proto.Unmarshal(bz, &headerPb)
-				if err != nil {
-					// we can fail to unmarshal the header if the header as we fetch all data from the DA layer, which includes Data as well
-					m.logger.Debug("failed to unmarshal header", "error", err, "DAHeight", daHeight)
-					continue
-				}
-				err = header.FromProto(&headerPb)
-				if err != nil {
-					m.logger.Error("failed to create local header", "error", err, "DAHeight", daHeight)
-					continue
-				}
-				// early validation to reject junk headers
-				if !m.isUsingExpectedSingleSequencer(header) {
-					m.logger.Debug("skipping header from unexpected sequencer",
-						"headerHeight", header.Height(),
-						"headerHash", header.Hash().String())
-					continue
-				}
-				blockHash := header.Hash().String()
-				m.headerCache.SetDAIncluded(blockHash)
-				err = m.setDAIncludedHeight(ctx, header.Height())
-				if err != nil {
-					return err
-				}
-				m.logger.Info("block marked as DA included", "blockHeight", header.Height(), "blockHash", blockHash)
-				if !m.headerCache.IsSeen(blockHash) {
-					// fast path
-					select {
-					case <-ctx.Done():
-						return fmt.Errorf("unable to send block to blockInCh, context done: %w", ctx.Err())
-					default:
-						m.logger.Warn("headerInCh backlog full, dropping header", "daHeight", daHeight)
+				if err == nil {
+					err = header.FromProto(&headerPb)
+					if err == nil {
+						// early validation to reject junk headers
+						if !m.isUsingExpectedSingleSequencer(header) {
+							m.logger.Debug("skipping header from unexpected sequencer",
+								"headerHeight", header.Height(),
+								"headerHash", header.Hash().String())
+							continue
+						}
+						headerHash := header.Hash().String()
+						m.headerCache.SetDAIncluded(headerHash)
+						m.logger.Info("header marked as DA included", "headerHeight", header.Height(), "headerHash", headerHash)
+						if !m.headerCache.IsSeen(headerHash) {
+							select {
+							case <-ctx.Done():
+								return fmt.Errorf("unable to send header to headerInCh, context done: %w", ctx.Err())
+							default:
+								m.logger.Warn("headerInCh backlog full, dropping header", "daHeight", daHeight)
+							}
+							m.headerInCh <- NewHeaderEvent{header, daHeight}
+						}
+						continue
 					}
-					m.headerInCh <- NewHeaderEvent{header, daHeight}
+				}
+
+				// If not a header, try to decode as batch
+				var batchPb pb.Batch
+				err = proto.Unmarshal(bz, &batchPb)
+				if err == nil {
+					data := &types.Data{
+						Txs: make(types.Txs, len(batchPb.Txs)),
+					}
+					for i, tx := range batchPb.Txs {
+						data.Txs[i] = types.Tx(tx)
+					}
+					dataHashStr := data.Hash().String()
+					m.dataCache.SetDAIncluded(dataHashStr)
+					m.logger.Info("batch marked as DA included", "batchHash", dataHashStr, "daHeight", daHeight)
+					if !m.dataCache.IsSeen(dataHashStr) {
+						select {
+						case <-ctx.Done():
+							return fmt.Errorf("unable to send batch to dataInCh, context done: %w", ctx.Err())
+						default:
+							m.logger.Warn("dataInCh backlog full, dropping batch", "daHeight", daHeight)
+						}
+						m.dataInCh <- NewDataEvent{data, daHeight}
+					}
 				}
 			}
 			return nil
@@ -155,8 +171,8 @@ func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
 	return false
 }
 
-// featchHeaders retrieves headers from the DA layer
-func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
+// featchHeaders retrieves blobs from the DA layer
+func (m *Manager) fetchBlobs(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
 	var err error
 	ctx, cancel := context.WithTimeout(ctx, dAefetcherTimeout)
 	defer cancel()
@@ -165,7 +181,7 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 	if headerRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
 	}
-	return headerRes, err
+	return blobsRes, err
 }
 
 // setDAIncludedHeight sets the DA included height in the store
