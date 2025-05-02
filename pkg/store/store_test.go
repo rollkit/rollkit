@@ -177,7 +177,7 @@ func TestMetadata(t *testing.T) {
 		return fmt.Sprintf("key %d", i)
 	}
 	getValue := func(i int) []byte {
-		return []byte(fmt.Sprintf("value %d", i))
+		return fmt.Appendf(nil, "value %d", i)
 	}
 
 	const n = 5
