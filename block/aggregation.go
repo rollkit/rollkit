@@ -49,8 +49,8 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 	lazyTimer := time.NewTimer(0)
 	defer lazyTimer.Stop()
 
-	// Track if we've received transactions but haven't built a block yet
 	pendingTxs := false
+	buildingBlock := false
 
 	for {
 		select {
@@ -58,14 +58,16 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 			return
 
 		case <-lazyTimer.C:
-			m.buildingBlock = false
 			pendingTxs = false
+			buildingBlock = true
 			m.produceBlockLazy(ctx, "lazy_timer", lazyTimer, blockTimer)
+			buildingBlock = false
 
 		case <-blockTimer.C:
 			if pendingTxs {
-				m.buildingBlock = true
+				buildingBlock = true
 				m.produceBlockLazy(ctx, "tx_collection_complete", lazyTimer, blockTimer)
+				buildingBlock = false
 				pendingTxs = false
 			} else {
 				// Reset the block timer if no pending transactions
@@ -73,7 +75,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 			}
 
 		case <-m.txNotifyCh:
-			if m.buildingBlock {
+			if buildingBlock {
 				continue
 			}
 
@@ -117,11 +119,6 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 func (m *Manager) produceBlockLazy(ctx context.Context, trigger string, lazyTimer, blockTimer *time.Timer) {
 	// Record the start time
 	start := time.Now()
-
-	m.buildingBlock = true
-	defer func() {
-		m.buildingBlock = false
-	}()
 
 	// Attempt to publish the block
 	if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {

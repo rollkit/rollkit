@@ -129,9 +129,6 @@ type Manager struct {
 
 	logger log.Logger
 
-	// For usage by Lazy Aggregator mode
-	buildingBlock bool
-
 	pendingHeaders *PendingHeaders
 
 	// for reporting metrics
@@ -349,7 +346,6 @@ func NewManager(
 		dataCache:      cache.NewCache[types.Data](),
 		retrieveCh:     make(chan struct{}, 1),
 		logger:         logger,
-		buildingBlock:  false,
 		pendingHeaders: pendingHeaders,
 		metrics:        seqMetrics,
 		sequencer:      sequencer,
