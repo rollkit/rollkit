@@ -50,18 +50,6 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 	lazyTimer := time.NewTimer(0)
 	defer lazyTimer.Stop()
 
-	// Initialize the throttle timer but don't start it yet
-	m.txNotifyThrottle = time.NewTimer(m.minTxNotifyInterval)
-	if !m.txNotifyThrottle.Stop() {
-		<-m.txNotifyThrottle.C // Drain the channel if it already fired
-	}
-	defer m.txNotifyThrottle.Stop()
-
-	// Add a polling timer to periodically check for transactions
-	// This is a fallback mechanism in case notifications fail
-	txPollTimer := time.NewTimer(2 * time.Second)
-	defer txPollTimer.Stop()
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -73,44 +61,19 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 
 		case <-blockTimer.C:
 			m.logger.Debug("Block timer triggered block production")
-			// Block production is intentionally disabled for the blockTimer case in lazy mode.
-			// This is because lazy mode prioritizes transaction-driven or periodic triggers
-			// (e.g., lazyTimer) over time-based triggers to optimize resource usage.
+			if m.txsAvilable {
+				m.produceBlock(ctx, "block_timer", lazyTimer, blockTimer)
+			}
+			m.txsAvilable = false
 
 		case <-m.txNotifyCh:
-			// Only proceed if we're not being throttled
-			if time.Since(m.lastTxNotifyTime) < m.minTxNotifyInterval {
-				m.logger.Debug("Transaction notification throttled")
-				continue
-			}
-
-			m.logger.Debug("Transaction notification triggered block production")
+			m.txsAvilable = true
 			m.produceBlock(ctx, "tx_notification", lazyTimer, blockTimer)
-
-			// Update the last notification time
-			m.lastTxNotifyTime = time.Now()
-
-		case <-txPollTimer.C:
-			// Check if there are transactions available
-			hasTxs, err := m.checkForTransactions(ctx)
-			if err != nil {
-				m.logger.Error("Failed to check for transactions", "error", err)
-			} else if hasTxs {
-				m.logger.Debug("Transaction poll detected transactions")
-				m.produceBlock(ctx, "tx_poll", lazyTimer, blockTimer)
-			}
-			txPollTimer.Reset(2 * time.Second)
 		}
 	}
 }
 
 func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
-	// Initialize the throttle timer but don't start it yet
-	m.txNotifyThrottle = time.NewTimer(m.minTxNotifyInterval)
-	if !m.txNotifyThrottle.Stop() {
-		<-m.txNotifyThrottle.C // Drain the channel if it already fired
-	}
-	defer m.txNotifyThrottle.Stop()
 
 	for {
 		select {
