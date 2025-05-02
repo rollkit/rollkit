@@ -40,7 +40,7 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
             if len(res.Batch.Transactions) == 0 {
                 errRetrieveBatch = ErrNoBatch
             }
-            // Even if there are no transactions, update lastBatchData so we don’t
+            // Even if there are no transactions, update lastBatchData so we don't
             // repeatedly emit the same empty batch, and persist it to metadata.
             if err := m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
                 m.logger.Error("error while setting last batch hash", "error", err)
@@ -89,9 +89,25 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
 
 3. **Lazy Aggregation Loop**:
 
-    A dedicated lazy aggregation loop has been implemented with dual timer mechanisms. The `lazyTimer` ensures blocks are produced at regular intervals even during network inactivity, while the `blockTimer` handles normal block production when transactions are available. This approach provides deterministic block production while optimizing for transaction inclusion latency.
+    A dedicated lazy aggregation loop has been implemented with dual timer mechanisms. The `lazyTimer` ensures blocks are produced at regular intervals even during network inactivity, while the `blockTimer` handles normal block production when transactions are available. Transaction notifications from the `Reaper` to the `Manager` are now handled via the `txNotifyCh` channel: when the `Reaper` detects new transactions, it calls `Manager.NotifyNewTransactions()`, which performs a non-blocking signal on this channel. See the tests in `block/lazy_aggregation_test.go` for verification of this behavior.
 
     ```go
+    // In Reaper.SubmitTxs
+    if r.manager != nil && len(newTxs) > 0 {
+        r.logger.Debug("Notifying manager of new transactions")
+        r.manager.NotifyNewTransactions() // Signals txNotifyCh
+    }
+
+    // In Manager.NotifyNewTransactions
+    func (m *Manager) NotifyNewTransactions() {
+        select {
+        case m.txNotifyCh <- struct{}{}:
+            // Successfully sent notification
+        default:
+            // Channel buffer is full, notification already pending
+        }
+    }
+    // Modiified lazyAggregationLoop
     func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
         // lazyTimer triggers block publication even during inactivity
         lazyTimer := time.NewTimer(0)
