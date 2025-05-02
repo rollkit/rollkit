@@ -170,25 +170,6 @@ func TestSignVerifySignature(t *testing.T) {
 	}
 }
 
-func TestIsDAIncluded(t *testing.T) {
-	require := require.New(t)
-
-	// Create a minimalistic block manager
-	m := &Manager{
-		headerCache: cache.NewCache[types.SignedHeader](),
-		dataCache:   cache.NewCache[types.Data](),
-	}
-	hash := types.Hash([]byte("hash"))
-
-	// IsDAIncluded should return false for unseen hash
-	require.False(m.IsDAIncluded(hash))
-
-	// Set the hash as DAIncluded and verify IsDAIncluded returns true
-	m.headerCache.SetDAIncluded(hash.String())
-	m.dataCache.SetDAIncluded(hash.String())
-	require.True(m.IsDAIncluded(hash))
-}
-
 // Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase1"

@@ -126,7 +126,7 @@ func TestProcessNextDAHeader_Success_SingleHeader(t *testing.T) {
 	}, nil).Once()
 
 	ctx := context.Background()
-	err = manager.processNextDAHeader(ctx)
+	err = manager.processNextDAHeaderAndBlock(ctx)
 	require.NoError(t, err)
 
 	select {
@@ -154,7 +154,7 @@ func TestProcessNextDAHeader_NotFound(t *testing.T) {
 	}, nil).Once()
 
 	ctx := context.Background()
-	err := manager.processNextDAHeader(ctx)
+	err := manager.processNextDAHeaderAndBlock(ctx)
 	require.NoError(t, err)
 
 	select {
@@ -183,7 +183,7 @@ func TestProcessNextDAHeader_UnmarshalError(t *testing.T) {
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
 
 	ctx := context.Background()
-	err := manager.processNextDAHeader(ctx)
+	err := manager.processNextDAHeaderAndBlock(ctx)
 	require.NoError(t, err)
 
 	select {
@@ -228,7 +228,7 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
 
 	ctx := context.Background()
-	err = manager.processNextDAHeader(ctx)
+	err = manager.processNextDAHeaderAndBlock(ctx)
 	require.NoError(t, err)
 
 	select {
@@ -254,7 +254,7 @@ func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	}, fetchErr).Times(dAFetcherRetries)
 
 	ctx := context.Background()
-	err := manager.processNextDAHeader(ctx)
+	err := manager.processNextDAHeaderAndBlock(ctx)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, fetchErr.Error(), "Expected the final error after retries")
 
@@ -297,7 +297,7 @@ func TestProcessNextDAHeader_HeaderAlreadySeen(t *testing.T) {
 	binary.LittleEndian.PutUint64(heightBytes, blockHeight)
 
 	ctx := context.Background()
-	err = manager.processNextDAHeader(ctx)
+	err = manager.processNextDAHeaderAndBlock(ctx)
 	require.NoError(t, err)
 
 	select {
