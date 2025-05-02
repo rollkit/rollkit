@@ -195,9 +195,6 @@ func (d *Data) ToProto() *pb.Data {
 	return &pb.Data{
 		Metadata: mProto,
 		Txs:      txsToByteSlices(d.Txs),
-		// IntermediateStateRoots: d.IntermediateStateRoots.RawRootsList,
-		// Note: Temporarily remove Evidence #896
-		// Evidence:               evidenceToProto(d.Evidence),
 	}
 }
 
@@ -210,9 +207,6 @@ func (d *Data) FromProto(other *pb.Data) error {
 		d.Metadata.FromProto(other.Metadata)
 	}
 	d.Txs = byteSlicesToTxs(other.Txs)
-	// d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots
-	// Note: Temporarily remove Evidence #896
-	// d.Evidence = evidenceFromProto(other.Evidence)
 
 	return nil
 }
