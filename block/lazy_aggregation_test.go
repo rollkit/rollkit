@@ -69,59 +69,13 @@ func setupTestManager(t *testing.T, blockTime, lazyTime time.Duration) (*Manager
 	return m, pubMock
 }
 
-// TestLazyAggregationLoop_BlockTimerTrigger tests that a block is published when the blockTimer fires first.
-func TestLazyAggregationLoop_BlockTimerTrigger(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	blockTime := 50 * time.Millisecond
-	lazyTime := 200 * time.Millisecond // Lazy timer fires later
-	m, pubMock := setupTestManager(t, blockTime, lazyTime)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		// Use real timers for this test to simulate actual timing
-		blockTimer := time.NewTimer(0) // Fire immediately first time
-		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
-	}()
-
-	// Wait for the first publish call triggered by the initial immediate blockTimer fire
-	select {
-	case <-pubMock.calls:
-		// Good, first block published
-	case <-time.After(2 * blockTime): // Give some buffer
-		require.Fail("timed out waiting for first block publication")
-	}
-
-	// Wait for the second publish call, triggered by blockTimer reset
-	select {
-	case <-pubMock.calls:
-		// Good, second block published by blockTimer
-	case <-time.After(2 * blockTime): // Give some buffer
-		require.Fail("timed out waiting for second block publication (blockTimer)")
-	}
-
-	// Ensure lazyTimer didn't trigger a publish yet
-	assert.Len(pubMock.calls, 0, "Expected no more publish calls yet")
-
-	cancel()
-	wg.Wait()
-}
-
-// TestLazyAggregationLoop_LazyTimerTrigger tests that a block is published when the lazyTimer fires first.
+// TestLazyAggregationLoop_LazyTimerTrigger tests that a block is published when the lazyTimer fires.
 func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
-	assert := assert.New(t)
+
 	require := require.New(t)
 
-	blockTime := 200 * time.Millisecond // Block timer fires later
 	lazyTime := 50 * time.Millisecond
-	m, pubMock := setupTestManager(t, blockTime, lazyTime)
+	m, pubMock := setupTestManager(t, 0, lazyTime) // blockTime doesn't matter in lazy mode
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -130,13 +84,10 @@ func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// Use real timers for this test
-		blockTimer := time.NewTimer(0) // Fire immediately first time
-		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		m.lazyAggregationLoop(ctx)
 	}()
 
-	// Wait for the first publish call triggered by the initial immediate blockTimer fire
+	// Wait for the first publish call triggered by the initial lazy timer fire
 	select {
 	case <-pubMock.calls:
 		// Good, first block published
@@ -152,9 +103,6 @@ func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
 		require.Fail("timed out waiting for second block publication (lazyTimer)")
 	}
 
-	// Ensure blockTimer didn't trigger a publish yet
-	assert.Len(pubMock.calls, 0, "Expected no more publish calls yet")
-
 	cancel()
 	wg.Wait()
 }
@@ -163,9 +111,8 @@ func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
 func TestLazyAggregationLoop_PublishError(t *testing.T) {
 	require := require.New(t)
 
-	blockTime := 50 * time.Millisecond
-	lazyTime := 100 * time.Millisecond
-	m, pubMock := setupTestManager(t, blockTime, lazyTime)
+	lazyTime := 50 * time.Millisecond
+	m, pubMock := setupTestManager(t, 0, lazyTime) // blockTime doesn't matter in lazy mode
 
 	pubMock.mu.Lock()
 	pubMock.err = errors.New("publish failed")
@@ -178,16 +125,13 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// Use real timers
-		blockTimer := time.NewTimer(0)
-		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		m.lazyAggregationLoop(ctx)
 	}()
 
 	// Wait for the first publish attempt (which will fail)
 	select {
 	case <-pubMock.calls:
-	case <-time.After(2 * blockTime):
+	case <-time.After(2 * lazyTime):
 		require.Fail("timed out waiting for first block publication attempt")
 	}
 
@@ -199,7 +143,7 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 	// Wait for the second publish attempt (should succeed)
 	select {
 	case <-pubMock.calls:
-	case <-time.After(2 * blockTime):
+	case <-time.After(2 * lazyTime):
 		require.Fail("timed out waiting for second block publication attempt after error")
 	}
 
@@ -241,9 +185,8 @@ func TestGetRemainingSleep(t *testing.T) {
 func TestLazyAggregationLoop_TxNotification(t *testing.T) {
 	require := require.New(t)
 
-	blockTime := 200 * time.Millisecond
 	lazyTime := 500 * time.Millisecond
-	m, pubMock := setupTestManager(t, blockTime, lazyTime)
+	m, pubMock := setupTestManager(t, 0, lazyTime) // blockTime doesn't matter in lazy mode
 	m.config.Node.LazyMode = true
 
 	// Create the notification channel
@@ -258,13 +201,14 @@ func TestLazyAggregationLoop_TxNotification(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		blockTimer := time.NewTimer(blockTime)
-		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		m.lazyAggregationLoop(ctx)
 	}()
 
 	// Wait a bit to ensure the loop is running
 	time.Sleep(20 * time.Millisecond)
+
+	// Reset the mock to clear any calls from the initial lazy timer
+	pubMock.reset()
 
 	// Send a transaction notification
 	m.NotifyNewTransactions()
@@ -277,6 +221,9 @@ func TestLazyAggregationLoop_TxNotification(t *testing.T) {
 		require.Fail("Block was not published after transaction notification")
 	}
 
+	// Reset the mock again to ensure we're only tracking new calls
+	pubMock.reset()
+
 	// Send another notification immediately - it should be throttled
 	m.NotifyNewTransactions()
 
@@ -288,8 +235,8 @@ func TestLazyAggregationLoop_TxNotification(t *testing.T) {
 		// This is expected - no immediate block
 	}
 
-	// Wait for the throttle period to pass
-	time.Sleep(m.minTxNotifyInterval)
+	// Wait for slightly longer than the throttle period to ensure the timer fires
+	time.Sleep(m.minTxNotifyInterval + 20*time.Millisecond)
 
 	// Now a block should be published
 	select {

@@ -28,34 +28,27 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 		time.Sleep(delay)
 	}
 
+	// Lazy Aggregator mode.
+	// In Lazy Aggregator mode, blocks are built only when there are
+	// transactions or every LazyBlockTime.
+	if m.config.Node.LazyMode {
+		m.lazyAggregationLoop(ctx)
+		return
+	}
+
 	// blockTimer is used to signal when to build a block based on the
 	// rollup block time. A timer is used so that the time to build a block
 	// can be taken into account.
 	blockTimer := time.NewTimer(0)
 	defer blockTimer.Stop()
 
-	// Lazy Aggregator mode.
-	// In Lazy Aggregator mode, blocks are built only when there are
-	// transactions or every LazyBlockTime.
-	if m.config.Node.LazyMode {
-		m.lazyAggregationLoop(ctx, blockTimer)
-		return
-	}
-
 	m.normalAggregationLoop(ctx, blockTimer)
 }
 
-func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
+func (m *Manager) lazyAggregationLoop(ctx context.Context) {
 	// lazyTimer triggers block publication even during inactivity
 	lazyTimer := time.NewTimer(0)
 	defer lazyTimer.Stop()
-
-	// Initialize the throttle timer but don't start it yet
-	m.txNotifyThrottle = time.NewTimer(m.minTxNotifyInterval)
-	if !m.txNotifyThrottle.Stop() {
-		<-m.txNotifyThrottle.C // Drain the channel if it already fired
-	}
-	defer m.txNotifyThrottle.Stop()
 
 	// Add a polling timer to periodically check for transactions
 	// This is a fallback mechanism in case notifications fail
@@ -68,24 +61,14 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 			return
 
 		case <-lazyTimer.C:
-			m.logger.Debug("Lazy timer triggered block production")
-			m.produceBlock(ctx, "lazy_timer", lazyTimer, blockTimer)
-
-		case <-blockTimer.C:
-			m.logger.Debug("Block timer triggered block production")
-			// Block production is intentionally disabled for the blockTimer case in lazy mode.
-			// This is because lazy mode prioritizes transaction-driven or periodic triggers
-			// (e.g., lazyTimer) over time-based triggers to optimize resource usage.
+			m.produceBlockLazy(ctx, "lazy_timer", lazyTimer)
 
 		case <-m.txNotifyCh:
 			// Only proceed if we're not being throttled
 			if time.Since(m.lastTxNotifyTime) < m.minTxNotifyInterval {
-				m.logger.Debug("Transaction notification throttled")
 				continue
 			}
-
-			m.logger.Debug("Transaction notification triggered block production")
-			m.produceBlock(ctx, "tx_notification", lazyTimer, blockTimer)
+			m.produceBlockLazy(ctx, "tx_notification", lazyTimer)
 
 			// Update the last notification time
 			m.lastTxNotifyTime = time.Now()
@@ -96,8 +79,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 			if err != nil {
 				m.logger.Error("Failed to check for transactions", "error", err)
 			} else if hasTxs {
-				m.logger.Debug("Transaction poll detected transactions")
-				m.produceBlock(ctx, "tx_poll", lazyTimer, blockTimer)
+				m.produceBlockLazy(ctx, "tx_poll", lazyTimer)
 			}
 			txPollTimer.Reset(2 * time.Second)
 		}
@@ -105,12 +87,6 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 }
 
 func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
-	// Initialize the throttle timer but don't start it yet
-	m.txNotifyThrottle = time.NewTimer(m.minTxNotifyInterval)
-	if !m.txNotifyThrottle.Stop() {
-		<-m.txNotifyThrottle.C // Drain the channel if it already fired
-	}
-	defer m.txNotifyThrottle.Stop()
 
 	for {
 		select {
@@ -134,8 +110,8 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 	}
 }
 
-// produceBlock handles the common logic for producing a block and resetting timers
-func (m *Manager) produceBlock(ctx context.Context, trigger string, lazyTimer, blockTimer *time.Timer) {
+// produceBlockLazy handles the common logic for producing a block and resetting timers in lazy mode
+func (m *Manager) produceBlockLazy(ctx context.Context, trigger string, lazyTimer *time.Timer) {
 	// Record the start time
 	start := time.Now()
 
@@ -146,9 +122,8 @@ func (m *Manager) produceBlock(ctx context.Context, trigger string, lazyTimer, b
 		m.logger.Debug("Successfully published block", "trigger", trigger)
 	}
 
-	// Reset both timers for the next aggregation window
+	// Reset the lazy timer for the next aggregation window
 	lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockInterval.Duration))
-	blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 }
 
 func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
