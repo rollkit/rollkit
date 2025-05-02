@@ -151,13 +151,13 @@ func (s *SystemUnderTest) watchLogs(cmd *exec.Cmd) {
 // PrintBuffer outputs the contents of outBuff and errBuff to stdout, prefixing each entry with "out>" or "err>", respectively.
 func (s *SystemUnderTest) PrintBuffer() {
 	out := os.Stdout
-	s.outBuff.Do(func(v interface{}) {
+	s.outBuff.Do(func(v any) {
 		if v != nil {
 			_, _ = fmt.Fprintf(out, "out> %s\n", v)
 		}
 	})
 	_, _ = fmt.Fprint(out, "8< chain err -----------------------------------------\n")
-	s.errBuff.Do(func(v interface{}) {
+	s.errBuff.Do(func(v any) {
 		if v != nil {
 			_, _ = fmt.Fprintf(out, "err> %s\n", v)
 		}
@@ -182,7 +182,7 @@ func (s *SystemUnderTest) log(msg string) {
 	s.t.Log(msg)
 }
 
-func (s *SystemUnderTest) logf(msg string, args ...interface{}) {
+func (s *SystemUnderTest) logf(msg string, args ...any) {
 	s.log(fmt.Sprintf(msg, args...))
 }
 
@@ -215,7 +215,7 @@ func (s *SystemUnderTest) Shutdown() {
 			}
 		}()
 	})
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if !s.hashPids() {
 			break
 		}

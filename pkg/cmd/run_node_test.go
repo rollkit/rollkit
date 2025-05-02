@@ -99,8 +99,8 @@ func TestParseFlags(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		got      interface{}
-		expected interface{}
+		got      any
+		expected any
 	}{
 		{"RootDir", nodeConfig.RootDir, "custom/root/dir"},
 		{"DBPath", nodeConfig.DBPath, "custom/db/path"},

@@ -145,7 +145,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 	s.T().Logf("DA client initialized: %v", s.node.blockManager.DALCInitialized())
 
 	// Wait longer for height to stabilize and log intermediate values
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		time.Sleep(200 * time.Millisecond)
 		currentHeight, err := s.node.Store.Height(s.ctx)
 		require.NoError(err)
@@ -236,7 +236,7 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 
 	// Monitor batch retrieval
 	s.T().Log("=== Monitoring Batch Retrieval ===")
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		time.Sleep(200 * time.Millisecond)
 		// We can't directly check batch queue size, but we can monitor block production
 		currentHeight, err := s.node.Store.Height(s.ctx)
@@ -252,7 +252,7 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	s.node.blockManager.SetLastState(currentState)
 
 	// Monitor after trigger
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		time.Sleep(200 * time.Millisecond)
 		currentHeight, err := s.node.Store.Height(s.ctx)
 		require.NoError(err)
@@ -288,7 +288,7 @@ func (s *FullNodeTestSuite) TestDAInclusion() {
 
 	// Monitor state changes in shorter intervals
 	s.T().Log("=== Monitoring State Changes ===")
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		time.Sleep(200 * time.Millisecond)
 		currentHeight, err := s.node.Store.Height(s.ctx)
 		require.NoError(err)

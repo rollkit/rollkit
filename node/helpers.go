@@ -34,10 +34,10 @@ func (m MockTester) Fail() {}
 func (m MockTester) FailNow() {}
 
 // Logf is used to log a message to the test logger
-func (m MockTester) Logf(format string, args ...interface{}) {}
+func (m MockTester) Logf(format string, args ...any) {}
 
 // Errorf is used to log an error to the test logger
-func (m MockTester) Errorf(format string, args ...interface{}) {}
+func (m MockTester) Errorf(format string, args ...any) {}
 
 func waitForFirstBlock(node Node, source Source) error {
 	return waitForAtLeastNBlocks(node, 1, source)
