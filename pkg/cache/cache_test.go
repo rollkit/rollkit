@@ -102,7 +102,7 @@ func TestCacheConcurrency(t *testing.T) {
 	for i := range goroutines {
 		go func(id int) {
 			defer wg.Done()
-			for j := range operations {
+			for j := 0; j < operations; j++ {
 				// Test concurrent item operations
 				value := fmt.Sprintf("value-%d-%d", id, j)
 				cache.SetItem(uint64(j), &value)

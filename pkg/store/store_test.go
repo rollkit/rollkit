@@ -171,11 +171,11 @@ func TestMetadata(t *testing.T) {
 	}
 
 	const n = 5
-	for i := range n {
+	for i := 0; i < n; i++ {
 		require.NoError(s.SetMetadata(t.Context(), getKey(i), getValue(i)))
 	}
 
-	for i := range n {
+	for i := 0; i < n; i++ {
 		value, err := s.GetMetadata(t.Context(), getKey(i))
 		require.NoError(err)
 		require.Equal(getValue(i), value)

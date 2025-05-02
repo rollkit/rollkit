@@ -72,7 +72,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 	require := require.New(t)
 
 	mnet := mocknet.New()
-	for i := range n {
+	for i := 0; i < n; i++ {
 		var descr hostDescr
 		if d, ok := conf[i]; ok {
 			descr = d
@@ -107,7 +107,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 	}
 
 	clients := make([]*Client, n)
-	for i := range n {
+	for i := range seeds {
 		tempDir := filepath.Join(t.TempDir(), fmt.Sprintf("client_%d", i))
 		ClientInitFiles(t, tempDir)
 		nodeKey, err := key.GenerateNodeKey()

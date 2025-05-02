@@ -391,9 +391,9 @@ func TestConcurrentAccess(t *testing.T) {
 	errChan := make(chan error, numGoRoutines*messageCount)
 	doneChan := make(chan struct{})
 
-	for i := range numGoRoutines {
+	for i := 0; i < numGoRoutines; i++ {
 		go func(routineNum int) {
-			for j := range messageCount {
+			for j := 0; j < messageCount; j++ {
 				// Create a unique message per goroutine and iteration
 				message := fmt.Appendf(nil, "Message %d-%d", routineNum, j)
 

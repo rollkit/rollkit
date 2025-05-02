@@ -63,7 +63,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 
 	var err error
 	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
-	for range dAFetcherRetries {
+	for r := 0; r < dAFetcherRetries; r++ {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()

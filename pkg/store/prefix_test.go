@@ -89,7 +89,7 @@ func TestPrefixKVBatch(t *testing.T) {
 	keys := []ds.Key{ds.NewKey("key1"), ds.NewKey("key2"), ds.NewKey("key3"), ds.NewKey("key4")}
 	values := [][]byte{[]byte("value1"), []byte("value2"), []byte("value3"), []byte("value4")}
 
-	for i := range len(keys) {
+	for i := range keys {
 		err := prefixbatchkv1.Put(t.Context(), keys[i], values[i])
 		require.NoError(err)
 	}
@@ -97,7 +97,7 @@ func TestPrefixKVBatch(t *testing.T) {
 	err := prefixbatchkv1.Commit(t.Context())
 	require.NoError(err)
 
-	for i := range len(keys) {
+	for i := range keys {
 		vals, err := prefixkv.Get(t.Context(), keys[i])
 		assert.Equal(vals, values[i])
 		require.NoError(err)
