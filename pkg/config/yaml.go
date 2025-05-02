@@ -49,7 +49,7 @@ func (c *Config) SaveAsYaml() error {
 	// helper function to process struct fields recursively
 	var processFields func(t reflect.Type, prefix string)
 	processFields = func(t reflect.Type, prefix string) {
-		for i := range t.NumField() {
+		for i := 0; i < t.NumField(); i++ {
 			field := t.Field(i)
 
 			// Skip unexported fields
