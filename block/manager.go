@@ -365,6 +365,12 @@ func NewManager(
 	agg.init(ctx)
 	// Set the default publishBlock implementation
 	agg.publishBlock = agg.publishBlockInternal
+
+	// Set the manager pointer in the sequencer if it is a *single.Sequencer
+	if s, ok := sequencer.(interface{ SetManager(*Manager) }); ok {
+		s.SetManager(agg)
+	}
+
 	return agg, nil
 }
 
@@ -955,4 +961,9 @@ func (m *Manager) NotifyNewTransactions() {
 		// Channel buffer is full, which means a notification is already pending
 		// This is fine, as we just need to trigger one block production
 	}
+}
+
+// DataCache returns the dataCache used by the manager.
+func (m *Manager) DataCache() *cache.Cache[types.Data] {
+	return m.dataCache
 }

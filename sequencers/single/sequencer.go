@@ -11,9 +11,11 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/rollkit/rollkit/block"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	dac "github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
@@ -44,6 +46,8 @@ type Sequencer struct {
 	daSubmissionChan chan coresequencer.Batch // channel for ordered DA submission
 
 	metrics *Metrics
+
+	manager *block.Manager // pointer to Manager
 }
 
 // NewSequencer creates a new Single Sequencer
@@ -250,6 +254,20 @@ daSubmitRetryLoop:
 			}
 			c.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 
+			// Set DA included in manager's dataCache if all txs submitted and manager is set
+			if submittedAllTxs && c.manager != nil {
+				data := &types.Data{
+					Txs: make(types.Txs, len(currentBatch.Transactions)),
+				}
+				for i, tx := range currentBatch.Transactions {
+					data.Txs[i] = types.Tx(tx)
+				}
+				hash := data.DACommitment()
+				if err == nil {
+					c.manager.DataCache().SetDAIncluded(string(hash))
+				}
+			}
+
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			// For mempool-related issues, use a longer backoff and increase gas price
 			c.logger.Error("single sequcner: DA layer submission failed", "error", res.Message, "attempt", attempt)
@@ -346,4 +364,9 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 
 func (c *Sequencer) isValid(rollupId []byte) bool {
 	return bytes.Equal(c.rollupId, rollupId)
+}
+
+// SetManager sets the manager pointer for the sequencer
+func (s *Sequencer) SetManager(m *block.Manager) {
+	s.manager = m
 }
