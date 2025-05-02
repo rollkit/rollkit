@@ -73,7 +73,9 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 
 		case <-blockTimer.C:
 			m.logger.Debug("Block timer triggered block production")
-			// m.produceBlock(ctx, "block_timer", lazyTimer, blockTimer)
+			// Block production is intentionally disabled for the blockTimer case in lazy mode.
+			// This is because lazy mode prioritizes transaction-driven or periodic triggers
+			// (e.g., lazyTimer) over time-based triggers to optimize resource usage.
 
 		case <-m.txNotifyCh:
 			// Only proceed if we're not being throttled
@@ -126,7 +128,8 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 
 		case <-m.txNotifyCh:
-			// clear notification channel
+			// Transaction notifications are intentionally ignored in normal mode
+			// to avoid triggering block production outside the scheduled intervals.
 		}
 	}
 }
@@ -171,7 +174,7 @@ func (m *Manager) checkForTransactions(ctx context.Context) (bool, error) {
 	}
 
 	// If we got a batch with transactions, return true
-	if batchData != nil && batchData.Batch != nil && len(batchData.Batch.Transactions) > 0 {
+	if batchData != nil && batchData.Batch != nil && len(batchData.Transactions) > 0 {
 		return true, nil
 	}
 

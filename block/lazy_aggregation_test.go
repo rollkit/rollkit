@@ -22,6 +22,16 @@ type mockPublishBlock struct {
 	delay time.Duration // Optional delay to simulate processing time
 }
 
+// reset clears the calls channel in mockPublishBlock.
+func (m *mockPublishBlock) reset() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// Clear the channel
+	for len(m.calls) > 0 {
+		<-m.calls
+	}
+}
+
 func (m *mockPublishBlock) publish(ctx context.Context) error {
 	m.mu.Lock()
 	err := m.err
