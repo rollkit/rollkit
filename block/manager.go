@@ -463,7 +463,12 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		m.lastBatchData = res.BatchData
 		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, errRetrieveBatch
 	}
-	return nil, ErrNoBatch
+	h := convertBatchDataToBytes(res.BatchData)
+	if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
+		m.logger.Error("error while setting last batch hash", "error", err)
+	}
+	m.lastBatchData = res.BatchData
+	return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
 }
 
 func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) bool {
