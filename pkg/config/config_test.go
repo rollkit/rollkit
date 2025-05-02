@@ -232,7 +232,7 @@ signer:
 	cmd.SetArgs([]string{
 		"--home=" + tempDir,
 		"--rollkit.da.gas_price=0.5",
-		"--rollkit.node.lazy_aggregator=true",
+		"--rollkit.node.lazy_mode=true",
 	})
 	err = cmd.Execute()
 	require.NoError(t, err)
@@ -245,7 +245,7 @@ signer:
 	v := viper.New()
 	v.Set(FlagRootDir, tempDir)
 	v.Set("rollkit.da.gas_price", "0.5")
-	v.Set("rollkit.node.lazy_aggregator", true)
+	v.Set("rollkit.node.lazy_mode", true)
 
 	// Load configuration using the new LoadFromViper method
 	cfgFromViper, err := LoadFromViper(v)

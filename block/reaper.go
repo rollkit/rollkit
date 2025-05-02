@@ -78,11 +78,6 @@ func (r *Reaper) SubmitTxs() {
 		return
 	}
 
-	if len(txs) == 0 {
-		r.logger.Debug("Reaper found no new txs to submit")
-		return
-	}
-
 	var newTxs [][]byte
 	for _, tx := range txs {
 		txHash := hashTx(tx)
@@ -95,6 +90,11 @@ func (r *Reaper) SubmitTxs() {
 		if !has {
 			newTxs = append(newTxs, tx)
 		}
+	}
+
+	if len(newTxs) == 0 {
+		r.logger.Debug("Reaper found no new txs to submit")
+		return
 	}
 
 	r.logger.Debug("Reaper submitting txs to sequencer", "txCount", len(newTxs))

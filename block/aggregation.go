@@ -89,7 +89,6 @@ func (m *Manager) produceBlock(ctx context.Context, trigger string, lazyTimer, b
 }
 
 func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -108,6 +107,8 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 		case <-m.txNotifyCh:
 			// Transaction notifications are intentionally ignored in normal mode
 			// to avoid triggering block production outside the scheduled intervals.
+			// We just update the txsAvailable flag for tracking purposes
+			m.txsAvailable = true
 		}
 	}
 }

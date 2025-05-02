@@ -37,11 +37,11 @@ const (
 	// FlagTrustedHash is a flag for specifying the trusted hash
 	FlagTrustedHash = "rollkit.node.trusted_hash"
 	// FlagLazyAggregator is a flag for enabling lazy aggregation mode that only produces blocks when transactions are available
-	FlagLazyAggregator = "rollkit.node.lazy_aggregator"
+	FlagLazyAggregator = "rollkit.node.lazy_mode"
 	// FlagMaxPendingBlocks is a flag to limit and pause block production when too many blocks are waiting for DA confirmation
 	FlagMaxPendingBlocks = "rollkit.node.max_pending_blocks"
 	// FlagLazyBlockTime is a flag for specifying the maximum interval between blocks in lazy aggregation mode
-	FlagLazyBlockTime = "rollkit.node.lazy_block_time"
+	FlagLazyBlockTime = "rollkit.node.lazy_block_interval"
 
 	// Data Availability configuration flags
 
