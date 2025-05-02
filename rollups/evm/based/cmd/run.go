@@ -147,7 +147,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				logger,
 				basedDA,
 				basedDALC,
-				[]byte("rollkit-test"),
+				[]byte(nodeConfig.ChainID),
 				basedStartHeight,
 				basedMaxHeightDrift,
 				datastore,

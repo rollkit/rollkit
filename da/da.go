@@ -52,7 +52,7 @@ func (dac *DAClient) GasMultiplier(ctx context.Context) (float64, error) {
 	return dac.DA.GasMultiplier(ctx)
 }
 
-// SubmitHeaders submits block headers to DA.
+// Submit submits blob data to DA.
 func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) coreda.ResultSubmit {
 	var (
 		blobs    [][]byte = make([][]byte, 0, len(data))
@@ -119,8 +119,8 @@ func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint
 	}
 }
 
-// RetrieveHeaders retrieves block headers from DA.
-// It is on the caller to decode the headers
+// Retrieve retrieves blobs from DA.
+// It is on the caller to decode the blobs
 func (dac *DAClient) Retrieve(ctx context.Context, dataLayerHeight uint64) coreda.ResultRetrieve {
 	result, err := dac.DA.GetIDs(ctx, dataLayerHeight, dac.Namespace)
 	if err != nil {
