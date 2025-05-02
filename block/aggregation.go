@@ -2,7 +2,6 @@ package block
 
 import (
 	"context"
-	"errors"
 	"time"
 )
 
@@ -122,24 +121,4 @@ func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
 	}
 
 	return time.Millisecond
-}
-
-// checkForTransactions checks if there are any transactions available for processing
-func (m *Manager) checkForTransactions(ctx context.Context) (bool, error) {
-	// Try to retrieve a batch without actually consuming it
-	batchData, err := m.retrieveBatch(ctx)
-	if err != nil {
-		if errors.Is(err, ErrNoBatch) {
-			// This is expected when there are no transactions
-			return false, nil
-		}
-		return false, err
-	}
-
-	// If we got a batch with transactions, return true
-	if batchData != nil && batchData.Batch != nil && len(batchData.Transactions) > 0 {
-		return true, nil
-	}
-
-	return false, nil
 }
