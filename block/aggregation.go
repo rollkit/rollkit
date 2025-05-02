@@ -49,7 +49,10 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 	lazyTimer := time.NewTimer(0)
 	defer lazyTimer.Stop()
 
+	// pendingTxs tracks whether there are transactions waiting to be included in a block.
 	pendingTxs := false
+	// buildingBlock indicates whether a block is currently being built, preventing
+	// new transactions from being processed during this time.
 	buildingBlock := false
 
 	for {
