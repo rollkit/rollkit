@@ -10,7 +10,7 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 )
 
-// HeaderSubmissionLoop is responsible for submitting blocks to the DA layer.
+// HeaderSubmissionLoop is responsible for submitting headers to the DA layer.
 func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
 	timer := time.NewTicker(m.config.DA.BlockTime.Duration)
 	defer timer.Stop()
@@ -25,7 +25,7 @@ func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
 		}
 		err := m.submitHeadersToDA(ctx)
 		if err != nil {
-			m.logger.Error("error while submitting block to DA", "error", err)
+			m.logger.Error("error while submitting header to DA", "error", err)
 		}
 	}
 }
@@ -42,10 +42,10 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 		return err
 	}
 	if err != nil {
-		// There are some pending blocks but also an error. It's very unlikely case - probably some error while reading
+		// There are some pending headers but also an error. It's very unlikely case - probably some error while reading
 		// headers from the store.
-		// The error is logged and normal processing of pending blocks continues.
-		m.logger.Error("error while fetching blocks pending DA", "err", err)
+		// The error is logged and normal processing of pending headers continues.
+		m.logger.Error("error while fetching headers pending DA", "err", err)
 	}
 	numSubmittedHeaders := 0
 	attempt := 0
@@ -89,21 +89,20 @@ daSubmitRetryLoop:
 			if res.SubmittedCount == uint64(len(headersToSubmit)) {
 				submittedAllHeaders = true
 			}
-			submittedBlocks, notSubmittedBlocks := headersToSubmit[:res.SubmittedCount], headersToSubmit[res.SubmittedCount:]
-			numSubmittedHeaders += len(submittedBlocks)
-			for _, block := range submittedBlocks {
-				m.headerCache.SetDAIncluded(block.Hash().String())
-				err = m.setDAIncludedHeight(ctx, block.Height())
+			submittedHeaders, notSubmittedHeaders := headersToSubmit[:res.SubmittedCount], headersToSubmit[res.SubmittedCount:]
+			numSubmittedHeaders += len(submittedHeaders)
+			for _, header := range submittedHeaders {
+				m.headerCache.SetDAIncluded(header.Hash().String())
 				if err != nil {
 					return err
 				}
 			}
 			lastSubmittedHeight := uint64(0)
-			if l := len(submittedBlocks); l > 0 {
-				lastSubmittedHeight = submittedBlocks[l-1].Height()
+			if l := len(submittedHeaders); l > 0 {
+				lastSubmittedHeight = submittedHeaders[l-1].Height()
 			}
 			m.pendingHeaders.setLastSubmittedHeight(ctx, lastSubmittedHeight)
-			headersToSubmit = notSubmittedBlocks
+			headersToSubmit = notSubmittedHeaders
 			// reset submission options when successful
 			// scale back gasPrice gradually
 			backoff = 0
@@ -134,7 +133,7 @@ daSubmitRetryLoop:
 
 	if !submittedAllHeaders {
 		return fmt.Errorf(
-			"failed to submit all blocks to DA layer, submitted %d blocks (%d left) after %d attempts",
+			"failed to submit all headers to DA layer, submitted %d headers (%d left) after %d attempts",
 			numSubmittedHeaders,
 			len(headersToSubmit),
 			attempt,

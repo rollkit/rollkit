@@ -435,7 +435,7 @@ func (m *Manager) IsBlockHashSeen(blockHash string) bool {
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
 // TODO(tac0turtle): should we use this for pending header system to verify how far ahead a rollup is?
 func (m *Manager) IsDAIncluded(hash types.Hash) bool {
-	return m.headerCache.IsDAIncluded(hash.String())
+	return m.headerCache.IsDAIncluded(hash.String()) && m.dataCache.IsDAIncluded(hash.String())
 }
 
 // GetExecutor returns the executor used by the manager.
@@ -696,7 +696,86 @@ func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature 
 	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
 }
 
-func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.execApplyBlock(ctx, m.lastState, header, data)
+}
+
+func (m *Manager) execValidate(state types.State, header *types.SignedHeader, data *types.Data) error {
+	// 1. Basic header validation
+	if err := header.ValidateBasic(); err != nil {
+		return fmt.Errorf("invalid header: %w", err)
+	}
+
+	// 2. Chain ID validation
+	if header.ChainID() != state.ChainID {
+		return fmt.Errorf("chain ID mismatch: expected %s, got %s", state.ChainID, header.ChainID())
+	}
+
+	// 3. Height validation
+	expectedHeight := state.LastBlockHeight + 1
+	if header.Height() != expectedHeight {
+		return fmt.Errorf("invalid height: expected %d, got %d", expectedHeight, header.Height())
+	}
+
+	// 4. Time validation
+	headerTime := header.Time()
+	if headerTime.Before(state.LastBlockTime) || headerTime.Equal(state.LastBlockTime) {
+		return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
+			headerTime, state.LastBlockTime)
+	}
+
+	// 5. Data hash validation
+	expectedDataHash := data.Hash()
+	if !bytes.Equal(header.DataHash, expectedDataHash) {
+		return fmt.Errorf("data hash mismatch: expected %x, got %x", expectedDataHash, header.DataHash)
+	}
+
+	// 6. App hash validation
+	// Note: Assumes deferred execution of the executor
+	if !bytes.Equal(header.AppHash, state.AppHash) {
+		return fmt.Errorf("app hash mismatch: expected %x, got %x", state.AppHash, header.AppHash)
+	}
+
+	// 8. Data metadata validation
+	if data.Metadata != nil {
+		if data.Metadata.ChainID != header.ChainID() {
+			return fmt.Errorf("metadata chain ID mismatch: expected %s, got %s",
+				header.ChainID(), data.Metadata.ChainID)
+		}
+		if data.Metadata.Height != header.Height() {
+			return fmt.Errorf("metadata height mismatch: expected %d, got %d",
+				header.Height(), data.Metadata.Height)
+		}
+		if data.Metadata.Time != header.BaseHeader.Time {
+			return fmt.Errorf("metadata time mismatch: expected %d, got %d",
+				header.BaseHeader.Time, data.Metadata.Time)
+		}
+	}
+
+	// 9. Version validation
+	if header.Version.Block != state.Version.Block {
+		return fmt.Errorf("block version mismatch: expected %d, got %d",
+			state.Version.Block, header.Version.Block)
+	}
+	if header.Version.App != state.Version.App {
+		return fmt.Errorf("app version mismatch: expected %d, got %d",
+			state.Version.App, header.Version.App)
+	}
+
+	return nil
+}
+
+func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
+	err := m.exec.SetFinal(ctx, h.Height())
+	return newState.AppHash, err
+}
+
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+	// Use when batchData is set to data IDs from the DA layer
+	// batchDataIDs := convertBatchDataToBytes(batchData.Data)
+
 	if m.signer == nil {
 		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
 	}
@@ -718,14 +797,6 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 	// Determine if this is an empty block
 	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
 
-	// Set the appropriate data hash based on whether this is an empty block
-	var dataHash types.Hash
-	if isEmpty {
-		dataHash = dataHashForEmptyTxs // Use dataHashForEmptyTxs for empty blocks
-	} else {
-		dataHash = convertBatchDataToBytes(batchData.Data)
-	}
-
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
@@ -738,7 +809,7 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash:  lastHeaderHash,
-			DataHash:        dataHash,
+			DataHash:        dataHashForEmptyTxs, // Use batchDataIDs when available
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         m.lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
@@ -761,6 +832,9 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 		for i := range batchData.Transactions {
 			blockData.Txs[i] = types.Tx(batchData.Transactions[i])
 		}
+	}
+	if !isEmpty {
+		header.DataHash = blockData.Hash()
 	}
 
 	return header, blockData, nil
