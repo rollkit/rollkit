@@ -494,7 +494,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	height, err := m.store.Height(ctx)
 	if err != nil {
-		return fmt.Errorf("error while getting store height: %w", err)
+		return fmt.Errorf("error while getting height: %w", err)
 	}
 
 	newHeight := height + 1
@@ -675,7 +675,74 @@ func (m *Manager) getLastBlockTime() time.Time {
 func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
+
+	if m.signer == nil {
+		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
+	}
+
+	key, err := m.signer.GetPublic()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get proposer public key: %w", err)
+	}
+
+	// check that the proposer address is the same as the genesis proposer address
+	address, err := m.signer.GetAddress()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get proposer address: %w", err)
+	}
+	if !bytes.Equal(m.genesis.ProposerAddress, address) {
+		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
+	}
+
+	// Determine if this is an empty block
+	isEmpty := batchData.Batch == nil || len(batchData.Batch.Transactions) == 0
+
+	// Set the appropriate data hash based on whether this is an empty block
+	var dataHash types.Hash
+	if isEmpty {
+		dataHash = dataHashForEmptyTxs // Use dataHashForEmptyTxs for empty blocks
+	} else {
+		dataHash = convertBatchDataToBytes(batchData.Data)
+	}
+
+	header := &types.SignedHeader{
+		Header: types.Header{
+			Version: types.Version{
+				Block: m.lastState.Version.Block,
+				App:   m.lastState.Version.App,
+			},
+			BaseHeader: types.BaseHeader{
+				ChainID: m.lastState.ChainID,
+				Height:  height,
+				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
+			},
+			LastHeaderHash:  lastHeaderHash,
+			DataHash:        dataHash,
+			ConsensusHash:   make(types.Hash, 32),
+			AppHash:         m.lastState.AppHash,
+			ProposerAddress: m.genesis.ProposerAddress,
+		},
+		Signature: *lastSignature,
+		Signer: types.Signer{
+			PubKey:  key,
+			Address: m.genesis.ProposerAddress,
+		},
+	}
+
+	// Create block data with appropriate transactions
+	blockData := &types.Data{
+		Txs: make(types.Txs, 0), // Start with empty transaction list
+	}
+
+	// Only add transactions if this is not an empty block
+	if !isEmpty {
+		blockData.Txs = make(types.Txs, len(batchData.Batch.Transactions))
+		for i := range batchData.Batch.Transactions {
+			blockData.Txs[i] = types.Tx(batchData.Batch.Transactions[i])
+		}
+	}
+
+	return header, blockData, nil
 }
 
 func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {

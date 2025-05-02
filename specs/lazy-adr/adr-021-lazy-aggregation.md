@@ -164,6 +164,28 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
     }
     ```
 
+4. **Block Production**:
+
+    The block production function centralizes the logic for publishing blocks and resetting timers. It records the start time, attempts to publish a block, and then intelligently resets both timers based on the elapsed time. This ensures that block production remains on schedule even if the block creation process takes significant time.
+
+    ```go
+    func (m *Manager) produceBlock(ctx context.Context, trigger string, lazyTimer, blockTimer *time.Timer) {
+        // Record the start time
+        start := time.Now()
+
+        // Attempt to publish the block
+        if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
+            m.logger.Error("error while publishing block", "trigger", trigger, "error", err)
+        } else {
+            m.logger.Debug("Successfully published block", "trigger", trigger)
+        }
+
+        // Reset both timers for the next aggregation window
+        lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockInterval.Duration))
+        blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
+    }
+    ```
+
 ### Key Changes
 
 1. Return batch with timestamp even when empty, allowing proper block timing
