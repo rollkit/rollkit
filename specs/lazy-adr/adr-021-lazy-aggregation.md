@@ -107,7 +107,7 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
             // Channel buffer is full, notification already pending
         }
     }
-    // Modiified lazyAggregationLoop
+    // Modified lazyAggregationLoop
     func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
         // lazyTimer triggers block publication even during inactivity
         lazyTimer := time.NewTimer(0)
