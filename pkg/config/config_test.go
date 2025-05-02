@@ -254,7 +254,7 @@ signer:
 	// Compare the results - they should be identical
 	require.Equal(t, cfgFromLoad.RootDir, cfgFromViper.RootDir, "RootDir should match")
 	require.Equal(t, cfgFromLoad.DA.GasPrice, cfgFromViper.DA.GasPrice, "DA.GasPrice should match")
-	require.Equal(t, cfgFromLoad.Node.LazyMode, cfgFromViper.Node.LazyMode, "Node.LazyAggregator should match")
+	require.Equal(t, cfgFromLoad.Node.LazyMode, cfgFromViper.Node.LazyMode, "Node.LazyMode should match")
 	require.Equal(t, cfgFromLoad.Node.Aggregator, cfgFromViper.Node.Aggregator, "Node.Aggregator should match")
 	require.Equal(t, cfgFromLoad.Node.BlockTime, cfgFromViper.Node.BlockTime, "Node.BlockTime should match")
 	require.Equal(t, cfgFromLoad.DA.Address, cfgFromViper.DA.Address, "DA.Address should match")
