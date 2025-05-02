@@ -59,12 +59,13 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 			m.produceBlock(ctx, "lazy_timer", lazyTimer, blockTimer)
 
 		case <-blockTimer.C:
-			m.logger.Debug("Block timer triggered block production")
 			if m.txsAvailable {
 				m.produceBlock(ctx, "block_timer", lazyTimer, blockTimer)
+				m.txsAvailable = false
+			} else {
+				// Ensure we keep ticking even when there are no txs
+				blockTimer.Reset(m.config.Node.BlockTime.Duration)
 			}
-			m.txsAvailable = false
-
 		case <-m.txNotifyCh:
 			m.txsAvailable = true
 		}

@@ -470,20 +470,23 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		// Even if there are no transactions, return the batch with timestamp
 		// This allows empty blocks to maintain proper timing
 		if len(res.Batch.Transactions) == 0 {
+			// Even if there are no transactions, update lastBatchData so we don’t
+			// repeatedly emit the same empty batch, and persist it to metadata.
+			_ = m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData))
+			m.lastBatchData = res.BatchData
 			return &BatchData{
 				Batch: res.Batch,
 				Time:  res.Timestamp,
 				Data:  res.BatchData,
 			}, ErrNoBatch
 		}
-		h := convertBatchDataToBytes(res.BatchData)
-		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
-			m.logger.Error("error while setting last batch hash", "error", err)
-		}
-		m.lastBatchData = res.BatchData
-		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
 	}
-	return nil, ErrNoBatch
+	h := convertBatchDataToBytes(res.BatchData)
+	if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
+		m.logger.Error("error while setting last batch hash", "error", err)
+	}
+	m.lastBatchData = res.BatchData
+	return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
 }
 
 func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) bool {
