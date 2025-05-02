@@ -58,7 +58,7 @@ func Validate(header *SignedHeader, data *Data) error {
 	}
 	// exclude Metadata while computing the data hash for comparison
 	d := Data{Txs: data.Txs}
-	dataHash := d.Hash()
+	dataHash := d.DACommitment()
 	if !bytes.Equal(dataHash[:], header.DataHash[:]) {
 		return errors.New("dataHash from the header does not match with hash of the block's data")
 	}

@@ -118,14 +118,17 @@ type Manager struct {
 	headerCache *cache.Cache[types.SignedHeader]
 	dataCache   *cache.Cache[types.Data]
 
-	// headerStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve headers from headerStore
+	// headerStoreCh is used to notify sync goroutine (HeaderStoreRetrieveLoop) that it needs to retrieve headers from headerStore
 	headerStoreCh chan struct{}
 
-	// dataStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve data from dataStore
+	// dataStoreCh is used to notify sync goroutine (DataStoreRetrieveLoop) that it needs to retrieve data from dataStore
 	dataStoreCh chan struct{}
 
-	// retrieveCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
+	// retrieveCh is used to notify sync goroutine (RetrieveLoop) that it needs to retrieve data
 	retrieveCh chan struct{}
+
+	// daIncluderCh is used to notify sync goroutine (DAIncluderLoop) that it needs to set DA included height
+	daIncluderCh chan struct{}
 
 	logger log.Logger
 
@@ -348,6 +351,7 @@ func NewManager(
 		headerCache:    cache.NewCache[types.SignedHeader](),
 		dataCache:      cache.NewCache[types.Data](),
 		retrieveCh:     make(chan struct{}, 1),
+		daIncluderCh:   make(chan struct{}, 1),
 		logger:         logger,
 		txsAvailable:   false,
 		pendingHeaders: pendingHeaders,
@@ -430,12 +434,6 @@ func (m *Manager) GetStoreHeight(ctx context.Context) (uint64, error) {
 // IsBlockHashSeen returns true if the block with the given hash has been seen.
 func (m *Manager) IsBlockHashSeen(blockHash string) bool {
 	return m.headerCache.IsSeen(blockHash)
-}
-
-// IsDAIncluded returns true if the block with the given hash has been seen on DA.
-// TODO(tac0turtle): should we use this for pending header system to verify how far ahead a rollup is?
-func (m *Manager) IsDAIncluded(hash types.Hash) bool {
-	return m.headerCache.IsDAIncluded(hash.String()) && m.dataCache.IsDAIncluded(hash.String())
 }
 
 // GetExecutor returns the executor used by the manager.
@@ -622,14 +620,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return SaveBlockError{err}
 	}
 
-	// Commit the new state and block which writes to disk on the proxy app
-	appHash, err := m.execCommit(ctx, newState, header, data)
-	if err != nil {
-		return err
-	}
-	// Update app hash in state
-	newState.AppHash = appHash
-
 	// Update the store height before submitting to the DA layer but after committing to the DB
 	err = m.store.SetHeight(ctx, headerHeight)
 	if err != nil {
@@ -757,11 +747,6 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 	return nil
 }
 
-func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
-	err := m.exec.SetFinal(ctx, h.Height())
-	return newState.AppHash, err
-}
-
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	// Use when batchData is set to data IDs from the DA layer
 	// batchDataIDs := convertBatchDataToBytes(batchData.Data)
@@ -826,6 +811,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	if !isEmpty {
 		header.DataHash = blockData.Hash()
 	}
+	header.DataHash = blockData.DACommitment()
 
 	return header, blockData, nil
 }

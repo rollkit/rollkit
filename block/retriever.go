@@ -2,7 +2,6 @@ package block
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"strings"
@@ -22,18 +21,18 @@ const (
 
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
-	// headerFoundCh is used to track when we successfully found a header so
+	// blobsFoundCh is used to track when we successfully found a header so
 	// that we can continue to try and find headers that are in the next DA height.
 	// This enables syncing faster than the DA block time.
-	headerFoundCh := make(chan struct{}, 1)
-	defer close(headerFoundCh)
+	blobsFoundCh := make(chan struct{}, 1)
+	defer close(blobsFoundCh)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-m.retrieveCh:
 		case <-m.dataStoreCh:
-		case <-headerFoundCh:
+		case <-blobsFoundCh:
 		}
 		daHeight := m.daHeight.Load()
 		err := m.processNextDAHeaderAndBlock(ctx)
@@ -44,9 +43,9 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 			}
 			continue
 		}
-		// Signal the headerFoundCh to try and retrieve the next header
+		// Signal the blobsFoundCh to try and retrieve the next set of blobs
 		select {
-		case headerFoundCh <- struct{}{}:
+		case blobsFoundCh <- struct{}{}:
 		default:
 		}
 		m.daHeight.Store(daHeight + 1)
@@ -94,6 +93,7 @@ func (m *Manager) processNextDAHeaderAndBlock(ctx context.Context) error {
 						}
 						headerHash := header.Hash().String()
 						m.headerCache.SetDAIncluded(headerHash)
+						m.sendNonBlockingSignalToDAIncluderCh()
 						m.logger.Info("header marked as DA included", "headerHeight", header.Height(), "headerHash", headerHash)
 						if !m.headerCache.IsSeen(headerHash) {
 							select {
@@ -118,8 +118,9 @@ func (m *Manager) processNextDAHeaderAndBlock(ctx context.Context) error {
 					for i, tx := range batchPb.Txs {
 						data.Txs[i] = types.Tx(tx)
 					}
-					dataHashStr := data.Hash().String()
+					dataHashStr := data.DACommitment().String()
 					m.dataCache.SetDAIncluded(dataHashStr)
+					m.sendNonBlockingSignalToDAIncluderCh()
 					m.logger.Info("batch marked as DA included", "batchHash", dataHashStr, "daHeight", daHeight)
 					if !m.dataCache.IsSeen(dataHashStr) {
 						select {
@@ -182,20 +183,4 @@ func (m *Manager) fetchBlobs(ctx context.Context, daHeight uint64) (coreda.Resul
 		err = fmt.Errorf("failed to retrieve header: %s", blobsRes.Message)
 	}
 	return blobsRes, err
-}
-
-// setDAIncludedHeight sets the DA included height in the store
-func (m *Manager) setDAIncludedHeight(ctx context.Context, newHeight uint64) error {
-	for {
-		currentHeight := m.daIncludedHeight.Load()
-		if newHeight <= currentHeight {
-			break
-		}
-		if m.daIncludedHeight.CompareAndSwap(currentHeight, newHeight) {
-			heightBytes := make([]byte, 8)
-			binary.LittleEndian.PutUint64(heightBytes, newHeight)
-			return m.store.SetMetadata(ctx, DAIncludedHeightKey, heightBytes)
-		}
-	}
-	return nil
 }
