@@ -593,7 +593,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		LastDataHash: lastDataHash,
 	}
 	// Validate the created block before storing
-	if err := m.execValidate(m.lastState, header, data); err != nil {
+	if err := m.Validate(ctx, header, data); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
 	}
 
@@ -688,66 +688,56 @@ func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, da
 	return m.execApplyBlock(ctx, m.lastState, header, data)
 }
 
-func (m *Manager) execValidate(state types.State, header *types.SignedHeader, data *types.Data) error {
-	// 1. Basic header validation
+func (m *Manager) Validate(ctx context.Context, header *types.SignedHeader, data *types.Data) error {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.execValidate(m.lastState, header, data)
+}
+
+// execValidate validates a pair of header and data against the last state
+func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader, data *types.Data) error {
+	// Validate the basic structure of the header
 	if err := header.ValidateBasic(); err != nil {
 		return fmt.Errorf("invalid header: %w", err)
 	}
 
-	// 2. Chain ID validation
-	if header.ChainID() != state.ChainID {
-		return fmt.Errorf("chain ID mismatch: expected %s, got %s", state.ChainID, header.ChainID())
+	// Validate the header against the data
+	if err := types.Validate(header, data); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	// 3. Height validation
-	expectedHeight := state.LastBlockHeight + 1
+	// Ensure the header's Chain ID matches the expected state
+	if header.ChainID() != lastState.ChainID {
+		return fmt.Errorf("chain ID mismatch: expected %s, got %s", lastState.ChainID, header.ChainID())
+	}
+
+	// Check that the header's height is the expected next height
+	expectedHeight := lastState.LastBlockHeight + 1
 	if header.Height() != expectedHeight {
 		return fmt.Errorf("invalid height: expected %d, got %d", expectedHeight, header.Height())
 	}
 
-	// 4. Time validation
+	// Verify that the header's timestamp is strictly greater than the last block's time
 	headerTime := header.Time()
-	if headerTime.Before(state.LastBlockTime) || headerTime.Equal(state.LastBlockTime) {
+	if headerTime.Before(lastState.LastBlockTime) || headerTime.Equal(lastState.LastBlockTime) {
 		return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
-			headerTime, state.LastBlockTime)
+			headerTime, lastState.LastBlockTime)
 	}
 
-	// 5. Data hash validation
-	expectedDataHash := data.Hash()
-	if !bytes.Equal(header.DataHash, expectedDataHash) {
-		return fmt.Errorf("data hash mismatch: expected %x, got %x", expectedDataHash, header.DataHash)
+	// Validate that the header's AppHash matches the lastState's AppHash
+	// Note: Assumes deferred execution
+	if !bytes.Equal(header.AppHash, lastState.AppHash) {
+		return fmt.Errorf("app hash mismatch: expected %x, got %x", lastState.AppHash, header.AppHash)
 	}
 
-	// 6. App hash validation
-	// Note: Assumes deferred execution of the executor
-	if !bytes.Equal(header.AppHash, state.AppHash) {
-		return fmt.Errorf("app hash mismatch: expected %x, got %x", state.AppHash, header.AppHash)
-	}
-
-	// 8. Data metadata validation
-	if data.Metadata != nil {
-		if data.Metadata.ChainID != header.ChainID() {
-			return fmt.Errorf("metadata chain ID mismatch: expected %s, got %s",
-				header.ChainID(), data.Metadata.ChainID)
-		}
-		if data.Metadata.Height != header.Height() {
-			return fmt.Errorf("metadata height mismatch: expected %d, got %d",
-				header.Height(), data.Metadata.Height)
-		}
-		if data.Metadata.Time != header.BaseHeader.Time {
-			return fmt.Errorf("metadata time mismatch: expected %d, got %d",
-				header.BaseHeader.Time, data.Metadata.Time)
-		}
-	}
-
-	// 9. Version validation
-	if header.Version.Block != state.Version.Block {
+	// Ensure the header's version matches the lastState's version
+	if header.Version.Block != lastState.Version.Block {
 		return fmt.Errorf("block version mismatch: expected %d, got %d",
-			state.Version.Block, header.Version.Block)
+			lastState.Version.Block, header.Version.Block)
 	}
-	if header.Version.App != state.Version.App {
+	if header.Version.App != lastState.Version.App {
 		return fmt.Errorf("app version mismatch: expected %d, got %d",
-			state.Version.App, header.Version.App)
+			lastState.Version.App, header.Version.App)
 	}
 
 	return nil

@@ -127,7 +127,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		hHeight := h.Height()
 		m.logger.Info("Syncing header and data", "height", hHeight)
 		// Validate the received block before applying
-		if err := m.execValidate(m.lastState, h, d); err != nil {
+		if err := m.Validate(ctx, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
 		newState, err := m.applyBlock(ctx, h, d)
