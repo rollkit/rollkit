@@ -48,25 +48,20 @@ In order to avoid having to include many different messages with PayForMessage o
 
 ## Detailed Design
 
-TODO
-
 ## Status
 
-Proposed
+Discarded
 
 ## Consequences
 
 ### Positive
 
-TODO
 
 ### Negative
 
-TODO
 
 ### Neutral
 
-TODO
 
 ## References
 

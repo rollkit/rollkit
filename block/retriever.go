@@ -92,7 +92,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 					continue
 				}
 				// early validation to reject junk headers
-				if !m.isUsingExpectedCentralizedSequencer(header) {
+				if !m.isUsingExpectedSingleSequencer(header) {
 					m.logger.Debug("skipping header from unexpected sequencer",
 						"headerHeight", header.Height(),
 						"headerHash", header.Hash().String())

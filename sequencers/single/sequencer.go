@@ -44,7 +44,7 @@ type Sequencer struct {
 	metrics *Metrics
 }
 
-// NewSequencer creates a new Centralized Sequencer
+// NewSequencer creates a new Single Sequencer
 func NewSequencer(
 	ctx context.Context,
 	logger log.Logger,

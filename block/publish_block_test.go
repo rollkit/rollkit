@@ -135,6 +135,7 @@ func TestPublishBlockInternal_MaxPendingBlocksReached(t *testing.T) {
 	mockStore.AssertNotCalled(t, "GetSignature", mock.Anything, mock.Anything)
 }
 
+// Test_publishBlock_NoBatch tests that publishBlock returns nil when no batch is available.
 func Test_publishBlock_NoBatch(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -186,14 +187,7 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	mockStore.On("GetBlockData", ctx, currentHeight).Return(lastHeader, lastData, nil)
 	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found"))
 
-	// Mock GetTxs on the executor
-	mockExec.On("GetTxs", ctx).Return([][]byte{}, nil).Once()
-
-	// Mock sequencer SubmitRollupBatchTxs (should still be called even if GetTxs is empty)
-	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
-		return string(req.RollupId) == chainID && len(req.Batch.Transactions) == 0
-	})
-	mockSeq.On("SubmitRollupBatchTxs", ctx, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil).Once()
+	// No longer testing GetTxs and SubmitRollupBatchTxs since they're handled by reaper.go
 
 	// *** Crucial Mock: Sequencer returns ErrNoBatch ***
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
@@ -270,14 +264,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	mockStore.On("GetBlockData", ctx, currentHeight).Return(lastHeader, lastData, nil)
 	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found"))
 
-	// Mock GetTxs on the executor
-	mockExec.On("GetTxs", ctx).Return([][]byte{}, nil).Once()
-
-	// Mock sequencer SubmitRollupBatchTxs
-	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
-		return string(req.RollupId) == chainID && len(req.Batch.Transactions) == 0
-	})
-	mockSeq.On("SubmitRollupBatchTxs", ctx, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil).Once()
+	// No longer testing GetTxs and SubmitRollupBatchTxs since they're handled by reaper.go
 
 	// *** Crucial Mock: Sequencer returns an empty batch ***
 	emptyBatchResponse := &coresequencer.GetNextBatchResponse{
@@ -291,7 +278,6 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		return string(req.RollupId) == chainID
 	})
 	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(emptyBatchResponse, nil).Once()
-	mockStore.On("SetMetadata", ctx, LastBatchDataKey, mock.Anything).Return(nil).Once()
 
 	// Call publishBlock
 	err = m.publishBlock(ctx)
@@ -315,8 +301,6 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 // is successfully created, applied, and published.
 func Test_publishBlock_Success(t *testing.T) {
 	require := require.New(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	initialHeight := uint64(5)
 	newHeight := initialHeight + 1
@@ -325,30 +309,27 @@ func Test_publishBlock_Success(t *testing.T) {
 	manager, mockStore, mockExec, mockSeq, _, headerCh, dataCh, _ := setupManagerForPublishBlockTest(t, true, initialHeight, 0)
 	manager.lastState.LastBlockHeight = initialHeight
 
-	mockStore.On("Height", ctx).Return(initialHeight, nil).Once()
+	mockStore.On("Height", t.Context()).Return(initialHeight, nil).Once()
 	mockSignature := types.Signature([]byte{1, 2, 3})
-	mockStore.On("GetSignature", ctx, initialHeight).Return(&mockSignature, nil).Once()
+	mockStore.On("GetSignature", t.Context(), initialHeight).Return(&mockSignature, nil).Once()
 	lastHeader, lastData := types.GetRandomBlock(initialHeight, 5, chainID)
 	lastHeader.ProposerAddress = manager.genesis.ProposerAddress
-	mockStore.On("GetBlockData", ctx, initialHeight).Return(lastHeader, lastData, nil).Once()
-	mockStore.On("GetBlockData", ctx, newHeight).Return(nil, nil, errors.New("not found")).Once()
-	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
-	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
-	mockStore.On("SetHeight", ctx, newHeight).Return(nil).Once()
-	mockStore.On("UpdateState", ctx, mock.AnythingOfType("types.State")).Return(nil).Once()
-	mockStore.On("SetMetadata", ctx, LastBatchDataKey, mock.AnythingOfType("[]uint8")).Return(nil).Once()
+	mockStore.On("GetBlockData", t.Context(), initialHeight).Return(lastHeader, lastData, nil).Once()
+	mockStore.On("GetBlockData", t.Context(), newHeight).Return(nil, nil, errors.New("not found")).Once()
+	mockStore.On("SaveBlockData", t.Context(), mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
+	mockStore.On("SaveBlockData", t.Context(), mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
+	mockStore.On("SetHeight", t.Context(), newHeight).Return(nil).Once()
+	mockStore.On("UpdateState", t.Context(), mock.AnythingOfType("types.State")).Return(nil).Once()
+	mockStore.On("SetMetadata", t.Context(), LastBatchDataKey, mock.AnythingOfType("[]uint8")).Return(nil).Once()
 
 	// --- Mock Executor ---
 	sampleTxs := [][]byte{[]byte("tx1"), []byte("tx2")}
-	mockExec.On("GetTxs", ctx).Return(sampleTxs, nil).Once()
+	// No longer mocking GetTxs since it's handled by reaper.go
 	newAppHash := []byte("newAppHash")
-	mockExec.On("ExecuteTxs", ctx, mock.Anything, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
-	mockExec.On("SetFinal", ctx, newHeight).Return(nil).Once()
+	mockExec.On("ExecuteTxs", t.Context(), mock.Anything, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
+	mockExec.On("SetFinal", t.Context(), newHeight).Return(nil).Once()
 
-	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
-		return string(req.RollupId) == chainID && len(req.Batch.Transactions) == len(sampleTxs)
-	})
-	mockSeq.On("SubmitRollupBatchTxs", ctx, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil).Once()
+	// No longer mocking SubmitRollupBatchTxs since it's handled by reaper.go
 	batchTimestamp := lastHeader.Time().Add(1 * time.Second)
 	batchDataBytes := [][]byte{[]byte("batch_data_1")}
 	batchResponse := &coresequencer.GetNextBatchResponse{
@@ -361,8 +342,8 @@ func Test_publishBlock_Success(t *testing.T) {
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
 		return string(req.RollupId) == chainID
 	})
-	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(batchResponse, nil).Once()
-	err := manager.publishBlock(ctx)
+	mockSeq.On("GetNextBatch", t.Context(), batchReqMatcher).Return(batchResponse, nil).Once()
+	err := manager.publishBlock(t.Context())
 	require.NoError(err, "publishBlock should succeed")
 
 	select {

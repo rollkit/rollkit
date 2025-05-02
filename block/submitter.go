@@ -106,9 +106,7 @@ daSubmitRetryLoop:
 			backoff = 0
 			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice / m.gasMultiplier
-				if gasPrice < initialGasPrice {
-					gasPrice = initialGasPrice
-				}
+				gasPrice = max(gasPrice, initialGasPrice)
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:

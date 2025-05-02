@@ -63,7 +63,7 @@ The new genesis file structure will contain the following key fields:
 
 5. **AppState**: Application-specific genesis state as a JSON object.
 
-The `ExtraData` field is particularly important as it allows different node types (sequencer, full node) to store type-specific information. For example, a centralized sequencer setup might include the sequencer's address in this field, while a decentralized setup might include validator set information.
+The `ExtraData` field is particularly important as it allows different node types (sequencer, full node) to store type-specific information. For example, a single sequencer setup might include the sequencer's address in this field, while a decentralized setup might include validator set information.
 
 The `AppState` field should contain the genesis file specific to the execution layer as a JSON Object. It will be passed on the execution layer during initialization.
 
@@ -80,7 +80,7 @@ The genesis structure will include validation logic to ensure all required field
 
 Since `ExtraData` is a flexible field that can contain different types of information, we'll define a common configuration structure that can be serialized into this field. This configuration would include:
 
-- Proposer address for centralized sequencer mode
+- Proposer address for single sequencer mode
 - Validator information for multiple sequencers or validator-based consensus
 - Consensus parameters as needed
 
@@ -110,7 +110,7 @@ The commands would use flags to set various genesis parameters like the initial 
 
 #### Sequencer Node
 
-Sequencer nodes need to interpret the `ExtraData` field to determine if they are authorized to create blocks. In a centralized sequencer model, this would involve:
+Sequencer nodes need to interpret the `ExtraData` field to determine if they are authorized to create blocks. In a single sequencer model, this would involve:
 
 1. Loading the genesis file
 2. Decoding the extra data to extract the proposer address
