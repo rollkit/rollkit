@@ -36,7 +36,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	// Lazy Aggregator mode.
 	// In Lazy Aggregator mode, blocks are built only when there are
 	// transactions or every LazyBlockTime.
-	if m.config.Node.LazyAggregator {
+	if m.config.Node.LazyMode {
 		m.lazyAggregationLoop(ctx, blockTimer)
 		return
 	}
@@ -67,7 +67,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		}
 
 		// Reset both timers for the next aggregation window
-		lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockTime.Duration))
+		lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockInterval.Duration))
 		blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 	}
 }

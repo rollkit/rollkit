@@ -49,9 +49,9 @@ func setupTestManager(t *testing.T, blockTime, lazyTime time.Duration) (*Manager
 		logger: logger,
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      config.DurationWrapper{Duration: blockTime},
-				LazyBlockTime:  config.DurationWrapper{Duration: lazyTime},
-				LazyAggregator: true, // Ensure lazy mode is active
+				BlockTime:         config.DurationWrapper{Duration: blockTime},
+				LazyBlockInterval: config.DurationWrapper{Duration: lazyTime},
+				LazyMode:          true, // Ensure lazy mode is active
 			},
 		},
 		publishBlock: pubMock.publish,

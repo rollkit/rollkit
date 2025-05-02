@@ -285,9 +285,9 @@ func NewManager(
 		config.Node.BlockTime.Duration = defaultBlockTime
 	}
 
-	if config.Node.LazyBlockTime.Duration == 0 {
+	if config.Node.LazyBlockInterval.Duration == 0 {
 		logger.Info("Using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
-		config.Node.LazyBlockTime.Duration = defaultLazyBlockTime
+		config.Node.LazyBlockInterval.Duration = defaultLazyBlockTime
 	}
 
 	if config.DA.MempoolTTL == 0 {

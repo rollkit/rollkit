@@ -45,12 +45,12 @@ var DefaultConfig = Config{
 		Peers:         "",
 	},
 	Node: NodeConfig{
-		Aggregator:     false,
-		BlockTime:      DurationWrapper{1 * time.Second},
-		LazyAggregator: false,
-		LazyBlockTime:  DurationWrapper{60 * time.Second},
-		Light:          false,
-		TrustedHash:    "",
+		Aggregator:        false,
+		BlockTime:         DurationWrapper{1 * time.Second},
+		LazyMode:          false,
+		LazyBlockInterval: DurationWrapper{60 * time.Second},
+		Light:             false,
+		TrustedHash:       "",
 	},
 	DA: DAConfig{
 		Address:       "http://localhost:7980",
