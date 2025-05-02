@@ -7,7 +7,7 @@ const (
 	FlagPruningStrategy = "rollkit.node.pruning.strategy"
 	// FlagPruningKeepRecent is a flag for specifying how many blocks need to keep in store
 	FlagPruningKeepRecent = "rollkit.node.pruning.keep_recent"
-	// FlagPruningInterval is a flag for specifying how offen prune blocks store
+	// FlagPruningInterval is a flag for specifying how often prune blocks store
 	FlagPruningInterval = "rollkit.node.pruning.interval"
 )
 
@@ -46,7 +46,7 @@ type PruningConfig struct {
 	// todo: support volume-based strategy
 	Strategy   string `mapstructure:"strategy" yaml:"strategy" comment:"Strategy determines the pruning approach (none, default, everything, custom)"`
 	KeepRecent uint64 `mapstructure:"keep_recent" yaml:"keep_recent" comment:"Number of recent blocks to keep, used in \"custom\" strategy"`
-	Interval   uint64 `mapstructure:"interval" yaml:"interval" comment:"how offen the pruning process should run, used in \"custom\" strategy"`
+	Interval   uint64 `mapstructure:"interval" yaml:"interval" comment:"how often the pruning process should run, used in \"custom\" strategy"`
 
 	// todo: support volume-based strategy
 	// VolumeConfig specifies configuration for volume-based storage
