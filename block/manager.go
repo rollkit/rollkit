@@ -511,10 +511,12 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		lastHeaderTime time.Time
 		err            error
 	)
+
 	height, err := m.store.Height(ctx)
 	if err != nil {
-		return fmt.Errorf("error while getting store height: %w", err)
+		return fmt.Errorf("error while getting height: %w", err)
 	}
+
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight <= m.genesis.InitialHeight {
@@ -554,8 +556,8 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 			if batchData != nil {
 				m.logger.Info("Creating empty block", "height", newHeight)
 
-				// For empty blocks, use dataHashForEmptyTxs to indicate empty batch
-				header, data, err = m.createEmptyBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
+				// Create an empty block
+				header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
 				if err != nil {
 					return err
 				}
@@ -707,28 +709,6 @@ func (m *Manager) getLastBlockTime() time.Time {
 func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
-}
-
-func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.execApplyBlock(ctx, m.lastState, header, data)
-}
-
-func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Data) error {
-	// TODO(tzdybal): implement
-	return nil
-}
-
-func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
-	err := m.exec.SetFinal(ctx, h.Height())
-	return newState.AppHash, err
-}
-
-func (m *Manager) createEmptyBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
 
 	if m.signer == nil {
 		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
@@ -748,6 +728,17 @@ func (m *Manager) createEmptyBlock(ctx context.Context, height uint64, lastSigna
 		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
 	}
 
+	// Determine if this is an empty block
+	isEmpty := batchData.Batch == nil || len(batchData.Batch.Transactions) == 0
+
+	// Set the appropriate data hash based on whether this is an empty block
+	var dataHash types.Hash
+	if isEmpty {
+		dataHash = dataHashForEmptyTxs // Use dataHashForEmptyTxs for empty blocks
+	} else {
+		dataHash = convertBatchDataToBytes(batchData.Data)
+	}
+
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
@@ -760,7 +751,7 @@ func (m *Manager) createEmptyBlock(ctx context.Context, height uint64, lastSigna
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash:  lastHeaderHash,
-			DataHash:        dataHashForEmptyTxs, // Use dataHashForEmptyTxs for empty blocks
+			DataHash:        dataHash,
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         m.lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
@@ -772,12 +763,36 @@ func (m *Manager) createEmptyBlock(ctx context.Context, height uint64, lastSigna
 		},
 	}
 
-	// Create an empty block data
+	// Create block data with appropriate transactions
 	blockData := &types.Data{
-		Txs: make(types.Txs, 0), // Empty transaction list
+		Txs: make(types.Txs, 0), // Start with empty transaction list
+	}
+
+	// Only add transactions if this is not an empty block
+	if !isEmpty {
+		blockData.Txs = make(types.Txs, len(batchData.Batch.Transactions))
+		for i := range batchData.Batch.Transactions {
+			blockData.Txs[i] = types.Tx(batchData.Batch.Transactions[i])
+		}
 	}
 
 	return header, blockData, nil
+}
+
+func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.execApplyBlock(ctx, m.lastState, header, data)
+}
+
+func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Data) error {
+	// TODO(tzdybal): implement
+	return nil
+}
+
+func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
+	err := m.exec.SetFinal(ctx, h.Height())
+	return newState.AppHash, err
 }
 
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
