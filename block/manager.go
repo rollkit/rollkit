@@ -361,6 +361,12 @@ func NewManager(
 	agg.init(ctx)
 	// Set the default publishBlock implementation
 	agg.publishBlock = agg.publishBlockInternal
+
+	// Set the manager pointer in the sequencer if it is a *single.Sequencer
+	if s, ok := sequencer.(interface{ SetManager(*Manager) }); ok {
+		s.SetManager(agg)
+	}
+
 	return agg, nil
 }
 
@@ -900,4 +906,9 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 		return nil, fmt.Errorf("signer is nil; cannot sign header")
 	}
 	return m.signer.Sign(b)
+}
+
+// DataCache returns the dataCache used by the manager.
+func (m *Manager) DataCache() *cache.Cache[types.Data] {
+	return m.dataCache
 }

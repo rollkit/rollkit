@@ -399,11 +399,13 @@ func (n *FullNode) Run(ctx context.Context) error {
 		go n.blockManager.HeaderSubmissionLoop(ctx)
 		go n.headerPublishLoop(ctx)
 		go n.dataPublishLoop(ctx)
+		go n.blockManager.DAIncluderLoop(ctx)
 	} else {
 		go n.blockManager.RetrieveLoop(ctx)
 		go n.blockManager.HeaderStoreRetrieveLoop(ctx)
 		go n.blockManager.DataStoreRetrieveLoop(ctx)
 		go n.blockManager.SyncLoop(ctx)
+		go n.blockManager.DAIncluderLoop(ctx)
 	}
 
 	// Block until context is canceled
