@@ -34,23 +34,21 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
                 "txCount", len(res.Batch.Transactions),
                 "timestamp", res.Timestamp)
 
+            var errRetrieveBatch error
             // Even if there are no transactions, return the batch with timestamp
             // This allows empty blocks to maintain proper timing
             if len(res.Batch.Transactions) == 0 {
-                return &BatchData{
-                    Batch: res.Batch,
-                    Time:  res.Timestamp,
-                    Data:  res.BatchData,
-                }, ErrNoBatch
+                errRetrieveBatch = ErrNoBatch
             }
-            h := convertBatchDataToBytes(res.BatchData)
-            if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
+            // Even if there are no transactions, update lastBatchData so we don’t
+            // repeatedly emit the same empty batch, and persist it to metadata.
+            if err := m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
                 m.logger.Error("error while setting last batch hash", "error", err)
             }
             m.lastBatchData = res.BatchData
-            return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
-        }
-        return nil, ErrNoBatch
+            return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, errRetrieveBatch
+	    }
+	    return nil, ErrNoBatch
     }
     ```
 
@@ -61,27 +59,32 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
     ```go
     // In publishBlock method
     batchData, err := m.retrieveBatch(ctx)
-    if errors.Is(err, ErrNoBatch) {
-        // Even with no transactions, we still want to create a block with an empty batch
-        if batchData != nil {
-            m.logger.Info("Creating empty block", "height", newHeight)
+		if err != nil {
+			if errors.Is(err, ErrNoBatch) {
+				if batchData == nil {
+					m.logger.Info("No batch retrieved from sequencer, skipping block production")
+					return nil
+				}
+				m.logger.Info("Creating empty block", "height", newHeight)
+			} else {
+				return fmt.Errorf("failed to get transactions from batch: %w", err)
+			}
+		} else {
+			if batchData.Before(lastHeaderTime) {
+				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
+			}
+			m.logger.Info("Creating and publishing block", "height", newHeight)
+			m.logger.Debug("block info", "num_tx", len(batchData.Batch.Transactions))
+		}
 
-            // For empty blocks, use dataHashForEmptyTxs to indicate empty batch
-            header, data, err = m.createEmptyBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
-            if err != nil {
-                return err
-            }
+		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
+		if err != nil {
+			return err
+		}
 
-            err = m.store.SaveBlockData(ctx, header, data, &signature)
-            if err != nil {
-                return SaveBlockError{err}
-            }
-        } else {
-            // If we don't have a batch at all (not even an empty one), skip block production
-            m.logger.Info("No batch retrieved from sequencer, skipping block production")
-            return nil
-        }
-    }
+		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
+			return SaveBlockError{err}
+		}
     ```
 
 3. **Lazy Aggregation Loop**:
@@ -104,12 +107,13 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
                 m.produceBlock(ctx, "lazy_timer", lazyTimer, blockTimer)
 
             case <-blockTimer.C:
-                m.logger.Debug("Block timer triggered block production")
                 if m.txsAvailable {
                     m.produceBlock(ctx, "block_timer", lazyTimer, blockTimer)
+                    m.txsAvailable = false
+                } else {
+                    // Ensure we keep ticking even when there are no txs
+                    blockTimer.Reset(m.config.Node.BlockTime.Duration)
                 }
-                m.txsAvailable = false
-
             case <-m.txNotifyCh:
                 m.txsAvailable = true
             }

@@ -467,26 +467,21 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 			"txCount", len(res.Batch.Transactions),
 			"timestamp", res.Timestamp)
 
+		var errRetrieveBatch error
 		// Even if there are no transactions, return the batch with timestamp
 		// This allows empty blocks to maintain proper timing
 		if len(res.Batch.Transactions) == 0 {
-			// Even if there are no transactions, update lastBatchData so we don’t
-			// repeatedly emit the same empty batch, and persist it to metadata.
-			_ = m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData))
-			m.lastBatchData = res.BatchData
-			return &BatchData{
-				Batch: res.Batch,
-				Time:  res.Timestamp,
-				Data:  res.BatchData,
-			}, ErrNoBatch
+			errRetrieveBatch = ErrNoBatch
 		}
+		// Even if there are no transactions, update lastBatchData so we don’t
+		// repeatedly emit the same empty batch, and persist it to metadata.
+		if err := m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
+			m.logger.Error("error while setting last batch hash", "error", err)
+		}
+		m.lastBatchData = res.BatchData
+		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, errRetrieveBatch
 	}
-	h := convertBatchDataToBytes(res.BatchData)
-	if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
-		m.logger.Error("error while setting last batch hash", "error", err)
-	}
-	m.lastBatchData = res.BatchData
-	return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
+	return nil, ErrNoBatch
 }
 
 func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) bool {
@@ -517,7 +512,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	height, err := m.store.Height(ctx)
 	if err != nil {
-		return fmt.Errorf("error while getting height: %w", err)
+		return fmt.Errorf("error while getting store height: %w", err)
 	}
 
 	newHeight := height + 1
@@ -554,45 +549,31 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		data = pendingData
 	} else {
 		batchData, err := m.retrieveBatch(ctx)
-		if errors.Is(err, ErrNoBatch) {
-			// Even with no transactions, we still want to create a block with an empty batch
-			if batchData != nil {
+		if err != nil {
+			if errors.Is(err, ErrNoBatch) {
+				if batchData == nil {
+					m.logger.Info("No batch retrieved from sequencer, skipping block production")
+					return nil
+				}
 				m.logger.Info("Creating empty block", "height", newHeight)
-
-				// Create an empty block
-				header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
-				if err != nil {
-					return err
-				}
-
-				err = m.store.SaveBlockData(ctx, header, data, &signature)
-				if err != nil {
-					return SaveBlockError{err}
-				}
 			} else {
-				// If we don't have a batch at all (not even an empty one), skip block production
-				m.logger.Info("No batch retrieved from sequencer, skipping block production")
-				return nil
+				return fmt.Errorf("failed to get transactions from batch: %w", err)
 			}
-		} else if err != nil {
-			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		} else {
-			// We have a batch with transactions
-			// sanity check timestamp for monotonically increasing
 			if batchData.Before(lastHeaderTime) {
 				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 			}
 			m.logger.Info("Creating and publishing block", "height", newHeight)
-			header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
-			if err != nil {
-				return err
-			}
-			m.logger.Debug("block info", "num_tx", len(data.Txs))
+			m.logger.Debug("block info", "num_tx", len(batchData.Batch.Transactions))
+		}
 
-			err = m.store.SaveBlockData(ctx, header, data, &signature)
-			if err != nil {
-				return SaveBlockError{err}
-			}
+		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
+		if err != nil {
+			return err
+		}
+
+		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
+			return SaveBlockError{err}
 		}
 	}
 
@@ -712,7 +693,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
+}
 
+func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	if m.signer == nil {
 		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
 	}
