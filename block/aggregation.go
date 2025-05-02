@@ -55,15 +55,23 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 			return
 
 		case <-lazyTimer.C:
+			start := time.Now()
 			m.logger.Debug("Lazy timer triggered block production")
-			m.produceBlock(ctx, "lazy_timer", lazyTimer, blockTimer)
+			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
+				m.logger.Error("error while publishing block", "error", err)
+			}
+			lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockInterval.Duration))
 
 		case <-blockTimer.C:
+			start := time.Now()
 			m.logger.Debug("Block timer triggered block production")
 			if m.txsAvailable {
-				m.produceBlock(ctx, "block_timer", lazyTimer, blockTimer)
+				if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
+					m.logger.Error("error while publishing block", "error", err)
+				}
 			}
 			m.txsAvailable = false
+			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 
 		case <-m.txNotifyCh:
 			m.txsAvailable = true
@@ -93,23 +101,6 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 			// to avoid triggering block production outside the scheduled intervals.
 		}
 	}
-}
-
-// produceBlock handles the common logic for producing a block and resetting timers
-func (m *Manager) produceBlock(ctx context.Context, trigger string, lazyTimer, blockTimer *time.Timer) {
-	// Record the start time
-	start := time.Now()
-
-	// Attempt to publish the block
-	if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
-		m.logger.Error("error while publishing block", "trigger", trigger, "error", err)
-	} else {
-		m.logger.Debug("Successfully published block", "trigger", trigger)
-	}
-
-	// Reset both timers for the next aggregation window
-	lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockInterval.Duration))
-	blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 }
 
 func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
