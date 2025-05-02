@@ -9,10 +9,12 @@ import (
 
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
+	"google.golang.org/protobuf/proto"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	dac "github.com/rollkit/rollkit/da"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // ErrInvalidRollupId is returned when the rollup id is invalid
@@ -197,8 +199,17 @@ daSubmitRetryLoop:
 		case <-time.After(backoff):
 		}
 
+		// Convert batch to protobuf and marshal
+		batchPb := &pb.Batch{
+			Txs: currentBatch.Transactions,
+		}
+		batchBz, err := proto.Marshal(batchPb)
+		if err != nil {
+			return fmt.Errorf("failed to marshal batch: %w", err)
+		}
+
 		// Attempt to submit the batch to the DA layer
-		res := c.dalc.Submit(ctx, currentBatch.Transactions, maxBlobSize, gasPrice)
+		res := c.dalc.Submit(ctx, [][]byte{batchBz}, maxBlobSize, gasPrice)
 
 		gasMultiplier, err := c.dalc.GasMultiplier(ctx)
 		if err != nil {

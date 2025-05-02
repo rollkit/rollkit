@@ -119,9 +119,8 @@ For non-sequencer full nodes, Blocks gossiped through the P2P network are retrie
 Starting off with a block store height of zero, for every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in the block manager and when this signal is received, the `BlockStoreRetrieveLoop` retrieves blocks from the block store.
 It keeps track of the last retrieved block's height and every time the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
 For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel in which blocks retrieved from the DA layer are sent.
-This block is marked as soft confirmed by the validating full node until the same block is seen on the DA layer and then marked DA-included.
 
-Although a sequencer does not need to retrieve blocks from the P2P network, it still runs the `BlockStoreRetrieveLoop`.
+This block is marked as soft confirmed by the validating full node until the same block data and the corresponding header is seen on the DA layer then marked DA-included.
 
 #### About Soft Confirmations and DA Inclusions
 
