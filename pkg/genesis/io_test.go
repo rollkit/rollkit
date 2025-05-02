@@ -94,7 +94,7 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 			// Verify file contents are valid JSON
 			fileContent, err := os.ReadFile(filepath.Clean(tmpFile))
 			assert.NoError(t, err)
-			var jsonContent map[string]interface{}
+			var jsonContent map[string]any
 			err = json.Unmarshal(fileContent, &jsonContent)
 			assert.NoError(t, err)
 		})

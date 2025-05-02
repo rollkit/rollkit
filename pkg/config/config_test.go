@@ -276,7 +276,7 @@ signer:
 	require.Equal(t, "something/config", cfgFromViper.Signer.SignerPath, "Signer.SignerPath should match YAML")
 }
 
-func assertFlagValue(t *testing.T, flags *pflag.FlagSet, name string, expectedValue interface{}) {
+func assertFlagValue(t *testing.T, flags *pflag.FlagSet, name string, expectedValue any) {
 	flag := flags.Lookup(name)
 	assert.NotNil(t, flag, "Flag %s should exist", name)
 	if flag != nil {

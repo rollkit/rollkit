@@ -10,10 +10,10 @@ import (
 
 type mockLogger struct {
 	lastMsg string
-	lastKV  []interface{}
+	lastKV  []any
 }
 
-func (m *mockLogger) Info(msg string, keyvals ...interface{}) {
+func (m *mockLogger) Info(msg string, keyvals ...any) {
 	m.lastMsg = msg
 	m.lastKV = keyvals
 }
