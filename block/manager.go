@@ -695,7 +695,7 @@ func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature 
 	}
 
 	// Determine if this is an empty block
-	isEmpty := batchData.Batch == nil || len(batchData.Batch.Transactions) == 0
+	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
 
 	// Set the appropriate data hash based on whether this is an empty block
 	var dataHash types.Hash
@@ -736,9 +736,9 @@ func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature 
 
 	// Only add transactions if this is not an empty block
 	if !isEmpty {
-		blockData.Txs = make(types.Txs, len(batchData.Batch.Transactions))
-		for i := range batchData.Batch.Transactions {
-			blockData.Txs[i] = types.Tx(batchData.Batch.Transactions[i])
+		blockData.Txs = make(types.Txs, len(batchData.Transactions))
+		for i := range batchData.Transactions {
+			blockData.Txs[i] = types.Tx(batchData.Transactions[i])
 		}
 	}
 
