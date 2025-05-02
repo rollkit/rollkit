@@ -38,12 +38,6 @@ type Data struct {
 // Signature represents signature of block creator.
 type Signature []byte
 
-// IntermediateStateRoots describes the state between transactions.
-// They are required for fraud proofs.
-type IntermediateStateRoots struct {
-	RawRootsList [][]byte
-}
-
 // ValidateBasic performs basic validation of a signature.
 func (signature *Signature) ValidateBasic() error {
 	if len(*signature) == 0 {
