@@ -15,7 +15,7 @@ import (
 )
 
 // LastSubmittedHeightKey is the key used for persisting the last submitted height in store.
-const LastSubmittedHeightKey = "last submitted"
+const LastSubmittedHeightKey = "last-submitted"
 
 // PendingHeaders maintains headers that need to be published to DA layer
 //

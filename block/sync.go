@@ -142,10 +142,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return SaveBlockError{err}
 		}
-		_, err = m.execCommit(ctx, newState, h, d)
-		if err != nil {
-			return fmt.Errorf("failed to Commit: %w", err)
-		}
 
 		// Height gets updated
 		err = m.store.SetHeight(ctx, hHeight)

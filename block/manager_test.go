@@ -176,6 +176,7 @@ func TestIsDAIncluded(t *testing.T) {
 	// Create a minimalistic block manager
 	m := &Manager{
 		headerCache: cache.NewCache[types.SignedHeader](),
+		dataCache:   cache.NewCache[types.Data](),
 	}
 	hash := types.Hash([]byte("hash"))
 
@@ -184,6 +185,7 @@ func TestIsDAIncluded(t *testing.T) {
 
 	// Set the hash as DAIncluded and verify IsDAIncluded returns true
 	m.headerCache.SetDAIncluded(hash.String())
+	m.dataCache.SetDAIncluded(hash.String())
 	require.True(m.IsDAIncluded(hash))
 }
 

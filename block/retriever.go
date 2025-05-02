@@ -22,7 +22,7 @@ const (
 
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
-	// blockFoundCh is used to track when we successfully found a block so
+	// headerFoundCh is used to track when we successfully found a block so
 	// that we can continue to try and find blocks that are in the next DA height.
 	// This enables syncing faster than the DA block time.
 	headerFoundCh := make(chan struct{}, 1)
