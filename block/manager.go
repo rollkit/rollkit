@@ -130,7 +130,7 @@ type Manager struct {
 	logger log.Logger
 
 	// For usage by Lazy Aggregator mode
-	buildingBlock bool
+	txsAvailable bool
 
 	pendingHeaders *PendingHeaders
 
@@ -152,6 +152,9 @@ type Manager struct {
 	// publishBlock is the function used to publish blocks. It defaults to
 	// the manager's publishBlock method but can be overridden for testing.
 	publishBlock publishBlockFunc
+
+	// txNotifyCh is used to signal when new transactions are available
+	txNotifyCh chan struct{}
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -346,13 +349,14 @@ func NewManager(
 		dataCache:      cache.NewCache[types.Data](),
 		retrieveCh:     make(chan struct{}, 1),
 		logger:         logger,
-		buildingBlock:  false,
+		txsAvailable:   false,
 		pendingHeaders: pendingHeaders,
 		metrics:        seqMetrics,
 		sequencer:      sequencer,
 		exec:           exec,
 		gasPrice:       gasPrice,
 		gasMultiplier:  gasMultiplier,
+		txNotifyCh:     make(chan struct{}, 1), // Non-blocking channel
 	}
 	agg.init(ctx)
 	// Set the default publishBlock implementation
@@ -956,4 +960,17 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 		return nil, fmt.Errorf("signer is nil; cannot sign header")
 	}
 	return m.signer.Sign(b)
+}
+
+// NotifyNewTransactions signals that new transactions are available for processing
+// This method will be called by the Reaper when it receives new transactions
+func (m *Manager) NotifyNewTransactions() {
+	// Non-blocking send to avoid slowing down the transaction submission path
+	select {
+	case m.txNotifyCh <- struct{}{}:
+		// Successfully sent notification
+	default:
+		// Channel buffer is full, which means a notification is already pending
+		// This is fine, as we just need to trigger one block production
+	}
 }
