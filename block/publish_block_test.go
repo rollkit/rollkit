@@ -227,6 +227,9 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	noopSigner, err := noopsigner.NewNoopSigner(privKey)
 	require.NoError(err)
 
+	daH := atomic.Uint64{}
+	daH.Store(0)
+
 	m := &Manager{
 		store:     mockStore,
 		sequencer: mockSeq,
@@ -245,6 +248,18 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		},
 		lastStateMtx: &sync.RWMutex{},
 		metrics:      NopMetrics(),
+		lastState: types.State{
+			ChainID:         chainID,
+			InitialHeight:   1,
+			LastBlockHeight: 1,
+			LastBlockTime:   time.Now(),
+			AppHash:         []byte("initialAppHash"),
+		},
+		headerCache: cache.NewCache[types.SignedHeader](),
+		dataCache:   cache.NewCache[types.Data](),
+		HeaderCh:    make(chan *types.SignedHeader, 1),
+		DataCh:      make(chan *types.Data, 1),
+		daHeight:    &daH,
 	}
 
 	m.publishBlock = m.publishBlockInternal
@@ -279,18 +294,30 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	})
 	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(emptyBatchResponse, nil).Once()
 
+	// With our new implementation, we should expect SaveBlockData to be called for empty blocks
+	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
+
+	// We should also expect ExecuteTxs to be called with an empty transaction list
+	newAppHash := []byte("newAppHash")
+	mockExec.On("ExecuteTxs", ctx, mock.Anything, currentHeight+1, mock.AnythingOfType("time.Time"), m.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
+
+	// SetFinal should be called
+	mockExec.On("SetFinal", ctx, currentHeight+1).Return(nil).Once()
+
+	// SetHeight should be called
+	mockStore.On("SetHeight", ctx, currentHeight+1).Return(nil).Once()
+
+	// UpdateState should be called
+	mockStore.On("UpdateState", ctx, mock.AnythingOfType("types.State")).Return(nil).Once()
+
+	// SaveBlockData should be called again after validation
+	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
+
 	// Call publishBlock
 	err = m.publishBlock(ctx)
 
 	// Assertions
 	require.NoError(err, "publishBlock should return nil error when the batch is empty")
-
-	// Verify mocks: Ensure methods after the check were NOT called
-	mockStore.AssertNotCalled(t, "SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-	mockExec.AssertNotCalled(t, "ExecuteTxs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-	mockExec.AssertNotCalled(t, "SetFinal", mock.Anything, mock.Anything)
-	mockStore.AssertNotCalled(t, "SetHeight", mock.Anything, mock.Anything)
-	mockStore.AssertNotCalled(t, "UpdateState", mock.Anything, mock.Anything)
 
 	mockSeq.AssertExpectations(t)
 	mockStore.AssertExpectations(t)

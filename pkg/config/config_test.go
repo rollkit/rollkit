@@ -31,8 +31,8 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, uint64(0), def.DA.StartHeight)
 	assert.Equal(t, uint64(0), def.DA.MempoolTTL)
 	assert.Equal(t, uint64(0), def.Node.MaxPendingBlocks)
-	assert.Equal(t, false, def.Node.LazyAggregator)
-	assert.Equal(t, 60*time.Second, def.Node.LazyBlockTime.Duration)
+	assert.Equal(t, false, def.Node.LazyMode)
+	assert.Equal(t, 60*time.Second, def.Node.LazyBlockInterval.Duration)
 	assert.Equal(t, "", def.Node.TrustedHash)
 	assert.Equal(t, "file", def.Signer.SignerType)
 	assert.Equal(t, "config", def.Signer.SignerPath)
@@ -57,9 +57,9 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagLight, DefaultConfig.Node.Light)
 	assertFlagValue(t, flags, FlagBlockTime, DefaultConfig.Node.BlockTime.Duration)
 	assertFlagValue(t, flags, FlagTrustedHash, DefaultConfig.Node.TrustedHash)
-	assertFlagValue(t, flags, FlagLazyAggregator, DefaultConfig.Node.LazyAggregator)
+	assertFlagValue(t, flags, FlagLazyAggregator, DefaultConfig.Node.LazyMode)
 	assertFlagValue(t, flags, FlagMaxPendingBlocks, DefaultConfig.Node.MaxPendingBlocks)
-	assertFlagValue(t, flags, FlagLazyBlockTime, DefaultConfig.Node.LazyBlockTime.Duration)
+	assertFlagValue(t, flags, FlagLazyBlockTime, DefaultConfig.Node.LazyBlockInterval.Duration)
 
 	// DA flags
 	assertFlagValue(t, flags, FlagDAAddress, DefaultConfig.DA.Address)
@@ -232,7 +232,7 @@ signer:
 	cmd.SetArgs([]string{
 		"--home=" + tempDir,
 		"--rollkit.da.gas_price=0.5",
-		"--rollkit.node.lazy_aggregator=true",
+		"--rollkit.node.lazy_mode=true",
 	})
 	err = cmd.Execute()
 	require.NoError(t, err)
@@ -245,7 +245,7 @@ signer:
 	v := viper.New()
 	v.Set(FlagRootDir, tempDir)
 	v.Set("rollkit.da.gas_price", "0.5")
-	v.Set("rollkit.node.lazy_aggregator", true)
+	v.Set("rollkit.node.lazy_mode", true)
 
 	// Load configuration using the new LoadFromViper method
 	cfgFromViper, err := LoadFromViper(v)
@@ -254,7 +254,7 @@ signer:
 	// Compare the results - they should be identical
 	require.Equal(t, cfgFromLoad.RootDir, cfgFromViper.RootDir, "RootDir should match")
 	require.Equal(t, cfgFromLoad.DA.GasPrice, cfgFromViper.DA.GasPrice, "DA.GasPrice should match")
-	require.Equal(t, cfgFromLoad.Node.LazyAggregator, cfgFromViper.Node.LazyAggregator, "Node.LazyAggregator should match")
+	require.Equal(t, cfgFromLoad.Node.LazyMode, cfgFromViper.Node.LazyMode, "Node.LazyAggregator should match")
 	require.Equal(t, cfgFromLoad.Node.Aggregator, cfgFromViper.Node.Aggregator, "Node.Aggregator should match")
 	require.Equal(t, cfgFromLoad.Node.BlockTime, cfgFromViper.Node.BlockTime, "Node.BlockTime should match")
 	require.Equal(t, cfgFromLoad.DA.Address, cfgFromViper.DA.Address, "DA.Address should match")

@@ -130,7 +130,7 @@ type Manager struct {
 	logger log.Logger
 
 	// For usage by Lazy Aggregator mode
-	buildingBlock bool
+	txsAvailable bool
 
 	pendingHeaders *PendingHeaders
 
@@ -152,6 +152,9 @@ type Manager struct {
 	// publishBlock is the function used to publish blocks. It defaults to
 	// the manager's publishBlock method but can be overridden for testing.
 	publishBlock publishBlockFunc
+
+	// txNotifyCh is used to signal when new transactions are available
+	txNotifyCh chan struct{}
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -285,9 +288,9 @@ func NewManager(
 		config.Node.BlockTime.Duration = defaultBlockTime
 	}
 
-	if config.Node.LazyBlockTime.Duration == 0 {
+	if config.Node.LazyBlockInterval.Duration == 0 {
 		logger.Info("Using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
-		config.Node.LazyBlockTime.Duration = defaultLazyBlockTime
+		config.Node.LazyBlockInterval.Duration = defaultLazyBlockTime
 	}
 
 	if config.DA.MempoolTTL == 0 {
@@ -346,13 +349,14 @@ func NewManager(
 		dataCache:      cache.NewCache[types.Data](),
 		retrieveCh:     make(chan struct{}, 1),
 		logger:         logger,
-		buildingBlock:  false,
+		txsAvailable:   false,
 		pendingHeaders: pendingHeaders,
 		metrics:        seqMetrics,
 		sequencer:      sequencer,
 		exec:           exec,
 		gasPrice:       gasPrice,
 		gasMultiplier:  gasMultiplier,
+		txNotifyCh:     make(chan struct{}, 1), // Non-blocking channel
 	}
 	agg.init(ctx)
 	// Set the default publishBlock implementation
@@ -463,8 +467,14 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 			"txCount", len(res.Batch.Transactions),
 			"timestamp", res.Timestamp)
 
+		// Even if there are no transactions, return the batch with timestamp
+		// This allows empty blocks to maintain proper timing
 		if len(res.Batch.Transactions) == 0 {
-			return nil, ErrNoBatch
+			return &BatchData{
+				Batch: res.Batch,
+				Time:  res.Timestamp,
+				Data:  res.BatchData,
+			}, ErrNoBatch
 		}
 		h := convertBatchDataToBytes(res.BatchData)
 		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
@@ -501,10 +511,12 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		lastHeaderTime time.Time
 		err            error
 	)
+
 	height, err := m.store.Height(ctx)
 	if err != nil {
-		return fmt.Errorf("error while getting store height: %w", err)
+		return fmt.Errorf("error while getting height: %w", err)
 	}
+
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight <= m.genesis.InitialHeight {
@@ -540,26 +552,44 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	} else {
 		batchData, err := m.retrieveBatch(ctx)
 		if errors.Is(err, ErrNoBatch) {
-			m.logger.Info("No batch retrieved from sequencer, skipping block production")
-			return nil // Indicate no block was produced
+			// Even with no transactions, we still want to create a block with an empty batch
+			if batchData != nil {
+				m.logger.Info("Creating empty block", "height", newHeight)
+
+				// Create an empty block
+				header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
+				if err != nil {
+					return err
+				}
+
+				err = m.store.SaveBlockData(ctx, header, data, &signature)
+				if err != nil {
+					return SaveBlockError{err}
+				}
+			} else {
+				// If we don't have a batch at all (not even an empty one), skip block production
+				m.logger.Info("No batch retrieved from sequencer, skipping block production")
+				return nil
+			}
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
-		}
+		} else {
+			// We have a batch with transactions
+			// sanity check timestamp for monotonically increasing
+			if batchData.Before(lastHeaderTime) {
+				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
+			}
+			m.logger.Info("Creating and publishing block", "height", newHeight)
+			header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
+			if err != nil {
+				return err
+			}
+			m.logger.Debug("block info", "num_tx", len(data.Txs))
 
-		// sanity check timestamp for monotonically increasing
-		if batchData.Before(lastHeaderTime) {
-			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
-		}
-		m.logger.Info("Creating and publishing block", "height", newHeight)
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
-		if err != nil {
-			return err
-		}
-		m.logger.Debug("block info", "num_tx", len(data.Txs))
-
-		err = m.store.SaveBlockData(ctx, header, data, &signature)
-		if err != nil {
-			return SaveBlockError{err}
+			err = m.store.SaveBlockData(ctx, header, data, &signature)
+			if err != nil {
+				return SaveBlockError{err}
+			}
 		}
 	}
 
@@ -679,7 +709,74 @@ func (m *Manager) getLastBlockTime() time.Time {
 func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
+
+	if m.signer == nil {
+		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
+	}
+
+	key, err := m.signer.GetPublic()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get proposer public key: %w", err)
+	}
+
+	// check that the proposer address is the same as the genesis proposer address
+	address, err := m.signer.GetAddress()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get proposer address: %w", err)
+	}
+	if !bytes.Equal(m.genesis.ProposerAddress, address) {
+		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
+	}
+
+	// Determine if this is an empty block
+	isEmpty := batchData.Batch == nil || len(batchData.Batch.Transactions) == 0
+
+	// Set the appropriate data hash based on whether this is an empty block
+	var dataHash types.Hash
+	if isEmpty {
+		dataHash = dataHashForEmptyTxs // Use dataHashForEmptyTxs for empty blocks
+	} else {
+		dataHash = convertBatchDataToBytes(batchData.Data)
+	}
+
+	header := &types.SignedHeader{
+		Header: types.Header{
+			Version: types.Version{
+				Block: m.lastState.Version.Block,
+				App:   m.lastState.Version.App,
+			},
+			BaseHeader: types.BaseHeader{
+				ChainID: m.lastState.ChainID,
+				Height:  height,
+				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
+			},
+			LastHeaderHash:  lastHeaderHash,
+			DataHash:        dataHash,
+			ConsensusHash:   make(types.Hash, 32),
+			AppHash:         m.lastState.AppHash,
+			ProposerAddress: m.genesis.ProposerAddress,
+		},
+		Signature: *lastSignature,
+		Signer: types.Signer{
+			PubKey:  key,
+			Address: m.genesis.ProposerAddress,
+		},
+	}
+
+	// Create block data with appropriate transactions
+	blockData := &types.Data{
+		Txs: make(types.Txs, 0), // Start with empty transaction list
+	}
+
+	// Only add transactions if this is not an empty block
+	if !isEmpty {
+		blockData.Txs = make(types.Txs, len(batchData.Batch.Transactions))
+		for i := range batchData.Batch.Transactions {
+			blockData.Txs[i] = types.Tx(batchData.Batch.Transactions[i])
+		}
+	}
+
+	return header, blockData, nil
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
@@ -863,4 +960,17 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 		return nil, fmt.Errorf("signer is nil; cannot sign header")
 	}
 	return m.signer.Sign(b)
+}
+
+// NotifyNewTransactions signals that new transactions are available for processing
+// This method will be called by the Reaper when it receives new transactions
+func (m *Manager) NotifyNewTransactions() {
+	// Non-blocking send to avoid slowing down the transaction submission path
+	select {
+	case m.txNotifyCh <- struct{}{}:
+		// Successfully sent notification
+	default:
+		// Channel buffer is full, which means a notification is already pending
+		// This is fine, as we just need to trigger one block production
+	}
 }
