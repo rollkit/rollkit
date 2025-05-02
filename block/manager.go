@@ -729,7 +729,7 @@ func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature 
 	}
 
 	// Determine if this is an empty block
-	isEmpty := batchData.Batch == nil || len(batchData.Batch.Transactions) == 0
+	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
 
 	// Set the appropriate data hash based on whether this is an empty block
 	var dataHash types.Hash
@@ -770,9 +770,9 @@ func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature 
 
 	// Only add transactions if this is not an empty block
 	if !isEmpty {
-		blockData.Txs = make(types.Txs, len(batchData.Batch.Transactions))
-		for i := range batchData.Batch.Transactions {
-			blockData.Txs[i] = types.Tx(batchData.Batch.Transactions[i])
+		blockData.Txs = make(types.Txs, len(batchData.Transactions))
+		for i := range batchData.Transactions {
+			blockData.Txs[i] = types.Tx(batchData.Transactions[i])
 		}
 	}
 
@@ -793,61 +793,6 @@ func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Da
 func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
 	err := m.exec.SetFinal(ctx, h.Height())
 	return newState.AppHash, err
-}
-
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
-	batchDataIDs := convertBatchDataToBytes(batchData.Data)
-
-	if m.signer == nil {
-		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
-	}
-
-	key, err := m.signer.GetPublic()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get proposer public key: %w", err)
-	}
-
-	// check that the proposer address is the same as the genesis proposer address
-	address, err := m.signer.GetAddress()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get proposer address: %w", err)
-	}
-	if !bytes.Equal(m.genesis.ProposerAddress, address) {
-		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
-	}
-
-	header := &types.SignedHeader{
-		Header: types.Header{
-			Version: types.Version{
-				Block: lastState.Version.Block,
-				App:   lastState.Version.App,
-			},
-			BaseHeader: types.BaseHeader{
-				ChainID: lastState.ChainID,
-				Height:  height,
-				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
-			},
-			LastHeaderHash:  lastHeaderHash,
-			DataHash:        batchDataIDs,
-			ConsensusHash:   make(types.Hash, 32),
-			AppHash:         lastState.AppHash,
-			ProposerAddress: m.genesis.ProposerAddress,
-		},
-		Signature: *lastSignature,
-		Signer: types.Signer{
-			PubKey:  key,
-			Address: m.genesis.ProposerAddress,
-		},
-	}
-
-	blockData := &types.Data{
-		Txs: make(types.Txs, len(batchData.Transactions)),
-	}
-	for i := range batchData.Transactions {
-		blockData.Txs[i] = types.Tx(batchData.Transactions[i])
-	}
-
-	return header, blockData, nil
 }
 
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
