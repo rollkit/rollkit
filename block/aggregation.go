@@ -2,7 +2,6 @@ package block
 
 import (
 	"context"
-	"errors"
 	"time"
 )
 
@@ -50,11 +49,6 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 	lazyTimer := time.NewTimer(0)
 	defer lazyTimer.Stop()
 
-	// Add a polling timer to periodically check for transactions
-	// This is a fallback mechanism in case notifications fail
-	txPollTimer := time.NewTimer(2 * time.Second)
-	defer txPollTimer.Stop()
-
 	// Track if we've received transactions but haven't built a block yet
 	pendingTxs := false
 
@@ -93,18 +87,6 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 				blockTimer.Reset(m.config.Node.BlockTime.Duration)
 			}
 
-		case <-txPollTimer.C:
-			hasTxs, err := m.checkForTransactions(ctx)
-			if err != nil {
-				m.logger.Error("Failed to check for transactions", "error", err)
-			} else if hasTxs && !m.buildingBlock && !pendingTxs {
-				// Same as with txNotifyCh - mark pending and wait for block timer
-				pendingTxs = true
-				m.logger.Debug("Found transactions in poll, waiting for more transactions",
-					"collection_time", m.config.Node.BlockTime.Duration)
-				blockTimer.Reset(m.config.Node.BlockTime.Duration)
-			}
-			txPollTimer.Reset(2 * time.Second)
 		}
 	}
 }
@@ -161,24 +143,4 @@ func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
 	}
 
 	return time.Millisecond
-}
-
-// checkForTransactions checks if there are any transactions available for processing
-func (m *Manager) checkForTransactions(ctx context.Context) (bool, error) {
-	// Try to retrieve a batch without actually consuming it
-	batchData, err := m.retrieveBatch(ctx)
-	if err != nil {
-		if errors.Is(err, ErrNoBatch) {
-			// This is expected when there are no transactions
-			return false, nil
-		}
-		return false, err
-	}
-
-	// If we got a batch with transactions, return true
-	if batchData != nil && batchData.Batch != nil && len(batchData.Transactions) > 0 {
-		return true, nil
-	}
-
-	return false, nil
 }
