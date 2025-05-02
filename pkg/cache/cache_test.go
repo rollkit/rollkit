@@ -99,10 +99,10 @@ func TestCacheConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < operations; j++ {
+			for j := range operations {
 				// Test concurrent item operations
 				value := fmt.Sprintf("value-%d-%d", id, j)
 				cache.SetItem(uint64(j), &value)

@@ -391,11 +391,11 @@ func TestConcurrentAccess(t *testing.T) {
 	errChan := make(chan error, numGoRoutines*messageCount)
 	doneChan := make(chan struct{})
 
-	for i := 0; i < numGoRoutines; i++ {
+	for i := range numGoRoutines {
 		go func(routineNum int) {
-			for j := 0; j < messageCount; j++ {
+			for j := range messageCount {
 				// Create a unique message per goroutine and iteration
-				message := []byte(fmt.Sprintf("Message %d-%d", routineNum, j))
+				message := fmt.Appendf(nil, "Message %d-%d", routineNum, j)
 
 				// Get public key
 				pubKey, err := signer.GetPublic()
