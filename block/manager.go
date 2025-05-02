@@ -255,7 +255,9 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 	return s, nil
 }
 
-// NewManager creates new block Manager.
+// NewManager initializes and returns a new Manager for aggregating transactions into blocks.
+// It sets up the initial state, configures dependencies, initializes internal channels and caches, and prepares the Manager for block production and transaction notification.
+// Returns an error if initialization fails.
 func NewManager(
 	ctx context.Context,
 	signer signer.Signer,

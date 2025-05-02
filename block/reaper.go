@@ -30,7 +30,7 @@ type Reaper struct {
 	manager   *Manager
 }
 
-// NewReaper creates a new Reaper instance with persistent seenTx storage.
+// NewReaper returns a new Reaper configured to periodically fetch and submit transactions, using persistent storage to track seen transactions.
 func NewReaper(ctx context.Context, exec coreexecutor.Executor, sequencer coresequencer.Sequencer, chainID string, interval time.Duration, logger log.Logger, store ds.Batching) *Reaper {
 	if interval <= 0 {
 		interval = DefaultInterval

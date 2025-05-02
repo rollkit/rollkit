@@ -66,7 +66,8 @@ type FullNode struct {
 	rpcServer     *http.Server
 }
 
-// newFullNode creates a new Rollkit full node.
+// newFullNode initializes and returns a new FullNode instance with all required services and components configured.
+// Returns an error if any component fails to initialize.
 func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,

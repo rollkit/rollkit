@@ -148,6 +148,7 @@ func (m *Manager) produceBlock(ctx context.Context, trigger string, lazyTimer, b
 	blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 }
 
+// getRemainingSleep returns the remaining duration to sleep so that the total elapsed time since start matches the specified interval. If the interval has already passed, it returns a minimal duration of 1 millisecond.
 func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
 	elapsed := time.Since(start)
 
