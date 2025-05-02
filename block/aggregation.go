@@ -28,24 +28,24 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 		time.Sleep(delay)
 	}
 
-	// Lazy Aggregator mode.
-	// In Lazy Aggregator mode, blocks are built only when there are
-	// transactions or every LazyBlockTime.
-	if m.config.Node.LazyMode {
-		m.lazyAggregationLoop(ctx)
-		return
-	}
-
 	// blockTimer is used to signal when to build a block based on the
 	// rollup block time. A timer is used so that the time to build a block
 	// can be taken into account.
 	blockTimer := time.NewTimer(0)
 	defer blockTimer.Stop()
 
+	// Lazy Aggregator mode.
+	// In Lazy Aggregator mode, blocks are built only when there are
+	// transactions or every LazyBlockTime.
+	if m.config.Node.LazyMode {
+		m.lazyAggregationLoop(ctx, blockTimer)
+		return
+	}
+
 	m.normalAggregationLoop(ctx, blockTimer)
 }
 
-func (m *Manager) lazyAggregationLoop(ctx context.Context) {
+func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
 	// lazyTimer triggers block publication even during inactivity
 	lazyTimer := time.NewTimer(0)
 	defer lazyTimer.Stop()
@@ -55,31 +55,54 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context) {
 	txPollTimer := time.NewTimer(2 * time.Second)
 	defer txPollTimer.Stop()
 
+	// Track if we've received transactions but haven't built a block yet
+	pendingTxs := false
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 
 		case <-lazyTimer.C:
-			m.produceBlockLazy(ctx, "lazy_timer", lazyTimer)
+			m.buildingBlock = false
+			pendingTxs = false
+			m.produceBlockLazy(ctx, "lazy_timer", lazyTimer, blockTimer)
+
+		case <-blockTimer.C:
+			if pendingTxs {
+				m.buildingBlock = true
+				m.produceBlockLazy(ctx, "tx_collection_complete", lazyTimer, blockTimer)
+				pendingTxs = false
+			} else {
+				// Reset the block timer if no pending transactions
+				blockTimer.Reset(m.config.Node.BlockTime.Duration)
+			}
 
 		case <-m.txNotifyCh:
-			// Only proceed if we're not being throttled
-			if time.Since(m.lastTxNotifyTime) < m.minTxNotifyInterval {
+			if m.buildingBlock {
 				continue
 			}
-			m.produceBlockLazy(ctx, "tx_notification", lazyTimer)
 
-			// Update the last notification time
-			m.lastTxNotifyTime = time.Now()
+			// Instead of immediately producing a block, mark that we have pending transactions
+			// and let the block timer determine when to actually build the block
+			if !pendingTxs {
+				pendingTxs = true
+				m.logger.Debug("Received transaction notification, waiting for more transactions",
+					"collection_time", m.config.Node.BlockTime.Duration)
+				// Reset the block timer to wait for more transactions
+				blockTimer.Reset(m.config.Node.BlockTime.Duration)
+			}
 
 		case <-txPollTimer.C:
-			// Check if there are transactions available
 			hasTxs, err := m.checkForTransactions(ctx)
 			if err != nil {
 				m.logger.Error("Failed to check for transactions", "error", err)
-			} else if hasTxs {
-				m.produceBlockLazy(ctx, "tx_poll", lazyTimer)
+			} else if hasTxs && !m.buildingBlock && !pendingTxs {
+				// Same as with txNotifyCh - mark pending and wait for block timer
+				pendingTxs = true
+				m.logger.Debug("Found transactions in poll, waiting for more transactions",
+					"collection_time", m.config.Node.BlockTime.Duration)
+				blockTimer.Reset(m.config.Node.BlockTime.Duration)
 			}
 			txPollTimer.Reset(2 * time.Second)
 		}
@@ -93,14 +116,12 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 		case <-ctx.Done():
 			return
 		case <-blockTimer.C:
-			// Define the start time for the block production period
 			start := time.Now()
 
 			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
 				m.logger.Error("error while publishing block", "error", err)
 			}
 			// Reset the blockTimer to signal the next block production
-			// period based on the block time.
 			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 
 		case <-m.txNotifyCh:
@@ -111,9 +132,14 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 }
 
 // produceBlockLazy handles the common logic for producing a block and resetting timers in lazy mode
-func (m *Manager) produceBlockLazy(ctx context.Context, trigger string, lazyTimer *time.Timer) {
+func (m *Manager) produceBlockLazy(ctx context.Context, trigger string, lazyTimer, blockTimer *time.Timer) {
 	// Record the start time
 	start := time.Now()
+
+	m.buildingBlock = true
+	defer func() {
+		m.buildingBlock = false
+	}()
 
 	// Attempt to publish the block
 	if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
@@ -124,6 +150,7 @@ func (m *Manager) produceBlockLazy(ctx context.Context, trigger string, lazyTime
 
 	// Reset the lazy timer for the next aggregation window
 	lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockInterval.Duration))
+	blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 }
 
 func getRemainingSleep(start time.Time, interval time.Duration) time.Duration {
