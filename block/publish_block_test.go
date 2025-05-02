@@ -294,6 +294,9 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	})
 	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(emptyBatchResponse, nil).Once()
 
+	// Mock SetMetadata for LastBatchDataKey (required for empty batch handling)
+	mockStore.On("SetMetadata", ctx, "l", mock.AnythingOfType("[]uint8")).Return(nil).Once()
+
 	// With our new implementation, we should expect SaveBlockData to be called for empty blocks
 	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
 
