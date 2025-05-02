@@ -130,7 +130,7 @@ type Manager struct {
 	logger log.Logger
 
 	// For usage by Lazy Aggregator mode
-	txsAvilable bool
+	txsAvailable bool
 
 	pendingHeaders *PendingHeaders
 
@@ -349,7 +349,7 @@ func NewManager(
 		dataCache:      cache.NewCache[types.Data](),
 		retrieveCh:     make(chan struct{}, 1),
 		logger:         logger,
-		txsAvilable:    false,
+		txsAvailable:   false,
 		pendingHeaders: pendingHeaders,
 		metrics:        seqMetrics,
 		sequencer:      sequencer,

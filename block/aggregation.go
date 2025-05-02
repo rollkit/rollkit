@@ -61,13 +61,13 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 
 		case <-blockTimer.C:
 			m.logger.Debug("Block timer triggered block production")
-			if m.txsAvilable {
+			if m.txsAvailable {
 				m.produceBlock(ctx, "block_timer", lazyTimer, blockTimer)
 			}
-			m.txsAvilable = false
+			m.txsAvailable = false
 
 		case <-m.txNotifyCh:
-			m.txsAvilable = true
+			m.txsAvailable = true
 			m.produceBlock(ctx, "tx_notification", lazyTimer, blockTimer)
 		}
 	}
