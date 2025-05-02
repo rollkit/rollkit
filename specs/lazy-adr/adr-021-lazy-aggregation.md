@@ -20,11 +20,12 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
 1. **Modified Batch Retrieval**:
 
     ```go
+
 func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
-	res, err := m.sequencer.GetBatch(ctx)
-	if err != nil {
-		return nil, err
-	}
+ res, err := m.sequencer.GetBatch(ctx)
+ if err != nil {
+  return nil, err
+ }
 
 	if res != nil && res.Batch != nil {
 		// Even if there are no transactions, return the batch with timestamp
