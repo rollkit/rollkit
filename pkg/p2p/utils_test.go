@@ -57,7 +57,8 @@ func getAddr(sk crypto.PrivKey) (multiaddr.Multiaddr, error) {
 	if len(id) > 8 {
 		suffix = id[len(id)-8:]
 	}
-	ip := append(net.IP{}, unicastAddr...)
+	ip := make(net.IP, len(unicastAddr))
+	copy(ip, unicastAddr)
 	copy(ip[net.IPv6len-len(suffix):], suffix)
 	a, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip6/%s/tcp/4242", ip))
 	if err != nil {
@@ -106,7 +107,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 	}
 
 	clients := make([]*Client, n)
-	for i := 0; i < n; i++ {
+	for i := range seeds {
 		tempDir := filepath.Join(t.TempDir(), fmt.Sprintf("client_%d", i))
 		ClientInitFiles(t, tempDir)
 		nodeKey, err := key.GenerateNodeKey()

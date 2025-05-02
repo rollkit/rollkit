@@ -1,7 +1,6 @@
 package block
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"testing"
@@ -18,8 +17,6 @@ import (
 )
 
 func TestReaper_SubmitTxs_Success(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	mockExec := testmocks.NewExecutor(t)
 	mockSeq := testmocks.NewSequencer(t)
@@ -28,7 +25,7 @@ func TestReaper_SubmitTxs_Success(t *testing.T) {
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 
-	reaper := NewReaper(ctx, mockExec, mockSeq, chainID, interval, logger, store)
+	reaper := NewReaper(t.Context(), mockExec, mockSeq, chainID, interval, logger, store)
 
 	// Prepare transaction and its hash
 	tx := []byte("tx1")
@@ -55,8 +52,6 @@ func TestReaper_SubmitTxs_Success(t *testing.T) {
 }
 
 func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	mockExec := testmocks.NewExecutor(t)
 	mockSeq := testmocks.NewSequencer(t)
@@ -65,7 +60,7 @@ func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 
-	reaper := NewReaper(ctx, mockExec, mockSeq, chainID, interval, logger, store)
+	reaper := NewReaper(t.Context(), mockExec, mockSeq, chainID, interval, logger, store)
 
 	// Mock GetTxs returning no transactions
 	mockExec.On("GetTxs", mock.Anything).Return([][]byte{}, nil).Once()
@@ -80,8 +75,6 @@ func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
 
 func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 	require := require.New(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Use separate mocks for each instance but share the store
 	mockExec1 := testmocks.NewExecutor(t)
@@ -100,7 +93,7 @@ func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 	txKey := ds.NewKey(hex.EncodeToString(txHash[:]))
 
 	// First reaper instance
-	reaper1 := NewReaper(ctx, mockExec1, mockSeq1, chainID, interval, logger, store)
+	reaper1 := NewReaper(t.Context(), mockExec1, mockSeq1, chainID, interval, logger, store)
 
 	// Mock interactions for the first instance
 	mockExec1.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
@@ -112,12 +105,12 @@ func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 	reaper1.SubmitTxs()
 
 	// Verify the tx was marked as seen in the real store after the first run
-	has, err := store.Has(ctx, txKey)
+	has, err := store.Has(t.Context(), txKey)
 	require.NoError(err)
 	require.True(has, "Transaction should be marked as seen in the datastore after first submission")
 
 	// Create a new reaper instance simulating a restart
-	reaper2 := NewReaper(ctx, mockExec2, mockSeq2, chainID, interval, logger, store)
+	reaper2 := NewReaper(t.Context(), mockExec2, mockSeq2, chainID, interval, logger, store)
 
 	// Mock interactions for the second instance
 	mockExec2.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()

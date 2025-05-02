@@ -295,7 +295,7 @@ func getBlockDataWith(nTxs int) *Data {
 		// },
 	}
 
-	for i := 0; i < nTxs; i++ {
+	for i := range nTxs {
 		data.Txs[i] = GetRandomTx()
 		// block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
 	}
