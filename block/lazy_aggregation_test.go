@@ -342,3 +342,62 @@ func TestEmptyBlockCreation(t *testing.T) {
 	require.NotNil(capturedCtx, "Context should have been captured by mock publish function")
 	require.Equal(ctx, capturedCtx, "Context should match the one passed to produceBlock")
 }
+
+// TestNormalAggregationLoop_TxNotification tests that transaction notifications are handled in normal mode
+func TestNormalAggregationLoop_TxNotification(t *testing.T) {
+	require := require.New(t)
+
+	blockTime := 100 * time.Millisecond
+	m, pubMock := setupTestManager(t, blockTime, 0)
+	m.config.Node.LazyMode = false
+
+	// Create the notification channel
+	m.txNotifyCh = make(chan struct{}, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		blockTimer := time.NewTimer(blockTime)
+		defer blockTimer.Stop()
+		m.normalAggregationLoop(ctx, blockTimer)
+	}()
+
+	// Wait for the first block to be published by the timer
+	select {
+	case <-pubMock.calls:
+		// Block was published by timer, which is expected
+	case <-time.After(blockTime * 2):
+		require.Fail("Block was not published by timer")
+	}
+
+	// Reset the publish mock to track new calls
+	pubMock.reset()
+
+	// Send a transaction notification
+	m.NotifyNewTransactions()
+
+	// In normal mode, the notification should not trigger an immediate block
+	select {
+	case <-pubMock.calls:
+		// If we enable the optional enhancement to reset the timer, this might happen
+		// But with the current implementation, this should not happen
+		require.Fail("Block was published immediately after notification in normal mode")
+	case <-time.After(blockTime / 2):
+		// This is expected - no immediate block
+	}
+
+	// Wait for the next regular block
+	select {
+	case <-pubMock.calls:
+		// Block was published by timer, which is expected
+	case <-time.After(blockTime * 2):
+		require.Fail("Block was not published by timer after notification")
+	}
+
+	cancel()
+	wg.Wait()
+}
