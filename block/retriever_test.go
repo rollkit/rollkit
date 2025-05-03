@@ -176,6 +176,119 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
+// TestProcessNextDAHeader_MultipleHeadersAndBatches verifies that multiple headers and batches in a single DA block are all processed and corresponding events are emitted.
+func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
+	daHeight := uint64(50)
+	startBlockHeight := uint64(130)
+	nHeaders := 50
+	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
+	defer cancel()
+
+	proposerAddr := manager.genesis.ProposerAddress
+
+	var blobs [][]byte
+	var blockHeights []uint64
+	var txLens []int
+
+	invalidBlob := []byte("not a valid protobuf message")
+
+	for i := 0; i < nHeaders; i++ {
+		// Sprinkle an empty blob every 5th position
+		if i%5 == 0 {
+			blobs = append(blobs, []byte{})
+		}
+		// Sprinkle an invalid blob every 7th position
+		if i%7 == 0 {
+			blobs = append(blobs, invalidBlob)
+		}
+
+		height := startBlockHeight + uint64(i)
+		blockHeights = append(blockHeights, height)
+
+		hc := types.HeaderConfig{Height: height, Signer: manager.signer}
+		header, err := types.GetRandomSignedHeaderCustom(&hc, manager.genesis.ChainID)
+		require.NoError(t, err)
+		header.ProposerAddress = proposerAddr
+		headerProto, err := header.ToProto()
+		require.NoError(t, err)
+		headerBytes, err := proto.Marshal(headerProto)
+		require.NoError(t, err)
+		blobs = append(blobs, headerBytes)
+
+		ntxs := i + 1 // unique number of txs for each batch
+		blockConfig := types.BlockConfig{Height: height, NTxs: ntxs, ProposerAddr: proposerAddr}
+		_, blockData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
+		txLens = append(txLens, len(blockData.Txs))
+		batchProto := &v1.Batch{Txs: make([][]byte, len(blockData.Txs))}
+		for j, tx := range blockData.Txs {
+			batchProto.Txs[j] = tx
+		}
+		blockDataBytes, err := proto.Marshal(batchProto)
+		require.NoError(t, err)
+		blobs = append(blobs, blockDataBytes)
+		// Sprinkle an empty blob after each batch
+		if i%4 == 0 {
+			blobs = append(blobs, []byte{})
+		}
+	}
+
+	// Add a few more invalid blobs at the end
+	blobs = append(blobs, invalidBlob, []byte{})
+
+	// DA returns all blobs (headers, batches, and sprinkled invalid/empty blobs)
+	mockDAClient.On("Retrieve", mock.Anything, daHeight).Return(coreda.ResultRetrieve{
+		BaseResult: coreda.BaseResult{Code: coreda.StatusSuccess},
+		Data:       blobs,
+	}, nil).Once()
+
+	ctx := context.Background()
+	err := manager.processNextDAHeaderAndData(ctx)
+	require.NoError(t, err)
+
+	// Validate all header events
+	headerEvents := make([]NewHeaderEvent, 0, nHeaders)
+	for i := 0; i < nHeaders; i++ {
+		select {
+		case event := <-manager.headerInCh:
+			headerEvents = append(headerEvents, event)
+		case <-time.After(300 * time.Millisecond):
+			t.Fatalf("Expected header event %d not received", i+1)
+		}
+	}
+	// Check all expected heights are present
+	receivedHeights := make(map[uint64]bool)
+	for _, event := range headerEvents {
+		receivedHeights[event.Header.Height()] = true
+		assert.Equal(t, daHeight, event.DAHeight)
+		assert.Equal(t, proposerAddr, event.Header.ProposerAddress)
+	}
+	for _, h := range blockHeights {
+		assert.True(t, receivedHeights[h], "Header event for height %d not received", h)
+	}
+
+	// Validate all data events
+	dataEvents := make([]NewDataEvent, 0, nHeaders)
+	for i := 0; i < nHeaders; i++ {
+		select {
+		case event := <-manager.dataInCh:
+			dataEvents = append(dataEvents, event)
+		case <-time.After(300 * time.Millisecond):
+			t.Fatalf("Expected data event %d not received", i+1)
+		}
+	}
+	// Check all expected tx lens are present
+	receivedLens := make(map[int]bool)
+	for _, event := range dataEvents {
+		receivedLens[len(event.Data.Txs)] = true
+		assert.Equal(t, daHeight, event.DAHeight)
+	}
+	for _, l := range txLens {
+		assert.True(t, receivedLens[l], "Data event for tx count %d not received", l)
+	}
+
+	mockDAClient.AssertExpectations(t)
+}
+
 // TestProcessNextDAHeaderAndData_NotFound verifies that no events are emitted when DA returns NotFound.
 func TestProcessNextDAHeaderAndData_NotFound(t *testing.T) {
 	daHeight := uint64(25)
@@ -491,95 +604,6 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	if finalDAHeight != startDAHeight {
 		t.Errorf("Expected final DA height %d, got %d (should not increment on error)", startDAHeight, finalDAHeight)
 	}
-}
-
-// TestProcessNextDAHeader_MultipleHeadersAndBatches verifies that multiple headers and batches in a single DA block are all processed and corresponding events are emitted.
-func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
-	daHeight := uint64(50)
-	blockHeight1 := uint64(130)
-	blockHeight2 := uint64(131)
-	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
-	defer cancel()
-
-	proposerAddr := manager.genesis.ProposerAddress
-
-	// First header and batch
-	hc1 := types.HeaderConfig{Height: blockHeight1, Signer: manager.signer}
-	header1, err := types.GetRandomSignedHeaderCustom(&hc1, manager.genesis.ChainID)
-	require.NoError(t, err)
-	header1.ProposerAddress = proposerAddr
-	headerProto1, err := header1.ToProto()
-	require.NoError(t, err)
-	headerBytes1, err := proto.Marshal(headerProto1)
-	require.NoError(t, err)
-
-	blockConfig1 := types.BlockConfig{Height: blockHeight1, NTxs: 1, ProposerAddr: proposerAddr}
-	_, blockData1, _ := types.GenerateRandomBlockCustom(&blockConfig1, manager.genesis.ChainID)
-	batchProto1 := &v1.Batch{Txs: make([][]byte, len(blockData1.Txs))}
-	for i, tx := range blockData1.Txs {
-		batchProto1.Txs[i] = tx
-	}
-	blockDataBytes1, err := proto.Marshal(batchProto1)
-	require.NoError(t, err)
-
-	// Second header and batch
-	hc2 := types.HeaderConfig{Height: blockHeight2, Signer: manager.signer}
-	header2, err := types.GetRandomSignedHeaderCustom(&hc2, manager.genesis.ChainID)
-	require.NoError(t, err)
-	header2.ProposerAddress = proposerAddr
-	headerProto2, err := header2.ToProto()
-	require.NoError(t, err)
-	headerBytes2, err := proto.Marshal(headerProto2)
-	require.NoError(t, err)
-
-	blockConfig2 := types.BlockConfig{Height: blockHeight2, NTxs: 2, ProposerAddr: proposerAddr}
-	_, blockData2, _ := types.GenerateRandomBlockCustom(&blockConfig2, manager.genesis.ChainID)
-	batchProto2 := &v1.Batch{Txs: make([][]byte, len(blockData2.Txs))}
-	for i, tx := range blockData2.Txs {
-		batchProto2.Txs[i] = tx
-	}
-	blockDataBytes2, err := proto.Marshal(batchProto2)
-	require.NoError(t, err)
-
-	// DA returns all four blobs (2 headers, 2 batches)
-	mockDAClient.On("Retrieve", mock.Anything, daHeight).Return(coreda.ResultRetrieve{
-		BaseResult: coreda.BaseResult{Code: coreda.StatusSuccess},
-		Data:       [][]byte{headerBytes1, blockDataBytes1, headerBytes2, blockDataBytes2},
-	}, nil).Once()
-
-	ctx := context.Background()
-	err = manager.processNextDAHeaderAndData(ctx)
-	require.NoError(t, err)
-
-	// Validate both header events
-	headerEvents := []NewHeaderEvent{}
-	for i := 0; i < 2; i++ {
-		select {
-		case event := <-manager.headerInCh:
-			headerEvents = append(headerEvents, event)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatalf("Expected header event %d not received", i+1)
-		}
-	}
-	headerHeights := []uint64{headerEvents[0].Header.Height(), headerEvents[1].Header.Height()}
-	assert.Contains(t, headerHeights, blockHeight1)
-	assert.Contains(t, headerHeights, blockHeight2)
-
-	// Validate both data events
-	dataEvents := []NewDataEvent{}
-	for i := 0; i < 2; i++ {
-		select {
-		case event := <-manager.dataInCh:
-			dataEvents = append(dataEvents, event)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatalf("Expected data event %d not received", i+1)
-		}
-	}
-	dataTxLens := []int{len(dataEvents[0].Data.Txs), len(dataEvents[1].Data.Txs)}
-	assert.Contains(t, dataTxLens, 1)
-	assert.Contains(t, dataTxLens, 2)
-
-	mockDAClient.AssertExpectations(t)
 }
 
 // TestProcessNextDAHeader_BatchWithNoTxs verifies that a batch with no transactions is ignored and does not emit events or mark as DA included.
