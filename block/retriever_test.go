@@ -523,3 +523,202 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	mockDAClient.AssertExpectations(t)
 	mockLogger.AssertExpectations(t)
 }
+
+// TestProcessNextDAHeader_MultipleHeadersAndBatches tests multiple headers and batches in one DA block.
+func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
+	daHeight := uint64(50)
+	blockHeight1 := uint64(130)
+	blockHeight2 := uint64(131)
+	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
+	defer cancel()
+
+	proposerAddr := manager.genesis.ProposerAddress
+
+	// First header and batch
+	hc1 := types.HeaderConfig{Height: blockHeight1, Signer: manager.signer}
+	header1, err := types.GetRandomSignedHeaderCustom(&hc1, manager.genesis.ChainID)
+	require.NoError(t, err)
+	header1.ProposerAddress = proposerAddr
+	headerProto1, err := header1.ToProto()
+	require.NoError(t, err)
+	headerBytes1, err := proto.Marshal(headerProto1)
+	require.NoError(t, err)
+
+	blockConfig1 := types.BlockConfig{Height: blockHeight1, NTxs: 1, ProposerAddr: proposerAddr}
+	_, blockData1, _ := types.GenerateRandomBlockCustom(&blockConfig1, manager.genesis.ChainID)
+	batchProto1 := &v1.Batch{Txs: make([][]byte, len(blockData1.Txs))}
+	for i, tx := range blockData1.Txs {
+		batchProto1.Txs[i] = tx
+	}
+	blockDataBytes1, err := proto.Marshal(batchProto1)
+	require.NoError(t, err)
+
+	// Second header and batch
+	hc2 := types.HeaderConfig{Height: blockHeight2, Signer: manager.signer}
+	header2, err := types.GetRandomSignedHeaderCustom(&hc2, manager.genesis.ChainID)
+	require.NoError(t, err)
+	header2.ProposerAddress = proposerAddr
+	headerProto2, err := header2.ToProto()
+	require.NoError(t, err)
+	headerBytes2, err := proto.Marshal(headerProto2)
+	require.NoError(t, err)
+
+	blockConfig2 := types.BlockConfig{Height: blockHeight2, NTxs: 2, ProposerAddr: proposerAddr}
+	_, blockData2, _ := types.GenerateRandomBlockCustom(&blockConfig2, manager.genesis.ChainID)
+	batchProto2 := &v1.Batch{Txs: make([][]byte, len(blockData2.Txs))}
+	for i, tx := range blockData2.Txs {
+		batchProto2.Txs[i] = tx
+	}
+	blockDataBytes2, err := proto.Marshal(batchProto2)
+	require.NoError(t, err)
+
+	// DA returns all four blobs (2 headers, 2 batches)
+	mockDAClient.On("Retrieve", mock.Anything, daHeight).Return(coreda.ResultRetrieve{
+		BaseResult: coreda.BaseResult{Code: coreda.StatusSuccess},
+		Data:       [][]byte{headerBytes1, blockDataBytes1, headerBytes2, blockDataBytes2},
+	}, nil).Once()
+
+	ctx := context.Background()
+	err = manager.processNextDAHeaderAndData(ctx)
+	require.NoError(t, err)
+
+	// Validate both header events
+	headerEvents := []NewHeaderEvent{}
+	for i := 0; i < 2; i++ {
+		select {
+		case event := <-manager.headerInCh:
+			headerEvents = append(headerEvents, event)
+		case <-time.After(100 * time.Millisecond):
+			t.Fatalf("Expected header event %d not received", i+1)
+		}
+	}
+	headerHeights := []uint64{headerEvents[0].Header.Height(), headerEvents[1].Header.Height()}
+	assert.Contains(t, headerHeights, blockHeight1)
+	assert.Contains(t, headerHeights, blockHeight2)
+
+	// Validate both data events
+	dataEvents := []NewDataEvent{}
+	for i := 0; i < 2; i++ {
+		select {
+		case event := <-manager.dataInCh:
+			dataEvents = append(dataEvents, event)
+		case <-time.After(100 * time.Millisecond):
+			t.Fatalf("Expected data event %d not received", i+1)
+		}
+	}
+	dataTxLens := []int{len(dataEvents[0].Data.Txs), len(dataEvents[1].Data.Txs)}
+	assert.Contains(t, dataTxLens, 1)
+	assert.Contains(t, dataTxLens, 2)
+
+	mockDAClient.AssertExpectations(t)
+}
+
+// TestProcessNextDAHeader_BatchWithNoTxs tests a batch that decodes but contains no transactions.
+func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
+	daHeight := uint64(55)
+	blockHeight := uint64(140)
+	manager, mockDAClient, _, _, _, dataCache, cancel := setupManagerForRetrieverTest(t, daHeight)
+	defer cancel()
+
+	// Create a valid header
+	hc := types.HeaderConfig{Height: blockHeight, Signer: manager.signer}
+	header, err := types.GetRandomSignedHeaderCustom(&hc, manager.genesis.ChainID)
+	require.NoError(t, err)
+	header.ProposerAddress = manager.genesis.ProposerAddress
+	headerProto, err := header.ToProto()
+	require.NoError(t, err)
+	headerBytes, err := proto.Marshal(headerProto)
+	require.NoError(t, err)
+
+	// Create an empty batch (no txs)
+	emptyBatchProto := &v1.Batch{Txs: [][]byte{}}
+	emptyBatchBytes, err := proto.Marshal(emptyBatchProto)
+	require.NoError(t, err)
+
+	mockDAClient.On("Retrieve", mock.Anything, daHeight).Return(coreda.ResultRetrieve{
+		BaseResult: coreda.BaseResult{Code: coreda.StatusSuccess},
+		Data:       [][]byte{headerBytes, emptyBatchBytes},
+	}, nil).Once()
+
+	ctx := context.Background()
+	err = manager.processNextDAHeaderAndData(ctx)
+	require.NoError(t, err)
+
+	// Validate header event
+	select {
+	case <-manager.headerInCh:
+		// ok
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Expected header event not received")
+	}
+
+	// Validate data event for empty batch
+	select {
+	case <-manager.dataInCh:
+		t.Fatal("No data event should be received for empty batch")
+	case <-time.After(100 * time.Millisecond):
+		// ok, no event as expected
+	}
+	// The empty batch should NOT be marked as DA included in cache
+	emptyData := &types.Data{Txs: types.Txs{}}
+	assert.False(t, dataCache.IsDAIncluded(emptyData.DACommitment().String()), "Empty batch should not be marked as DA included in cache")
+
+	mockDAClient.AssertExpectations(t)
+}
+
+// TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess ensures DA height increments only on success.
+func TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess(t *testing.T) {
+	startDAHeight := uint64(60)
+	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
+	defer cancel()
+
+	blockHeight := uint64(150)
+	proposerAddr := manager.genesis.ProposerAddress
+	hc := types.HeaderConfig{Height: blockHeight, Signer: manager.signer}
+	header, err := types.GetRandomSignedHeaderCustom(&hc, manager.genesis.ChainID)
+	require.NoError(t, err)
+	header.ProposerAddress = proposerAddr
+	headerProto, err := header.ToProto()
+	require.NoError(t, err)
+	headerBytes, err := proto.Marshal(headerProto)
+	require.NoError(t, err)
+
+	// 1. First call: success (header)
+	mockDAClient.On("Retrieve", mock.Anything, startDAHeight).Return(coreda.ResultRetrieve{
+		BaseResult: coreda.BaseResult{Code: coreda.StatusSuccess},
+		Data:       [][]byte{headerBytes},
+	}, nil).Once()
+
+	// 2. Second call: NotFound
+	mockDAClient.On("Retrieve", mock.Anything, startDAHeight+1).Return(coreda.ResultRetrieve{
+		BaseResult: coreda.BaseResult{Code: coreda.StatusNotFound},
+	}, nil).Once()
+
+	// 3. Third call: Error
+	errDA := errors.New("some DA error")
+	mockDAClient.On("Retrieve", mock.Anything, startDAHeight+2).Return(coreda.ResultRetrieve{
+		BaseResult: coreda.BaseResult{Code: coreda.StatusError, Message: errDA.Error()},
+	}, errDA).Times(dAFetcherRetries)
+
+	ctx, loopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer loopCancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		manager.RetrieveLoop(ctx)
+	}()
+
+	manager.retrieveCh <- struct{}{}
+
+	wg.Wait()
+
+	// After first success, DA height should increment to startDAHeight+1
+	// After NotFound, should increment to startDAHeight+2
+	// After error, should NOT increment further (remains at startDAHeight+2)
+	finalDAHeight := manager.daHeight.Load()
+	assert.Equal(t, startDAHeight+2, finalDAHeight, "DA height should only increment on success or NotFound, not on error")
+
+	mockDAClient.AssertExpectations(t)
+}
