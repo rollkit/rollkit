@@ -12,3 +12,7 @@ build
 .aider*
 .DS_Store
 coverage.out
+.vitepress/dist
+node_modules
+.vitepress/cache/**
+.vite_opt_cache
