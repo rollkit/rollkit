@@ -77,6 +77,10 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 			}
 			m.logger.Debug("retrieved potential data", "n", len(blobsResp.Data), "daHeight", daHeight)
 			for _, bz := range blobsResp.Data {
+				if bz == nil || len(bz) == 0 {
+					m.logger.Debug("ignoring nil or empty blob", "daHeight", daHeight)
+					continue
+				}
 				if m.handlePotentialHeader(ctx, bz, daHeight) {
 					continue
 				}
@@ -141,6 +145,10 @@ func (m *Manager) handlePotentialBatch(ctx context.Context, bz []byte, daHeight 
 	err := proto.Unmarshal(bz, &batchPb)
 	if err != nil {
 		m.logger.Debug("failed to unmarshal batch", "error", err)
+		return
+	}
+	if len(batchPb.Txs) == 0 {
+		m.logger.Debug("ignoring empty batch", "daHeight", daHeight)
 		return
 	}
 	data := &types.Data{
