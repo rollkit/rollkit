@@ -56,7 +56,11 @@ func (m *Manager) incrementDAIncludedHeight(ctx context.Context) error {
 			return err
 		}
 		m.logger.Debug("setting final", "height", newHeight)
-		m.exec.SetFinal(ctx, newHeight)
+		err = m.exec.SetFinal(ctx, newHeight)
+		if err != nil {
+			m.logger.Error("failed to set final", "height", newHeight, "error", err)
+			return err
+		}
 	}
 	return nil
 }
