@@ -398,13 +398,11 @@ For each retrieved block, it sends a new block event to the <code>blockInCh</cod
 	    validator.ValidateBasic()
 		  validate not nil
 		  validator.PubKey not nil
-		  validator.VotingPower &gt;= 0
 		  validator.Address == correct size
 	  // apply ValidateBasic to the proposer field:
 	  sh.Validators.Proposer.ValidateBasic()
 		validate not nil
 		validator.PubKey not nil
-		validator.VotingPower &gt;= 0
 		validator.Address == correct size
     Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
 	Verify SignedHeader.Signature
