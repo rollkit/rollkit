@@ -740,16 +740,6 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 		return fmt.Errorf("app hash mismatch: expected %x, got %x", lastState.AppHash, header.AppHash)
 	}
 
-	// Ensure the header's version matches the lastState's version
-	if header.Version.Block != lastState.Version.Block {
-		return fmt.Errorf("block version mismatch: expected %d, got %d",
-			lastState.Version.Block, header.Version.Block)
-	}
-	if header.Version.App != lastState.Version.App {
-		return fmt.Errorf("app version mismatch: expected %d, got %d",
-			lastState.Version.App, header.Version.App)
-	}
-
 	return nil
 }
 
@@ -832,25 +822,11 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 		return types.State{}, err
 	}
 
-	s, err := m.nextState(lastState, header, newStateRoot)
+	s, err := lastState.NextState(header, newStateRoot)
 	if err != nil {
 		return types.State{}, err
 	}
 
-	return s, nil
-}
-
-func (m *Manager) nextState(state types.State, header *types.SignedHeader, stateRoot []byte) (types.State, error) {
-	height := header.Height()
-
-	s := types.State{
-		Version:         state.Version,
-		ChainID:         state.ChainID,
-		InitialHeight:   state.InitialHeight,
-		LastBlockHeight: height,
-		LastBlockTime:   header.Time(),
-		AppHash:         stateRoot,
-	}
 	return s, nil
 }
 
