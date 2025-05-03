@@ -283,12 +283,17 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	default:
 		// Expected behavior
 	}
+	select {
+	case <-manager.dataInCh:
+		t.Fatal("No data event should be received for unmarshal error")
+	default:
+	}
 
 	mockDAClient.AssertExpectations(t)
 	mockLogger.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_FetchError_RetryFailure tests the processNextDAHeaderAndBlock function for a fetch error.
+// TestProcessNextDAHeader_FetchError_RetryFailure tests the processNextDAHeaderAndData function for a fetch error.
 func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	daHeight := uint64(40)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -311,14 +316,20 @@ func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	default:
 	}
 
+	select {
+	case <-manager.dataInCh:
+		t.Fatal("No data event should be received for unmarshal error")
+	default:
+	}
+
 	mockDAClient.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_HeaderAlreadySeen tests the processNextDAHeaderAndData function for a header that has already been seen.
-func TestProcessNextDAHeader_HeaderAlreadySeen(t *testing.T) {
+// TestProcessNextDAHeader_HeaderAndDataAlreadySeen tests the processNextDAHeaderAndData function for a header and data that has already been seen.
+func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 	daHeight := uint64(45)
 	blockHeight := uint64(120)
-	manager, mockDAClient, mockStore, _, headerCache, _, cancel := setupManagerForRetrieverTest(t, daHeight)
+	manager, mockDAClient, mockStore, _, headerCache, dataCache, cancel := setupManagerForRetrieverTest(t, daHeight)
 	defer cancel()
 
 	hc := types.HeaderConfig{
@@ -333,12 +344,30 @@ func TestProcessNextDAHeader_HeaderAlreadySeen(t *testing.T) {
 	headerBytes, err := proto.Marshal(headerProto)
 	require.NoError(t, err)
 
+	// Create valid batch (data)
+	blockConfig := types.BlockConfig{
+		Height:       blockHeight,
+		NTxs:         2,
+		ProposerAddr: manager.genesis.ProposerAddress,
+	}
+	_, blockData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
+	batchProto := &v1.Batch{Txs: make([][]byte, len(blockData.Txs))}
+	for i, tx := range blockData.Txs {
+		batchProto.Txs[i] = tx
+	}
+	blockDataBytes, err := proto.Marshal(batchProto)
+	require.NoError(t, err)
+	dataHash := blockData.DACommitment().String()
+
+	// Mark both header and data as seen and DA included
 	headerCache.SetSeen(headerHash)
 	headerCache.SetDAIncluded(headerHash)
+	dataCache.SetSeen(dataHash)
+	dataCache.SetDAIncluded(dataHash)
 
 	mockDAClient.On("Retrieve", mock.Anything, daHeight).Return(coreda.ResultRetrieve{
 		BaseResult: coreda.BaseResult{Code: coreda.StatusSuccess},
-		Data:       [][]byte{headerBytes},
+		Data:       [][]byte{headerBytes, blockDataBytes},
 	}, nil).Once()
 
 	heightBytes := make([]byte, 8)
@@ -351,6 +380,11 @@ func TestProcessNextDAHeader_HeaderAlreadySeen(t *testing.T) {
 	select {
 	case <-manager.headerInCh:
 		t.Fatal("Header event should not be received if already seen")
+	case <-time.After(50 * time.Millisecond):
+	}
+	select {
+	case <-manager.dataInCh:
+		t.Fatal("Data event should not be received if already seen")
 	case <-time.After(50 * time.Millisecond):
 	}
 
@@ -424,7 +458,7 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 
 	errorLogged := make(chan struct{})
 	mockLogger.ExpectedCalls = nil
-	mockLogger.On("Error", "failed to retrieve block from DALC", mock.Anything).Run(func(args mock.Arguments) {
+	mockLogger.On("Error", "failed to retrieve data from DALC", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		close(errorLogged)
 	}).Return().Once()
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe()
