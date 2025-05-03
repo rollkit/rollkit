@@ -20,7 +20,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// TestAggregationLoop_Normal_BasicInterval verifies the basic time interval logic of the normal aggregation loop.
+// TestAggregationLoop_Normal_BasicInterval verifies that the aggregation loop publishes blocks at the expected interval under normal conditions.
 func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -114,7 +114,7 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	}
 }
 
-// TestAggregationLoop_Normal_PublishBlockError verifies the loop continues after publishBlock returns an error.
+// TestAggregationLoop_Normal_PublishBlockError verifies that the aggregation loop handles errors from publishBlock gracefully.
 func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)

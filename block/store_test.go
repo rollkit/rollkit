@@ -84,6 +84,7 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	return m, mockStore, mockHeaderStore, mockDataStore, headerStoreCh, dataStoreCh, headerInCh, dataInCh, ctx, cancel
 }
 
+// TestDataStoreRetrieveLoop_RetrievesNewData verifies that the data store retrieve loop retrieves new data correctly.
 func TestDataStoreRetrieveLoop_RetrievesNewData(t *testing.T) {
 	assert := assert.New(t)
 	m, mockStore, _, mockDataStore, _, dataStoreCh, _, dataInCh, ctx, cancel := setupManagerForStoreRetrieveTest(t)
@@ -126,6 +127,7 @@ func TestDataStoreRetrieveLoop_RetrievesNewData(t *testing.T) {
 	mockDataStore.AssertExpectations(t)
 }
 
+// TestDataStoreRetrieveLoop_RetrievesMultipleData verifies that the data store retrieve loop retrieves multiple new data entries.
 func TestDataStoreRetrieveLoop_RetrievesMultipleData(t *testing.T) {
 	assert := assert.New(t)
 	m, mockStore, _, mockDataStore, _, dataStoreCh, _, dataInCh, ctx, cancel := setupManagerForStoreRetrieveTest(t)
@@ -186,6 +188,7 @@ func TestDataStoreRetrieveLoop_RetrievesMultipleData(t *testing.T) {
 	mockDataStore.AssertExpectations(t)
 }
 
+// TestDataStoreRetrieveLoop_NoNewData verifies that the data store retrieve loop handles the case where there is no new data.
 func TestDataStoreRetrieveLoop_NoNewData(t *testing.T) {
 	m, mockStore, _, mockDataStore, _, dataStoreCh, _, dataInCh, ctx, cancel := setupManagerForStoreRetrieveTest(t)
 	defer cancel()
@@ -215,6 +218,7 @@ func TestDataStoreRetrieveLoop_NoNewData(t *testing.T) {
 	mockDataStore.AssertExpectations(t)
 }
 
+// TestDataStoreRetrieveLoop_HandlesFetchError verifies that the data store retrieve loop handles fetch errors gracefully.
 func TestDataStoreRetrieveLoop_HandlesFetchError(t *testing.T) {
 
 	m, mockStore, _, mockDataStore, _, dataStoreCh, _, dataInCh, ctx, cancel := setupManagerForStoreRetrieveTest(t)
@@ -250,6 +254,7 @@ func TestDataStoreRetrieveLoop_HandlesFetchError(t *testing.T) {
 	mockDataStore.AssertExpectations(t)
 }
 
+// TestHeaderStoreRetrieveLoop_RetrievesNewHeader verifies that the header store retrieve loop retrieves new headers correctly.
 func TestHeaderStoreRetrieveLoop_RetrievesNewHeader(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -291,6 +296,7 @@ func TestHeaderStoreRetrieveLoop_RetrievesNewHeader(t *testing.T) {
 	mockHeaderStore.AssertExpectations(t)
 }
 
+// TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders verifies that the header store retrieve loop retrieves multiple new headers.
 func TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders(t *testing.T) {
 	t.Skip() // TODO: fix in followup
 	assert := assert.New(t)
@@ -377,6 +383,7 @@ func TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders(t *testing.T) {
 	mockHeaderStore.AssertExpectations(t)
 }
 
+// TestHeaderStoreRetrieveLoop_NoNewHeaders verifies that the header store retrieve loop handles the case where there are no new headers.
 func TestHeaderStoreRetrieveLoop_NoNewHeaders(t *testing.T) {
 	m, mockStore, mockHeaderStore, _, headerStoreCh, _, headerInCh, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
 	defer cancel()

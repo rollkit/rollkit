@@ -102,7 +102,7 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 	return manager, mockDAClient, mockStore, mockLogger, manager.headerCache, manager.dataCache, cancel
 }
 
-// TestProcessNextDAHeader_Success_SingleHeaderAndData tests the processNextDAHeaderAndData function for a single header and data.
+// TestProcessNextDAHeader_Success_SingleHeaderAndData verifies that a single header and data are correctly processed and events are emitted.
 func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 	daHeight := uint64(20)
 	blockHeight := uint64(100)
@@ -176,7 +176,7 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeaderAndData_NotFound tests the processNextDAHeaderAndData function for a NotFound error.
+// TestProcessNextDAHeaderAndData_NotFound verifies that no events are emitted when DA returns NotFound.
 func TestProcessNextDAHeaderAndData_NotFound(t *testing.T) {
 	daHeight := uint64(25)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -204,7 +204,7 @@ func TestProcessNextDAHeaderAndData_NotFound(t *testing.T) {
 	mockDAClient.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeaderAndData_UnmarshalHeaderError tests the processNextDAHeaderAndData function for an unmarshal error.
+// TestProcessNextDAHeaderAndData_UnmarshalHeaderError verifies that no events are emitted and errors are logged when header bytes are invalid.
 func TestProcessNextDAHeaderAndData_UnmarshalHeaderError(t *testing.T) {
 	daHeight := uint64(30)
 	manager, mockDAClient, _, mockLogger, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -241,7 +241,7 @@ func TestProcessNextDAHeaderAndData_UnmarshalHeaderError(t *testing.T) {
 	mockLogger.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeaderAndData_UnexpectedSequencer tests the processNextDAHeaderAndData function for an unexpected sequencer.
+// TestProcessNextDAHeader_UnexpectedSequencer verifies that headers from unexpected sequencers are skipped.
 func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	daHeight := uint64(35)
 	blockHeight := uint64(110)
@@ -293,7 +293,7 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	mockLogger.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_FetchError_RetryFailure tests the processNextDAHeaderAndData function for a fetch error.
+// TestProcessNextDAHeader_FetchError_RetryFailure verifies that persistent fetch errors are retried and eventually returned.
 func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	daHeight := uint64(40)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -325,7 +325,7 @@ func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	mockDAClient.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_HeaderAndDataAlreadySeen tests the processNextDAHeaderAndData function for a header and data that has already been seen.
+// TestProcessNextDAHeader_HeaderAndDataAlreadySeen verifies that no duplicate events are emitted for already-seen header/data.
 func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 	daHeight := uint64(45)
 	blockHeight := uint64(120)
@@ -392,7 +392,7 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
-// TestRetrieveLoop_ProcessError_HeightFromFuture verifies loop continues without error log.
+// TestRetrieveLoop_ProcessError_HeightFromFuture verifies that the loop continues without logging error if error is height from future.
 func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 	startDAHeight := uint64(10)
 	manager, mockDAClient, _, mockLogger, _, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
@@ -440,7 +440,7 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 	}
 }
 
-// TestRetrieveLoop_ProcessError_Other verifies loop logs error and continues.
+// TestRetrieveLoop_ProcessError_Other verifies that the loop logs error and does not increment DA height on generic errors.
 func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	startDAHeight := uint64(15)
 	manager, mockDAClient, _, mockLogger, _, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
@@ -493,7 +493,7 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	}
 }
 
-// TestProcessNextDAHeader_MultipleHeadersAndBatches tests multiple headers and batches in one DA block.
+// TestProcessNextDAHeader_MultipleHeadersAndBatches verifies that multiple headers and batches in a single DA block are all processed and corresponding events are emitted.
 func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
 	daHeight := uint64(50)
 	blockHeight1 := uint64(130)
@@ -582,7 +582,7 @@ func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
 	mockDAClient.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_BatchWithNoTxs tests a batch that decodes but contains no transactions.
+// TestProcessNextDAHeader_BatchWithNoTxs verifies that a batch with no transactions is ignored and does not emit events or mark as DA included.
 func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
 	daHeight := uint64(55)
 	blockHeight := uint64(140)
@@ -635,7 +635,7 @@ func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
 	mockDAClient.AssertExpectations(t)
 }
 
-// TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess ensures DA height increments only on success.
+// TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess verifies that DA height is incremented only after a successful retrieval or NotFound, and not after an error.
 func TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess(t *testing.T) {
 	startDAHeight := uint64(60)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
