@@ -295,12 +295,17 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	default:
 		// Expected behavior
 	}
+	select {
+	case <-manager.dataInCh:
+		t.Fatal("No data event should be received for unmarshal error")
+	default:
+	}
 
 	mockDAClient.AssertExpectations(t)
 	mockLogger.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_FetchError_RetryFailure tests the processNextDAHeaderAndBlock function for a fetch error.
+// TestProcessNextDAHeader_FetchError_RetryFailure tests the processNextDAHeaderAndData function for a fetch error.
 func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	daHeight := uint64(40)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -321,6 +326,12 @@ func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	select {
 	case <-manager.headerInCh:
 		t.Fatal("No header event should be received on fetch failure")
+	default:
+	}
+
+	select {
+	case <-manager.dataInCh:
+		t.Fatal("No data event should be received for unmarshal error")
 	default:
 	}
 
@@ -353,9 +364,26 @@ func TestProcessNextDAHeader_HeaderAlreadySeen(t *testing.T) {
 	headerBytes, err := proto.Marshal(headerProto)
 	require.NoError(t, err)
 
-	// Set up cache state
+	// Create valid batch (data)
+	blockConfig := types.BlockConfig{
+		Height:       blockHeight,
+		NTxs:         2,
+		ProposerAddr: manager.genesis.ProposerAddress,
+	}
+	_, blockData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
+	batchProto := &v1.Batch{Txs: make([][]byte, len(blockData.Txs))}
+	for i, tx := range blockData.Txs {
+		batchProto.Txs[i] = tx
+	}
+	blockDataBytes, err := proto.Marshal(batchProto)
+	require.NoError(t, err)
+	dataHash := blockData.DACommitment().String()
+
+	// Mark both header and data as seen and DA included
 	headerCache.SetSeen(headerHash)
 	headerCache.SetDAIncluded(headerHash)
+	dataCache.SetSeen(dataHash)
+	dataCache.SetDAIncluded(dataHash)
 
 	// Set up mocks with explicit logging
 	mockDAClient.On("GetIDs", mock.Anything, daHeight, mock.Anything).Return(&coreda.GetIDsResult{
@@ -380,6 +408,11 @@ func TestProcessNextDAHeader_HeaderAlreadySeen(t *testing.T) {
 		t.Fatal("Header event should not be received for already seen header")
 	default:
 		// Expected path
+	}
+	select {
+	case <-manager.dataInCh:
+		t.Fatal("Data event should not be received if already seen")
+	case <-time.After(50 * time.Millisecond):
 	}
 
 	mockDAClient.AssertExpectations(t)
