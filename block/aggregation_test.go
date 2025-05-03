@@ -22,6 +22,7 @@ import (
 
 // TestAggregationLoop_Normal_BasicInterval verifies that the aggregation loop publishes blocks at the expected interval under normal conditions.
 func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -116,6 +117,7 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 
 // TestAggregationLoop_Normal_PublishBlockError verifies that the aggregation loop handles errors from publishBlock gracefully.
 func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
