@@ -40,7 +40,7 @@ func GetRandomBlock(height uint64, nTxs int, chainID string) (*SignedHeader, *Da
 // GenerateRandomBlockCustom returns a block with random data and the given height, transactions, privateKey and proposer address.
 func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHeader, *Data, crypto.PrivKey) {
 	data := getBlockDataWith(config.NTxs)
-	dataHash := data.Hash()
+	dataHash := data.DACommitment()
 
 	if config.PrivKey == nil {
 		pk, _, err := crypto.GenerateEd25519Key(cryptoRand.Reader)
@@ -82,10 +82,9 @@ func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHead
 
 // HeaderConfig carries all necessary state for header generation
 type HeaderConfig struct {
-	Height      uint64
-	DataHash    header.Hash
-	Signer      signer.Signer
-	VotingPower int64
+	Height   uint64
+	DataHash header.Hash
+	Signer   signer.Signer
 }
 
 // GetRandomHeader returns a header with random fields and current time
@@ -135,10 +134,9 @@ func GetRandomSignedHeader(chainID string) (*SignedHeader, crypto.PrivKey, error
 		return nil, nil, err
 	}
 	config := HeaderConfig{
-		Height:      uint64(rand.Int63()), //nolint:gosec
-		DataHash:    GetRandomBytes(32),
-		Signer:      noopSigner,
-		VotingPower: 1,
+		Height:   uint64(rand.Int63()), //nolint:gosec
+		DataHash: GetRandomBytes(32),
+		Signer:   noopSigner,
 	}
 
 	signedHeader, err := GetRandomSignedHeaderCustom(&config, chainID)

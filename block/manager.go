@@ -51,8 +51,8 @@ const (
 	// Applies to most channels, 100 is a large enough buffer to avoid blocking
 	channelLength = 100
 
-	// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
-	headerInChLength = 10000
+	// Applies to the headerInCh and dataInCh, 10000 is a large enough number for headers per DA block.
+	eventInChLength = 10000
 
 	// DAIncludedHeightKey is the key used for persisting the da included height in store.
 	DAIncludedHeightKey = "d"
@@ -170,7 +170,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 
 		// Initialize genesis block explicitly
 		header := types.Header{
-			DataHash:        new(types.Data).Hash(),
+			DataHash:        new(types.Data).DACommitment(),
 			ProposerAddress: genesis.ProposerAddress,
 			BaseHeader: types.BaseHeader{
 				ChainID: genesis.ChainID,
@@ -340,8 +340,8 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:       make(chan *types.SignedHeader, channelLength),
 		DataCh:         make(chan *types.Data, channelLength),
-		headerInCh:     make(chan NewHeaderEvent, headerInChLength),
-		dataInCh:       make(chan NewDataEvent, headerInChLength),
+		headerInCh:     make(chan NewHeaderEvent, eventInChLength),
+		dataInCh:       make(chan NewDataEvent, eventInChLength),
 		headerStoreCh:  make(chan struct{}, 1),
 		dataStoreCh:    make(chan struct{}, 1),
 		headerStore:    headerStore,
