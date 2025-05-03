@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -29,24 +28,12 @@ import (
 	v1 "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
-type MockLogger struct {
-	mock.Mock
-}
-
-func (m *MockLogger) Debug(msg string, keyvals ...any) { m.Called(msg, keyvals) }
-func (m *MockLogger) Info(msg string, keyvals ...any)  { m.Called(msg, keyvals) }
-func (m *MockLogger) Warn(msg string, keyvals ...any)  { m.Called(msg, keyvals) }
-func (m *MockLogger) Error(msg string, keyvals ...any) { m.Called(msg, keyvals) }
-func (m *MockLogger) With(keyvals ...any) log.Logger   { return m }
-func (m *MockLogger) Impl() any                        { return m }
-
 // setupManagerForRetrieverTest initializes a Manager with mocked dependencies.
 func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.DA, *rollmocks.Store, *MockLogger, *cache.Cache[types.SignedHeader], *cache.Cache[types.Data], context.CancelFunc) {
 	t.Helper()
 	mockDAClient := rollmocks.NewDA(t)
 	mockStore := rollmocks.NewStore(t)
 	mockLogger := new(MockLogger)
-
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe()
 	mockLogger.On("Info", mock.Anything, mock.Anything).Maybe()
 	mockLogger.On("Warn", mock.Anything, mock.Anything).Maybe()
@@ -102,6 +89,7 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 
 // TestProcessNextDAHeader_Success_SingleHeaderAndData verifies that a single header and data are correctly processed and events are emitted.
 func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
+	t.Parallel()
 	daHeight := uint64(20)
 	blockHeight := uint64(100)
 	manager, mockDAClient, mockStore, _, headerCache, dataCache, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -175,6 +163,7 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 
 // TestProcessNextDAHeader_MultipleHeadersAndBatches verifies that multiple headers and batches in a single DA block are all processed and corresponding events are emitted.
 func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
+	t.Parallel()
 	daHeight := uint64(50)
 	startBlockHeight := uint64(130)
 	nHeaders := 50
@@ -288,6 +277,7 @@ func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
 
 // TestProcessNextDAHeaderAndData_NotFound verifies that no events are emitted when DA returns NotFound.
 func TestProcessNextDAHeaderAndData_NotFound(t *testing.T) {
+	t.Parallel()
 	daHeight := uint64(25)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
 	defer cancel()
@@ -319,6 +309,7 @@ func TestProcessNextDAHeaderAndData_NotFound(t *testing.T) {
 
 // TestProcessNextDAHeaderAndData_UnmarshalHeaderError verifies that no events are emitted and errors are logged when header bytes are invalid.
 func TestProcessNextDAHeaderAndData_UnmarshalHeaderError(t *testing.T) {
+	t.Parallel()
 	daHeight := uint64(30)
 	manager, mockDAClient, _, mockLogger, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
 	defer cancel()
@@ -362,6 +353,7 @@ func TestProcessNextDAHeaderAndData_UnmarshalHeaderError(t *testing.T) {
 
 // TestProcessNextDAHeader_UnexpectedSequencer verifies that headers from unexpected sequencers are skipped.
 func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
+	t.Parallel()
 	daHeight := uint64(35)
 	blockHeight := uint64(110)
 	manager, mockDAClient, _, mockLogger, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -420,6 +412,7 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 
 // TestProcessNextDAHeader_FetchError_RetryFailure verifies that persistent fetch errors are retried and eventually returned.
 func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
+	t.Parallel()
 	daHeight := uint64(40)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
 	defer cancel()
@@ -453,6 +446,7 @@ func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 
 // TestProcessNextDAHeader_HeaderAndDataAlreadySeen verifies that no duplicate events are emitted for already-seen header/data.
 func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
+	t.Parallel()
 	daHeight := uint64(45)
 	blockHeight := uint64(120)
 
@@ -533,6 +527,7 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 
 // TestRetrieveLoop_ProcessError_HeightFromFuture verifies that the loop continues without logging error if error is height from future.
 func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
+	t.Parallel()
 	startDAHeight := uint64(10)
 	manager, mockDAClient, _, mockLogger, _, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
 	defer cancel()
@@ -580,6 +575,7 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 
 // TestRetrieveLoop_ProcessError_Other verifies that the loop logs error and does not increment DA height on generic errors.
 func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
+	t.Parallel()
 	startDAHeight := uint64(15)
 	manager, mockDAClient, _, mockLogger, _, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
 	defer cancel()
@@ -638,6 +634,7 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 
 // TestProcessNextDAHeader_BatchWithNoTxs verifies that a batch with no transactions is ignored and does not emit events or mark as DA included.
 func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
+	t.Parallel()
 	daHeight := uint64(55)
 	blockHeight := uint64(140)
 	manager, mockDAClient, _, _, _, dataCache, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -691,6 +688,7 @@ func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
 
 // TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess verifies that DA height is incremented only after a successful retrieval or NotFound, and not after an error.
 func TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess(t *testing.T) {
+	t.Parallel()
 	startDAHeight := uint64(60)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
 	defer cancel()
