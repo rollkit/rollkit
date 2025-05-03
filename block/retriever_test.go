@@ -102,8 +102,8 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 	return manager, mockDAClient, mockStore, mockLogger, manager.headerCache, manager.dataCache, cancel
 }
 
-// TestProcessNextDAHeader_Success_SingleHeaderAndBatch tests the processNextDAHeaderAndBlock function for a single header and block.
-func TestProcessNextDAHeader_Success_SingleHeaderAndBatch(t *testing.T) {
+// TestProcessNextDAHeader_Success_SingleHeaderAndData tests the processNextDAHeaderAndData function for a single header and data.
+func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 	daHeight := uint64(20)
 	blockHeight := uint64(100)
 	manager, mockDAClient, mockStore, _, headerCache, dataCache, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -146,7 +146,7 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndBatch(t *testing.T) {
 	}, nil).Once()
 
 	ctx := context.Background()
-	err = manager.processNextDAHeaderAndBlock(ctx)
+	err = manager.processNextDAHeaderAndData(ctx)
 	require.NoError(t, err)
 
 	// Validate header event
@@ -170,13 +170,14 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndBatch(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected block data event not received")
 	}
-	assert.True(t, dataCache.IsDAIncluded(blockData.DACommitment().String()), "Block data hash should be marked as DA included in cache")
+	assert.True(t, dataCache.IsDAIncluded(blockData.DACommitment().String()), "Block data commitment should be marked as DA included in cache")
 
 	mockDAClient.AssertExpectations(t)
 	mockStore.AssertExpectations(t)
 }
 
-func TestProcessNextDAHeader_NotFound(t *testing.T) {
+// TestProcessNextDAHeaderAndData_NotFound tests the processNextDAHeaderAndData function for a NotFound error.
+func TestProcessNextDAHeaderAndData_NotFound(t *testing.T) {
 	daHeight := uint64(25)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
 	defer cancel()
@@ -185,7 +186,7 @@ func TestProcessNextDAHeader_NotFound(t *testing.T) {
 	}, nil).Once()
 
 	ctx := context.Background()
-	err := manager.processNextDAHeaderAndBlock(ctx)
+	err := manager.processNextDAHeaderAndData(ctx)
 	require.NoError(t, err)
 
 	select {
@@ -194,11 +195,17 @@ func TestProcessNextDAHeader_NotFound(t *testing.T) {
 	default:
 	}
 
+	select {
+	case <-manager.dataInCh:
+		t.Fatal("No data event should be received for NotFound")
+	default:
+	}
+
 	mockDAClient.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_UnmarshalError tests the processNextDAHeaderAndBlock function for an unmarshal error.
-func TestProcessNextDAHeader_UnmarshalError(t *testing.T) {
+// TestProcessNextDAHeaderAndData_UnmarshalHeaderError tests the processNextDAHeaderAndData function for an unmarshal error.
+func TestProcessNextDAHeaderAndData_UnmarshalHeaderError(t *testing.T) {
 	daHeight := uint64(30)
 	manager, mockDAClient, _, mockLogger, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
 	defer cancel()
@@ -212,10 +219,11 @@ func TestProcessNextDAHeader_UnmarshalError(t *testing.T) {
 
 	mockLogger.ExpectedCalls = nil
 	mockLogger.On("Debug", "failed to unmarshal header", mock.Anything).Return().Once()
+	mockLogger.On("Debug", "failed to unmarshal batch", mock.Anything).Return().Once()
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
 
 	ctx := context.Background()
-	err := manager.processNextDAHeaderAndBlock(ctx)
+	err := manager.processNextDAHeaderAndData(ctx)
 	require.NoError(t, err)
 
 	select {
@@ -223,12 +231,17 @@ func TestProcessNextDAHeader_UnmarshalError(t *testing.T) {
 		t.Fatal("No header event should be received for unmarshal error")
 	default:
 	}
+	select {
+	case <-manager.dataInCh:
+		t.Fatal("No data event should be received for unmarshal error")
+	default:
+	}
 
 	mockDAClient.AssertExpectations(t)
 	mockLogger.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_UnexpectedSequencer tests the processNextDAHeaderAndBlock function for an unexpected sequencer.
+// TestProcessNextDAHeaderAndData_UnexpectedSequencer tests the processNextDAHeaderAndData function for an unexpected sequencer.
 func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	daHeight := uint64(35)
 	blockHeight := uint64(110)
@@ -261,7 +274,7 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
 
 	ctx := context.Background()
-	err = manager.processNextDAHeaderAndBlock(ctx)
+	err = manager.processNextDAHeaderAndData(ctx)
 	require.NoError(t, err)
 
 	select {
@@ -275,6 +288,7 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	mockLogger.AssertExpectations(t)
 }
 
+// TestProcessNextDAHeader_FetchError_RetryFailure tests the processNextDAHeaderAndBlock function for a fetch error.
 func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	daHeight := uint64(40)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -287,7 +301,7 @@ func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	}, fetchErr).Times(dAFetcherRetries)
 
 	ctx := context.Background()
-	err := manager.processNextDAHeaderAndBlock(ctx)
+	err := manager.processNextDAHeaderAndData(ctx)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, fetchErr.Error(), "Expected the final error after retries")
 
@@ -300,7 +314,7 @@ func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	mockDAClient.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_HeaderAlreadySeen tests the processNextDAHeaderAndBlock function for a header that has already been seen.
+// TestProcessNextDAHeader_HeaderAlreadySeen tests the processNextDAHeaderAndData function for a header that has already been seen.
 func TestProcessNextDAHeader_HeaderAlreadySeen(t *testing.T) {
 	daHeight := uint64(45)
 	blockHeight := uint64(120)
@@ -331,7 +345,7 @@ func TestProcessNextDAHeader_HeaderAlreadySeen(t *testing.T) {
 	binary.LittleEndian.PutUint64(heightBytes, blockHeight)
 
 	ctx := context.Background()
-	err = manager.processNextDAHeaderAndBlock(ctx)
+	err = manager.processNextDAHeaderAndData(ctx)
 	require.NoError(t, err)
 
 	select {
