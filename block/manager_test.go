@@ -55,6 +55,7 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 	return m
 }
 
+// TestInitialStateClean verifies that getInitialState initializes state correctly when no state is stored.
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
 	ctx := context.TODO()
@@ -80,6 +81,7 @@ func TestInitialStateClean(t *testing.T) {
 	mockExecutor.AssertExpectations(t)
 }
 
+// TestInitialStateStored verifies that getInitialState loads existing state from the store and does not call InitChain.
 func TestInitialStateStored(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -109,6 +111,7 @@ func TestInitialStateStored(t *testing.T) {
 	mockExecutor.AssertExpectations(t)
 }
 
+// TestInitialStateUnexpectedHigherGenesis verifies that getInitialState returns an error if the genesis initial height is higher than the stored state's last block height.
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)
@@ -141,6 +144,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	mockExecutor.AssertExpectations(t)
 }
 
+// TestSignVerifySignature verifies that signatures can be created and verified using the configured signer.
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
 	mockDAC := mocks.NewDA(t)
@@ -170,7 +174,7 @@ func TestSignVerifySignature(t *testing.T) {
 	}
 }
 
-// Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
+// Test_submitBlocksToDA_BlockMarshalErrorCase1 verifies that a marshalling error in the first block prevents all blocks from being submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase1"
 	assert := assert.New(t)
@@ -206,6 +210,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	mockDA.AssertExpectations(t)
 }
 
+// Test_submitBlocksToDA_BlockMarshalErrorCase2 verifies that a marshalling error in a later block prevents all blocks from being submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase2"
 	assert := assert.New(t)
@@ -248,6 +253,7 @@ func invalidateBlockHeader(header *types.SignedHeader) {
 	header.Signer.PubKey = &crypto.Ed25519PublicKey{}
 }
 
+// Test_isProposer verifies the isProposer utility for matching the signing key to the genesis proposer public key.
 func Test_isProposer(t *testing.T) {
 	require := require.New(t)
 
@@ -307,7 +313,7 @@ func Test_isProposer(t *testing.T) {
 	}
 }
 
-// TestBytesToBatchData tests conversion between bytes and batch data.
+// TestBytesToBatchData verifies conversion between bytes and batch data, including error handling for corrupted data.
 func TestBytesToBatchData(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
