@@ -43,7 +43,7 @@ func TestDAIncluderLoop_AdvancesHeightWhenBothDAIncluded(t *testing.T) {
 	t.Parallel()
 	m, store, exec, _ := newTestManager(t)
 	startDAIncludedHeight := uint64(4)
-	expectedDAIncludedHeight := uint64(startDAIncludedHeight + 1)
+	expectedDAIncludedHeight := startDAIncludedHeight + 1
 	m.daIncludedHeight.Store(startDAIncludedHeight)
 
 	header, data := types.GetRandomBlock(5, 1, "testchain")
@@ -180,7 +180,7 @@ func TestIncrementDAIncludedHeight_Success(t *testing.T) {
 	t.Parallel()
 	m, store, exec, _ := newTestManager(t)
 	startDAIncludedHeight := uint64(4)
-	expectedDAIncludedHeight := uint64(startDAIncludedHeight + 1)
+	expectedDAIncludedHeight := startDAIncludedHeight + 1
 	m.daIncludedHeight.Store(startDAIncludedHeight)
 
 	heightBytes := make([]byte, 8)
@@ -201,7 +201,7 @@ func TestIncrementDAIncludedHeight_SetMetadataError(t *testing.T) {
 	t.Parallel()
 	m, store, _, mockLogger := newTestManager(t)
 	startDAIncludedHeight := uint64(4)
-	expectedDAIncludedHeight := uint64(startDAIncludedHeight + 1)
+	expectedDAIncludedHeight := startDAIncludedHeight + 1
 	m.daIncludedHeight.Store(startDAIncludedHeight)
 
 	heightBytes := make([]byte, 8)
@@ -225,7 +225,7 @@ func TestIncrementDAIncludedHeight_SetFinalError(t *testing.T) {
 	t.Parallel()
 	m, store, exec, mockLogger := newTestManager(t)
 	startDAIncludedHeight := uint64(4)
-	expectedDAIncludedHeight := uint64(startDAIncludedHeight + 1)
+	expectedDAIncludedHeight := startDAIncludedHeight + 1
 	m.daIncludedHeight.Store(startDAIncludedHeight)
 
 	heightBytes := make([]byte, 8)

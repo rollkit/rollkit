@@ -218,7 +218,9 @@ func (d *Data) FromProto(other *pb.Data) error {
 		if d.Metadata == nil {
 			d.Metadata = &Metadata{}
 		}
-		d.Metadata.FromProto(other.Metadata)
+		if err := d.Metadata.FromProto(other.Metadata); err != nil {
+			return err
+		}
 	}
 	d.Txs = byteSlicesToTxs(other.Txs)
 
