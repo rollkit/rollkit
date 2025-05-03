@@ -19,6 +19,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -105,22 +106,20 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 		DAHeight:        5,
 	}
 	newHeight := initialHeight + 1
-	daHeight := initialState.DAHeight + 1
+	daHeight := initialState.DAHeight
 
 	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// Create test block data
-	header, data, privKey := types.GenerateRandomBlockCustom(&types.BlockConfig{Height: newHeight, NTxs: 2}, initialState.ChainID)
+	header, data, privKey := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: newHeight, NTxs: 2}, initialState.ChainID, initialState.AppHash)
 	require.NotNil(header)
 	require.NotNil(data)
 	require.NotNil(privKey)
 
 	expectedNewAppHash := []byte("new_app_hash")
-	expectedNewState := initialState
-	expectedNewState.LastBlockHeight = newHeight
-	expectedNewState.AppHash = expectedNewAppHash
-	expectedNewState.LastBlockTime = header.Time()
+	expectedNewState, err := initialState.NextState(header, expectedNewAppHash)
+	require.NoError(err)
 	expectedNewState.DAHeight = daHeight
 
 	syncChan := make(chan struct{})
@@ -131,12 +130,13 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash).
 		Return(expectedNewAppHash, uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, header, data, &header.Signature).Return(nil).Once()
-	mockExec.On("SetFinal", mock.Anything, newHeight).Return(nil).Once()
+
+	mockStore.On("UpdateState", mock.Anything, expectedNewState).Return(nil).Run(func(args mock.Arguments) { close(syncChan) }).Once()
+
 	mockStore.On("SetHeight", mock.Anything, newHeight).Return(nil).Once()
 
-	mockStore.On("UpdateState", mock.Anything, expectedNewState).Return(nil).
-		Run(func(args mock.Arguments) { close(syncChan) }).
-		Once()
+	ctx, loopCancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer loopCancel()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -153,6 +153,8 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	t.Logf("Sending data event for height %d", newHeight)
 	dataInCh <- NewDataEvent{Data: data, DAHeight: daHeight}
 
+	wg.Wait()
+
 	t.Log("Waiting for sync to complete...")
 	select {
 	case <-syncChan:
@@ -160,8 +162,6 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Timeout waiting for sync to complete")
 	}
-
-	cancel()
 
 	mockStore.AssertExpectations(t)
 	mockExec.AssertExpectations(t)
@@ -207,10 +207,18 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	require.NotNil(privKey)
 
 	expectedNewAppHash := []byte("new_app_hash_data_first")
-	expectedNewState := initialState
-	expectedNewState.LastBlockHeight = newHeight
-	expectedNewState.AppHash = expectedNewAppHash
-	expectedNewState.LastBlockTime = header.Time()
+	header.Header.AppHash = expectedNewAppHash
+
+	noopSigner, err := noop.NewNoopSigner(privKey)
+	require.NoError(err)
+	b, err := header.Header.MarshalBinary()
+	require.NoError(err)
+	signature, err := noopSigner.Sign(b)
+	require.NoError(err)
+	header.Signature = signature
+
+	expectedNewState, err := initialState.NextState(header, expectedNewAppHash)
+	require.NoError(err)
 	expectedNewState.DAHeight = daHeight
 
 	syncChan := make(chan struct{})
@@ -222,13 +230,10 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash).
 		Return(expectedNewAppHash, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, header, data, &header.Signature).Return(nil).Once()
-	mockExec.On("SetFinal", mock.Anything, newHeight).Return(nil).Once()
+	mockStore.On("UpdateState", mock.Anything, expectedNewState).Return(nil).Run(func(args mock.Arguments) { close(syncChan) }).Once()
 	mockStore.On("SetHeight", mock.Anything, newHeight).Return(nil).Once()
-	mockStore.On("UpdateState", mock.Anything, expectedNewState).Return(nil).
-		Run(func(args mock.Arguments) { close(syncChan) }).
-		Once()
 
-	ctx, testCancel := context.WithCancel(ctx)
+	ctx, testCancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer testCancel()
 
 	var wg sync.WaitGroup
@@ -236,29 +241,22 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		m.SyncLoop(ctx)
-		t.Log("SyncLoop exited.")
 	}()
 
 	t.Logf("Sending data event for height %d", newHeight)
 	dataInCh <- NewDataEvent{Data: data, DAHeight: daHeight}
-
 	time.Sleep(50 * time.Millisecond)
-
 	t.Logf("Sending header event for height %d", newHeight)
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: daHeight}
 
+	wg.Wait()
 	t.Log("Waiting for sync to complete...")
 	select {
 	case <-syncChan:
 		t.Log("Sync completed.")
 	case <-time.After(2 * time.Second):
-		testCancel()
-		wg.Wait() // Wait for SyncLoop goroutine to finish
 		t.Fatal("Timeout waiting for sync to complete")
 	}
-
-	testCancel()
-	wg.Wait()
 
 	mockStore.AssertExpectations(t)
 	mockExec.AssertExpectations(t)
@@ -314,17 +312,40 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 		txsH1 = append(txsH1, tx)
 	}
 
+	headerH1.Header.AppHash = appHashH1
+
+	noopSignerH1, err := noop.NewNoopSigner(privKeyH1)
+	require.NoError(err)
+	bH1, err := headerH1.Header.MarshalBinary()
+	require.NoError(err)
+	signatureH1, err := noopSignerH1.Sign(bH1)
+	require.NoError(err)
+	headerH1.Signature = signatureH1
+
+	expectedStateH1, err := initialState.NextState(headerH1, appHashH1)
+	require.NoError(err)
+	expectedStateH1.DAHeight = daHeight
+
 	// --- Block H+2 Data ---
 	headerH2, dataH2, privKeyH2 := types.GenerateRandomBlockCustom(&types.BlockConfig{Height: heightH2, NTxs: 2}, initialState.ChainID)
 	require.NotNil(headerH2)
 	require.NotNil(dataH2)
 	require.NotNil(privKeyH2)
 	appHashH2 := []byte("app_hash_h2")
-	stateH2 := stateH1
-	stateH2.LastBlockHeight = heightH2
-	stateH2.AppHash = appHashH2
-	stateH2.LastBlockTime = headerH2.Time()
-	stateH2.DAHeight = daHeight
+	headerH2.Header.AppHash = appHashH2
+
+	noopSignerH2, err := noop.NewNoopSigner(privKeyH2)
+	require.NoError(err)
+	bH2, err := headerH2.Header.MarshalBinary()
+	require.NoError(err)
+	signatureH2, err := noopSignerH2.Sign(bH2)
+	require.NoError(err)
+	headerH2.Signature = signatureH2
+
+	expectedStateH2, err := expectedStateH1.NextState(headerH2, appHashH2)
+	require.NoError(err)
+	expectedStateH2.DAHeight = daHeight
+
 	var txsH2 [][]byte
 	for _, tx := range dataH2.Txs {
 		txsH2 = append(txsH2, tx)
@@ -337,7 +358,6 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash).
 		Return(appHashH1, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH1, dataH1, &headerH1.Signature).Return(nil).Once()
-	mockExec.On("SetFinal", mock.Anything, heightH1).Return(nil).Once()
 
 	mockStore.On("SetHeight", mock.Anything, heightH1).Return(nil).
 		Run(func(args mock.Arguments) {
@@ -356,7 +376,6 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	mockExec.On("ExecuteTxs", mock.Anything, txsH2, heightH2, headerH2.Time(), mock.Anything).
 		Return(appHashH2, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH2, dataH2, &headerH2.Signature).Return(nil).Once()
-	mockExec.On("SetFinal", mock.Anything, heightH2).Return(nil).Once()
 
 	mockStore.On("SetHeight", mock.Anything, heightH2).Return(nil).
 		Run(func(args mock.Arguments) {
@@ -372,7 +391,8 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 		Run(func(args mock.Arguments) { close(syncChanH2) }).
 		Once()
 
-	ctx, testCancel := context.WithCancel(ctx)
+	ctx, testCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer testCancel()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -417,10 +437,10 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	mockExec.AssertExpectations(t)
 
 	finalState := m.GetLastState()
-	assert.Equal(stateH2.LastBlockHeight, finalState.LastBlockHeight)
-	assert.Equal(stateH2.AppHash, finalState.AppHash)
-	assert.Equal(stateH2.LastBlockTime, finalState.LastBlockTime)
-	assert.Equal(stateH2.DAHeight, finalState.DAHeight)
+	assert.Equal(expectedStateH2.LastBlockHeight, finalState.LastBlockHeight)
+	assert.Equal(expectedStateH2.AppHash, finalState.AppHash)
+	assert.Equal(expectedStateH2.LastBlockTime, finalState.LastBlockTime)
+	assert.Equal(expectedStateH2.DAHeight, finalState.DAHeight)
 
 	assert.Nil(m.headerCache.GetItem(heightH1), "Header cache should be cleared for H+1")
 	assert.Nil(m.dataCache.GetItem(heightH1), "Data cache should be cleared for H+1")
@@ -468,17 +488,40 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 		txsH1 = append(txsH1, tx)
 	}
 
+	headerH1.Header.AppHash = appHashH1
+
+	noopSignerH1, err := noop.NewNoopSigner(privKeyH1)
+	require.NoError(err)
+	bH1, err := headerH1.Header.MarshalBinary()
+	require.NoError(err)
+	signatureH1, err := noopSignerH1.Sign(bH1)
+	require.NoError(err)
+	headerH1.Signature = signatureH1
+
+	expectedStateH1, err := initialState.NextState(headerH1, appHashH1)
+	require.NoError(err)
+	expectedStateH1.DAHeight = daHeight
+
 	// --- Block H+2 Data ---
 	headerH2, dataH2, privKeyH2 := types.GenerateRandomBlockCustom(&types.BlockConfig{Height: heightH2, NTxs: 2}, initialState.ChainID)
 	require.NotNil(headerH2)
 	require.NotNil(dataH2)
 	require.NotNil(privKeyH2)
 	appHashH2 := []byte("app_hash_h2_ooo")
-	stateH2 := stateH1
-	stateH2.LastBlockHeight = heightH2
-	stateH2.AppHash = appHashH2
-	stateH2.LastBlockTime = headerH2.Time()
-	stateH2.DAHeight = daHeight
+	headerH2.Header.AppHash = appHashH2
+
+	noopSignerH2, err := noop.NewNoopSigner(privKeyH2)
+	require.NoError(err)
+	bH2, err := headerH2.Header.MarshalBinary()
+	require.NoError(err)
+	signatureH2, err := noopSignerH2.Sign(bH2)
+	require.NoError(err)
+	headerH2.Signature = signatureH2
+
+	expectedStateH2, err := expectedStateH1.NextState(headerH2, appHashH2)
+	require.NoError(err)
+	expectedStateH2.DAHeight = daHeight
+
 	var txsH2 [][]byte
 	for _, tx := range dataH2.Txs {
 		txsH2 = append(txsH2, tx)
@@ -493,7 +536,6 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash).
 		Return(appHashH1, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH1, dataH1, &headerH1.Signature).Return(nil).Once()
-	mockExec.On("SetFinal", mock.Anything, heightH1).Return(nil).Once()
 	mockStore.On("SetHeight", mock.Anything, heightH1).Return(nil).
 		Run(func(args mock.Arguments) {
 			newHeight := args.Get(1).(uint64)
@@ -508,10 +550,10 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	// --- Mock Expectations for H+2 (will be called second) ---
 	mockStore.On("Height", mock.Anything).Return(heightH1, nil).Maybe()
 	mockExec.On("Validate", mock.Anything, &headerH2.Header, dataH2).Return(nil).Maybe()
-	mockExec.On("ExecuteTxs", mock.Anything, txsH2, heightH2, headerH2.Time(), stateH1.AppHash).
+	mockExec.On("ExecuteTxs", mock.Anything, txsH2, heightH2, headerH2.Time(), expectedStateH1.AppHash).
 		Return(appHashH2, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH2, dataH2, &headerH2.Signature).Return(nil).Once()
-	mockExec.On("SetFinal", mock.Anything, heightH2).Return(nil).Once()
+	mockExec.On("SetFinal", mck.Anything, heightH2).Return(nil).Once()
 	mockStore.On("SetHeight", mock.Anything, heightH2).Return(nil).
 		Run(func(args mock.Arguments) {
 			newHeight := args.Get(1).(uint64)
@@ -523,7 +565,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 		Run(func(args mock.Arguments) { close(syncChanH2) }).
 		Once()
 
-	ctx, testCancel := context.WithCancel(ctx)
+	ctx, testCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer testCancel()
 
 	var wg sync.WaitGroup
@@ -575,10 +617,10 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	mockExec.AssertExpectations(t)
 
 	finalState := m.GetLastState()
-	assert.Equal(stateH2.LastBlockHeight, finalState.LastBlockHeight)
-	assert.Equal(stateH2.AppHash, finalState.AppHash)
-	assert.Equal(stateH2.LastBlockTime, finalState.LastBlockTime)
-	assert.Equal(stateH2.DAHeight, finalState.DAHeight)
+	assert.Equal(expectedStateH2.LastBlockHeight, finalState.LastBlockHeight)
+	assert.Equal(expectedStateH2.AppHash, finalState.AppHash)
+	assert.Equal(expectedStateH2.LastBlockTime, finalState.LastBlockTime)
+	assert.Equal(expectedStateH2.DAHeight, finalState.DAHeight)
 
 	assert.Nil(m.headerCache.GetItem(heightH1), "Header cache should be cleared for H+1")
 	assert.Nil(m.dataCache.GetItem(heightH1), "Data cache should be cleared for H+1")
@@ -621,13 +663,26 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 		txsH1 = append(txsH1, tx)
 	}
 
+	headerH1.Header.AppHash = appHashH1
+
+	noopSignerH1, err := noop.NewNoopSigner(privKeyH1)
+	require.NoError(err)
+	bH1, err := headerH1.Header.MarshalBinary()
+	require.NoError(err)
+	signatureH1, err := noopSignerH1.Sign(bH1)
+	require.NoError(err)
+	headerH1.Signature = signatureH1
+
+	expectedStateH1, err := initialState.NextState(headerH1, appHashH1)
+	require.NoError(err)
+	expectedStateH1.DAHeight = daHeight
+
 	syncChanH1 := make(chan struct{})
 
 	// --- Mock Expectations (Expect processing exactly ONCE) ---
 	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash).
 		Return(appHashH1, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH1, dataH1, &headerH1.Signature).Return(nil).Once()
-	mockExec.On("SetFinal", mock.Anything, heightH1).Return(nil).Once()
 	mockStore.On("SetHeight", mock.Anything, heightH1).Return(nil).Once()
 	mockStore.On("UpdateState", mock.Anything, stateH1).Return(nil).
 		Run(func(args mock.Arguments) { close(syncChanH1) }).
@@ -673,10 +728,10 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	mockExec.AssertExpectations(t)  // Crucial: verifies calls happened exactly once
 
 	finalState := m.GetLastState()
-	assert.Equal(stateH1.LastBlockHeight, finalState.LastBlockHeight)
-	assert.Equal(stateH1.AppHash, finalState.AppHash)
-	assert.Equal(stateH1.LastBlockTime, finalState.LastBlockTime)
-	assert.Equal(stateH1.DAHeight, finalState.DAHeight)
+	assert.Equal(expectedStateH1.LastBlockHeight, finalState.LastBlockHeight)
+	assert.Equal(expectedStateH1.AppHash, finalState.AppHash)
+	assert.Equal(expectedStateH1.LastBlockTime, finalState.LastBlockTime)
+	assert.Equal(expectedStateH1.DAHeight, finalState.DAHeight)
 
 	// Assert caches are cleared
 	assert.Nil(m.headerCache.GetItem(heightH1), "Header cache should be cleared for H+1")
