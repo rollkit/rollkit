@@ -11,17 +11,15 @@ import (
 
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
-
 	// Use existing store mock if available, or define one
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	extmocks "github.com/rollkit/rollkit/test/mocks/external"
 	"github.com/rollkit/rollkit/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func setupManagerForStoreRetrieveTest(t *testing.T) (

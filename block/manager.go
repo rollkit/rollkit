@@ -568,7 +568,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 			}
 			m.logger.Info("Creating and publishing block", "height", newHeight)
-			m.logger.Debug("block info", "num_tx", len(batchData.Batch.Transactions))
+			m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
 		}
 
 		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
@@ -820,11 +820,6 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	header.DataHash = blockData.DACommitment()
 
 	return header, blockData, nil
-}
-
-func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
-	err := m.exec.SetFinal(ctx, h.Height())
-	return newState.AppHash, err
 }
 
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {

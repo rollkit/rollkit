@@ -77,7 +77,7 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 			}
 			m.logger.Debug("retrieved potential data", "n", len(blobsResp.Data), "daHeight", daHeight)
 			for _, bz := range blobsResp.Data {
-				if bz == nil || len(bz) == 0 {
+				if len(bz) == 0 {
 					m.logger.Debug("ignoring nil or empty blob", "daHeight", daHeight)
 					continue
 				}
