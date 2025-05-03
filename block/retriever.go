@@ -35,7 +35,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		case <-blobsFoundCh:
 		}
 		daHeight := m.daHeight.Load()
-		err := m.processNextDAHeaderAndBlock(ctx)
+		err := m.processNextDAHeaderAndData(ctx)
 		if err != nil && ctx.Err() == nil {
 			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
 			if !m.areAllErrorsHeightFromFuture(err) {
@@ -52,7 +52,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	}
 }
 
-func (m *Manager) processNextDAHeaderAndBlock(ctx context.Context) error {
+func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -72,66 +72,15 @@ func (m *Manager) processNextDAHeaderAndBlock(ctx context.Context) error {
 		blobsResp, fetchErr := m.fetchBlobs(ctx, daHeight)
 		if fetchErr == nil {
 			if blobsResp.Code == coreda.StatusNotFound {
-				m.logger.Debug("no data found", "daHeight", daHeight, "reason", blobsResp.Message)
+				m.logger.Debug("no blob data found", "daHeight", daHeight, "reason", blobsResp.Message)
 				return nil
 			}
 			m.logger.Debug("retrieved potential data", "n", len(blobsResp.Data), "daHeight", daHeight)
 			for _, bz := range blobsResp.Data {
-				// Try to decode as header first
-				header := new(types.SignedHeader)
-				var headerPb pb.SignedHeader
-				err := proto.Unmarshal(bz, &headerPb)
-				if err == nil {
-					err = header.FromProto(&headerPb)
-					if err == nil {
-						// early validation to reject junk headers
-						if !m.isUsingExpectedSingleSequencer(header) {
-							m.logger.Debug("skipping header from unexpected sequencer",
-								"headerHeight", header.Height(),
-								"headerHash", header.Hash().String())
-							continue
-						}
-						headerHash := header.Hash().String()
-						m.headerCache.SetDAIncluded(headerHash)
-						m.sendNonBlockingSignalToDAIncluderCh()
-						m.logger.Info("header marked as DA included", "headerHeight", header.Height(), "headerHash", headerHash)
-						if !m.headerCache.IsSeen(headerHash) {
-							select {
-							case <-ctx.Done():
-								return fmt.Errorf("unable to send header to headerInCh, context done: %w", ctx.Err())
-							default:
-								m.logger.Warn("headerInCh backlog full, dropping header", "daHeight", daHeight)
-							}
-							m.headerInCh <- NewHeaderEvent{header, daHeight}
-						}
-						continue
-					}
+				if m.handlePotentialHeader(ctx, bz, daHeight) {
+					continue
 				}
-
-				// If not a header, try to decode as batch
-				var batchPb pb.Batch
-				err = proto.Unmarshal(bz, &batchPb)
-				if err == nil {
-					data := &types.Data{
-						Txs: make(types.Txs, len(batchPb.Txs)),
-					}
-					for i, tx := range batchPb.Txs {
-						data.Txs[i] = types.Tx(tx)
-					}
-					dataHashStr := data.DACommitment().String()
-					m.dataCache.SetDAIncluded(dataHashStr)
-					m.sendNonBlockingSignalToDAIncluderCh()
-					m.logger.Info("batch marked as DA included", "batchHash", dataHashStr, "daHeight", daHeight)
-					if !m.dataCache.IsSeen(dataHashStr) {
-						select {
-						case <-ctx.Done():
-							return fmt.Errorf("unable to send batch to dataInCh, context done: %w", ctx.Err())
-						default:
-							m.logger.Warn("dataInCh backlog full, dropping batch", "daHeight", daHeight)
-						}
-						m.dataInCh <- NewDataEvent{data, daHeight}
-					}
-				}
+				m.handlePotentialBatch(ctx, bz, daHeight)
 			}
 			return nil
 		}
@@ -146,6 +95,73 @@ func (m *Manager) processNextDAHeaderAndBlock(ctx context.Context) error {
 		}
 	}
 	return err
+}
+
+// handlePotentialHeader tries to decode and process a header. Returns true if successful or skipped, false if not a header.
+func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight uint64) bool {
+	header := new(types.SignedHeader)
+	var headerPb pb.SignedHeader
+	err := proto.Unmarshal(bz, &headerPb)
+	if err != nil {
+		m.logger.Debug("failed to unmarshal header", "error", err)
+		return false
+	}
+	err = header.FromProto(&headerPb)
+	if err != nil {
+		// treat as handled, but not valid
+		m.logger.Debug("failed to decode unmarshalled header", "error", err)
+		return true
+	}
+	// early validation to reject junk headers
+	if !m.isUsingExpectedSingleSequencer(header) {
+		m.logger.Debug("skipping header from unexpected sequencer",
+			"headerHeight", header.Height(),
+			"headerHash", header.Hash().String())
+		return true
+	}
+	headerHash := header.Hash().String()
+	m.headerCache.SetDAIncluded(headerHash)
+	m.sendNonBlockingSignalToDAIncluderCh()
+	m.logger.Info("header marked as DA included", "headerHeight", header.Height(), "headerHash", headerHash)
+	if !m.headerCache.IsSeen(headerHash) {
+		select {
+		case <-ctx.Done():
+			return true
+		default:
+			m.logger.Warn("headerInCh backlog full, dropping header", "daHeight", daHeight)
+		}
+		m.headerInCh <- NewHeaderEvent{header, daHeight}
+	}
+	return true
+}
+
+// handlePotentialBatch tries to decode and process a batch. No return value.
+func (m *Manager) handlePotentialBatch(ctx context.Context, bz []byte, daHeight uint64) {
+	var batchPb pb.Batch
+	err := proto.Unmarshal(bz, &batchPb)
+	if err != nil {
+		m.logger.Debug("failed to unmarshal batch", "error", err)
+		return
+	}
+	data := &types.Data{
+		Txs: make(types.Txs, len(batchPb.Txs)),
+	}
+	for i, tx := range batchPb.Txs {
+		data.Txs[i] = types.Tx(tx)
+	}
+	dataHashStr := data.DACommitment().String()
+	m.dataCache.SetDAIncluded(dataHashStr)
+	m.sendNonBlockingSignalToDAIncluderCh()
+	m.logger.Info("batch marked as DA included", "batchHash", dataHashStr, "daHeight", daHeight)
+	if !m.dataCache.IsSeen(dataHashStr) {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			m.logger.Warn("dataInCh backlog full, dropping batch", "daHeight", daHeight)
+		}
+		m.dataInCh <- NewDataEvent{data, daHeight}
+	}
 }
 
 // areAllErrorsHeightFromFuture checks if all errors in a joined error are ErrHeightFromFutureStr
