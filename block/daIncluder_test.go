@@ -219,6 +219,35 @@ func TestIncrementDAIncludedHeight_SetMetadataError(t *testing.T) {
 	mockLogger.AssertExpectations(t)
 }
 
+// TestIncrementDAIncludedHeight_SetFinalError verifies that incrementDAIncludedHeight returns an error
+// if SetFinal fails after SetMetadata succeeds, and logs the error.
+func TestIncrementDAIncludedHeight_SetFinalError(t *testing.T) {
+	t.Parallel()
+	m, store, exec, mockLogger := newTestManager(t)
+	startDAIncludedHeight := uint64(4)
+	expectedDAIncludedHeight := uint64(startDAIncludedHeight + 1)
+	m.daIncludedHeight.Store(startDAIncludedHeight)
+
+	heightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
+	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(nil).Once()
+
+	setFinalErr := assert.AnError
+	exec.On("SetFinal", mock.Anything, expectedDAIncludedHeight).Return(setFinalErr).Once()
+
+	mockLogger.ExpectedCalls = nil // Clear any previous expectations
+	// Expect the error log for failed to set final
+	mockLogger.On("Error", "failed to set final", mock.Anything).Once()
+	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
+	mockLogger.On("Error", mock.Anything, mock.Anything).Maybe() // Allow other error logs
+
+	err := m.incrementDAIncludedHeight(context.Background())
+	assert.Error(t, err)
+	store.AssertExpectations(t)
+	exec.AssertExpectations(t)
+	mockLogger.AssertExpectations(t)
+}
+
 // TestDAIncluderLoop_MultipleConsecutiveHeightsDAIncluded verifies that DAIncluderLoop advances the height
 // multiple times in a single run when several consecutive blocks are DA-included.
 func TestDAIncluderLoop_MultipleConsecutiveHeightsDAIncluded(t *testing.T) {
