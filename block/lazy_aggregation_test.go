@@ -71,6 +71,7 @@ func setupTestManager(t *testing.T, blockTime, lazyTime time.Duration) (*Manager
 
 // TestLazyAggregationLoop_BlockTimerTrigger tests that a block is published when the blockTimer fires first.
 func TestLazyAggregationLoop_BlockTimerTrigger(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	// Create a mock for the publishBlock function that counts calls
@@ -114,6 +115,7 @@ func TestLazyAggregationLoop_BlockTimerTrigger(t *testing.T) {
 
 // TestLazyAggregationLoop_LazyTimerTrigger tests that a block is published when the lazyTimer fires first.
 func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -163,6 +165,7 @@ func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
 
 // TestLazyAggregationLoop_PublishError tests that the loop continues after a publish error.
 func TestLazyAggregationLoop_PublishError(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	blockTime := 50 * time.Millisecond
@@ -212,6 +215,7 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 
 // TestGetRemainingSleep tests the calculation of sleep duration.
 func TestGetRemainingSleep(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	interval := 100 * time.Millisecond
@@ -242,6 +246,7 @@ func TestGetRemainingSleep(t *testing.T) {
 
 // TestLazyAggregationLoop_TxNotification tests that transaction notifications trigger block production in lazy mode
 func TestLazyAggregationLoop_TxNotification(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	blockTime := 200 * time.Millisecond
@@ -310,6 +315,7 @@ func TestLazyAggregationLoop_TxNotification(t *testing.T) {
 
 // TestEmptyBlockCreation tests that empty blocks are created with the correct dataHash
 func TestEmptyBlockCreation(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	// Create a mock for the publishBlock function that captures the context
@@ -345,6 +351,7 @@ func TestEmptyBlockCreation(t *testing.T) {
 
 // TestNormalAggregationLoop_TxNotification tests that transaction notifications are handled in normal mode
 func TestNormalAggregationLoop_TxNotification(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	blockTime := 100 * time.Millisecond
