@@ -87,7 +87,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 	return m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, heightPtr
 }
 
-// TestSyncLoop_ProcessSingleBlock_HeaderFirst verifies the basic scenario:
+// TestSyncLoop_ProcessSingleBlock_HeaderFirst verifies that the sync loop processes a single block when the header arrives before the data.
 // 1. Header for H+1 arrives.
 // 2. Data for H+1 arrives.
 // 3. Block H+1 is successfully validated, applied, and committed.
@@ -177,7 +177,7 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	assert.Nil(m.dataCache.GetItem(newHeight), "Data cache should be cleared for processed height")
 }
 
-// TestSyncLoop_ProcessSingleBlock_DataFirst verifies the basic scenario but with data arriving before the header:
+// TestSyncLoop_ProcessSingleBlock_DataFirst verifies that the sync loop processes a single block when the data arrives before the header.
 // 1. Data for H+1 arrives.
 // 2. Header for H+1 arrives.
 // 3. Block H+1 is successfully validated, applied, and committed.
@@ -274,7 +274,7 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	assert.Nil(m.dataCache.GetItem(newHeight), "Data cache should be cleared for processed height")
 }
 
-// TestSyncLoop_ProcessMultipleBlocks_Sequentially verifies processing multiple blocks arriving sequentially.
+// TestSyncLoop_ProcessMultipleBlocks_Sequentially verifies that the sync loop processes multiple blocks arriving in order.
 // 1. Events for H+1 arrive (header then data).
 // 2. Block H+1 is processed.
 // 3. Events for H+2 arrive (header then data).
@@ -428,7 +428,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	assert.Nil(m.dataCache.GetItem(heightH2), "Data cache should be cleared for H+2")
 }
 
-// TestSyncLoop_ProcessBlocks_OutOfOrderArrival verifies processing blocks arriving out of order.
+// TestSyncLoop_ProcessBlocks_OutOfOrderArrival verifies that the sync loop can handle blocks arriving out of order.
 // 1. Events for H+2 arrive (header then data). Block H+2 is cached.
 // 2. Events for H+1 arrive (header then data).
 // 3. Block H+1 is processed.

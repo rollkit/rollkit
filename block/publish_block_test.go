@@ -106,8 +106,7 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 	return manager, mockStore, mockExec, mockSeq, testSigner, headerCh, dataCh, cancel
 }
 
-// TestPublishBlockInternal_MaxPendingBlocksReached verifies that publishBlockInternal
-// returns an error if the maximum number of pending blocks is reached.
+// TestPublishBlockInternal_MaxPendingBlocksReached verifies that publishBlockInternal returns an error if the maximum number of pending blocks is reached.
 func TestPublishBlockInternal_MaxPendingBlocksReached(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -135,7 +134,7 @@ func TestPublishBlockInternal_MaxPendingBlocksReached(t *testing.T) {
 	mockStore.AssertNotCalled(t, "GetSignature", mock.Anything, mock.Anything)
 }
 
-// Test_publishBlock_NoBatch tests that publishBlock returns nil when no batch is available.
+// Test_publishBlock_NoBatch verifies that publishBlock returns nil when no batch is available from the sequencer.
 func Test_publishBlock_NoBatch(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -213,6 +212,7 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	mockExec.AssertExpectations(t)
 }
 
+// Test_publishBlock_EmptyBatch verifies that publishBlock returns nil and does not publish a block when the batch is empty.
 func Test_publishBlock_EmptyBatch(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -327,8 +327,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	mockExec.AssertExpectations(t)
 }
 
-// Test_publishBlock_Success tests the happy path where a block with transactions
-// is successfully created, applied, and published.
+// Test_publishBlock_Success verifies the happy path where a block with transactions is successfully created, applied, and published.
 func Test_publishBlock_Success(t *testing.T) {
 	require := require.New(t)
 
