@@ -18,6 +18,7 @@ import (
 
 // TestReaper_SubmitTxs_Success verifies that the Reaper successfully submits new transactions to the sequencer.
 func TestReaper_SubmitTxs_Success(t *testing.T) {
+	t.Parallel()
 
 	mockExec := testmocks.NewExecutor(t)
 	mockSeq := testmocks.NewSequencer(t)
@@ -54,6 +55,7 @@ func TestReaper_SubmitTxs_Success(t *testing.T) {
 
 // TestReaper_SubmitTxs_NoTxs verifies that the Reaper does nothing when there are no new transactions to submit.
 func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
+	t.Parallel()
 
 	mockExec := testmocks.NewExecutor(t)
 	mockSeq := testmocks.NewSequencer(t)
@@ -77,6 +79,7 @@ func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
 
 // TestReaper_TxPersistence_AcrossRestarts verifies that the Reaper persists seen transactions across restarts.
 func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	// Use separate mocks for each instance but share the store
