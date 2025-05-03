@@ -822,17 +822,6 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	return header, blockData, nil
 }
 
-func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.execApplyBlock(ctx, m.lastState, header, data)
-}
-
-func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Data) error {
-	// TODO(tzdybal): implement
-	return nil
-}
-
 func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
 	err := m.exec.SetFinal(ctx, h.Height())
 	return newState.AppHash, err
