@@ -38,13 +38,11 @@ Block.ValidateBasic()
 	    validator.ValidateBasic()
 		  validate not nil
 		  validator.PubKey not nil
-		  validator.VotingPower >= 0
 		  validator.Address == correct size
 	  // apply ValidateBasic to the proposer field:
 	  sh.Validators.Proposer.ValidateBasic()
 		validate not nil
 		validator.PubKey not nil
-		validator.VotingPower >= 0
 		validator.Address == correct size
     Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
 	Verify SignedHeader.Signature
