@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
 	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 )
@@ -23,10 +21,12 @@ func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 		RootDir: t.TempDir(),
 		Node: rollkitconfig.NodeConfig{
 			Aggregator:        true,
-			BlockTime:         rollkitconfig.DurationWrapper{Duration: 500 * time.Millisecond},
+			BlockTime:         rollkitconfig.DurationWrapper{Duration: 100 * time.Millisecond},
+			MaxPendingBlocks:  100,
 			LazyBlockInterval: rollkitconfig.DurationWrapper{Duration: 5 * time.Second},
 		},
 		DA: rollkitconfig.DAConfig{
+			BlockTime: rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond},
 			Address:   MockDAAddress,
 			Namespace: MockDANamespace,
 		},
@@ -36,10 +36,9 @@ func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 	}
 }
 
-func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
+func setupTestNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullNode, func()) {
 	// Create a cancellable context instead of using background context
 	ctx, cancel := context.WithCancel(context.Background())
-	config := getTestConfig(t, 1)
 
 	// Generate genesis and keys
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
@@ -48,10 +47,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 
 	executor, sequencer, dac, p2pClient, ds := createTestComponents(t)
 
-	err = InitFiles(config.RootDir)
-	require.NoError(t, err)
-
-	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(config.RootDir, "config"))
+	nodeKey, err := InitFiles(config.RootDir)
 	require.NoError(t, err)
 
 	node, err := NewNode(
