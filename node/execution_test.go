@@ -19,7 +19,7 @@ func TestBasicExecutionFlow(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	node, cleanup := setupTestNodeWithCleanup(t)
+	node, cleanup := setupTestNodeWithCleanup(t, getTestConfig(t, 1))
 	defer cleanup()
 
 	// Wait for node initialization
@@ -124,7 +124,7 @@ func TestExecutionWithDASync(t *testing.T) {
 		// Create a cancellable context for the node
 		ctx, cancel := context.WithCancel(context.Background())
 		// Setup node with mock DA
-		node, cleanup := setupTestNodeWithCleanup(t)
+		node, cleanup := setupTestNodeWithCleanup(t, getTestConfig(t, 1))
 		defer cleanup()
 
 		seqSrv := startMockSequencerServerGRPC(MockSequencerAddress)
