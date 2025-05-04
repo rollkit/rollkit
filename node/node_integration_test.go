@@ -3,13 +3,11 @@ package node
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
-	testutils "github.com/celestiaorg/utils/test"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
@@ -32,6 +30,7 @@ type NodeIntegrationTestSuite struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	node      Node
+	executor  *coreexecutor.DummyExecutor
 	seqSrv    *grpc.Server
 	errCh     chan error
 	runningWg sync.WaitGroup
@@ -92,6 +91,8 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 
 	s.node = fn
 
+	s.executor = dummyExec
+
 	// Start the node in a goroutine using Run instead of Start
 	s.runningWg.Add(1)
 	go func() {
@@ -105,26 +106,10 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	}()
 
 	// Wait for node initialization with retry
-	err = testutils.Retry(60, 100*time.Millisecond, func() error {
-		height, err := getNodeHeight(s.node, Header)
-		if err != nil {
-			return err
-		}
-		if height == 0 {
-			return fmt.Errorf("waiting for first block")
-		}
-		return nil
-	})
+	err = waitForFirstBlock(s.node, Header)
 	require.NoError(s.T(), err, "Node failed to produce first block")
 
-	// Wait for DA inclusion with longer timeout
-	err = testutils.Retry(100, 100*time.Millisecond, func() error {
-		daHeight := s.node.(*FullNode).blockManager.GetDAIncludedHeight()
-		if daHeight == 0 {
-			return fmt.Errorf("waiting for DA inclusion")
-		}
-		return nil
-	})
+	err = waitForFirstBlockToBeDAIncludedHeight(s.node)
 	require.NoError(s.T(), err, "Failed to get DA inclusion")
 }
 
@@ -168,22 +153,15 @@ func TestNodeIntegrationTestSuite(t *testing.T) {
 	suite.Run(t, new(NodeIntegrationTestSuite))
 }
 
-func (s *NodeIntegrationTestSuite) waitForHeight(targetHeight uint64) error {
-	return waitForAtLeastNBlocks(s.node, int(targetHeight), Store)
-}
-
 func (s *NodeIntegrationTestSuite) TestBlockProduction() {
-	// Wait for at least one block to be produced and transactions to be included
-	time.Sleep(5 * time.Second) // Give more time for the full flow
-
-	// Wait for at least one block to be produced
-	err := s.waitForHeight(1)
-	s.NoError(err, "Failed to produce first block")
+	s.executor.InjectTx([]byte("test transaction"))
+	err := waitForAtLeastNBlocks(s.node, 5, Store)
+	s.NoError(err, "Failed to produce second block")
 
 	// Get the current height
 	height, err := s.node.(*FullNode).Store.Height(s.ctx)
 	require.NoError(s.T(), err)
-	s.GreaterOrEqual(height, uint64(1), "Expected block height >= 1")
+	s.GreaterOrEqual(height, uint64(5), "Expected block height >= 5")
 
 	// Get all blocks and log their contents
 	for h := uint64(1); h <= height; h++ {
@@ -209,6 +187,5 @@ func (s *NodeIntegrationTestSuite) TestBlockProduction() {
 	s.Equal(height, state.LastBlockHeight)
 
 	// Verify block content
-	// TODO: uncomment this when we have the system working correctly
-	// s.NotEmpty(data.Txs, "Expected block to contain transactions")
+	s.NotEmpty(data.Txs, "Expected block to contain transactions")
 }

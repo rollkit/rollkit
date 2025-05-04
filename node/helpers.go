@@ -43,6 +43,10 @@ func waitForFirstBlock(node Node, source Source) error {
 	return waitForAtLeastNBlocks(node, 1, source)
 }
 
+func waitForFirstBlockToBeDAIncludedHeight(node Node) error {
+	return waitForAtLeastNDAIncludedHeight(node, 1)
+}
+
 func getNodeHeight(node Node, source Source) (uint64, error) {
 	switch source {
 	case Header:
@@ -90,11 +94,26 @@ func safeClose(ch chan struct{}) {
 	}
 }
 
+// waitForAtLeastNBlocks waits for the node to have at least n blocks
 func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 	return Retry(300, 100*time.Millisecond, func() error {
 		nHeight, err := getNodeHeight(node, source)
 		if err != nil {
 			return err
+		}
+		if nHeight >= uint64(n) {
+			return nil
+		}
+		return fmt.Errorf("expected height > %v, got %v", n, nHeight)
+	})
+}
+
+// waitForAtLeastNDAIncludedHeight waits for the DA included height to be at least n
+func waitForAtLeastNDAIncludedHeight(node Node, n int) error {
+	return Retry(300, 100*time.Millisecond, func() error {
+		nHeight := node.(*FullNode).blockManager.GetDAIncludedHeight()
+		if nHeight == 0 {
+			return fmt.Errorf("waiting for DA inclusion")
 		}
 		if nHeight >= uint64(n) {
 			return nil
