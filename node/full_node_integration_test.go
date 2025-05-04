@@ -310,7 +310,8 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	require.NoError(err)
 
 	// Wait for some blocks
-	waitForAtLeastNBlocks(s.node, 5, Store)
+	err = waitForAtLeastNBlocks(s.node, 5, Store)
+	require.NoError(err)
 
 	// Stop the current node
 	s.cancel()
