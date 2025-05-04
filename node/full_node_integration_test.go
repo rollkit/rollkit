@@ -118,22 +118,22 @@ func (s *FullNodeTestSuite) SetupTest() {
 	s.startNodeInBackground(s.node)
 
 	// Wait for the node to start and initialize DA connection
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	// Verify that the node is running and producing blocks
 	height, err := getNodeHeight(s.node, Header)
 	require.NoError(err, "Failed to get node height")
 	require.Greater(height, uint64(0), "Node should have produced at least one block")
 
-	// // Wait for DA inclusion with retry
-	// err = testutils.Retry(30, 100*time.Millisecond, func() error {
-	// 	daHeight := s.node.blockManager.GetDAIncludedHeight()
-	// 	if daHeight == 0 {
-	// 		return fmt.Errorf("waiting for DA inclusion")
-	// 	}
-	// 	return nil
-	// })
-	// require.NoError(err, "Failed to get DA inclusion")
+	// Wait for DA inclusion with retry
+	err = testutils.Retry(30, 100*time.Millisecond, func() error {
+		daHeight := s.node.blockManager.GetDAIncludedHeight()
+		if daHeight == 0 {
+			return fmt.Errorf("waiting for DA inclusion")
+		}
+		return nil
+	})
+	require.NoError(err, "Failed to get DA inclusion")
 
 	// Wait for additional blocks to be produced
 	time.Sleep(500 * time.Millisecond)
@@ -246,10 +246,6 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 
 	// Try to trigger block production explicitly
 	s.T().Log("=== Attempting to Trigger Block Production ===")
-	// Force a state update to trigger block production
-	currentState := s.node.blockManager.GetLastState()
-	currentState.LastBlockTime = time.Now().Add(-2 * s.node.nodeConfig.Node.BlockTime.Duration)
-	s.node.blockManager.SetLastState(currentState)
 
 	// Monitor after trigger
 	for i := range 5 {
