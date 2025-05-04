@@ -1,6 +1,7 @@
 package block
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 )
@@ -25,10 +26,10 @@ func (m *Manager) DAIncluderLoop(ctx context.Context) {
 				break
 			}
 
-			headerHash := header.Hash().String()
-			dataHash := data.DACommitment().String()
+			headerHash := header.Hash()
+			dataHash := data.DACommitment()
 
-			if m.headerCache.IsDAIncluded(headerHash) && m.dataCache.IsDAIncluded(dataHash) {
+			if m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, dataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String())) {
 				// Both header and data are DA-included, so we can advance the height
 				if err := m.incrementDAIncludedHeight(ctx); err != nil {
 					break
