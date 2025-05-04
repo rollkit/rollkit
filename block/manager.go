@@ -180,8 +180,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			BaseHeader: types.BaseHeader{
 				ChainID: genesis.ChainID,
 				Height:  genesis.InitialHeight,
-				// Add 1 second to the genesis time to avoid timestamp collision with lastState.LastBlockTime
-				Time: uint64(genesis.GenesisDAStartTime.Add(time.Second).UnixNano()),
+				Time:    uint64(genesis.GenesisDAStartTime.UnixNano()),
 			}}
 
 		var signature types.Signature
@@ -619,7 +618,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	newState.DAHeight = m.daHeight.Load()
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
-	m.logger.Debug("updating state", "newState", newState)
 	err = m.updateState(ctx, newState)
 	if err != nil {
 		return err
@@ -713,9 +711,9 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 
 	// Verify that the header's timestamp is strictly greater than the last block's time
 	headerTime := header.Time()
-	if headerTime.Before(lastState.LastBlockTime) || headerTime.Equal(lastState.LastBlockTime) {
+	if header.Height() > 1 && lastState.LastBlockTime.After(headerTime) {
 		return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
-			headerTime, lastState.LastBlockTime)
+			headerTime.UnixNano(), lastState.LastBlockTime)
 	}
 
 	// Validate that the header's AppHash matches the lastState's AppHash
