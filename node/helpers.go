@@ -95,13 +95,13 @@ func safeClose(ch chan struct{}) {
 }
 
 // waitForAtLeastNBlocks waits for the node to have at least n blocks
-func waitForAtLeastNBlocks(node Node, n int, source Source) error {
+func waitForAtLeastNBlocks(node Node, n uint64, source Source) error {
 	return Retry(300, 100*time.Millisecond, func() error {
 		nHeight, err := getNodeHeight(node, source)
 		if err != nil {
 			return err
 		}
-		if nHeight >= uint64(n) {
+		if nHeight >= n {
 			return nil
 		}
 		return fmt.Errorf("expected height > %v, got %v", n, nHeight)
@@ -109,13 +109,13 @@ func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 }
 
 // waitForAtLeastNDAIncludedHeight waits for the DA included height to be at least n
-func waitForAtLeastNDAIncludedHeight(node Node, n int) error {
+func waitForAtLeastNDAIncludedHeight(node Node, n uint64) error {
 	return Retry(300, 100*time.Millisecond, func() error {
 		nHeight := node.(*FullNode).blockManager.GetDAIncludedHeight()
 		if nHeight == 0 {
 			return fmt.Errorf("waiting for DA inclusion")
 		}
-		if nHeight >= uint64(n) {
+		if nHeight >= n {
 			return nil
 		}
 		return fmt.Errorf("expected height > %v, got %v", n, nHeight)
@@ -147,19 +147,19 @@ func Retry(tries int, durationBetweenAttempts time.Duration, fn func() error) (e
 // InitFiles initializes the files for the node.
 // It creates a temporary directory and nodekey file for testing purposes.
 // It returns the path to the temporary directory and a function to clean up the temporary directory.
-func InitFiles(dir string) error {
+func InitFiles(dir string) (*key.NodeKey, error) {
 	// Create config directory
 	configDir := filepath.Join(dir, "config")
 	err := os.MkdirAll(configDir, 0700) //nolint:gosec
 	if err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+		return nil, fmt.Errorf("failed to create config directory: %w", err)
 	}
 
 	// create the nodekey file
-	_, err = key.LoadOrGenNodeKey(configDir)
+	nodeKey, err := key.LoadOrGenNodeKey(configDir)
 	if err != nil {
-		return fmt.Errorf("failed to create node key: %w", err)
+		return nil, fmt.Errorf("failed to create node key: %w", err)
 	}
 
-	return nil
+	return nodeKey, nil
 }

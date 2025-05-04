@@ -190,10 +190,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 
 	executor, sequencer, dac, p2pClient, ds := createTestComponents(t)
 
-	err = InitFiles(config.RootDir)
-	require.NoError(t, err)
-
-	nodeKey, err := key.GenerateNodeKey()
+	nodeKey, err := InitFiles(config.RootDir)
 	require.NoError(t, err)
 
 	logger := log.NewTestLogger(t)
@@ -219,8 +216,6 @@ func TestNewNode(t *testing.T) {
 	ctx := context.Background()
 	chainID := "TestNewNode"
 
-	// ln := initAndStartNodeWithCleanup(ctx, t, Light, chainID)
-	// require.IsType(t, new(LightNode), ln)
 	node, _, err := newTestNode(ctx, t, Full, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, node)
