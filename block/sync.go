@@ -32,7 +32,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			headerHash := header.Hash().String()
 			headerHeight := header.Height()
 			m.logger.Debug("header retrieved",
-				"height", headerHash,
+				"height", headerHeight,
 				"daHeight", daHeight,
 				"hash", headerHash,
 			)
@@ -67,7 +67,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			dataHash := data.DACommitment().String()
 			dataHeight := data.Metadata.Height
 			m.logger.Debug("data retrieved",
-				"height", dataHash,
+				"height", dataHeight,
 				"daHeight", daHeight,
 				"hash", dataHash,
 			)
