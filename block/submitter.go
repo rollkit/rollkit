@@ -103,6 +103,7 @@ daSubmitRetryLoop:
 			}
 			m.pendingHeaders.setLastSubmittedHeight(ctx, lastSubmittedHeight)
 			headersToSubmit = notSubmittedHeaders
+			m.daIncluderCh <- struct{}{}
 			// reset submission options when successful
 			// scale back gasPrice gradually
 			backoff = 0

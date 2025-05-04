@@ -294,3 +294,73 @@ func TestDAIncluderLoop_MultipleConsecutiveHeightsDAIncluded(t *testing.T) {
 	store.AssertExpectations(t)
 	exec.AssertExpectations(t)
 }
+
+// TestDAIncluderLoop_AdvancesHeightWhenDataHashIsEmptyAndHeaderDAIncluded verifies that the DAIncluderLoop advances the DA included height
+// when the header is DA-included and the data hash is dataHashForEmptyTxs (empty txs), even if the data is not DA-included.
+func TestDAIncluderLoop_AdvancesHeightWhenDataHashIsEmptyAndHeaderDAIncluded(t *testing.T) {
+	t.Parallel()
+	m, store, exec, _ := newTestManager(t)
+	startDAIncludedHeight := uint64(4)
+	expectedDAIncludedHeight := startDAIncludedHeight + 1
+	m.daIncludedHeight.Store(startDAIncludedHeight)
+
+	header, data := types.GetRandomBlock(5, 0, "testchain")
+	headerHash := header.Hash().String()
+	m.headerCache.SetDAIncluded(headerHash)
+	// Do NOT set data as DA-included
+
+	store.On("GetBlockData", mock.Anything, uint64(5)).Return(header, data, nil).Once()
+	store.On("GetBlockData", mock.Anything, uint64(6)).Return(nil, nil, assert.AnError).Once()
+	heightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
+	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(nil).Once()
+	exec.On("SetFinal", mock.Anything, uint64(5)).Return(nil).Once()
+
+	ctx, loopCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer loopCancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		m.DAIncluderLoop(ctx)
+	}()
+
+	m.daIncluderCh <- struct{}{}
+	wg.Wait()
+
+	assert.Equal(t, expectedDAIncludedHeight, m.daIncludedHeight.Load())
+	store.AssertExpectations(t)
+	exec.AssertExpectations(t)
+}
+
+// TestDAIncluderLoop_DoesNotAdvanceWhenDataHashIsEmptyAndHeaderNotDAIncluded verifies that the DAIncluderLoop does not advance the DA included height
+// when the header is NOT DA-included, even if the data hash is dataHashForEmptyTxs (empty txs).
+func TestDAIncluderLoop_DoesNotAdvanceWhenDataHashIsEmptyAndHeaderNotDAIncluded(t *testing.T) {
+	t.Parallel()
+	m, store, _, _ := newTestManager(t)
+	startDAIncludedHeight := uint64(4)
+	m.daIncludedHeight.Store(startDAIncludedHeight)
+
+	header, data := types.GetRandomBlock(5, 0, "testchain")
+	// Do NOT set header as DA-included
+	// Do NOT set data as DA-included
+
+	store.On("GetBlockData", mock.Anything, uint64(5)).Return(header, data, nil).Once()
+
+	ctx, loopCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer loopCancel()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		m.DAIncluderLoop(ctx)
+	}()
+
+	m.daIncluderCh <- struct{}{}
+	wg.Wait()
+
+	assert.Equal(t, startDAIncludedHeight, m.GetDAIncludedHeight())
+	store.AssertExpectations(t)
+}
