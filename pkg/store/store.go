@@ -259,7 +259,7 @@ const heightLength = 8
 
 func encodeHeight(height uint64) []byte {
 	heightBytes := make([]byte, heightLength)
-	binary.BigEndian.PutUint64(heightBytes, height)
+	binary.LittleEndian.PutUint64(heightBytes, height)
 	return heightBytes
 }
 
@@ -267,5 +267,5 @@ func decodeHeight(heightBytes []byte) (uint64, error) {
 	if len(heightBytes) != heightLength {
 		return 0, fmt.Errorf("invalid height length: %d (expected %d)", len(heightBytes), heightLength)
 	}
-	return binary.BigEndian.Uint64(heightBytes), nil
+	return binary.LittleEndian.Uint64(heightBytes), nil
 }

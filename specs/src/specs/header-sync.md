@@ -48,7 +48,7 @@ The header sync implementation can be found in [block/sync_service.go][sync-serv
 
 [4] [go-header][go-header]
 
-[sync-service]: https://github.com/rollkit/rollkit/blob/main/block/sync_service.go
+[sync-service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go
 [fullnode]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [lightnode]: https://github.com/rollkit/rollkit/blob/main/node/light.go
 [go-header]: https://github.com/celestiaorg/go-header

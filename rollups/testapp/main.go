@@ -15,10 +15,9 @@ func main() {
 
 	// Add subcommands to the root command
 	rootCmd.AddCommand(
-		rollcmd.NewDocsGenCmd(rootCmd, cmds.AppName),
 		cmds.RunCmd,
 		rollcmd.VersionCmd,
-		rollcmd.NodeInfoCmd,
+		rollcmd.NetInfoCmd,
 		rollcmd.StoreUnsafeCleanCmd,
 		initCmd,
 	)

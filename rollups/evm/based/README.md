@@ -16,15 +16,15 @@ This directory contains the implementation of a based EVM sequencer using Rollki
 
 2. Build the sequencer:
 
-  ```bash
-  go build -o evm-based .
-  ```
+    ```bash
+    go build -o evm-based .
+    ```
   
 3. Initialize the sequencer:
 
-  ```bash
-  ./evm-based init --rollkit.node.aggregator=true --rollkit.signer.passphrase secret
-  ```
+    ```bash
+    ./evm-based init --rollkit.node.aggregator=true --rollkit.signer.passphrase secret
+    ```
 
 4. Start the sequencer:
 

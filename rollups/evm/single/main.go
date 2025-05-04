@@ -24,9 +24,8 @@ func main() {
 	rootCmd.AddCommand(
 		cmd.InitCmd(),
 		cmd.RunCmd,
-		rollcmd.NewDocsGenCmd(rootCmd, "evm-single"),
 		rollcmd.VersionCmd,
-		rollcmd.NodeInfoCmd,
+		rollcmd.NetInfoCmd,
 		rollcmd.StoreUnsafeCleanCmd,
 	)
 

@@ -56,7 +56,7 @@ type Header struct {
 }
 ```
 
-In case the rollup has a specific designated proposer or a proposer set, that information can be put in the `extraData` field. So in centralized sequencer mode, the `sequencerAddress` can live in `extraData`. For base sequencer mode, this information is not relevant.
+In case the rollup has a specific designated proposer or a proposer set, that information can be put in the `extraData` field. So in single sequencer mode, the `sequencerAddress` can live in `extraData`. For base sequencer mode, this information is not relevant.
 
 This minimal Rollkit header can be transformed to be tailored to a specific execution layer as well by inserting additional information typically needed.
 

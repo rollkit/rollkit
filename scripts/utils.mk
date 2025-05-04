@@ -15,7 +15,7 @@ lint: vet
 	@echo "--> Running golangci-lint"
 	@golangci-lint run
 	@echo "--> Running markdownlint"
-	@markdownlint --config .markdownlint.yaml --ignore './specs/src/specs/**.md' --ignore './cmd/rollkit/docs/*.md' '**/*.md'
+	@markdownlint --config .markdownlint.yaml --ignore './specs/src/specs/**.md' '**/*.md'
 	@echo "--> Running hadolint"
 	@hadolint test/docker/mockserv.Dockerfile
 	@echo "--> Running yamllint"
@@ -31,7 +31,7 @@ lint-fix:
 	@echo "--> Formatting go"
 	@golangci-lint run --fix
 	@echo "--> Formatting markdownlint"
-	@markdownlint --config .markdownlint.yaml --ignore './specs/src/specs/**.md' --ignore './cmd/rollkit/docs/*.md' '**/*.md' -f
+	@markdownlint --config .markdownlint.yaml --ignore './specs/src/specs/**.md' '**/*.md' -f
 .PHONY: lint-fix
 
 ## vet: Run go vet
@@ -51,3 +51,7 @@ mock-gen:
 	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/store --name Store --filename="store.go"
 	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/p2p --name P2PRPC --filename="p2p.go"
 .PHONY: mock-gen
+
+mock-header:
+	mockery --output test/mocks --srcpkg github.com/celestiaorg/go-header --name Store --filename="external/hstore.go"
+.PHONY: mock-header

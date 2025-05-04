@@ -3,8 +3,6 @@
 Rollkit is the first sovereign rollup framework. For more in-depth information about Rollkit, please visit our [website][docs].
 
 <!-- markdownlint-disable MD013 -->
-[![build-and-test](https://github.com/rollkit/rollkit/actions/workflows/test.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/test.yml)
-[![golangci-lint](https://github.com/rollkit/rollkit/actions/workflows/lint.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/lint.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rollkit/rollkit)](https://goreportcard.com/report/github.com/rollkit/rollkit)
 [![codecov](https://codecov.io/gh/rollkit/rollkit/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/rollkit/rollkit)
 [![GoDoc](https://godoc.org/github.com/rollkit/rollkit?status.svg)](https://godoc.org/github.com/rollkit/rollkit)
@@ -18,7 +16,8 @@ The easiest way to understand how to use Rollkit is by exploring our example imp
 
 Requires Go version >= 1.22.
 
-TestApp is a CLI tool that demonstrates how to run different kinds of nodes using the Rollkit framework. It serves as a reference implementation and helps you understand how to build your own Rollkit-based blockchain.
+TestApp is a CLI tool that demonstrates how to run different kinds of nodes using the Rollkit framework.
+It serves as a reference implementation and helps you understand how to build your own Rollkit-based blockchain.
 
 #### Install
 
@@ -43,12 +42,11 @@ You can spin up a local TestApp network (powered by Rollkit) with the following 
 testapp start
 ```
 
-Explore the CLI documentation [here](./docs/cmd/testapp.md)
-
 ## Building with Rollkit
 
 Rollkit is the first sovereign rollup framework that allows you to launch
-a sovereign, customizable blockchain as easily as a smart contract. TestApp serves as a reference implementation to help you get started with your own Rollkit-based blockchain.
+a sovereign, customizable blockchain as easily as a smart contract.
+TestApp serves as a reference implementation to help you get started with your own Rollkit-based blockchain.
 
 Check out our tutorials on our [website][docs].
 

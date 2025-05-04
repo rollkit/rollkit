@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -35,26 +34,25 @@ func TestStoreHeight(t *testing.T) {
 		{"blocks out of order", []*types.SignedHeader{header4, header5, header6}, []*types.Data{data4, data5, data6}, 3},
 		{"with a gap", []*types.SignedHeader{header7, header8, header9}, []*types.Data{data7, data8, data9}, 10},
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			ds, _ := NewDefaultInMemoryKVStore()
 			bstore := New(ds)
-			height, err := bstore.Height(ctx)
+			height, err := bstore.Height(t.Context())
 			assert.NoError(err)
 			assert.Equal(uint64(0), height)
 
 			for i, header := range c.headers {
 				data := c.data[i]
-				err := bstore.SaveBlockData(ctx, header, data, &types.Signature{})
+				err := bstore.SaveBlockData(t.Context(), header, data, &types.Signature{})
 				require.NoError(t, err)
-				err = bstore.SetHeight(ctx, header.Height())
+				err = bstore.SetHeight(t.Context(), header.Height())
 				require.NoError(t, err)
 			}
 
-			height, err = bstore.Height(ctx)
+			height, err = bstore.Height(t.Context())
 			assert.NoError(err)
 			assert.Equal(c.expected, height)
 		})
@@ -88,8 +86,6 @@ func TestStoreLoad(t *testing.T) {
 
 	mKV, _ := NewDefaultInMemoryKVStore()
 	dKV, _ := NewDefaultKVStore(tmpDir, "db", "test")
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	for _, kv := range []ds.Batching{mKV, dKV} {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
@@ -101,20 +97,20 @@ func TestStoreLoad(t *testing.T) {
 				for i, header := range c.headers {
 					data := c.data[i]
 					signature := &header.Signature
-					err := bstore.SaveBlockData(ctx, header, data, signature)
+					err := bstore.SaveBlockData(t.Context(), header, data, signature)
 					require.NoError(err)
 				}
 
 				for i, expectedHeader := range c.headers {
 					expectedData := c.data[i]
-					header, data, err := bstore.GetBlockData(ctx, expectedHeader.Height())
+					header, data, err := bstore.GetBlockData(t.Context(), expectedHeader.Height())
 					assert.NoError(err)
 					assert.NotNil(header)
 					assert.NotNil(data)
 					assert.Equal(expectedHeader, header)
 					assert.Equal(expectedData, data)
 
-					signature, err := bstore.GetSignature(ctx, expectedHeader.Height())
+					signature, err := bstore.GetSignature(t.Context(), expectedHeader.Height())
 					assert.NoError(err)
 					assert.NotNil(signature)
 				}
@@ -129,9 +125,6 @@ func TestRestart(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	tmpDir := t.TempDir()
 
 	kv, err := NewDefaultKVStore(tmpDir, "test", "test")
@@ -139,7 +132,7 @@ func TestRestart(t *testing.T) {
 
 	s1 := New(kv)
 	expectedHeight := uint64(10)
-	err = s1.UpdateState(ctx, types.State{
+	err = s1.UpdateState(t.Context(), types.State{
 		LastBlockHeight: expectedHeight,
 	})
 	assert.NoError(err)
@@ -153,7 +146,7 @@ func TestRestart(t *testing.T) {
 	s2 := New(kv)
 	assert.NoError(err)
 
-	state2, err := s2.GetState(ctx)
+	state2, err := s2.GetState(t.Context())
 	assert.NoError(err)
 
 	err = s2.Close()
@@ -166,9 +159,6 @@ func TestMetadata(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	kv, err := NewDefaultInMemoryKVStore()
 	require.NoError(err)
 	s := New(kv)
@@ -177,21 +167,21 @@ func TestMetadata(t *testing.T) {
 		return fmt.Sprintf("key %d", i)
 	}
 	getValue := func(i int) []byte {
-		return []byte(fmt.Sprintf("value %d", i))
+		return fmt.Appendf(nil, "value %d", i)
 	}
 
 	const n = 5
 	for i := 0; i < n; i++ {
-		require.NoError(s.SetMetadata(ctx, getKey(i), getValue(i)))
+		require.NoError(s.SetMetadata(t.Context(), getKey(i), getValue(i)))
 	}
 
 	for i := 0; i < n; i++ {
-		value, err := s.GetMetadata(ctx, getKey(i))
+		value, err := s.GetMetadata(t.Context(), getKey(i))
 		require.NoError(err)
 		require.Equal(getValue(i), value)
 	}
 
-	v, err := s.GetMetadata(ctx, "unused key")
+	v, err := s.GetMetadata(t.Context(), "unused key")
 	require.Error(err)
 	require.Nil(v)
 }

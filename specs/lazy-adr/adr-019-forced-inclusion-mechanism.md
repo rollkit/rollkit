@@ -1,8 +1,9 @@
-# ADR 018: Forced Inclusion Mechanism
+# ADR 019: Forced Inclusion Mechanism
 
 ## Changelog
 
 - 2025-03-24: Initial draft
+- 2025-04-23: Renumbered from ADR-018 to ADR-019 to maintain chronological order.
 
 ## Context
 
@@ -188,7 +189,7 @@ func (n *Node) ValidateBlockTimeWindow(ctx context.Context, block *types.Block) 
 
 The following diagram illustrates the operation flow for the sequencer with forced inclusion:
 
-```
+```ascii
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                           Sequencer Operation Flow                              │
 └─────────────────┬───────────────────────────────────────────────────────────────┘
@@ -234,7 +235,7 @@ The following diagram illustrates the operation flow for the sequencer with forc
 
 The following diagram illustrates the operation flow for full nodes with forced inclusion support:
 
-```
+```ascii
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                           Full Node Operation Flow                              │
 └─────────────────────────────────────────────────────────────────────────────────┘

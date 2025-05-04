@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"time"
 
 	"github.com/rollkit/rollkit/pkg/genesis"
@@ -21,7 +22,7 @@ type State struct {
 
 	// immutable
 	ChainID       string
-	InitialHeight uint64 // should be 1, not 0, when starting from height 1
+	InitialHeight uint64
 
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
 	LastBlockHeight uint64
@@ -39,6 +40,9 @@ type State struct {
 
 // NewFromGenesisDoc reads blockchain State from genesis.
 func NewFromGenesisDoc(genDoc genesis.Genesis) (State, error) {
+	if genDoc.InitialHeight == 0 {
+		return State{}, errors.New("initial height must be 1 when starting a new app")
+	}
 	s := State{
 		Version:       InitStateVersion,
 		ChainID:       genDoc.ChainID,
@@ -47,7 +51,7 @@ func NewFromGenesisDoc(genDoc genesis.Genesis) (State, error) {
 		DAHeight: 1,
 
 		LastBlockHeight: genDoc.InitialHeight - 1,
-		LastBlockTime:   genDoc.GenesisDAStartHeight,
+		LastBlockTime:   genDoc.GenesisDAStartTime,
 	}
 
 	return s, nil
