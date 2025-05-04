@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -40,7 +39,7 @@ func (s *dummySequencer) GetNextBatch(ctx context.Context, req GetNextBatchReque
 
 	batch, ok := s.batches[string(req.RollupId)]
 	if !ok {
-		return nil, fmt.Errorf("no batch found for rollup ID: %s", string(req.RollupId))
+		batch = &Batch{Transactions: nil}
 	}
 
 	return &GetNextBatchResponse{
