@@ -168,14 +168,24 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 	if errors.Is(err, ds.ErrNotFound) {
 		logger.Info("No state found in store, initializing new state")
 
+		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
+		// TODO(tzdybal): handle max bytes
+		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
+		if err != nil {
+			logger.Error("error while initializing chain", "error", err)
+			return types.State{}, err
+		}
+
 		// Initialize genesis block explicitly
 		header := types.Header{
+			AppHash:         stateRoot,
 			DataHash:        new(types.Data).DACommitment(),
 			ProposerAddress: genesis.ProposerAddress,
 			BaseHeader: types.BaseHeader{
 				ChainID: genesis.ChainID,
 				Height:  genesis.InitialHeight,
-				Time:    uint64(genesis.GenesisDAStartTime.UnixNano()),
+				// Add 1 second to the genesis time to avoid timestamp collision with lastState.LastBlockTime
+				Time: uint64(genesis.GenesisDAStartTime.Add(time.Second).UnixNano()),
 			}}
 
 		var signature types.Signature
@@ -214,14 +224,6 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 		)
 		if err != nil {
 			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
-		}
-
-		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
-		// TODO(tzdybal): handle max bytes
-		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
-		if err != nil {
-			logger.Error("error while initializing chain", "error", err)
-			return types.State{}, err
 		}
 
 		s := types.State{

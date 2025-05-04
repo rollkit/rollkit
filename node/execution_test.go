@@ -123,8 +123,6 @@ func TestExecutionWithDASync(t *testing.T) {
 
 		// Create a cancellable context for the node
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel() // Ensure context is cancelled at the end of the test
-
 		// Setup node with mock DA
 		node, cleanup := setupTestNodeWithCleanup(t)
 		defer cleanup()
