@@ -146,6 +146,13 @@ func newFullNode(
 	return node, nil
 }
 
+// initHeaderSyncService initializes the header sync service.
+// It requires:
+// - mainKV: the main key-value store
+// - nodeConfig: the node configuration
+// - genesis: the genesis document
+// - p2pClient: the P2P client
+
 func initHeaderSyncService(
 	mainKV ds.Batching,
 	nodeConfig config.Config,
@@ -244,6 +251,7 @@ func (n *FullNode) initGenesisChunks() error {
 	return nil
 }
 
+// headerPublishLoop publishes headers to the header sync service.
 func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
@@ -260,6 +268,7 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	}
 }
 
+// dataPublishLoop publishes data to the data sync service.
 func (n *FullNode) dataPublishLoop(ctx context.Context) {
 	for {
 		select {
