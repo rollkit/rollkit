@@ -157,11 +157,8 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	s.NoError(err, "Failed to produce second block")
 	waitForAtLeastNDAIncludedHeight(s.node, n)
 
-	currentHeight, err := s.node.Store.Height(s.ctx)
-	require.NoError(s.T(), err)
-
 	// Verify that all blocks are DA included
-	for height := uint64(1); height <= currentHeight; height++ {
+	for height := uint64(1); height <= n; height++ {
 		header, data, err := s.node.Store.GetBlockData(s.ctx, height)
 		require.NoError(s.T(), err)
 
