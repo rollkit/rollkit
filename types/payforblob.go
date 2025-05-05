@@ -28,6 +28,10 @@ const (
 	// BytesPerBlobInfo is a rough estimation for the amount of extra bytes in
 	// information a blob adds to the size of the underlying transaction.
 	BytesPerBlobInfo = 70
+
+	// DefaultMinGasPrice is the default minimum gas price for transactions.
+	// todo: estimate gas price via client
+	DefaultMinGasPrice = 0.002
 )
 
 // GasToConsume works out the extra gas charged to pay for a set of blobs in a PFB.
