@@ -156,6 +156,16 @@ func (m *Manager) BatchSubmissionLoop(ctx context.Context) {
 // submitBatchToDA submits a batch of transactions to the Data Availability (DA) layer.
 // It implements a retry mechanism with exponential backoff and gas price adjustments
 // to handle various failure scenarios.
+//
+// The function attempts to submit a batch multiple times (up to maxSubmitAttempts),
+// handling partial submissions where only some transactions within the batch are accepted.
+// Different strategies are used based on the response from the DA layer:
+// - On success: Reduces gas price gradually (but not below initial price)
+// - On mempool issues: Increases gas price and uses a longer backoff
+// - On size issues: Reduces the blob size and uses exponential backoff
+// - On other errors: Uses exponential backoff
+//
+// It returns an error if not all transactions could be submitted after all attempts.
 func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch) error {
 	currentBatch := batch
 	submittedAllTxs := false
@@ -165,22 +175,15 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 	attempt := 0
 
 	// Store initial values to be able to reset or compare later
-	initialGasPrice, err := m.dalc.GasPrice(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial gas price: %w", err)
-	}
-	initialMaxBlobSize, err := m.dalc.MaxBlobSize(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial max blob size: %w", err)
-	}
-	maxBlobSize := initialMaxBlobSize
+	initialGasPrice := m.gasPrice
 	gasPrice := initialGasPrice
 
+daSubmitRetryLoop:
 	for !submittedAllTxs && attempt < maxSubmitAttempts {
 		// Wait for backoff duration or exit if context is done
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			break daSubmitRetryLoop
 		case <-time.After(backoff):
 		}
 
@@ -193,17 +196,17 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 			return fmt.Errorf("failed to marshal batch: %w", err)
 		}
 
-		// Attempt to submit the batch to the DA layer
-		res := m.dalc.Submit(ctx, [][]byte{batchBz}, maxBlobSize, gasPrice)
+		// Attempt to submit the batch to the DA layer using the helper function
+		res := types.SubmitWithHelpers(ctx, m.da, m.logger, [][]byte{batchBz}, gasPrice, nil)
 
-		gasMultiplier, err := m.dalc.GasMultiplier(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get gas multiplier: %w", err)
+		gasMultiplier, multErr := m.da.GasMultiplier(ctx)
+		if multErr != nil {
+			m.logger.Error("failed to get gas multiplier", "error", multErr)
+			gasMultiplier = 0
 		}
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			// Count submitted transactions for this attempt
 			submittedTxs := int(res.SubmittedCount)
 			m.logger.Info("successfully submitted transactions to DA layer",
 				"gasPrice", gasPrice,
@@ -211,7 +214,6 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 				"submittedTxs", submittedTxs,
 				"remainingTxs", len(currentBatch.Transactions)-submittedTxs)
 
-			// Update overall progress
 			submittedTxCount += submittedTxs
 
 			// Check if all transactions in the current batch were submitted
@@ -224,7 +226,6 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 
 			// Reset submission parameters after success
 			backoff = 0
-			maxBlobSize = initialMaxBlobSize
 
 			// Gradually reduce gas price on success, but not below initial price
 			if gasMultiplier > 0 && gasPrice != 0 {
@@ -234,7 +235,6 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 				}
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
-
 			// Set DA included in manager's dataCache if all txs submitted and manager is set
 			if submittedAllTxs {
 				data := &types.Data{
@@ -243,36 +243,29 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 				for i, tx := range currentBatch.Transactions {
 					data.Txs[i] = types.Tx(tx)
 				}
-				hash := data.DACommitment().String()
-				if err == nil {
-					m.DataCache().SetDAIncluded(hash)
-				}
+				m.DataCache().SetDAIncluded(data.DACommitment().String())
 				m.sendNonBlockingSignalToDAIncluderCh()
 			}
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
-			// For mempool-related issues, use a longer backoff and increase gas price
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL)
-
-			// Increase gas price to prioritize the transaction
 			if gasMultiplier > 0 && gasPrice != 0 {
 				gasPrice = gasPrice * gasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
 
 		case coreda.StatusTooBig:
-			// If the blob is too big, reduce the max blob size
-			maxBlobSize = maxBlobSize / 4
+			// Blob size adjustment is handled within DA impl or SubmitWithOptions call
+			// fallthrough to default exponential backoff
 			fallthrough
 
 		default:
-			// For other errors, use exponential backoff
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.exponentialBackoff(backoff)
 		}
 
-		attempt += 1
+		attempt++
 	}
 
 	// Return error if not all transactions were submitted after all attempts

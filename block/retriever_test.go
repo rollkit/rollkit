@@ -125,9 +125,12 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 	blockDataBytes, err := proto.Marshal(batchProto)
 	require.NoError(t, err)
 	// -----------------------------------------------------------
-
+	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
+		IDs:       []coreda.ID{[]byte("dummy-id")},
+		Timestamp: time.Now(),
+	}, nil).Once()
 	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}, []byte("placeholder")).Return(
-		[]coreda.Blob{headerBytes}, nil,
+		[]coreda.Blob{headerBytes, blockDataBytes}, nil,
 	).Once()
 
 	ctx := context.Background()
@@ -221,11 +224,13 @@ func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
 	// Add a few more invalid blobs at the end
 	blobs = append(blobs, invalidBlob, []byte{})
 
-	// DA returns all blobs (headers, batches, and sprinkled invalid/empty blobs)
-	mockDAClient.On("Retrieve", mock.Anything, daHeight).Return(coreda.ResultRetrieve{
-		BaseResult: coreda.BaseResult{Code: coreda.StatusSuccess},
-		Data:       blobs,
+	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
+		IDs:       []coreda.ID{[]byte("dummy-id")},
+		Timestamp: time.Now(),
 	}, nil).Once()
+	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}, []byte("placeholder")).Return(
+		blobs, nil,
+	).Once()
 
 	ctx := context.Background()
 	err := manager.processNextDAHeaderAndData(ctx)
@@ -498,7 +503,7 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 	}, nil).Once()
 
 	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}, mock.Anything).Return(
-		[]coreda.Blob{headerBytes}, nil,
+		[]coreda.Blob{headerBytes, blockDataBytes}, nil,
 	).Once()
 
 	// Add debug logging expectations
@@ -591,13 +596,13 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	mockLogger.ExpectedCalls = nil
 
 	// Mock all expected logger calls in order
-	mockLogger.On("Debug", "trying to retrieve block from DA", mock.Anything).Return()
+	mockLogger.On("Debug", "trying to retrieve data from DA", mock.Anything).Return()
 	mockLogger.On("Error", "Retrieve helper: Failed to get IDs",
 		mock.MatchedBy(func(args []interface{}) bool {
 			return true // Accept any args for simplicity
 		}),
 	).Return()
-	mockLogger.On("Error", "failed to retrieve block from DALC", mock.Anything).Run(func(args mock.Arguments) {
+	mockLogger.On("Error", "failed to retrieve data from DALC", mock.Anything).Run(func(args mock.Arguments) {
 		close(errorLogged)
 	}).Return()
 
@@ -655,10 +660,13 @@ func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
 	emptyBatchBytes, err := proto.Marshal(emptyBatchProto)
 	require.NoError(t, err)
 
-	mockDAClient.On("Retrieve", mock.Anything, daHeight).Return(coreda.ResultRetrieve{
-		BaseResult: coreda.BaseResult{Code: coreda.StatusSuccess},
-		Data:       [][]byte{headerBytes, emptyBatchBytes},
+	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
+		IDs:       []coreda.ID{[]byte("dummy-id")},
+		Timestamp: time.Now(),
 	}, nil).Once()
+	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}, []byte("placeholder")).Return(
+		[]coreda.Blob{headerBytes, emptyBatchBytes}, nil,
+	).Once()
 
 	ctx := context.Background()
 	err = manager.processNextDAHeaderAndData(ctx)
@@ -705,21 +713,28 @@ func TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	// 1. First call: success (header)
-	mockDAClient.On("Retrieve", mock.Anything, startDAHeight).Return(coreda.ResultRetrieve{
-		BaseResult: coreda.BaseResult{Code: coreda.StatusSuccess},
-		Data:       [][]byte{headerBytes},
+	mockDAClient.On("GetIDs", mock.Anything, startDAHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
+		IDs:       []coreda.ID{[]byte("dummy-id")},
+		Timestamp: time.Now(),
 	}, nil).Once()
+	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}, []byte("placeholder")).Return(
+		[]coreda.Blob{headerBytes}, nil,
+	).Once()
 
 	// 2. Second call: NotFound
-	mockDAClient.On("Retrieve", mock.Anything, startDAHeight+1).Return(coreda.ResultRetrieve{
-		BaseResult: coreda.BaseResult{Code: coreda.StatusNotFound},
+	mockDAClient.On("GetIDs", mock.Anything, startDAHeight+1, []byte("placeholder")).Return(&coreda.GetIDsResult{
+		IDs:       nil,
+		Timestamp: time.Now(),
 	}, nil).Once()
 
 	// 3. Third call: Error
 	errDA := errors.New("some DA error")
-	mockDAClient.On("Retrieve", mock.Anything, startDAHeight+2).Return(coreda.ResultRetrieve{
-		BaseResult: coreda.BaseResult{Code: coreda.StatusError, Message: errDA.Error()},
-	}, errDA).Times(dAFetcherRetries)
+	mockDAClient.On("GetIDs", mock.Anything, startDAHeight+2, []byte("placeholder")).Return(
+		&coreda.GetIDsResult{
+			IDs:       nil,
+			Timestamp: time.Now(),
+		}, errDA,
+	).Times(dAFetcherRetries)
 
 	ctx, loopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer loopCancel()

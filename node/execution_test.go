@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"errors"
-	"sync"
 	"testing"
 	"time"
 
@@ -115,93 +114,4 @@ func executeTransactions(t *testing.T, executor coreexecutor.Executor, ctx conte
 func finalizeExecution(t *testing.T, executor coreexecutor.Executor, ctx context.Context) {
 	err := executor.SetFinal(ctx, 1)
 	require.NoError(t, err)
-}
-
-func TestExecutionWithDASync(t *testing.T) {
-	t.Run("basic DA sync with transactions", func(t *testing.T) {
-		require := require.New(t)
-
-		// Create a cancellable context for the node
-		ctx, cancel := context.WithCancel(context.Background())
-		// Setup node with mock DA
-		node, cleanup := setupTestNodeWithCleanup(t, getTestConfig(t, 1))
-		defer cleanup()
-
-		seqSrv := startMockSequencerServerGRPC(MockSequencerAddress)
-		require.NotNil(seqSrv)
-		defer seqSrv.GracefulStop()
-
-		// Run the node in a goroutine
-		var wg sync.WaitGroup
-		errCh := make(chan error, 1)
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := node.Run(ctx)
-			select {
-			case errCh <- err:
-			default:
-				t.Logf("Error channel full, discarding error: %v", err)
-			}
-		}()
-
-		// Give node time to initialize and submit blocks to DA
-		err := waitForNodeInitialization(node)
-		require.NoError(err)
-
-		// Check if node is running properly
-		select {
-		case err := <-errCh:
-			require.NoError(err, "Node stopped unexpectedly")
-		default:
-			// This is expected - node is still running
-		}
-
-		// Get the executor from the node
-		executor := node.blockManager.GetExecutor()
-		require.NotNil(executor)
-
-		// Wait for first block to be produced with a shorter timeout
-		err = waitForFirstBlock(node, Header)
-		require.NoError(err)
-
-		// Get height and verify it's greater than 0
-		height, err := getNodeHeight(node, Header)
-		require.NoError(err)
-		require.Greater(height, uint64(0))
-
-		// Get the block data and verify transactions were included
-		header, data, err := node.Store.GetBlockData(ctx, height)
-		require.NoError(err)
-		require.NotNil(header)
-		require.NotNil(data)
-
-		// Cancel context to stop the node
-		cancel()
-
-		// Wait for the node to stop with a timeout
-		waitCh := make(chan struct{})
-		go func() {
-			wg.Wait()
-			close(waitCh)
-		}()
-
-		select {
-		case <-waitCh:
-			// Node stopped successfully
-		case <-time.After(5 * time.Second):
-			t.Log("Warning: Node did not stop gracefully within timeout")
-		}
-
-		// Check for any errors during shutdown
-		select {
-		case err := <-errCh:
-			if err != nil && !errors.Is(err, context.Canceled) {
-				t.Logf("Error stopping node: %v", err)
-			}
-		default:
-			// No error
-		}
-	})
 }

@@ -11,6 +11,7 @@ import (
 	"cosmossdk.io/log"
 
 	datastore "github.com/ipfs/go-datastore"
+
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -324,20 +325,6 @@ daSubmitRetryLoop:
 				}
 			}
 			s.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
-
-			// Set DA included in manager's dataCache if all txs submitted and manager is set
-			if submittedAllTxs && s.manager != nil {
-				data := &types.Data{
-					Txs: make(types.Txs, len(currentBatch.Transactions)),
-				}
-				for i, tx := range currentBatch.Transactions {
-					data.Txs[i] = types.Tx(tx)
-				}
-				hash := data.DACommitment()
-				if err == nil {
-					s.manager.DataCache().SetDAIncluded(string(hash))
-				}
-			}
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			// For mempool-related issues, use a longer backoff and increase gas price
