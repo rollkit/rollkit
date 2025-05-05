@@ -51,6 +51,8 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	}
 }
 
+// processNextDAHeaderAndData is responsible for retrieving a header and data from the DA layer.
+// It returns an error if the context is done or if the DA layer returns an error.
 func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
