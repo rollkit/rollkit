@@ -38,21 +38,24 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 }
 
 // Returns a minimalistic block manager using a mock DA Client
-func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) *Manager {
+func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) (*Manager, *mocks.Store) {
 	logger := log.NewTestLogger(t)
+	mockStore := mocks.NewStore(t)
 	m := &Manager{
 		da:            da,
 		headerCache:   cache.NewCache[types.SignedHeader](),
+		dataCache:     cache.NewCache[types.Data](),
 		logger:        logger,
 		gasPrice:      gasPrice,
 		gasMultiplier: gasMultiplier,
 		lastStateMtx:  &sync.RWMutex{},
 		metrics:       NopMetrics(),
+		store:         mockStore,
 	}
 
 	m.publishBlock = m.publishBlockInternal
 
-	return m
+	return m, mockStore
 }
 
 // TestInitialStateClean verifies that getInitialState initializes state correctly when no state is stored.
@@ -148,7 +151,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
 	mockDAC := mocks.NewDA(t)
-	m := getManager(t, mockDAC, -1, -1)
+	m, _ := getManager(t, mockDAC, -1, -1)
 	payload := []byte("test")
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
@@ -174,6 +177,28 @@ func TestSignVerifySignature(t *testing.T) {
 	}
 }
 
+func TestIsDAIncluded(t *testing.T) {
+	require := require.New(t)
+	mockDAC := mocks.NewDA(t)
+
+	// Create a minimalistic block manager
+	m, mockStore := getManager(t, mockDAC, -1, -1)
+	height := uint64(1)
+	header, data := types.GetRandomBlock(height, 5, "TestIsDAIncluded")
+	mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil).Times(3)
+	ctx := context.Background()
+	// IsDAIncluded should return false for unseen hash
+	require.False(m.IsDAIncluded(ctx, height))
+
+	// Set the hash as DAIncluded and verify IsDAIncluded returns true
+	m.headerCache.SetDAIncluded(header.Hash().String())
+	require.False(m.IsDAIncluded(ctx, height))
+
+	// Set the data as DAIncluded and verify IsDAIncluded returns true
+	m.dataCache.SetDAIncluded(data.DACommitment().String())
+	require.True(m.IsDAIncluded(ctx, height))
+}
+
 // Test_submitBlocksToDA_BlockMarshalErrorCase1 verifies that a marshalling error in the first block prevents all blocks from being submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase1"
@@ -182,7 +207,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	ctx := context.Background()
 
 	mockDA := mocks.NewDA(t)
-	m := getManager(t, mockDA, -1, -1)
+	m, _ := getManager(t, mockDA, -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -218,7 +243,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	ctx := context.Background()
 
 	mockDA := mocks.NewDA(t)
-	m := getManager(t, mockDA, -1, -1)
+	m, _ := getManager(t, mockDA, -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)

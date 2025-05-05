@@ -429,6 +429,18 @@ func (m *Manager) IsBlockHashSeen(blockHash string) bool {
 	return m.headerCache.IsSeen(blockHash)
 }
 
+// IsDAIncluded returns true if the block with the given hash has been seen on DA.
+// TODO(tac0turtle): should we use this for pending header system to verify how far ahead a rollup is?
+func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error) {
+	header, data, err := m.store.GetBlockData(ctx, height)
+	if err != nil {
+		return false, err
+	}
+	headerHash, dataHash := header.Hash(), data.DACommitment()
+	isIncluded := m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, DataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String()))
+	return isIncluded, nil
+}
+
 // GetExecutor returns the executor used by the manager.
 //
 // Note: this is a temporary method to allow testing the manager.
