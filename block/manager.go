@@ -40,10 +40,6 @@ const (
 	// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
 	defaultMempoolTTL = 25
 
-	// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
-	// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
-	blockProtocolOverhead = 1 << 16
-
 	// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 	// This is temporary solution. It will be removed in future versions.
 	maxSubmitAttempts = 30
@@ -142,7 +138,7 @@ type Manager struct {
 	// daIncludedHeight is rollup height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
-	dalc             coreda.Client
+	da               coreda.DA
 	gasPrice         float64
 	gasMultiplier    float64
 
@@ -252,7 +248,7 @@ func NewManager(
 	store store.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	dalc coreda.Client,
+	da coreda.DA,
 	logger log.Logger,
 	headerStore goheader.Store[*types.SignedHeader],
 	dataStore goheader.Store[*types.Data],
@@ -295,15 +291,6 @@ func NewManager(
 		config.DA.MempoolTTL = defaultMempoolTTL
 	}
 
-	maxBlobSize, err := dalc.MaxBlobSize(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// allow buffer for the block header and protocol encoding
-	// TODO: why is this needed?
-	//nolint:ineffassign // This assignment is needed
-	maxBlobSize -= blockProtocolOverhead
-
 	pendingHeaders, err := NewPendingHeaders(store, logger)
 	if err != nil {
 		return nil, err
@@ -329,7 +316,6 @@ func NewManager(
 		genesis:   genesis,
 		lastState: s,
 		store:     store,
-		dalc:      dalc,
 		daHeight:  &daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:       make(chan *types.SignedHeader, channelLength),
@@ -351,6 +337,7 @@ func NewManager(
 		metrics:        seqMetrics,
 		sequencer:      sequencer,
 		exec:           exec,
+		da:             da,
 		gasPrice:       gasPrice,
 		gasMultiplier:  gasMultiplier,
 	}
@@ -358,11 +345,6 @@ func NewManager(
 	// Set the default publishBlock implementation
 	agg.publishBlock = agg.publishBlockInternal
 	return agg, nil
-}
-
-// DALCInitialized returns true if DALC is initialized.
-func (m *Manager) DALCInitialized() bool {
-	return m.dalc != nil
 }
 
 // PendingHeaders returns the pending headers.

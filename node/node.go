@@ -32,7 +32,7 @@ func NewNode(
 	conf config.Config,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	dac coreda.Client,
+	da coreda.DA,
 	signer signer.Signer,
 	nodeKey key.NodeKey,
 	p2pClient *p2p.Client,
@@ -55,7 +55,7 @@ func NewNode(
 		database,
 		exec,
 		sequencer,
-		dac,
+		da,
 		metricsProvider,
 		logger,
 	)

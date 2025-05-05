@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/da/proxy"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -54,19 +53,10 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		daJrpc, err := proxy.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+		daJrpc, err := da.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 		if err != nil {
 			return err
 		}
-
-		dac := da.NewDAClient(
-			daJrpc,
-			nodeConfig.DA.GasPrice,
-			nodeConfig.DA.GasMultiplier,
-			[]byte(nodeConfig.DA.Namespace),
-			[]byte(nodeConfig.DA.SubmitOptions),
-			logger,
-		)
 
 		nodeKey, err := key.LoadNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 		if err != nil {
@@ -102,7 +92,6 @@ var RunCmd = &cobra.Command{
 			logger,
 			datastore,
 			daJrpc,
-			[]byte(nodeConfig.DA.Namespace),
 			[]byte(nodeConfig.ChainID),
 			nodeConfig.Node.BlockTime.Duration,
 			singleMetrics,
@@ -117,6 +106,6 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, dac, nodeKey, p2pClient, datastore, nodeConfig)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, daJrpc, nodeKey, p2pClient, datastore, nodeConfig)
 	},
 }

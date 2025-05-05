@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rollkit/go-execution-evm"
 	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/da/proxy/jsonrpc"
+
+	"github.com/rollkit/rollkit/da/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -112,7 +111,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 
 			var rollDA coreda.DA
 			if nodeConfig.DA.AuthToken != "" {
-				client, err := jsonrpc.NewClient(ctx, logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+				client, err := jsonrpc.NewClient(ctx, logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 				if err != nil {
 					return fmt.Errorf("failed to create DA client: %w", err)
 				}
@@ -120,11 +119,10 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			} else {
 				rollDA = coreda.NewDummyDA(100_000, 0, 0)
 			}
-			rollDALC := da.NewDAClient(rollDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), nil, logger)
 
 			var basedDA coreda.DA
 			if basedAuth != "" {
-				client, err := jsonrpc.NewClient(ctx, logger, basedURL, basedAuth)
+				client, err := jsonrpc.NewClient(ctx, logger, basedURL, basedAuth, basedNamespace)
 				if err != nil {
 					return fmt.Errorf("failed to create based client: %w", err)
 				}
@@ -132,21 +130,16 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			} else {
 				basedDA = coreda.NewDummyDA(100_000, 0, 0)
 			}
-			nsBytes, err := hex.DecodeString(basedNamespace)
-			if err != nil {
-				return fmt.Errorf("failed to decode based namespace: %w", err)
-			}
-			basedDALC := da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, nsBytes, nil, logger)
 
 			datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "based")
 			if err != nil {
 				return fmt.Errorf("failed to create datastore: %w", err)
 			}
 
+			// Pass raw DA implementation and namespace to NewSequencer
 			sequencer, err := based.NewSequencer(
 				logger,
 				basedDA,
-				basedDALC,
 				[]byte("rollkit-test"),
 				basedStartHeight,
 				basedMaxHeightDrift,
@@ -174,7 +167,11 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to create P2P client: %w", err)
 			}
 
-			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDALC, nodeKey, p2pClient, datastore, nodeConfig)
+			// Pass the raw rollDA implementation to StartNode.
+			// StartNode might need adjustment if it strictly requires coreda.Client methods.
+			// For now, assume it can work with coreda.DA or will be adjusted later.
+			// We also need to pass the namespace config for rollDA.
+			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
 

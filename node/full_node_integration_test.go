@@ -83,7 +83,6 @@ func (s *FullNodeTestSuite) SetupTest() {
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 	p2pClient, err := p2p.NewClient(config, nodeKey, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
 	require.NoError(err)
 
@@ -95,7 +94,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		config,
 		dummyExec,
 		dummySequencer,
-		dummyClient,
+		dummyDA,
 		remoteSigner,
 		*nodeKey,
 		p2pClient,
@@ -142,7 +141,6 @@ func (s *FullNodeTestSuite) SetupTest() {
 	initialHeight, err := s.node.Store.Height(s.ctx)
 	require.NoError(err)
 	s.T().Logf("Node started - Initial block height: %d", initialHeight)
-	s.T().Logf("DA client initialized: %v", s.node.blockManager.DALCInitialized())
 
 	// Wait longer for height to stabilize and log intermediate values
 	for range 5 {
@@ -175,7 +173,6 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	// Verify block manager is properly initialized
 	require.NotNil(s.node.blockManager, "Block manager should be initialized")
-	require.True(s.node.blockManager.DALCInitialized(), "DA client should be initialized")
 }
 
 func (s *FullNodeTestSuite) TearDownTest() {
@@ -281,7 +278,6 @@ func (s *FullNodeTestSuite) TestDAInclusion() {
 
 	s.T().Logf("=== Initial State ===")
 	s.T().Logf("Block height: %d, DA height: %d", initialHeight, initialDAHeight)
-	s.T().Logf("DA client initialized: %v", s.node.blockManager.DALCInitialized())
 	s.T().Logf("Aggregator enabled: %v", s.node.nodeConfig.Node.Aggregator)
 
 	s.executor.InjectTx([]byte("dummy transaction"))
@@ -451,7 +447,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
 	config.ChainID = genesis.ChainID
 	p2pClient, err := p2p.NewClient(config, nil, dssync.MutexWrap(ds.NewMapDatastore()), log.NewTestLogger(s.T()), p2p.NopMetrics())
 	require.NoError(err)
@@ -464,7 +460,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 		config,
 		dummyExec,
 		dummySequencer,
-		dummyClient,
+		dummyDA,
 		remoteSigner,
 		*nodeKey,
 		p2pClient,

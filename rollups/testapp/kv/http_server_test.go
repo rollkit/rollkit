@@ -138,7 +138,13 @@ func TestHandleKV_Get(t *testing.T) {
 
 			// Set up initial data if needed
 			if tt.key != "" && tt.value != "" {
-				exec.InjectTx([]byte(fmt.Sprintf("%s=%s", tt.key, tt.value)))
+				// Create and execute the transaction directly
+				tx := []byte(fmt.Sprintf("%s=%s", tt.key, tt.value))
+				ctx := context.Background()
+				_, _, err := exec.ExecuteTxs(ctx, [][]byte{tx}, 1, time.Now(), []byte(""))
+				if err != nil {
+					t.Fatalf("Failed to execute setup transaction: %v", err)
+				}
 			}
 
 			url := "/kv"
