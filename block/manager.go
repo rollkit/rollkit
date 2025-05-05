@@ -59,7 +59,7 @@ const (
 
 var (
 	// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
-	dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
+	DataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
 
 	// initialBackoff defines initial value for block submission backoff
 	initialBackoff = 100 * time.Millisecond
@@ -154,6 +154,9 @@ type Manager struct {
 
 	// txNotifyCh is used to signal when new transactions are available
 	txNotifyCh chan struct{}
+
+	// batchSubmissionChan is used to submit batches to the sequencer
+	batchSubmissionChan chan coresequencer.Batch
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -325,38 +328,38 @@ func NewManager(
 		store:     store,
 		daHeight:  &daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:       make(chan *types.SignedHeader, channelLength),
-		DataCh:         make(chan *types.Data, channelLength),
-		headerInCh:     make(chan NewHeaderEvent, eventInChLength),
-		dataInCh:       make(chan NewDataEvent, eventInChLength),
-		headerStoreCh:  make(chan struct{}, 1),
-		dataStoreCh:    make(chan struct{}, 1),
-		headerStore:    headerStore,
-		dataStore:      dataStore,
-		lastStateMtx:   new(sync.RWMutex),
-		lastBatchData:  lastBatchData,
-		headerCache:    cache.NewCache[types.SignedHeader](),
-		dataCache:      cache.NewCache[types.Data](),
-		retrieveCh:     make(chan struct{}, 1),
-		daIncluderCh:   make(chan struct{}, 1),
-		logger:         logger,
-		txsAvailable:   false,
-		pendingHeaders: pendingHeaders,
-		metrics:        seqMetrics,
-		sequencer:      sequencer,
-		exec:           exec,
-		da:             da,
-		gasPrice:       gasPrice,
-		gasMultiplier:  gasMultiplier,
-		txNotifyCh:     make(chan struct{}, 1), // Non-blocking channel
+		HeaderCh:            make(chan *types.SignedHeader, channelLength),
+		DataCh:              make(chan *types.Data, channelLength),
+		headerInCh:          make(chan NewHeaderEvent, eventInChLength),
+		dataInCh:            make(chan NewDataEvent, eventInChLength),
+		headerStoreCh:       make(chan struct{}, 1),
+		dataStoreCh:         make(chan struct{}, 1),
+		headerStore:         headerStore,
+		dataStore:           dataStore,
+		lastStateMtx:        new(sync.RWMutex),
+		lastBatchData:       lastBatchData,
+		headerCache:         cache.NewCache[types.SignedHeader](),
+		dataCache:           cache.NewCache[types.Data](),
+		retrieveCh:          make(chan struct{}, 1),
+		daIncluderCh:        make(chan struct{}, 1),
+		logger:              logger,
+		txsAvailable:        false,
+		pendingHeaders:      pendingHeaders,
+		metrics:             seqMetrics,
+		sequencer:           sequencer,
+		exec:                exec,
+		gasPrice:            gasPrice,
+		gasMultiplier:       gasMultiplier,
+		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
+		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
 	}
 	agg.init(ctx)
 	// Set the default publishBlock implementation
 	agg.publishBlock = agg.publishBlockInternal
-
-	// Set the manager pointer in the sequencer if it is a *single.Sequencer
-	if s, ok := sequencer.(interface{ SetManager(*Manager) }); ok {
-		s.SetManager(agg)
+	if s, ok := agg.sequencer.(interface {
+		SetBatchSubmissionChan(chan coresequencer.Batch)
+	}); ok {
+		s.SetBatchSubmissionChan(agg.batchSubmissionChan)
 	}
 
 	return agg, nil
@@ -460,7 +463,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		if len(res.Batch.Transactions) == 0 {
 			errRetrieveBatch = ErrNoBatch
 		}
-		// Even if there are no transactions, update lastBatchData so we don’t
+		// Even if there are no transactions, update lastBatchData so we don't
 		// repeatedly emit the same empty batch, and persist it to metadata.
 		if err := m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
 			m.logger.Error("error while setting last batch hash", "error", err)
@@ -762,7 +765,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash:  lastHeaderHash,
-			DataHash:        dataHashForEmptyTxs, // Use batchDataIDs when available
+			DataHash:        DataHashForEmptyTxs, // Use batchDataIDs when available
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         m.lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
@@ -903,6 +906,11 @@ func (m *Manager) NotifyNewTransactions() {
 		// Channel buffer is full, which means a notification is already pending
 		// This is fine, as we just need to trigger one block production
 	}
+}
+
+// HeaderCache returns the headerCache used by the manager.
+func (m *Manager) HeaderCache() *cache.Cache[types.SignedHeader] {
+	return m.headerCache
 }
 
 // DataCache returns the dataCache used by the manager.

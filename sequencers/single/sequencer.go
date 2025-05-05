@@ -10,10 +10,8 @@ import (
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 
-	"github.com/rollkit/rollkit/block"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/types"
 )
 
 // ErrInvalidRollupId is returned when the rollup id is invalid
@@ -39,12 +37,10 @@ type Sequencer struct {
 
 	batchTime time.Duration
 
-	queue            *BatchQueue
-	daSubmissionChan chan coresequencer.Batch
+	queue               *BatchQueue              // single queue for immediate availability
+	batchSubmissionChan chan coresequencer.Batch // channel for ordered DA submission
 
 	metrics *Metrics
-
-	manager *block.Manager // pointer to Manager
 }
 
 // NewSequencer creates a new Single Sequencer
@@ -59,14 +55,14 @@ func NewSequencer(
 	proposer bool,
 ) (*Sequencer, error) {
 	s := &Sequencer{
-		logger:           logger,
-		da:               da,
-		batchTime:        batchTime,
-		rollupId:         rollupId,
-		queue:            NewBatchQueue(db, "batches"),
-		daSubmissionChan: make(chan coresequencer.Batch, 100),
-		metrics:          metrics,
-		proposer:         proposer,
+		logger:              logger,
+		da:                  da,
+		batchTime:           batchTime,
+		rollupId:            rollupId,
+		queue:               NewBatchQueue(db, "batches"),
+		batchSubmissionChan: make(chan coresequencer.Batch, 100), // use shared channel
+		metrics:             metrics,
+		proposer:            proposer,
 	}
 
 	loadCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -75,8 +71,7 @@ func NewSequencer(
 		return nil, fmt.Errorf("failed to load batch queue from DB: %w", err)
 	}
 
-	// Start the DA submission loop
-	go s.daSubmissionLoop(ctx)
+	// No DA submission loop here; handled by central manager
 	return s, nil
 }
 
@@ -94,7 +89,7 @@ func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 	batch := coresequencer.Batch{Transactions: req.Batch.Transactions}
 
 	select {
-	case c.daSubmissionChan <- batch:
+	case c.batchSubmissionChan <- batch:
 	default:
 		return nil, fmt.Errorf("DA submission queue full, please retry later")
 	}
@@ -105,22 +100,6 @@ func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 	}
 
 	return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
-}
-
-// daSubmissionLoop processes batches for DA submission in order
-func (c *Sequencer) daSubmissionLoop(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			c.logger.Info("DA submission loop stopped")
-			return
-		case batch := <-c.daSubmissionChan:
-			err := c.submitBatchToDA(ctx, batch)
-			if err != nil {
-				c.logger.Error("failed to submit batch to DA", "error", err)
-			}
-		}
-	}
 }
 
 // GetNextBatch implements sequencing.Sequencer.
@@ -148,132 +127,6 @@ func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode 
 		c.metrics.NumPendingBlocks.Set(float64(numPendingBlocks))
 		c.metrics.IncludedBlockHeight.Set(float64(includedBlockHeight))
 	}
-}
-
-// submitBatchToDA submits a batch of transactions to the Data Availability (DA) layer.
-// It implements a retry mechanism with exponential backoff and gas price adjustments
-// to handle various failure scenarios.
-//
-// The function attempts to submit a batch multiple times (up to maxSubmitAttempts),
-// handling partial submissions where only some transactions within the batch are accepted.
-// Different strategies are used based on the response from the DA layer:
-// - On success: Reduces gas price gradually (but not below initial price)
-// - On mempool issues: Increases gas price and uses a longer backoff
-// - On size issues: Reduces the blob size and uses exponential backoff
-// - On other errors: Uses exponential backoff
-//
-// It returns an error if not all transactions could be submitted after all attempts.
-func (c *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Batch) error {
-	currentBatch := batch
-	submittedAllTxs := false
-	var backoff time.Duration
-	totalTxCount := len(batch.Transactions)
-	submittedTxCount := 0
-	attempt := 0
-
-	// Store initial values to be able to reset or compare later
-	initialGasPrice, err := c.da.GasPrice(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial gas price: %w", err)
-	}
-
-	gasPrice := initialGasPrice
-
-daSubmitRetryLoop:
-	for !submittedAllTxs && attempt < maxSubmitAttempts {
-		// Wait for backoff duration or exit if context is done
-		select {
-		case <-ctx.Done():
-			break daSubmitRetryLoop
-		case <-time.After(backoff):
-		}
-
-		// Attempt to submit the batch to the DA layer using the helper function
-		res := types.SubmitWithHelpers(ctx, c.da, c.logger, currentBatch.Transactions, gasPrice, nil)
-
-		gasMultiplier, multErr := c.da.GasMultiplier(ctx)
-		if multErr != nil {
-			c.logger.Error("failed to get gas multiplier", "error", multErr)
-			gasMultiplier = 0
-		}
-
-		switch res.Code {
-		case coreda.StatusSuccess:
-			submittedTxs := int(res.SubmittedCount)
-			c.logger.Info("successfully submitted transactions to DA layer",
-				"gasPrice", gasPrice,
-				"height", res.Height,
-				"submittedTxs", submittedTxs,
-				"remainingTxs", len(currentBatch.Transactions)-submittedTxs)
-
-			submittedTxCount += submittedTxs
-
-			// Check if all transactions in the current batch were submitted
-			if submittedTxs == len(currentBatch.Transactions) {
-				submittedAllTxs = true
-			} else {
-				// Update the current batch to contain only the remaining transactions
-				currentBatch.Transactions = currentBatch.Transactions[submittedTxs:]
-			}
-
-			// Reset submission parameters after success
-			backoff = 0
-
-			// Gradually reduce gas price on success, but not below initial price
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice / gasMultiplier
-				if gasPrice < initialGasPrice {
-					gasPrice = initialGasPrice
-				}
-			}
-			c.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
-
-			// Set DA included in manager's dataCache if all txs submitted and manager is set
-			if submittedAllTxs && c.manager != nil {
-				data := &types.Data{
-					Txs: make(types.Txs, len(currentBatch.Transactions)),
-				}
-				for i, tx := range currentBatch.Transactions {
-					data.Txs[i] = types.Tx(tx)
-				}
-				hash := data.DACommitment()
-				if err == nil {
-					c.manager.DataCache().SetDAIncluded(string(hash))
-				}
-			}
-
-		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
-			c.logger.Error("single sequencer: DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = c.batchTime * time.Duration(defaultMempoolTTL)
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice * gasMultiplier
-			}
-			c.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
-
-		case coreda.StatusTooBig:
-			// Blob size adjustment is handled within DA impl or SubmitWithOptions call
-			// fallthrough to default exponential backoff
-			fallthrough
-
-		default:
-			c.logger.Error("single sequencer: DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = c.exponentialBackoff(backoff)
-		}
-
-		c.recordMetrics(gasPrice, res.BlobSize, res.Code, len(currentBatch.Transactions), res.Height)
-		attempt++
-	}
-
-	// Return error if not all transactions were submitted after all attempts
-	if !submittedAllTxs {
-		return fmt.Errorf(
-			"failed to submit all transactions to DA layer, submitted %d txs (%d left) after %d attempts",
-			submittedTxCount,
-			totalTxCount-submittedTxCount,
-			attempt,
-		)
-	}
-	return nil
 }
 
 func (c *Sequencer) exponentialBackoff(backoff time.Duration) time.Duration {
@@ -319,7 +172,6 @@ func (c *Sequencer) isValid(rollupId []byte) bool {
 	return bytes.Equal(c.rollupId, rollupId)
 }
 
-// SetManager sets the manager pointer for the sequencer
-func (s *Sequencer) SetManager(m *block.Manager) {
-	s.manager = m
+func (s *Sequencer) SetBatchSubmissionChan(batchSubmissionChan chan coresequencer.Batch) {
+	s.batchSubmissionChan = batchSubmissionChan
 }

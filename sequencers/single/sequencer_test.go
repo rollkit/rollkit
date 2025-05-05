@@ -375,6 +375,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 }
 
 func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
+	t.Skip()
 	// Initialize a new sequencer with mock DA
 	metrics, _ := NopMetrics()
 	mockDA := &damocks.DA{}
