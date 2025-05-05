@@ -163,7 +163,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header) {
 	headerHeight := header.Height()
-	if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
+	if bytes.Equal(header.DataHash, DataHashForEmptyTxs) {
 		var lastDataHash types.Hash
 		var err error
 		var lastData *types.Data

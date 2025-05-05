@@ -29,7 +29,7 @@ func (m *Manager) DAIncluderLoop(ctx context.Context) {
 			headerHash := header.Hash()
 			dataHash := data.DACommitment()
 
-			if m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, dataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String())) {
+			if m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, DataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String())) {
 				// Both header and data are DA-included, so we can advance the height
 				if err := m.incrementDAIncludedHeight(ctx); err != nil {
 					break

@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/rollkit/rollkit/block"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 )
 
@@ -129,15 +131,6 @@ func (s *FullNodeTestSuite) TestBlockProduction() {
 	require.NoError(s.T(), err)
 	s.GreaterOrEqual(height, uint64(5), "Expected block height >= 5")
 
-	// Get all blocks and log their contents
-	for h := uint64(1); h <= height; h++ {
-		header, data, err := s.node.Store.GetBlockData(s.ctx, h)
-		s.NoError(err)
-		s.NotNil(header)
-		s.NotNil(data)
-		s.T().Logf("Block height: %d, Time: %s, Number of transactions: %d", h, header.Time(), len(data.Txs))
-	}
-
 	// Get the latest block
 	header, data, err := s.node.Store.GetBlockData(s.ctx, height)
 	s.NoError(err)
@@ -158,104 +151,29 @@ func (s *FullNodeTestSuite) TestBlockProduction() {
 
 // TestSubmitBlocksToDA tests the submission of blocks to the DA
 func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
-	require := require.New(s.T())
+	s.executor.InjectTx([]byte("test transaction"))
+	n := uint64(5)
+	err := waitForAtLeastNBlocks(s.node, n, Store)
+	s.NoError(err, "Failed to produce second block")
+	waitForAtLeastNDAIncludedHeight(s.node, n)
 
-	// Get initial state
-	initialHeight, err := getNodeHeight(s.node, Header)
-	require.NoError(err)
+	currentHeight, err := s.node.Store.Height(s.ctx)
+	require.NoError(s.T(), err)
 
-	// Check if block manager is properly initialized
-	s.T().Log("=== Block Manager State ===")
-	pendingHeaders, err := s.node.blockManager.PendingHeaders().GetPendingHeaders()
-	require.NoError(err)
-	s.T().Logf("Initial Pending Headers: %d", len(pendingHeaders))
-	s.T().Logf("Last Submitted Height: %d", s.node.blockManager.PendingHeaders().GetLastSubmittedHeight())
+	// Verify that all blocks are DA included
+	for height := uint64(1); height <= currentHeight; height++ {
+		header, data, err := s.node.Store.GetBlockData(s.ctx, height)
+		require.NoError(s.T(), err)
 
-	// Verify sequencer is working
-	s.T().Log("=== Sequencer Check ===")
-	require.NotNil(s.node.blockManager.SeqClient(), "Sequencer client should be initialized")
+		headerHash := header.Hash()
+		dataHash := data.DACommitment()
 
-	s.executor.InjectTx([]byte("dummy transaction"))
+		isHeaderDAIncluded := s.node.blockManager.HeaderCache().IsDAIncluded(headerHash.String())
+		isDataDAIncluded := s.node.blockManager.DataCache().IsDAIncluded(dataHash.String()) || bytes.Equal(dataHash, block.DataHashForEmptyTxs)
 
-	// Monitor batch retrieval
-	s.T().Log("=== Monitoring Batch Retrieval ===")
-	err = waitForAtLeastNBlocks(s.node, 5, Store)
-	require.NoError(err, "Failed to produce additional blocks")
-
-	// Final assertions with more detailed error messages
-	finalHeight, err := s.node.Store.Height(s.ctx)
-	require.NoError(err)
-
-	require.Greater(finalHeight, initialHeight, "Block height should have increased")
-}
-
-func (s *FullNodeTestSuite) TestDAInclusion() {
-	s.T().Skip("skipping DA inclusion test")
-	// this test currently thinks DAIncludedHeight is returning a DA height, but it's actually returning a block height
-	require := require.New(s.T())
-
-	// Get initial height and DA height
-	initialHeight, err := getNodeHeight(s.node, Header)
-	require.NoError(err, "Failed to get initial height")
-	initialDAHeight := s.node.blockManager.GetDAIncludedHeight()
-
-	s.T().Logf("=== Initial State ===")
-	s.T().Logf("Block height: %d, DA height: %d", initialHeight, initialDAHeight)
-	s.T().Logf("Aggregator enabled: %v", s.node.nodeConfig.Node.Aggregator)
-
-	s.executor.InjectTx([]byte("dummy transaction"))
-
-	// Monitor state changes in shorter intervals
-	s.T().Log("=== Monitoring State Changes ===")
-	for i := range 10 {
-		time.Sleep(200 * time.Millisecond)
-		currentHeight, err := s.node.Store.Height(s.ctx)
-		require.NoError(err)
-		currentDAHeight := s.node.blockManager.GetDAIncludedHeight()
-		pendingHeaders, _ := s.node.blockManager.PendingHeaders().GetPendingHeaders()
-		lastSubmittedHeight := s.node.blockManager.PendingHeaders().GetLastSubmittedHeight()
-
-		s.T().Logf("Iteration %d:", i)
-		s.T().Logf("  - Height: %d", currentHeight)
-		s.T().Logf("  - DA Height: %d", currentDAHeight)
-		s.T().Logf("  - Pending Headers: %d", len(pendingHeaders))
-		s.T().Logf("  - Last Submitted Height: %d", lastSubmittedHeight)
+		require.True(s.T(), isHeaderDAIncluded, "Header at height %d is not DA included", height)
+		require.True(s.T(), isDataDAIncluded, "Data at height %d is not DA included", height)
 	}
-
-	s.T().Log("=== Checking DA Height Increase ===")
-	// Use shorter retry period with more frequent checks
-	var finalDAHeight uint64
-	err = testutils.Retry(30, 200*time.Millisecond, func() error {
-		currentDAHeight := s.node.blockManager.GetDAIncludedHeight()
-		currentHeight, err := s.node.Store.Height(s.ctx)
-		require.NoError(err)
-		pendingHeaders, _ := s.node.blockManager.PendingHeaders().GetPendingHeaders()
-
-		s.T().Logf("Retry check - DA Height: %d, Block Height: %d, Pending: %d",
-			currentDAHeight, currentHeight, len(pendingHeaders))
-
-		if currentDAHeight <= initialDAHeight {
-			return fmt.Errorf("waiting for DA height to increase from %d (current: %d)",
-				initialDAHeight, currentDAHeight)
-		}
-		finalDAHeight = currentDAHeight
-		return nil
-	})
-	require.NoError(err, "DA height did not increase")
-
-	// Final state logging
-	s.T().Log("=== Final State ===")
-	finalHeight, err := s.node.Store.Height(s.ctx)
-	require.NoError(err)
-	pendingHeaders, _ := s.node.blockManager.PendingHeaders().GetPendingHeaders()
-	s.T().Logf("Final Height: %d", finalHeight)
-	s.T().Logf("Final DA Height: %d", finalDAHeight)
-	s.T().Logf("Final Pending Headers: %d", len(pendingHeaders))
-
-	// Assertions
-	require.NoError(err, "DA height did not increase")
-	require.Greater(finalHeight, initialHeight, "Block height should increase")
-	require.Greater(finalDAHeight, initialDAHeight, "DA height should increase")
 }
 
 // TestMaxPending tests that the node will stop producing blocks when the limit is reached
