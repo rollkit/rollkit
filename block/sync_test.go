@@ -767,7 +767,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 	// Define the test data
 	headerHeight := 2
 	header := &types.Header{
-		DataHash: dataHashForEmptyTxs,
+		DataHash: DataHashForEmptyTxs,
 		BaseHeader: types.BaseHeader{
 			Height: 2,
 			Time:   uint64(time.Now().UnixNano()),

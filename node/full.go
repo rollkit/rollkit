@@ -400,6 +400,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 		go n.blockManager.AggregationLoop(ctx)
 		go n.reaper.Start(ctx)
 		go n.blockManager.HeaderSubmissionLoop(ctx)
+		go n.blockManager.BatchSubmissionLoop(ctx)
 		go n.headerPublishLoop(ctx)
 		go n.dataPublishLoop(ctx)
 		go n.blockManager.DAIncluderLoop(ctx)

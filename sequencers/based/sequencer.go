@@ -11,7 +11,6 @@ import (
 	"cosmossdk.io/log"
 
 	datastore "github.com/ipfs/go-datastore"
-	"github.com/rollkit/rollkit/block"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -72,8 +71,6 @@ type Sequencer struct {
 
 	// store is a batching datastore used for storing and retrieving data.
 	store datastore.Batching
-
-	manager *block.Manager // pointer to Manager
 }
 
 // NewSequencer creates a new Sequencer instance.
@@ -398,9 +395,4 @@ func (c *Sequencer) exponentialBackoff(backoff time.Duration) time.Duration {
 		backoff = batchTime
 	}
 	return backoff
-}
-
-// SetManager sets the manager pointer for the sequencer
-func (s *Sequencer) SetManager(m *block.Manager) {
-	s.manager = m
 }
