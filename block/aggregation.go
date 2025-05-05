@@ -79,9 +79,9 @@ func (m *Manager) produceBlock(ctx context.Context, mode string, lazyTimer, bloc
 
 	// Attempt to publish the block
 	if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
-		m.logger.Error("error while publishing block", "trigger", trigger, "error", err)
+		m.logger.Error("error while publishing block", "mode", mode, "error", err)
 	} else {
-		m.logger.Debug("Successfully published block", "trigger", trigger)
+		m.logger.Debug("Successfully published block", "mode", mode)
 	}
 
 	// Reset both timers for the next aggregation window
