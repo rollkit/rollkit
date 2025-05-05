@@ -89,6 +89,10 @@ func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 
 	batch := coresequencer.Batch{Transactions: req.Batch.Transactions}
 
+	if c.batchSubmissionChan == nil {
+		return nil, fmt.Errorf("sequencer mis-configured: batch submission channel is nil")
+	}
+
 	select {
 	case c.batchSubmissionChan <- batch:
 	default:

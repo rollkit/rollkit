@@ -801,11 +801,8 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		for i := range batchData.Transactions {
 			blockData.Txs[i] = types.Tx(batchData.Transactions[i])
 		}
+		header.DataHash = blockData.DACommitment()
 	}
-	if !isEmpty {
-		header.DataHash = blockData.Hash()
-	}
-	header.DataHash = blockData.DACommitment()
 
 	return header, blockData, nil
 }
