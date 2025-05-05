@@ -118,7 +118,6 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	expectedNewAppHash := []byte("new_app_hash")
 	expectedNewState, err := initialState.NextState(header, expectedNewAppHash)
 	require.NoError(err)
-	expectedNewState.DAHeight = daHeight
 
 	syncChan := make(chan struct{})
 	var txs [][]byte
@@ -207,7 +206,6 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	expectedNewAppHash := []byte("new_app_hash_data_first")
 	expectedNewState, err := initialState.NextState(header, expectedNewAppHash)
 	require.NoError(err)
-	expectedNewState.DAHeight = daHeight
 
 	syncChan := make(chan struct{})
 	var txs [][]byte
@@ -295,7 +293,6 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	expectedNewAppHashH1 := []byte("app_hash_h1")
 	expectedNewStateH1, err := initialState.NextState(headerH1, expectedNewAppHashH1)
 	require.NoError(err)
-	expectedNewStateH1.DAHeight = daHeight
 
 	var txsH1 [][]byte
 	for _, tx := range dataH1.Txs {
@@ -311,7 +308,6 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	expectedNewAppHashH2 := []byte("app_hash_h2")
 	expectedNewStateH2, err := expectedNewStateH1.NextState(headerH2, expectedNewAppHashH2)
 	require.NoError(err)
-	expectedNewStateH2.DAHeight = daHeight
 
 	var txsH2 [][]byte
 	for _, tx := range dataH2.Txs {
@@ -437,7 +433,6 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	appHashH1 := []byte("app_hash_h1_ooo")
 	expectedNewStateH1, err := initialState.NextState(headerH1, appHashH1)
 	require.NoError(err)
-	expectedNewStateH1.DAHeight = daHeight
 
 	var txsH1 [][]byte
 	for _, tx := range dataH1.Txs {
@@ -453,7 +448,6 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	appHashH2 := []byte("app_hash_h2_ooo")
 	expectedStateH2, err := expectedNewStateH1.NextState(headerH2, appHashH2)
 	require.NoError(err)
-	expectedStateH2.DAHeight = daHeight
 
 	var txsH2 [][]byte
 	for _, tx := range dataH2.Txs {
@@ -587,7 +581,6 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	appHashH1 := []byte("app_hash_h1_dup")
 	expectedStateH1, err := initialState.NextState(headerH1, appHashH1)
 	require.NoError(err)
-	expectedStateH1.DAHeight = daHeight
 
 	var txsH1 [][]byte
 	for _, tx := range dataH1.Txs {

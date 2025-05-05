@@ -67,5 +67,6 @@ func (s *State) NextState(header *SignedHeader, stateRoot []byte) (State, error)
 		LastBlockHeight: height,
 		LastBlockTime:   header.Time(),
 		AppHash:         stateRoot,
+		DAHeight:        s.DAHeight,
 	}, nil
 }
