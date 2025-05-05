@@ -31,7 +31,6 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-m.retrieveCh:
-		case <-m.dataStoreCh:
 		case <-blobsFoundCh:
 		}
 		daHeight := m.daHeight.Load()
