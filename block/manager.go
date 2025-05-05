@@ -777,8 +777,8 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 				Height:  height,
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
-			LastHeaderHash:  lastHeaderHash,
-			DataHash:        DataHashForEmptyTxs, // Use batchDataIDs when available
+			LastHeaderHash: lastHeaderHash,
+			// DataHash is set at the end of the function
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         m.lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
@@ -802,6 +802,8 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			blockData.Txs[i] = types.Tx(batchData.Transactions[i])
 		}
 		header.DataHash = blockData.DACommitment()
+	} else {
+		header.DataHash = DataHashForEmptyTxs
 	}
 
 	return header, blockData, nil
