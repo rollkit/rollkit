@@ -161,7 +161,7 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.Res
 	ctx, cancel := context.WithTimeout(ctx, dAefetcherTimeout)
 	defer cancel()
 	//TODO: we should maintain the original error instead of creating a new one as we lose context by creating a new error.
-	headerRes := m.dalc.Retrieve(ctx, daHeight)
+	headerRes := types.RetrieveWithHelpers(ctx, m.da, m.logger, daHeight)
 	if headerRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
 	}

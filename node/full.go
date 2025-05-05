@@ -53,7 +53,8 @@ type FullNode struct {
 
 	nodeConfig config.Config
 
-	dalc         coreda.Client
+	da coreda.DA
+
 	p2pClient    *p2p.Client
 	hSyncService *sync.HeaderSyncService
 	dSyncService *sync.DataSyncService
@@ -77,7 +78,7 @@ func newFullNode(
 	database ds.Batching,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	dac coreda.Client,
+	da coreda.DA,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
@@ -96,16 +97,6 @@ func newFullNode(
 
 	store := store.New(mainKV)
 
-	reaper := block.NewReaper(
-		ctx,
-		exec,
-		sequencer,
-		genesis.ChainID,
-		nodeConfig.Node.BlockTime.Duration,
-		logger.With("module", "Reaper"),
-		mainKV,
-	)
-
 	blockManager, err := initBlockManager(
 		ctx,
 		signer,
@@ -114,7 +105,7 @@ func newFullNode(
 		genesis,
 		store,
 		sequencer,
-		dac,
+		da,
 		logger,
 		headerSyncService,
 		dataSyncService,
@@ -126,13 +117,26 @@ func newFullNode(
 		return nil, err
 	}
 
+	reaper := block.NewReaper(
+		ctx,
+		exec,
+		sequencer,
+		genesis.ChainID,
+		nodeConfig.Node.BlockTime.Duration,
+		logger.With("module", "Reaper"),
+		mainKV,
+	)
+
+	// Connect the reaper to the manager for transaction notifications
+	reaper.SetManager(blockManager)
+
 	node := &FullNode{
 		genesis:      genesis,
 		nodeConfig:   nodeConfig,
 		p2pClient:    p2pClient,
 		blockManager: blockManager,
 		reaper:       reaper,
-		dalc:         dac,
+		da:           da,
 		Store:        store,
 		hSyncService: headerSyncService,
 		dSyncService: dataSyncService,
@@ -178,8 +182,7 @@ func initDataSyncService(
 // - genesis: the genesis document
 // - store: the store
 // - seqClient: the sequencing client
-// - dalc: the DA client
-
+// - da: the DA
 func initBlockManager(
 	ctx context.Context,
 	signer signer.Signer,
@@ -188,7 +191,7 @@ func initBlockManager(
 	genesis genesispkg.Genesis,
 	store store.Store,
 	sequencer coresequencer.Sequencer,
-	dalc coreda.Client,
+	da coreda.DA,
 	logger log.Logger,
 	headerSyncService *sync.HeaderSyncService,
 	dataSyncService *sync.DataSyncService,
@@ -206,7 +209,7 @@ func initBlockManager(
 		store,
 		exec,
 		sequencer,
-		dalc,
+		da,
 		logger.With("module", "BlockManager"),
 		headerSyncService.Store(),
 		dataSyncService.Store(),

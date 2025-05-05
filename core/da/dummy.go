@@ -59,7 +59,7 @@ func (d *DummyDA) Get(ctx context.Context, ids []ID, namespace []byte) ([]Blob, 
 	for _, id := range ids {
 		blob, exists := d.blobs[string(id)]
 		if !exists {
-			return nil, errors.New("blob: not found")
+			return nil, ErrBlobNotFound // Use the specific error type
 		}
 		blobs = append(blobs, blob)
 	}
@@ -127,11 +127,27 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice 
 
 	height := uint64(len(d.blobsByHeight))
 	ids := make([]ID, 0, len(blobs))
+	var currentSize uint64
 
-	for _, blob := range blobs {
-		if uint64(len(blob)) > d.maxBlobSize {
-			return nil, errors.New("blob size exceeds maximum")
+	for _, blob := range blobs { // Use _ instead of i
+		blobLen := uint64(len(blob))
+		// Check individual blob size first
+		if blobLen > d.maxBlobSize {
+			// Mimic DAClient behavior: if the first blob is too large, return error.
+			// Otherwise, we would have submitted the previous fitting blobs.
+			// Since DummyDA processes all at once, we return error if any *individual* blob is too large.
+			// A more complex dummy could simulate partial submission based on cumulative size.
+			// For now, error out if any single blob is too big.
+			return nil, ErrBlobSizeOverLimit // Use specific error type
 		}
+
+		// Check cumulative batch size
+		if currentSize+blobLen > d.maxBlobSize {
+			// Stop processing blobs for this batch, return IDs collected so far
+			// d.logger.Info("DummyDA: Blob size limit reached for batch", "maxBlobSize", d.maxBlobSize, "index", i, "currentSize", currentSize, "nextBlobSize", blobLen) // Removed logger call
+			break
+		}
+		currentSize += blobLen
 
 		// Create a commitment using SHA-256 hash
 		bz := sha256.Sum256(blob)
