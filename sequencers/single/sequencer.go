@@ -53,6 +53,7 @@ func NewSequencer(
 	batchTime time.Duration,
 	metrics *Metrics,
 	proposer bool,
+	batchSubmissionChan chan coresequencer.Batch,
 ) (*Sequencer, error) {
 	s := &Sequencer{
 		logger:              logger,
@@ -60,7 +61,7 @@ func NewSequencer(
 		batchTime:           batchTime,
 		rollupId:            rollupId,
 		queue:               NewBatchQueue(db, "batches"),
-		batchSubmissionChan: make(chan coresequencer.Batch, 100), // use shared channel
+		batchSubmissionChan: batchSubmissionChan,
 		metrics:             metrics,
 		proposer:            proposer,
 	}

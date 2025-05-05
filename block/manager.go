@@ -348,6 +348,7 @@ func NewManager(
 		metrics:             seqMetrics,
 		sequencer:           sequencer,
 		exec:                exec,
+		da:                  da,
 		gasPrice:            gasPrice,
 		gasMultiplier:       gasMultiplier,
 		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel

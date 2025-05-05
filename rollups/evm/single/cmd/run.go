@@ -16,6 +16,7 @@ import (
 	evm "github.com/rollkit/go-execution-evm"
 
 	"github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -74,6 +75,7 @@ var RunCmd = &cobra.Command{
 			nodeConfig.Node.BlockTime.Duration,
 			singleMetrics,
 			nodeConfig.Node.Aggregator,
+			make(chan coresequencer.Batch, 100),
 		)
 		if err != nil {
 			return err
