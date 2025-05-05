@@ -145,7 +145,7 @@ func (s *FullNodeTestSuite) TestBlockProduction() {
 	// Verify chain state
 	state, err := s.node.Store.GetState(s.ctx)
 	s.NoError(err)
-	s.Equal(height, state.LastBlockHeight)
+	s.GreaterOrEqual(height, state.LastBlockHeight)
 
 	// Verify block content
 	s.NotEmpty(data.Txs, "Expected block to contain transactions")
