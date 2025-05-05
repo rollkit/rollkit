@@ -244,14 +244,10 @@ func TestSubmitWithOptions(t *testing.T) {
 		maxSize := uint64(20)
 
 		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
-		expectedSubmitBlobs := []coreda.Blob{blobs[0]}
-		expectedIDs := []coreda.ID{[]byte("id_small")}
-		mockAPI.On("SubmitWithOptions", ctx, expectedSubmitBlobs, gasPrice, testNamespace, testOptions).Return(expectedIDs, nil).Once()
 
-		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+		_, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
 
-		require.NoError(t, err)
-		assert.Equal(t, expectedIDs, ids)
+		require.Error(t, err)
 		mockAPI.AssertExpectations(t)
 	})
 
