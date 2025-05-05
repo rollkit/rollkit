@@ -145,8 +145,8 @@ func Retry(tries int, durationBetweenAttempts time.Duration, fn func() error) (e
 }
 
 // InitFiles initializes the files for the node.
-// It creates a temporary directory and nodekey file for testing purposes.
-// It returns the path to the temporary directory and a function to clean up the temporary directory.
+// It creates a configuration directory and generates a node key.
+// It returns the generated node key and an error if any occurs during the process.
 func InitFiles(dir string) (*key.NodeKey, error) {
 	// Create config directory
 	configDir := filepath.Join(dir, "config")
