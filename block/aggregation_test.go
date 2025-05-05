@@ -45,8 +45,8 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 		logger:    logger,
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      config.DurationWrapper{Duration: blockTime},
-				LazyAggregator: false,
+				BlockTime: config.DurationWrapper{Duration: blockTime},
+				LazyMode:  false,
 			},
 			DA: config.DAConfig{
 				BlockTime: config.DurationWrapper{Duration: 1 * time.Second},
@@ -142,8 +142,8 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 		logger:    mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      config.DurationWrapper{Duration: blockTime},
-				LazyAggregator: false,
+				BlockTime: config.DurationWrapper{Duration: blockTime},
+				LazyMode:  false,
 			},
 			DA: config.DAConfig{
 				BlockTime: config.DurationWrapper{Duration: 1 * time.Second},

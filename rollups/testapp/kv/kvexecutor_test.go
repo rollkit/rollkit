@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"bytes"
 	"context"
 	"reflect"
 	"strings"
@@ -32,7 +33,7 @@ func TestInitChain_Idempotency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitChain failed on second call: %v", err)
 	}
-	if !reflect.DeepEqual(stateRoot1, stateRoot2) {
+	if !bytes.Equal(stateRoot1, stateRoot2) {
 		t.Errorf("Genesis state roots do not match: %s vs %s", stateRoot1, stateRoot2)
 	}
 	if maxBytes2 != 1024 {
