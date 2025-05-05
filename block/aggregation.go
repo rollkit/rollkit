@@ -73,7 +73,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 }
 
 // produceBlock handles the common logic for producing a block and resetting timers
-func (m *Manager) produceBlock(ctx context.Context, trigger string, lazyTimer, blockTimer *time.Timer) {
+func (m *Manager) produceBlock(ctx context.Context, mode string, lazyTimer, blockTimer *time.Timer) {
 	// Record the start time
 	start := time.Now()
 
