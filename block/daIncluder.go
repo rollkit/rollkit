@@ -31,7 +31,7 @@ func (m *Manager) DAIncluderLoop(ctx context.Context) {
 				}
 				currentDAIncluded = nextHeight
 			} else {
-				// Stop at the first block that is not DA-includeds
+				// Stop at the first block that is not DA-included
 				break
 			}
 		}
