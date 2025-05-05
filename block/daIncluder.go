@@ -1,7 +1,6 @@
 package block
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 )
@@ -19,24 +18,20 @@ func (m *Manager) DAIncluderLoop(ctx context.Context) {
 		currentDAIncluded := m.GetDAIncludedHeight()
 		for {
 			nextHeight := currentDAIncluded + 1
-			header, data, err := m.store.GetBlockData(ctx, nextHeight)
+			daIncluded, err := m.IsDAIncluded(ctx, nextHeight)
 			if err != nil {
-				m.logger.Debug("no more blocks to check at this time", "height", nextHeight, "error", err)
 				// No more blocks to check at this time
+				m.logger.Debug("no more blocks to check at this time", "height", nextHeight, "error", err)
 				break
 			}
-
-			headerHash := header.Hash()
-			dataHash := data.DACommitment()
-
-			if m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, DataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String())) {
+			if daIncluded {
 				// Both header and data are DA-included, so we can advance the height
 				if err := m.incrementDAIncludedHeight(ctx); err != nil {
 					break
 				}
 				currentDAIncluded = nextHeight
 			} else {
-				// Stop at the first block that is not DA-included
+				// Stop at the first block that is not DA-includeds
 				break
 			}
 		}
