@@ -12,7 +12,7 @@ import (
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	dac "github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/types"
 )
 
 // ErrInvalidRollupId is returned when the rollup id is invalid
@@ -33,13 +33,13 @@ type Sequencer struct {
 
 	proposer bool
 
-	rollupId  []byte
-	dalc      coreda.Client
-	da        coreda.DA
+	rollupId []byte
+	da       coreda.DA
+
 	batchTime time.Duration
 
-	queue            *BatchQueue              // single queue for immediate availability
-	daSubmissionChan chan coresequencer.Batch // channel for ordered DA submission
+	queue            *BatchQueue
+	daSubmissionChan chan coresequencer.Batch
 
 	metrics *Metrics
 }
@@ -50,23 +50,18 @@ func NewSequencer(
 	logger log.Logger,
 	db ds.Batching,
 	da coreda.DA,
-	daNamespace,
 	rollupId []byte,
 	batchTime time.Duration,
 	metrics *Metrics,
 	proposer bool,
 ) (*Sequencer, error) {
-
-	dalc := dac.NewDAClient(da, -1, -1, daNamespace, nil, logger)
-
 	s := &Sequencer{
 		logger:           logger,
-		dalc:             dalc,
 		da:               da,
 		batchTime:        batchTime,
 		rollupId:         rollupId,
 		queue:            NewBatchQueue(db, "batches"),
-		daSubmissionChan: make(chan coresequencer.Batch, 100), // buffer size can be adjusted
+		daSubmissionChan: make(chan coresequencer.Batch, 100),
 		metrics:          metrics,
 		proposer:         proposer,
 	}
@@ -90,20 +85,17 @@ func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 
 	if req.Batch == nil || len(req.Batch.Transactions) == 0 {
 		c.logger.Info("Skipping submission of empty batch", "rollupId", string(req.RollupId))
-		// Return success without processing the empty batch
 		return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
 	}
 
 	batch := coresequencer.Batch{Transactions: req.Batch.Transactions}
 
-	// First try to send to DA submission channel
 	select {
 	case c.daSubmissionChan <- batch:
 	default:
 		return nil, fmt.Errorf("DA submission queue full, please retry later")
 	}
 
-	// Only add to queue if DA submission is possible
 	err := c.queue.AddBatch(ctx, batch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add batch: %w", err)
@@ -177,15 +169,11 @@ func (c *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Bat
 	attempt := 0
 
 	// Store initial values to be able to reset or compare later
-	initialGasPrice, err := c.dalc.GasPrice(ctx)
+	initialGasPrice, err := c.da.GasPrice(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get initial gas price: %w", err)
 	}
-	initialMaxBlobSize, err := c.dalc.MaxBlobSize(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial max blob size: %w", err)
-	}
-	maxBlobSize := initialMaxBlobSize
+
 	gasPrice := initialGasPrice
 
 daSubmitRetryLoop:
@@ -197,17 +185,17 @@ daSubmitRetryLoop:
 		case <-time.After(backoff):
 		}
 
-		// Attempt to submit the batch to the DA layer
-		res := c.dalc.Submit(ctx, currentBatch.Transactions, maxBlobSize, gasPrice)
+		// Attempt to submit the batch to the DA layer using the helper function
+		res := types.SubmitWithHelpers(ctx, c.da, c.logger, currentBatch.Transactions, gasPrice, nil)
 
-		gasMultiplier, err := c.dalc.GasMultiplier(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get gas multiplier: %w", err)
+		gasMultiplier, multErr := c.da.GasMultiplier(ctx)
+		if multErr != nil {
+			c.logger.Error("failed to get gas multiplier", "error", multErr)
+			gasMultiplier = 0
 		}
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			// Count submitted transactions for this attempt
 			submittedTxs := int(res.SubmittedCount)
 			c.logger.Info("successfully submitted transactions to DA layer",
 				"gasPrice", gasPrice,
@@ -215,7 +203,6 @@ daSubmitRetryLoop:
 				"submittedTxs", submittedTxs,
 				"remainingTxs", len(currentBatch.Transactions)-submittedTxs)
 
-			// Update overall progress
 			submittedTxCount += submittedTxs
 
 			// Check if all transactions in the current batch were submitted
@@ -228,7 +215,6 @@ daSubmitRetryLoop:
 
 			// Reset submission parameters after success
 			backoff = 0
-			maxBlobSize = initialMaxBlobSize
 
 			// Gradually reduce gas price on success, but not below initial price
 			if gasMultiplier > 0 && gasPrice != 0 {
@@ -240,31 +226,25 @@ daSubmitRetryLoop:
 			c.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
-			// For mempool-related issues, use a longer backoff and increase gas price
-			c.logger.Error("single sequcner: DA layer submission failed", "error", res.Message, "attempt", attempt)
+			c.logger.Error("single sequencer: DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.batchTime * time.Duration(defaultMempoolTTL)
-
-			// Increase gas price to prioritize the transaction
 			if gasMultiplier > 0 && gasPrice != 0 {
 				gasPrice = gasPrice * gasMultiplier
 			}
 			c.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
 
 		case coreda.StatusTooBig:
-			// if the blob size is too big, it means we are trying to consume the entire block on Celestia
-			// If the blob is too big, reduce the max blob size
-			maxBlobSize = maxBlobSize / 4 // TODO: this should be fetched from the DA layer?
+			// Blob size adjustment is handled within DA impl or SubmitWithOptions call
+			// fallthrough to default exponential backoff
 			fallthrough
 
 		default:
-			// For other errors, use exponential backoff
-			c.logger.Error("single sequcner: DA layer submission failed", "error", res.Message, "attempt", attempt)
+			c.logger.Error("single sequencer: DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.exponentialBackoff(backoff)
 		}
 
-		// Record metrics for monitoring
 		c.recordMetrics(gasPrice, res.BlobSize, res.Code, len(currentBatch.Transactions), res.Height)
-		attempt += 1
+		attempt++
 	}
 
 	// Return error if not all transactions were submitted after all attempts
@@ -290,15 +270,6 @@ func (c *Sequencer) exponentialBackoff(backoff time.Duration) time.Duration {
 	return backoff
 }
 
-func getRemainingSleep(start time.Time, blockTime time.Duration, sleep time.Duration) time.Duration {
-	elapsed := time.Since(start)
-	remaining := blockTime - elapsed
-	if remaining < 0 {
-		return 0
-	}
-	return remaining + sleep
-}
-
 // VerifyBatch implements sequencing.Sequencer.
 func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBatchRequest) (*coresequencer.VerifyBatchResponse, error) {
 	if !c.isValid(req.RollupId) {
@@ -306,22 +277,17 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 	}
 
 	if !c.proposer {
-		namespace, err := c.dalc.GetNamespace(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get namespace: %w", err)
-		}
-		// get the proofs
-		proofs, err := c.da.GetProofs(ctx, req.BatchData, namespace)
+
+		proofs, err := c.da.GetProofs(ctx, req.BatchData, []byte("placeholder"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get proofs: %w", err)
 		}
 
-		// verify the proof
-		valid, err := c.da.Validate(ctx, req.BatchData, proofs, namespace)
+		valid, err := c.da.Validate(ctx, req.BatchData, proofs, []byte("placeholder"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate proof: %w", err)
 		}
-		// if all the proofs are valid, return true
+
 		for _, v := range valid {
 			if !v {
 				return &coresequencer.VerifyBatchResponse{Status: false}, nil
@@ -329,7 +295,6 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 		}
 		return &coresequencer.VerifyBatchResponse{Status: true}, nil
 	}
-	// If we are the proposer, we don't need to verify the batch
 	return &coresequencer.VerifyBatchResponse{Status: true}, nil
 }
 

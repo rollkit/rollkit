@@ -34,14 +34,14 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 
 	mockExec := mocks.NewExecutor(t)
 	mockSeq := mocks.NewSequencer(t)
-	mockDAC := mocks.NewClient(t)
+	mockDAC := mocks.NewDA(t)
 	logger := log.NewTestLogger(t)
 
 	m := &Manager{
 		store:     mockStore,
 		exec:      mockExec,
 		sequencer: mockSeq,
-		dalc:      mockDAC,
+		da:        mockDAC,
 		logger:    logger,
 		config: config.Config{
 			Node: config.NodeConfig{
@@ -129,7 +129,7 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 
 	mockExec := mocks.NewExecutor(t)
 	mockSeq := mocks.NewSequencer(t)
-	mockDAC := mocks.NewClient(t)
+	mockDAC := mocks.NewDA(t)
 
 	mockLogger := log.NewTestLogger(t)
 
@@ -138,7 +138,7 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 		store:     mockStore,
 		exec:      mockExec,
 		sequencer: mockSeq,
-		dalc:      mockDAC,
+		da:        mockDAC,
 		logger:    mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{

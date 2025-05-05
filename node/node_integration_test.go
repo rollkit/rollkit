@@ -60,7 +60,6 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 	nodeKey := &key.NodeKey{
 		PrivKey: genesisValidatorKey,
 		PubKey:  genesisValidatorKey.GetPublic(),
@@ -76,7 +75,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		config,
 		dummyExec,
 		dummySequencer,
-		dummyClient,
+		dummyDA,
 		remoteSigner,
 		*nodeKey,
 		p2pClient,
