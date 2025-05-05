@@ -13,6 +13,7 @@ require (
 	cosmossdk.io/log v1.5.1
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
+	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
 	github.com/rollkit/rollkit/da v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/sequencers/single v0.0.0-00010101000000-000000000000
 	github.com/rs/zerolog v1.34.0
@@ -149,7 +150,6 @@ require (
 	github.com/quic-go/webtransport-go v0.8.1-0.20241018022711-4ac2c9250e66 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rollkit/go-sequencing v0.4.1 // indirect
-	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect

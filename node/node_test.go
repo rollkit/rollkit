@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"errors"
-	"net"
 	"sync"
 	"testing"
 	"time"
@@ -13,10 +12,6 @@ import (
 	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
-	seqTest "github.com/rollkit/go-sequencing/test"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -63,20 +58,6 @@ func createTestComponents(t *testing.T) (coreexecutor.Executor, coresequencer.Se
 	ds := dssync.MutexWrap(datastore.NewMapDatastore())
 
 	return executor, sequencer, dummyDA, p2pClient, ds
-}
-
-// startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
-func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
-	dummySeq := seqTest.NewMultiRollupSequencer()
-	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		panic(err)
-	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	return server
 }
 
 type NodeType int
