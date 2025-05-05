@@ -126,7 +126,7 @@ func TestParseFlags(t *testing.T) {
 		{"LazyAggregator", nodeConfig.Node.LazyMode, true},
 		{"LazyBlockTime", nodeConfig.Node.LazyBlockInterval.Duration, 2 * time.Minute},
 		{"Light", nodeConfig.Node.Light, true},
-		{"MaxPendingBlocks", nodeConfig.Node.MaxPendingBlocks, uint64(100)},
+		{"MaxPendingHeaders", nodeConfig.Node.MaxPendingHeaders, uint64(100)},
 		{"TrustedHash", nodeConfig.Node.TrustedHash, "abcdef1234567890"},
 		{"DASubmitOptions", nodeConfig.DA.SubmitOptions, "custom-options"},
 

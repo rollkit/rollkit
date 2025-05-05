@@ -70,7 +70,7 @@ func TestDAIncluderLoop_AdvancesHeightWhenBothDAIncluded(t *testing.T) {
 		m.DAIncluderLoop(ctx)
 	}()
 
-	m.daIncluderCh <- struct{}{}
+	m.sendNonBlockingSignalToDAIncluderCh()
 
 	wg.Wait()
 
@@ -103,7 +103,7 @@ func TestDAIncluderLoop_StopsWhenHeaderNotDAIncluded(t *testing.T) {
 		m.DAIncluderLoop(ctx)
 	}()
 
-	m.daIncluderCh <- struct{}{}
+	m.sendNonBlockingSignalToDAIncluderCh()
 	wg.Wait()
 
 	assert.Equal(t, startDAIncludedHeight, m.GetDAIncludedHeight())
@@ -135,7 +135,7 @@ func TestDAIncluderLoop_StopsWhenDataNotDAIncluded(t *testing.T) {
 		m.DAIncluderLoop(ctx)
 	}()
 
-	m.daIncluderCh <- struct{}{}
+	m.sendNonBlockingSignalToDAIncluderCh()
 	wg.Wait()
 
 	assert.Equal(t, startDAIncludedHeight, m.GetDAIncludedHeight())
@@ -166,7 +166,7 @@ func TestDAIncluderLoop_StopsOnGetBlockDataError(t *testing.T) {
 		m.DAIncluderLoop(ctx)
 	}()
 
-	m.daIncluderCh <- struct{}{}
+	m.sendNonBlockingSignalToDAIncluderCh()
 	wg.Wait()
 
 	assert.Equal(t, startDAIncludedHeight, m.GetDAIncludedHeight())
@@ -287,7 +287,7 @@ func TestDAIncluderLoop_MultipleConsecutiveHeightsDAIncluded(t *testing.T) {
 		m.DAIncluderLoop(ctx)
 	}()
 
-	m.daIncluderCh <- struct{}{}
+	m.sendNonBlockingSignalToDAIncluderCh()
 	wg.Wait()
 
 	assert.Equal(t, expectedDAIncludedHeight, m.GetDAIncludedHeight())
@@ -326,7 +326,7 @@ func TestDAIncluderLoop_AdvancesHeightWhenDataHashIsEmptyAndHeaderDAIncluded(t *
 		m.DAIncluderLoop(ctx)
 	}()
 
-	m.daIncluderCh <- struct{}{}
+	m.sendNonBlockingSignalToDAIncluderCh()
 	wg.Wait()
 
 	assert.Equal(t, expectedDAIncludedHeight, m.daIncludedHeight.Load())
@@ -358,7 +358,7 @@ func TestDAIncluderLoop_DoesNotAdvanceWhenDataHashIsEmptyAndHeaderNotDAIncluded(
 		m.DAIncluderLoop(ctx)
 	}()
 
-	m.daIncluderCh <- struct{}{}
+	m.sendNonBlockingSignalToDAIncluderCh()
 	wg.Wait()
 
 	assert.Equal(t, startDAIncludedHeight, m.GetDAIncludedHeight())
