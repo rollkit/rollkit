@@ -546,7 +546,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 			}
 			m.logger.Info("Creating and publishing block", "height", newHeight)
-			m.logger.Debug("block info", "num_tx", len(batchData.Batch.Transactions))
+			m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
 		}
 
 		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
