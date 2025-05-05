@@ -92,9 +92,6 @@ daSubmitRetryLoop:
 			numSubmittedHeaders += len(submittedHeaders)
 			for _, header := range submittedHeaders {
 				m.headerCache.SetDAIncluded(header.Hash().String())
-				if err != nil {
-					return err
-				}
 			}
 			lastSubmittedHeight := uint64(0)
 			if l := len(submittedHeaders); l > 0 {

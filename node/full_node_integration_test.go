@@ -52,11 +52,13 @@ func (s *FullNodeTestSuite) SetupTest() {
 	config := getTestConfig(s.T(), 1)
 
 	// Add debug logging for configuration
-	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingBlocks=%d",
-		config.Node.BlockTime.Duration, config.DA.BlockTime.Duration, config.Node.MaxPendingBlocks)
+	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingHeaders=%d",
+		config.Node.BlockTime.Duration, config.DA.BlockTime.Duration, config.Node.MaxPendingHeaders)
 
 	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
-	defer cleanup()
+	s.T().Cleanup(func() {
+		cleanup()
+	})
 
 	s.node = node
 
@@ -155,8 +157,8 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	n := uint64(5)
 	err := waitForAtLeastNBlocks(s.node, n, Store)
 	s.NoError(err, "Failed to produce second block")
-	waitForAtLeastNDAIncludedHeight(s.node, n)
-
+	err = waitForAtLeastNDAIncludedHeight(s.node, n)
+	s.NoError(err, "Failed to get DA inclusion")
 	// Verify that all blocks are DA included
 	for height := uint64(1); height <= n; height++ {
 		header, data, err := s.node.Store.GetBlockData(s.ctx, height)
@@ -173,8 +175,8 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	}
 }
 
-// TestMaxPending tests that the node will stop producing blocks when the limit is reached
-func (s *FullNodeTestSuite) TestMaxPending() {
+// TestMaxPendingHeaders tests that the node will stop producing blocks when the limit is reached
+func (s *FullNodeTestSuite) TestMaxPendingHeaders() {
 	require := require.New(s.T())
 
 	// First, stop the current node by cancelling its context
@@ -188,7 +190,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 
 	// Reconfigure node with low max pending
 	config := getTestConfig(s.T(), 1)
-	config.Node.MaxPendingBlocks = 2
+	config.Node.MaxPendingHeaders = 2
 
 	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
 	defer cleanup()
@@ -199,12 +201,12 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	s.startNodeInBackground(s.node)
 
 	// Wait blocks to be produced up to max pending
-	time.Sleep(time.Duration(config.Node.MaxPendingBlocks+1) * config.Node.BlockTime.Duration)
+	time.Sleep(time.Duration(config.Node.MaxPendingHeaders+1) * config.Node.BlockTime.Duration)
 
 	// Verify that number of pending blocks doesn't exceed max
 	height, err := getNodeHeight(s.node, Header)
 	require.NoError(err)
-	require.LessOrEqual(height, config.Node.MaxPendingBlocks)
+	require.LessOrEqual(height, config.Node.MaxPendingHeaders)
 }
 
 func (s *FullNodeTestSuite) TestGenesisInitialization() {

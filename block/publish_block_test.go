@@ -106,8 +106,8 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 	return manager, mockStore, mockExec, mockSeq, testSigner, headerCh, dataCh, cancel
 }
 
-// TestPublishBlockInternal_MaxPendingBlocksReached verifies that publishBlockInternal returns an error if the maximum number of pending blocks is reached.
-func TestPublishBlockInternal_MaxPendingBlocksReached(t *testing.T) {
+// TestPublishBlockInternal_MaxPendingHeadersReached verifies that publishBlockInternal returns an error if the maximum number of pending headers is reached.
+func TestPublishBlockInternal_MaxPendingHeadersReached(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
@@ -119,7 +119,7 @@ func TestPublishBlockInternal_MaxPendingBlocksReached(t *testing.T) {
 	manager, mockStore, mockExec, mockSeq, _, _, _, cancel := setupManagerForPublishBlockTest(t, true, currentHeight+1, lastSubmitted)
 	defer cancel()
 
-	manager.config.Node.MaxPendingBlocks = maxPending
+	manager.config.Node.MaxPendingHeaders = maxPending
 	ctx := context.Background()
 
 	mockStore.On("Height", ctx).Return(currentHeight, nil)
@@ -160,7 +160,7 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 		genesis:   genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
-				MaxPendingBlocks: 0,
+				MaxPendingHeaders: 0,
 			},
 		},
 		pendingHeaders: &PendingHeaders{
@@ -242,7 +242,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		genesis:   genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
-				MaxPendingBlocks: 0,
+				MaxPendingHeaders: 0,
 			},
 		},
 		pendingHeaders: &PendingHeaders{

@@ -500,9 +500,9 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	default:
 	}
 
-	if m.config.Node.MaxPendingBlocks != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingBlocks {
+	if m.config.Node.MaxPendingHeaders != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeaders {
 		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
-			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingBlocks)
+			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders)
 	}
 
 	var (
