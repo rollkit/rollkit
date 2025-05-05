@@ -71,7 +71,7 @@ func TestInitCommand(t *testing.T) {
 	require.Contains(t, yamlContent, "da:")
 	require.Contains(t, yamlContent, "block_time: ")
 	require.Contains(t, yamlContent, "15s")
-	require.Contains(t, yamlContent, "lazy_block_time: ")
+	require.Contains(t, yamlContent, "lazy_block_interval: ")
 	require.Contains(t, yamlContent, "1m0s")
 
 	// Verify addresses
