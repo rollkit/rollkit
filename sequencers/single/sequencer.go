@@ -169,11 +169,7 @@ func (c *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Bat
 	attempt := 0
 
 	// Store initial values to be able to reset or compare later
-	initialGasPrice, err := c.da.GasPrice(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial gas price: %w", err)
-	}
-
+	initialGasPrice := types.DefaultMinGasPrice
 	gasPrice := initialGasPrice
 
 daSubmitRetryLoop:
