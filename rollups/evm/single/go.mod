@@ -8,16 +8,17 @@ replace (
 	github.com/rollkit/rollkit => ../../../
 	github.com/rollkit/rollkit/core => ../../../core
 	github.com/rollkit/rollkit/da => ../../../da
+	github.com/rollkit/rollkit/execution/evm => ../../../execution/evm
 	github.com/rollkit/rollkit/sequencers/single => ../../../sequencers/single
 )
 
 require (
 	cosmossdk.io/log v1.5.1
 	github.com/ethereum/go-ethereum v1.15.0
-	github.com/rollkit/go-execution-evm v0.1.1
 	github.com/rollkit/rollkit v0.14.2-0.20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/core v0.0.0-20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/da v0.0.0-20250317130407-e9e0a1b0485e
+	github.com/rollkit/rollkit/execution/evm v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/sequencers/single v0.0.0-00010101000000-000000000000
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.9.1

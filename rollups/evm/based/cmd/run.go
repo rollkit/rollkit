@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rollkit/go-execution-evm"
+
 	coreda "github.com/rollkit/rollkit/core/da"
+	"github.com/rollkit/rollkit/execution/evm" // Import the evm flags package
 
 	"github.com/rollkit/rollkit/da/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
@@ -17,6 +18,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/sequencers/based"
+
 	"github.com/spf13/cobra"
 )
 
@@ -42,54 +44,54 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 
-			ethURL, err = cmd.Flags().GetString("evm.eth-url")
+			ethURL, err = cmd.Flags().GetString(evm.FlagEvmEthURL)
 			if err != nil {
-				return fmt.Errorf("failed to get 'evm.eth-url' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", evm.FlagEvmEthURL, err)
 			}
-			engineURL, err = cmd.Flags().GetString("evm.engine-url")
+			engineURL, err = cmd.Flags().GetString(evm.FlagEvmEngineURL)
 			if err != nil {
-				return fmt.Errorf("failed to get 'evm.engine-url' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", evm.FlagEvmEngineURL, err)
 			}
-			jwtSecret, err = cmd.Flags().GetString("evm.jwt-secret")
+			jwtSecret, err = cmd.Flags().GetString(evm.FlagEvmJWTSecret)
 			if err != nil {
-				return fmt.Errorf("failed to get 'evm.jwt-secret' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", evm.FlagEvmJWTSecret, err)
 			}
-			genesisHash, err = cmd.Flags().GetString("evm.genesis-hash")
+			genesisHash, err = cmd.Flags().GetString(evm.FlagEvmGenesisHash)
 			if err != nil {
-				return fmt.Errorf("failed to get 'evm.genesis-hash' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", evm.FlagEvmGenesisHash, err)
 			}
-			feeRecipient, err = cmd.Flags().GetString("evm.fee-recipient")
+			feeRecipient, err = cmd.Flags().GetString(evm.FlagEvmFeeRecipient)
 			if err != nil {
-				return fmt.Errorf("failed to get 'evm.fee-recipient' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", evm.FlagEvmFeeRecipient, err)
 			}
 
-			basedURL, err = cmd.Flags().GetString("based.url")
+			basedURL, err = cmd.Flags().GetString(based.FlagBasedURL)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.url' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedURL, err)
 			}
-			basedAuth, err = cmd.Flags().GetString("based.auth")
+			basedAuth, err = cmd.Flags().GetString(based.FlagBasedAuth)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.auth' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedAuth, err)
 			}
-			basedNamespace, err = cmd.Flags().GetString("based.namespace")
+			basedNamespace, err = cmd.Flags().GetString(based.FlagBasedNamespace)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.namespace' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedNamespace, err)
 			}
-			basedStartHeight, err = cmd.Flags().GetUint64("based.start-height")
+			basedStartHeight, err = cmd.Flags().GetUint64(based.FlagBasedStartHeight)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.start-height' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedStartHeight, err)
 			}
-			basedMaxHeightDrift, err = cmd.Flags().GetUint64("based.max-height-drift")
+			basedMaxHeightDrift, err = cmd.Flags().GetUint64(based.FlagBasedMaxHeightDrift)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.max-height-drift' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedMaxHeightDrift, err)
 			}
-			basedGasMultiplier, err = cmd.Flags().GetFloat64("based.gas-multiplier")
+			basedGasMultiplier, err = cmd.Flags().GetFloat64(based.FlagBasedGasMultiplier)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.gas-multiplier' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedGasMultiplier, err)
 			}
-			basedGasPrice, err = cmd.Flags().GetFloat64("based.gas-price")
+			basedGasPrice, err = cmd.Flags().GetFloat64(based.FlagBasedGasPrice)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.gas-price' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedGasPrice, err)
 			}
 			return nil
 		},
@@ -100,7 +102,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to parse config: %w", err)
 			}
 
-			executor, err := execution.NewEngineExecutionClient(
+			executor, err := evmexec.NewEngineExecutionClient( // Use renamed import
 				ethURL, engineURL, jwtSecret, common.HexToHash(genesisHash), common.HexToAddress(feeRecipient),
 			)
 			if err != nil {
@@ -140,7 +142,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			sequencer, err := based.NewSequencer(
 				logger,
 				basedDA,
-				[]byte("rollkit-test"),
+				[]byte(basedNamespace), // Use the namespace from the flag
 				basedStartHeight,
 				basedMaxHeightDrift,
 				datastore,
@@ -176,18 +178,18 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 	}
 
 	rollconf.AddFlags(cmd)
-	cmd.Flags().StringVar(&ethURL, "evm.eth-url", "http://localhost:8545", "Ethereum JSON-RPC URL")
-	cmd.Flags().StringVar(&engineURL, "evm.engine-url", "http://localhost:8551", "Engine API URL")
-	cmd.Flags().StringVar(&jwtSecret, "evm.jwt-secret", "", "JWT secret for Engine API")
-	cmd.Flags().StringVar(&genesisHash, "evm.genesis-hash", "", "Genesis block hash")
-	cmd.Flags().StringVar(&feeRecipient, "evm.fee-recipient", "", "Fee recipient address")
-	cmd.Flags().StringVar(&basedURL, "based.url", "http://localhost:26658", "Based API URL")
-	cmd.Flags().StringVar(&basedAuth, "based.auth", "", "Authentication token for Based API")
-	cmd.Flags().StringVar(&basedNamespace, "based.namespace", "", "Namespace for Based API")
-	cmd.Flags().Uint64Var(&basedStartHeight, "based.start-height", 0, "Starting height for Based API")
-	cmd.Flags().Uint64Var(&basedMaxHeightDrift, "based.max-height-drift", 1, "Maximum L1 block height drift")
-	cmd.Flags().Float64Var(&basedGasMultiplier, "based.gas-multiplier", 1.0, "Gas multiplier for Based API")
-	cmd.Flags().Float64Var(&basedGasPrice, "based.gas-price", -1.0, "Gas price for Based API")
+	cmd.Flags().StringVar(&ethURL, evm.FlagEvmEthURL, "http://localhost:8545", "Ethereum JSON-RPC URL")
+	cmd.Flags().StringVar(&engineURL, evm.FlagEvmEngineURL, "http://localhost:8551", "Engine API URL")
+	cmd.Flags().StringVar(&jwtSecret, evm.FlagEvmJWTSecret, "", "JWT secret for Engine API")
+	cmd.Flags().StringVar(&genesisHash, evm.FlagEvmGenesisHash, "", "Genesis block hash")
+	cmd.Flags().StringVar(&feeRecipient, evm.FlagEvmFeeRecipient, "", "Fee recipient address")
+	cmd.Flags().StringVar(&basedURL, based.FlagBasedURL, "http://localhost:26658", "Based API URL")
+	cmd.Flags().StringVar(&basedAuth, based.FlagBasedAuth, "", "Authentication token for Based API")
+	cmd.Flags().StringVar(&basedNamespace, based.FlagBasedNamespace, "", "Namespace for Based API")
+	cmd.Flags().Uint64Var(&basedStartHeight, based.FlagBasedStartHeight, 0, "Starting height for Based API")
+	cmd.Flags().Uint64Var(&basedMaxHeightDrift, based.FlagBasedMaxHeightDrift, 1, "Maximum L1 block height drift")
+	cmd.Flags().Float64Var(&basedGasMultiplier, based.FlagBasedGasMultiplier, 1.0, "Gas multiplier for Based API")
+	cmd.Flags().Float64Var(&basedGasPrice, based.FlagBasedGasPrice, -1.0, "Gas price for Based API")
 
 	return cmd
 }

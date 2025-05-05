@@ -681,8 +681,6 @@ github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJ
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
-github.com/rollkit/go-execution-evm v0.1.1 h1:OD37IvbhFLtsjcIm4IJSlJWc+5llqFQb+M13f778DKE=
-github.com/rollkit/go-execution-evm v0.1.1/go.mod h1:YMz4ACyGvQTPPrRoZUVMrWm5yQusuGh8MNtD+BRxhPo=
 github.com/rollkit/go-sequencing v0.4.1 h1:P0x1wUFIAhdEeqUbrRAF343iExKhq9UkVOBbi45l750=
 github.com/rollkit/go-sequencing v0.4.1/go.mod h1:QnOk8mqyVgFWdMnjvZVBG4x8GC/TsRtoN5XdPZzfCSs=
 github.com/rs/cors v1.11.1 h1:eU3gRzXLRK57F5rKMGMZURNdIG4EoAmX8k94r9wXWHA=
