@@ -378,6 +378,8 @@ func (m *Manager) SeqClient() coresequencer.Sequencer {
 
 // GetLastState returns the last recorded state.
 func (m *Manager) GetLastState() types.State {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
 	return m.lastState
 }
 
