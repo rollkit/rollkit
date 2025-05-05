@@ -54,7 +54,7 @@ var DefaultConfig = Config{
 	},
 	DA: DAConfig{
 		Address:       "http://localhost:7980",
-		BlockTime:     DurationWrapper{15 * time.Second},
+		BlockTime:     DurationWrapper{6 * time.Second},
 		GasPrice:      -1,
 		GasMultiplier: 0,
 	},
