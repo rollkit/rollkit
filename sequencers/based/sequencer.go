@@ -274,11 +274,6 @@ func (s *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Bat
 		return fmt.Errorf("failed to get initial gas price: %w", err)
 	}
 
-	initialMaxBlobSize, err := s.DA.MaxBlobSize(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial max blob size: %w", err)
-	}
-	maxBlobSize := initialMaxBlobSize
 	gasPrice := initialGasPrice
 
 daSubmitRetryLoop:
@@ -321,7 +316,6 @@ daSubmitRetryLoop:
 
 			// Reset submission parameters after success
 			backoff = 0
-			maxBlobSize = initialMaxBlobSize
 
 			// Gradually reduce gas price on success, but not below initial price
 			if gasMultiplier > 0 && gasPrice != 0 {
@@ -342,12 +336,6 @@ daSubmitRetryLoop:
 				gasPrice = gasPrice * gasMultiplier
 			}
 			s.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
-
-		case coreda.StatusTooBig:
-			// if the blob size is too big, it means we are trying to consume the entire block on Celestia
-			// If the blob is too big, reduce the max blob size
-			maxBlobSize = maxBlobSize / 4 // TODO: this should be fetched from the DA layer?
-			fallthrough
 
 		default:
 			// For other errors, use exponential backoff
