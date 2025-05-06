@@ -39,7 +39,7 @@ services:
       - rollkit-network
 
   rollkit-evm-single:
-    image: ghcr.io/rollkit/rollkit-evm-single:v0.1.1
+    image: ghcr.io/rollkit/rollkit-evm-single:v0.1.2
     depends_on:
       reth:
         condition: service_started
@@ -56,8 +56,8 @@ services:
       - EVM_BLOCK_TIME=1s
       - EVM_SIGNER_PASSPHRASE=secret
       # - ROLLKIT_DA_ADDRESS=<da_address>
-      # - DA_AUTH_TOKEN=<da_auth_token>
-      # - DA_NAMESPACE=<da_namespace>
+      # - ROLLKIT_DA_AUTH_TOKEN=<da_auth_token>
+      # - ROLLKIT_DA_NAMESPACE=<da_namespace>
     networks:
       - rollkit-network
 

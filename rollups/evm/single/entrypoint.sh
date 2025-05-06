@@ -7,22 +7,22 @@ sleep 5
 
 ./evm-single init --rollkit.node.aggregator=true --rollkit.signer.passphrase $EVM_SIGNER_PASSPHRASE
 
-# Conditionally add --rollkit.da_address if ROLKIT_DA_ADDRESS is set
+# Conditionally add --rollkit.da.address if ROLLKIT_DA_ADDRESS is set
 da_flag=""
 if [ -n "$ROLLKIT_DA_ADDRESS" ]; then
-  da_flag="--rollkit.da_address $ROLLKIT_DA_ADDRESS"
+  da_flag="--rollkit.da.address $ROLLKIT_DA_ADDRESS"
 fi
 
-# Conditionally add --da.auth_token if DA_AUTH_TOKEN is set
+# Conditionally add --rollkit.da.auth_token if ROLLKIT_DA_AUTH_TOKEN is set
 da_auth_token_flag=""
 if [ -n "$DA_AUTH_TOKEN" ]; then
-  da_auth_token_flag="--da.auth_token $DA_AUTH_TOKEN"
+  da_auth_token_flag="--rollkit.da.auth_token $ROLLKIT_DA_AUTH_TOKEN"
 fi
 
-# Conditionally add --da.namespace if DA_NAMESPACE is set
+# Conditionally add --rollkit.da.namespace if ROLLKIT_DA_NAMESPACE is set
 da_namespace_flag=""
 if [ -n "$DA_NAMESPACE" ]; then
-  da_namespace_flag="--da.namespace $DA_NAMESPACE"
+  da_namespace_flag="--rollkit.da.namespace $ROLLKIT_DA_NAMESPACE"
 fi
 
 exec ./evm-single start \
