@@ -134,7 +134,6 @@ func StartNode(
 		sequencer,
 		da,
 		signer,
-		*nodeKey,
 		p2pClient,
 		genesis,
 		datastore,

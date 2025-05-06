@@ -9,12 +9,14 @@ import (
 	"testing"
 	"time"
 
-	testutils "github.com/celestiaorg/utils/test"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/rollkit/rollkit/block"
+
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
+
+	testutils "github.com/celestiaorg/utils/test"
 )
 
 // FullNodeTestSuite is a test suite for full node integration tests
@@ -55,7 +57,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingHeaders=%d",
 		config.Node.BlockTime.Duration, config.DA.BlockTime.Duration, config.Node.MaxPendingHeaders)
 
-	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
+	node, cleanup := createNodeWithCleanup(s.T(), config)
 	s.T().Cleanup(func() {
 		cleanup()
 	})
@@ -175,6 +177,48 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	}
 }
 
+// TestTxGossipingAndAggregation tests that transactions are gossiped and blocks are aggregated and synced across nodes
+func (s *FullNodeTestSuite) TestTxGossipingAndAggregation() {
+	require := require.New(s.T())
+	config := getTestConfig(s.T(), 1)
+
+	numNodes := 4
+	nodes, cleanups := createNodesWithCleanup(s.T(), numNodes, config)
+	defer func() {
+		for _, cleanup := range cleanups {
+			cleanup()
+		}
+	}()
+
+	// Start all nodes in background
+	for _, node := range nodes {
+		s.startNodeInBackground(node)
+	}
+
+	// Inject a transaction into the aggregator's executor
+	executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
+	executor.InjectTx([]byte("gossip tx"))
+
+	// Wait for all nodes to reach at least 3 blocks
+	for _, node := range nodes {
+		require.NoError(waitForAtLeastNBlocks(node, 3, Store))
+	}
+
+	// Assert that all nodes have the same block at height 1 and 2
+	for height := uint64(1); height <= 2; height++ {
+		var refHash []byte
+		for i, node := range nodes {
+			header, _, err := node.Store.GetBlockData(context.Background(), height)
+			require.NoError(err)
+			if i == 0 {
+				refHash = header.Hash()
+			} else {
+				s.Equal(refHash, header.Hash(), "Block hash mismatch at height %d between node 0 and node %d", height, i)
+			}
+		}
+	}
+}
+
 // TestMaxPendingHeaders tests that the node will stop producing blocks when the limit is reached
 func (s *FullNodeTestSuite) TestMaxPendingHeaders() {
 	require := require.New(s.T())
@@ -192,7 +236,7 @@ func (s *FullNodeTestSuite) TestMaxPendingHeaders() {
 	config := getTestConfig(s.T(), 1)
 	config.Node.MaxPendingHeaders = 2
 
-	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
+	node, cleanup := createNodeWithCleanup(s.T(), config)
 	defer cleanup()
 
 	s.node = node
@@ -253,7 +297,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 
 	config := getTestConfig(s.T(), 1)
 	// Create a new node instance instead of reusing the old one
-	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
+	node, cleanup := createNodeWithCleanup(s.T(), config)
 	defer cleanup()
 
 	// Replace the old node with the new one
