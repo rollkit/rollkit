@@ -1,3 +1,6 @@
+# Make sure to build this from the root of the directory: rollkit
+# docker build -f rollups/evm/single/Dockerfile -t ghcr.io/rollkit/rollkit-evm-single:<version> .
+
 FROM golang:1.24-alpine AS build-env
 
 WORKDIR /src
