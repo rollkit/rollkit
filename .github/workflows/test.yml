@@ -71,7 +71,7 @@ jobs:
         run: cd da && go test ./...
 
   test_evm_execution:
-    name: Run DA Tests
+    name: Run EVM Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,7 +79,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: ./go.mod
-      - name: Run unit test
+      - name: Run EVM test
         run: cd execution/evm && go test ./...
 
   e2e-tests:
