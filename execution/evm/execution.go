@@ -1,7 +1,6 @@
 package evm
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -42,7 +41,7 @@ type EngineClient struct {
 	feeRecipient  common.Address // Address to receive transaction fees
 }
 
-// NewPureEngineExecutionClient creates a new instance of EngineAPIExecutionClient
+// NewEngineExecutionClient creates a new instance of EngineAPIExecutionClient
 func NewEngineExecutionClient(
 	ethURL,
 	engineURL string,
@@ -153,27 +152,6 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 
 // ExecuteTxs executes the given transactions at the specified block height and timestamp
 func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (updatedStateRoot []byte, maxBytes uint64, err error) {
-	// convert rollkit tx to eth tx
-	ethTxs := make([]*types.Transaction, len(txs))
-	for i, tx := range txs {
-		ethTxs[i] = new(types.Transaction)
-		err := ethTxs[i].UnmarshalBinary(tx)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to unmarshal transaction: %w", err)
-		}
-	}
-
-	// encode
-	txsPayload := make([][]byte, len(txs))
-	for i, tx := range ethTxs {
-		buf := bytes.Buffer{}
-		err := tx.EncodeRLP(&buf)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to RLP encode tx: %w", err)
-		}
-		txsPayload[i] = buf.Bytes()
-	}
-
 	var (
 		prevBlockHash common.Hash
 		prevTimestamp uint64
@@ -209,7 +187,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 			SuggestedFeeRecipient: c.feeRecipient,
 			Withdrawals:           []*types.Withdrawal{},
 			BeaconRoot:            &c.genesisHash,
-			Transactions:          txsPayload, // force to use txsPayload
+			Transactions:          txs,
 			NoTxPool:              true,
 		},
 	)

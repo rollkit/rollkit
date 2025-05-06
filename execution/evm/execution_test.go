@@ -76,14 +76,14 @@ func TestEngineExecution(t *testing.T) {
 			genesisHash,
 			common.Address{},
 		)
-		require.NoError(t, err)
+		require.NoError(tt, err)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 		defer cancel()
 		stateRoot, gasLimit, err := executionClient.InitChain(ctx, genesisTime, initialHeight, CHAIN_ID)
-		require.NoError(t, err)
-		require.Equal(t, rollkitGenesisStateRoot, stateRoot)
-		require.NotZero(t, gasLimit)
+		require.NoError(tt, err)
+		require.Equal(tt, rollkitGenesisStateRoot, stateRoot)
+		require.NotZero(tt, gasLimit)
 
 		prevStateRoot := rollkitGenesisStateRoot
 		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
@@ -96,10 +96,10 @@ func TestEngineExecution(t *testing.T) {
 			}
 			txs := make([]*ethTypes.Transaction, nTxs)
 			for i := range txs {
-				txs[i] = getRandomTransaction(t, 22000)
+				txs[i] = getRandomTransaction(tt, 22000)
 			}
 			for i := range txs {
-				submitTransaction(t, txs[i])
+				submitTransaction(tt, txs[i])
 			}
 			time.Sleep(1000 * time.Millisecond)
 

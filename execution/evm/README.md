@@ -2,9 +2,9 @@
 
 This repository implements the `execution.Executor` interface from `github.com/rollkit/rollkit/core/execution` (currently on feature branch `feature/exec_api`). It provides a pure Engine API-based execution client for Rollkit.
 
-## PureEngineClient Implementation
+## EngineClient Implementation
 
-The `PureEngineClient` is a 100% Engine API compatible implementation of the `execution.Executor` interface. It connects to an Ethereum execution client (like Reth) and uses both the Engine API and standard Ethereum JSON-RPC API to execute transactions.
+The `EngineClient` is a 100% Engine API compatible implementation of the `execution.Executor` interface. It connects to an Ethereum execution client (like Reth) and uses both the Engine API and standard Ethereum JSON-RPC API to execute transactions.
 
 ### Genesis and initial height
 
