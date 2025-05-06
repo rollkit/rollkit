@@ -11,8 +11,8 @@ services:
       - "8545:8545"
       - "8551:8551"
     volumes:
-      - ./go-execution-evm/docker/chain:/root/chain:ro
-      - ./go-execution-evm/docker/jwttoken:/root/jwt:ro
+      - ./chain:/root/chain:ro
+      - ./jwttoken:/root/jwt:ro
       - logs:/root/logs
     entrypoint: /bin/sh -c
     command:
