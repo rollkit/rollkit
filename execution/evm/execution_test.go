@@ -172,7 +172,7 @@ func TestEngineExecution(t *testing.T) {
 			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
 
 			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
-			require.NoError(t, err)
+			require.NoError(tt, err)
 			if len(payload) > 0 {
 				require.NotZero(tt, maxBytes)
 			}
