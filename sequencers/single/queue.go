@@ -101,26 +101,24 @@ func (bq *BatchQueue) Load(ctx context.Context) error {
 	// Clear the current queue
 	bq.queue = make([]coresequencer.Batch, 0)
 
-	// List all entries from the datastore using the correct prefix
-	q := query.Query{
-		Prefix: bq.prefix, // Use the stored prefix for filtering
-	}
+	q := query.Query{}
 	results, err := bq.db.Query(ctx, q)
 	if err != nil {
-		return fmt.Errorf("error querying datastore with prefix '%s': %w", bq.prefix, err)
+		return fmt.Errorf("error querying datastore: %w", err)
 	}
 	defer results.Close()
 
 	// Load each batch
 	for result := range results.Next() {
 		if result.Error != nil {
-			fmt.Printf("Error reading entry from datastore with prefix '%s': %v\n", bq.prefix, result.Error)
+			fmt.Printf("Error reading entry from datastore: %v\n", result.Error)
 			continue
 		}
 		pbBatch := &pb.Batch{}
 		err := proto.Unmarshal(result.Value, pbBatch)
 		if err != nil {
-			return fmt.Errorf("Error decoding batch for key '%s' (prefix '%s'): %v. Attempting to delete entry.\n", result.Key, bq.prefix, err)
+			fmt.Printf("Error decoding batch for key '%s': %v. Skipping entry.\n", result.Key, err)
+			continue
 		}
 		bq.queue = append(bq.queue, coresequencer.Batch{Transactions: pbBatch.Txs})
 	}
