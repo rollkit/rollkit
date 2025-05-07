@@ -53,17 +53,15 @@ func NewSequencer(
 	batchTime time.Duration,
 	metrics *Metrics,
 	proposer bool,
-	batchSubmissionChan chan coresequencer.Batch,
 ) (*Sequencer, error) {
 	s := &Sequencer{
-		logger:              logger,
-		da:                  da,
-		batchTime:           batchTime,
-		rollupId:            rollupId,
-		queue:               NewBatchQueue(db, "batches"),
-		batchSubmissionChan: batchSubmissionChan,
-		metrics:             metrics,
-		proposer:            proposer,
+		logger:    logger,
+		da:        da,
+		batchTime: batchTime,
+		rollupId:  rollupId,
+		queue:     NewBatchQueue(db, "batches"),
+		metrics:   metrics,
+		proposer:  proposer,
 	}
 
 	loadCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
