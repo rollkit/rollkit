@@ -10,7 +10,7 @@ import (
 
 	"cosmossdk.io/log"
 
-	proxy "github.com/rollkit/rollkit/da/proxy/jsonrpc"
+	proxy "github.com/rollkit/rollkit/da/jsonrpc"
 )
 
 const (

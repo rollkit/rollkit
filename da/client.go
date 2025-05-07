@@ -1,4 +1,4 @@
-package proxy
+package da
 
 import (
 	"context"
@@ -8,12 +8,12 @@ import (
 	"cosmossdk.io/log"
 
 	"github.com/rollkit/rollkit/core/da"
-	proxyjsonrpc "github.com/rollkit/rollkit/da/proxy/jsonrpc"
+	proxyjsonrpc "github.com/rollkit/rollkit/da/jsonrpc"
 )
 
 // NewClient returns a DA backend based on the uri
 // and auth token. Supported schemes: grpc, http, https
-func NewClient(logger log.Logger, uri, token string) (da.DA, error) {
+func NewClient(logger log.Logger, uri, token, nameSpace string) (da.DA, error) {
 	addr, err := url.Parse(uri)
 	if err != nil {
 		return nil, err
@@ -21,7 +21,7 @@ func NewClient(logger log.Logger, uri, token string) (da.DA, error) {
 	var client da.DA
 	switch addr.Scheme {
 	case "http", "https":
-		jsonrpcClient, err := proxyjsonrpc.NewClient(context.Background(), logger, uri, token)
+		jsonrpcClient, err := proxyjsonrpc.NewClient(context.Background(), logger, uri, token, nameSpace)
 		if err != nil {
 			return nil, err
 		}

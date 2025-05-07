@@ -40,10 +40,6 @@ const (
 	// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
 	defaultMempoolTTL = 25
 
-	// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
-	// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
-	blockProtocolOverhead = 1 << 16
-
 	// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 	// This is temporary solution. It will be removed in future versions.
 	maxSubmitAttempts = 30
@@ -130,7 +126,7 @@ type Manager struct {
 	logger log.Logger
 
 	// For usage by Lazy Aggregator mode
-	buildingBlock bool
+	txsAvailable bool
 
 	pendingHeaders *PendingHeaders
 
@@ -142,7 +138,7 @@ type Manager struct {
 	// daIncludedHeight is rollup height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
-	dalc             coreda.Client
+	da               coreda.DA
 	gasPrice         float64
 	gasMultiplier    float64
 
@@ -152,6 +148,9 @@ type Manager struct {
 	// publishBlock is the function used to publish blocks. It defaults to
 	// the manager's publishBlock method but can be overridden for testing.
 	publishBlock publishBlockFunc
+
+	// txNotifyCh is used to signal when new transactions are available
+	txNotifyCh chan struct{}
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -252,7 +251,7 @@ func NewManager(
 	store store.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	dalc coreda.Client,
+	da coreda.DA,
 	logger log.Logger,
 	headerStore goheader.Store[*types.SignedHeader],
 	dataStore goheader.Store[*types.Data],
@@ -285,24 +284,15 @@ func NewManager(
 		config.Node.BlockTime.Duration = defaultBlockTime
 	}
 
-	if config.Node.LazyBlockTime.Duration == 0 {
+	if config.Node.LazyBlockInterval.Duration == 0 {
 		logger.Info("Using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
-		config.Node.LazyBlockTime.Duration = defaultLazyBlockTime
+		config.Node.LazyBlockInterval.Duration = defaultLazyBlockTime
 	}
 
 	if config.DA.MempoolTTL == 0 {
 		logger.Info("Using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
 		config.DA.MempoolTTL = defaultMempoolTTL
 	}
-
-	maxBlobSize, err := dalc.MaxBlobSize(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// allow buffer for the block header and protocol encoding
-	// TODO: why is this needed?
-	//nolint:ineffassign // This assignment is needed
-	maxBlobSize -= blockProtocolOverhead
 
 	pendingHeaders, err := NewPendingHeaders(store, logger)
 	if err != nil {
@@ -329,7 +319,6 @@ func NewManager(
 		genesis:   genesis,
 		lastState: s,
 		store:     store,
-		dalc:      dalc,
 		daHeight:  &daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:       make(chan *types.SignedHeader, channelLength),
@@ -346,23 +335,20 @@ func NewManager(
 		dataCache:      cache.NewCache[types.Data](),
 		retrieveCh:     make(chan struct{}, 1),
 		logger:         logger,
-		buildingBlock:  false,
+		txsAvailable:   false,
 		pendingHeaders: pendingHeaders,
 		metrics:        seqMetrics,
 		sequencer:      sequencer,
 		exec:           exec,
+		da:             da,
 		gasPrice:       gasPrice,
 		gasMultiplier:  gasMultiplier,
+		txNotifyCh:     make(chan struct{}, 1), // Non-blocking channel
 	}
 	agg.init(ctx)
 	// Set the default publishBlock implementation
 	agg.publishBlock = agg.publishBlockInternal
 	return agg, nil
-}
-
-// DALCInitialized returns true if DALC is initialized.
-func (m *Manager) DALCInitialized() bool {
-	return m.dalc != nil
 }
 
 // PendingHeaders returns the pending headers.
@@ -463,15 +449,19 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 			"txCount", len(res.Batch.Transactions),
 			"timestamp", res.Timestamp)
 
+		var errRetrieveBatch error
+		// Even if there are no transactions, return the batch with timestamp
+		// This allows empty blocks to maintain proper timing
 		if len(res.Batch.Transactions) == 0 {
-			return nil, ErrNoBatch
+			errRetrieveBatch = ErrNoBatch
 		}
-		h := convertBatchDataToBytes(res.BatchData)
-		if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
+		// Even if there are no transactions, update lastBatchData so we don’t
+		// repeatedly emit the same empty batch, and persist it to metadata.
+		if err := m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
 			m.logger.Error("error while setting last batch hash", "error", err)
 		}
 		m.lastBatchData = res.BatchData
-		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, nil
+		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, errRetrieveBatch
 	}
 	return nil, ErrNoBatch
 }
@@ -501,10 +491,12 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		lastHeaderTime time.Time
 		err            error
 	)
+
 	height, err := m.store.Height(ctx)
 	if err != nil {
 		return fmt.Errorf("error while getting store height: %w", err)
 	}
+
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight <= m.genesis.InitialHeight {
@@ -539,26 +531,30 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		data = pendingData
 	} else {
 		batchData, err := m.retrieveBatch(ctx)
-		if errors.Is(err, ErrNoBatch) {
-			m.logger.Info("No batch retrieved from sequencer, skipping block production")
-			return nil // Indicate no block was produced
-		} else if err != nil {
-			return fmt.Errorf("failed to get transactions from batch: %w", err)
+		if err != nil {
+			if errors.Is(err, ErrNoBatch) {
+				if batchData == nil {
+					m.logger.Info("No batch retrieved from sequencer, skipping block production")
+					return nil
+				}
+				m.logger.Info("Creating empty block", "height", newHeight)
+			} else {
+				return fmt.Errorf("failed to get transactions from batch: %w", err)
+			}
+		} else {
+			if batchData.Before(lastHeaderTime) {
+				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
+			}
+			m.logger.Info("Creating and publishing block", "height", newHeight)
+			m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
 		}
 
-		// sanity check timestamp for monotonically increasing
-		if batchData.Before(lastHeaderTime) {
-			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
-		}
-		m.logger.Info("Creating and publishing block", "height", newHeight)
 		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
 		if err != nil {
 			return err
 		}
-		m.logger.Debug("block info", "num_tx", len(data.Txs))
 
-		err = m.store.SaveBlockData(ctx, header, data, &signature)
-		if err != nil {
+		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
 			return SaveBlockError{err}
 		}
 	}
@@ -682,25 +678,7 @@ func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature 
 	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
 }
 
-func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.execApplyBlock(ctx, m.lastState, header, data)
-}
-
-func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Data) error {
-	// TODO(tzdybal): implement
-	return nil
-}
-
-func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
-	err := m.exec.SetFinal(ctx, h.Height())
-	return newState.AppHash, err
-}
-
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
-	batchDataIDs := convertBatchDataToBytes(batchData.Data)
-
+func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	if m.signer == nil {
 		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
 	}
@@ -719,21 +697,32 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
 	}
 
+	// Determine if this is an empty block
+	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
+
+	// Set the appropriate data hash based on whether this is an empty block
+	var dataHash types.Hash
+	if isEmpty {
+		dataHash = dataHashForEmptyTxs // Use dataHashForEmptyTxs for empty blocks
+	} else {
+		dataHash = convertBatchDataToBytes(batchData.Data)
+	}
+
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
-				Block: lastState.Version.Block,
-				App:   lastState.Version.App,
+				Block: m.lastState.Version.Block,
+				App:   m.lastState.Version.App,
 			},
 			BaseHeader: types.BaseHeader{
-				ChainID: lastState.ChainID,
+				ChainID: m.lastState.ChainID,
 				Height:  height,
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash:  lastHeaderHash,
-			DataHash:        batchDataIDs,
+			DataHash:        dataHash,
 			ConsensusHash:   make(types.Hash, 32),
-			AppHash:         lastState.AppHash,
+			AppHash:         m.lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
 		},
 		Signature: *lastSignature,
@@ -743,14 +732,36 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		},
 	}
 
+	// Create block data with appropriate transactions
 	blockData := &types.Data{
-		Txs: make(types.Txs, len(batchData.Transactions)),
+		Txs: make(types.Txs, 0), // Start with empty transaction list
 	}
-	for i := range batchData.Transactions {
-		blockData.Txs[i] = types.Tx(batchData.Transactions[i])
+
+	// Only add transactions if this is not an empty block
+	if !isEmpty {
+		blockData.Txs = make(types.Txs, len(batchData.Transactions))
+		for i := range batchData.Transactions {
+			blockData.Txs[i] = types.Tx(batchData.Transactions[i])
+		}
 	}
 
 	return header, blockData, nil
+}
+
+func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.execApplyBlock(ctx, m.lastState, header, data)
+}
+
+func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Data) error {
+	// TODO(tzdybal): implement
+	return nil
+}
+
+func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
+	err := m.exec.SetFinal(ctx, h.Height())
+	return newState.AppHash, err
 }
 
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
@@ -863,4 +874,17 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 		return nil, fmt.Errorf("signer is nil; cannot sign header")
 	}
 	return m.signer.Sign(b)
+}
+
+// NotifyNewTransactions signals that new transactions are available for processing
+// This method will be called by the Reaper when it receives new transactions
+func (m *Manager) NotifyNewTransactions() {
+	// Non-blocking send to avoid slowing down the transaction submission path
+	select {
+	case m.txNotifyCh <- struct{}{}:
+		// Successfully sent notification
+	default:
+		// Channel buffer is full, which means a notification is already pending
+		// This is fine, as we just need to trigger one block production
+	}
 }

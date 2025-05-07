@@ -160,9 +160,6 @@ func TestExecutionWithDASync(t *testing.T) {
 			// This is expected - node is still running
 		}
 
-		// Verify DA client is working
-		require.NotNil(node.dalc)
-
 		// Get the executor from the node
 		executor := node.blockManager.GetExecutor()
 		require.NotNil(executor)

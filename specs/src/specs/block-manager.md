@@ -63,7 +63,8 @@ Block manager configuration options:
 |BlockTime|time.Duration|time interval used for block production and block retrieval from block store ([`defaultBlockTime`][defaultBlockTime])|
 |DABlockTime|time.Duration|time interval used for both block publication to DA network and block retrieval from DA network ([`defaultDABlockTime`][defaultDABlockTime])|
 |DAStartHeight|uint64|block retrieval from DA network starts from this height|
-|LazyBlockTime|time.Duration|time interval used for block production in lazy aggregator mode even when there are no transactions ([`defaultLazyBlockTime`][defaultLazyBlockTime])|
+|LazyBlockInterval|time.Duration|time interval used for block production in lazy aggregator mode even when there are no transactions ([`defaultLazyBlockTime`][defaultLazyBlockTime])|
+|LazyMode|bool|when set to true, enables lazy aggregation mode which produces blocks only when transactions are available or at LazyBlockInterval intervals|
 
 ### Block Production
 
@@ -71,7 +72,12 @@ When the full node is operating as a sequencer (aka aggregator), the block manag
 
 In `normal` mode, the block manager runs a timer, which is set to the `BlockTime` configuration parameter, and continuously produces blocks at `BlockTime` intervals.
 
-In `lazy` mode, the block manager starts building a block when any transaction becomes available in the mempool. After the first notification of the transaction availability, the manager will wait for a 1 second timer to finish, in order to collect as many transactions from the mempool as possible. The 1 second delay is chosen in accordance with the default block time of 1s. The block manager also notifies the full node after every lazy block building.
+In `lazy` mode, the block manager implements a dual timer mechanism:
+
+1. A `blockTimer` that triggers block production at regular intervals when transactions are available
+2. A `lazyTimer` that ensures blocks are produced at `LazyBlockInterval` intervals even during periods of inactivity
+
+The block manager starts building a block when any transaction becomes available in the mempool via a notification channel (`txNotifyCh`). When the `Reaper` detects new transactions, it calls `Manager.NotifyNewTransactions()`, which performs a non-blocking signal on this channel. The block manager also produces empty blocks at regular intervals to maintain consistency with the DA layer, ensuring a 1:1 mapping between DA layer blocks and execution layer blocks.
 
 #### Building the Block
 
@@ -154,6 +160,12 @@ The communication between the full node and block manager:
 * The block manager loads the initial state from the local store and uses genesis if not found in the local store, when the node (re)starts.
 * The default mode for sequencer nodes is normal (not lazy).
 * The sequencer can produce empty blocks.
+* In lazy aggregation mode, the block manager maintains consistency with the DA layer by producing empty blocks at regular intervals, ensuring a 1:1 mapping between DA layer blocks and execution layer blocks.
+* The lazy aggregation mechanism uses a dual timer approach:
+  * A `blockTimer` that triggers block production when transactions are available
+  * A `lazyTimer` that ensures blocks are produced even during periods of inactivity
+* Empty batches are handled differently in lazy mode - instead of discarding them, they are returned with the `ErrNoBatch` error, allowing the caller to create empty blocks with proper timestamps.
+* Transaction notifications from the `Reaper` to the `Manager` are handled via a non-blocking notification channel (`txNotifyCh`) to prevent backpressure.
 * The block manager uses persistent storage (disk) when the `root_dir` and `db_path` configuration parameters are specified in `config.yaml` file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.
 * The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was DA included during DA retrieval. The block is only marked DA included in this case.
 * The data sync store is created by prefixing `dataSync` on the main data store.
@@ -186,6 +198,8 @@ See [tutorial] for running a multi-node network with both sequencer and non-sequ
 [7] [Rollkit Minimal Header](../../lazy-adr/adr-015-rollkit-minimal-header.md)
 
 [8] [Data Availability](./da.md)
+
+[9] [Lazy Aggregation with DA Layer Consistency ADR](../../lazy-adr/adr-021-lazy-aggregation.md)
 
 [maxSubmitAttempts]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L50
 [defaultBlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L36

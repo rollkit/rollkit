@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rollkit/go-execution-evm"
 	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/da/proxy/jsonrpc"
+
+	"github.com/rollkit/rollkit/da/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -64,33 +63,33 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to get 'evm.fee-recipient' flag: %w", err)
 			}
 
-			basedURL, err = cmd.Flags().GetString("based.url")
+			basedURL, err = cmd.Flags().GetString(based.FlagBasedURL)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.url' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedURL, err)
 			}
-			basedAuth, err = cmd.Flags().GetString("based.auth")
+			basedAuth, err = cmd.Flags().GetString(based.FlagBasedAuth)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.auth' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedAuth, err)
 			}
-			basedNamespace, err = cmd.Flags().GetString("based.namespace")
+			basedNamespace, err = cmd.Flags().GetString(based.FlagBasedNamespace)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.namespace' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedNamespace, err)
 			}
-			basedStartHeight, err = cmd.Flags().GetUint64("based.start-height")
+			basedStartHeight, err = cmd.Flags().GetUint64(based.FlagBasedStartHeight)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.start-height' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedStartHeight, err)
 			}
-			basedMaxHeightDrift, err = cmd.Flags().GetUint64("based.max-height-drift")
+			basedMaxHeightDrift, err = cmd.Flags().GetUint64(based.FlagBasedMaxHeightDrift)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.max-height-drift' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedMaxHeightDrift, err)
 			}
-			basedGasMultiplier, err = cmd.Flags().GetFloat64("based.gas-multiplier")
+			basedGasMultiplier, err = cmd.Flags().GetFloat64(based.FlagBasedGasMultiplier)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.gas-multiplier' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedGasMultiplier, err)
 			}
-			basedGasPrice, err = cmd.Flags().GetFloat64("based.gas-price")
+			basedGasPrice, err = cmd.Flags().GetFloat64(based.FlagBasedGasPrice)
 			if err != nil {
-				return fmt.Errorf("failed to get 'based.gas-price' flag: %w", err)
+				return fmt.Errorf("failed to get '%s' flag: %w", based.FlagBasedGasPrice, err)
 			}
 			return nil
 		},
@@ -112,7 +111,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 
 			var rollDA coreda.DA
 			if nodeConfig.DA.AuthToken != "" {
-				client, err := jsonrpc.NewClient(ctx, logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
+				client, err := jsonrpc.NewClient(ctx, logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 				if err != nil {
 					return fmt.Errorf("failed to create DA client: %w", err)
 				}
@@ -120,11 +119,10 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			} else {
 				rollDA = coreda.NewDummyDA(100_000, 0, 0)
 			}
-			rollDALC := da.NewDAClient(rollDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), nil, logger)
 
 			var basedDA coreda.DA
 			if basedAuth != "" {
-				client, err := jsonrpc.NewClient(ctx, logger, basedURL, basedAuth)
+				client, err := jsonrpc.NewClient(ctx, logger, basedURL, basedAuth, basedNamespace)
 				if err != nil {
 					return fmt.Errorf("failed to create based client: %w", err)
 				}
@@ -132,22 +130,17 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			} else {
 				basedDA = coreda.NewDummyDA(100_000, 0, 0)
 			}
-			nsBytes, err := hex.DecodeString(basedNamespace)
-			if err != nil {
-				return fmt.Errorf("failed to decode based namespace: %w", err)
-			}
-			basedDALC := da.NewDAClient(basedDA, basedGasPrice, basedGasMultiplier, nsBytes, nil, logger)
 
 			datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "based")
 			if err != nil {
 				return fmt.Errorf("failed to create datastore: %w", err)
 			}
 
+			// Pass raw DA implementation and namespace to NewSequencer
 			sequencer, err := based.NewSequencer(
 				logger,
 				basedDA,
-				basedDALC,
-				[]byte("rollkit-test"),
+				[]byte(basedNamespace), // Use the namespace from the flag
 				basedStartHeight,
 				basedMaxHeightDrift,
 				datastore,
@@ -174,7 +167,11 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to create P2P client: %w", err)
 			}
 
-			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDALC, nodeKey, p2pClient, datastore, nodeConfig)
+			// Pass the raw rollDA implementation to StartNode.
+			// StartNode might need adjustment if it strictly requires coreda.Client methods.
+			// For now, assume it can work with coreda.DA or will be adjusted later.
+			// We also need to pass the namespace config for rollDA.
+			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, nodeKey, p2pClient, datastore, nodeConfig)
 		},
 	}
 
@@ -184,13 +181,13 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 	cmd.Flags().StringVar(&jwtSecret, "evm.jwt-secret", "", "JWT secret for Engine API")
 	cmd.Flags().StringVar(&genesisHash, "evm.genesis-hash", "", "Genesis block hash")
 	cmd.Flags().StringVar(&feeRecipient, "evm.fee-recipient", "", "Fee recipient address")
-	cmd.Flags().StringVar(&basedURL, "based.url", "http://localhost:26658", "Based API URL")
-	cmd.Flags().StringVar(&basedAuth, "based.auth", "", "Authentication token for Based API")
-	cmd.Flags().StringVar(&basedNamespace, "based.namespace", "", "Namespace for Based API")
-	cmd.Flags().Uint64Var(&basedStartHeight, "based.start-height", 0, "Starting height for Based API")
-	cmd.Flags().Uint64Var(&basedMaxHeightDrift, "based.max-height-drift", 1, "Maximum L1 block height drift")
-	cmd.Flags().Float64Var(&basedGasMultiplier, "based.gas-multiplier", 1.0, "Gas multiplier for Based API")
-	cmd.Flags().Float64Var(&basedGasPrice, "based.gas-price", -1.0, "Gas price for Based API")
+	cmd.Flags().StringVar(&basedURL, based.FlagBasedURL, "http://localhost:26658", "Based API URL")
+	cmd.Flags().StringVar(&basedAuth, based.FlagBasedAuth, "", "Authentication token for Based API")
+	cmd.Flags().StringVar(&basedNamespace, based.FlagBasedNamespace, "", "Namespace for Based API")
+	cmd.Flags().Uint64Var(&basedStartHeight, based.FlagBasedStartHeight, 0, "Starting height for Based API")
+	cmd.Flags().Uint64Var(&basedMaxHeightDrift, based.FlagBasedMaxHeightDrift, 1, "Maximum L1 block height drift")
+	cmd.Flags().Float64Var(&basedGasMultiplier, based.FlagBasedGasMultiplier, 1.0, "Gas multiplier for Based API")
+	cmd.Flags().Float64Var(&basedGasPrice, based.FlagBasedGasPrice, -1.0, "Gas price for Based API")
 
 	return cmd
 }

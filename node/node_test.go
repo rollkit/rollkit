@@ -46,11 +46,10 @@ const (
 )
 
 // createTestComponents creates test components for node initialization
-func createTestComponents(t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, *p2p.Client, datastore.Batching) {
+func createTestComponents(t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.DA, *p2p.Client, datastore.Batching) {
 	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	// Create genesis and keys for P2P client
 	_, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
@@ -63,7 +62,7 @@ func createTestComponents(t *testing.T) (coreexecutor.Executor, coresequencer.Se
 	require.NotNil(t, p2pClient)
 	ds := dssync.MutexWrap(datastore.NewMapDatastore())
 
-	return executor, sequencer, dummyClient, p2pClient, ds
+	return executor, sequencer, dummyDA, p2pClient, ds
 }
 
 // startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.

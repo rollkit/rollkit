@@ -43,7 +43,7 @@ func NewServer(logger log.Logger, address, port string, DA da.DA) *Server {
 	}
 	srv.srv.Handler = http.HandlerFunc(rpc.ServeHTTP)
 	// Wrap the provided DA implementation with the logging decorator
-	srv.RegisterService("da", DA, &API{logger: logger}) // Register the wrapper
+	srv.RegisterService("da", DA, &API{Logger: logger}) // Register the wrapper
 	return srv
 }
 

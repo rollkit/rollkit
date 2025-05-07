@@ -26,7 +26,7 @@ func TestNewSequencer(t *testing.T) {
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("namespace"), []byte("rollup1"), 10*time.Second, metrics, false)
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("rollup1"), 10*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestNewSequencer(t *testing.T) {
 	if seq.queue == nil {
 		t.Fatal("Expected batch queue to not be nil")
 	}
-	if seq.dalc == nil {
+	if seq.da == nil {
 		t.Fatal("Expected DA client to not be nil")
 	}
 }
@@ -58,7 +58,7 @@ func TestSequencer_SubmitRollupBatchTxs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	rollupId := []byte("rollup1")
-	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("namespace"), rollupId, 10*time.Second, metrics, false)
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, rollupId, 10*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestSequencer_SubmitRollupBatchTxs_EmptyBatch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	rollupId := []byte("rollup1")
-	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("namespace"), rollupId, 10*time.Second, metrics, false)
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, rollupId, 10*time.Second, metrics, false)
 	require.NoError(t, err, "Failed to create sequencer")
 	defer func() {
 		err := db.Close()
@@ -238,19 +238,17 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	}()
 
 	rollupId := []byte("test-rollup")
-	namespace := []byte("test-namespace")
+	namespace := []byte("placeholder")
 	batchData := [][]byte{[]byte("batch1"), []byte("batch2")}
 	proofs := [][]byte{[]byte("proof1"), []byte("proof2")}
 
 	t.Run("Proposer Mode", func(t *testing.T) {
 		mockDA := damocks.NewDA(t)
-		mockDALC := coreda.NewDummyClient(mockDA, namespace)
 
 		seq := &Sequencer{
 			logger:           log.NewNopLogger(),
 			rollupId:         rollupId,
 			proposer:         true,
-			dalc:             mockDALC,
 			da:               mockDA,
 			queue:            NewBatchQueue(db, "proposer_queue"),
 			daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -261,25 +259,23 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		assert.NotNil(res)
 		assert.True(res.Status, "Expected status to be true in proposer mode")
 
-		mockDA.AssertNotCalled(t, "GetProofs", mock.Anything, mock.Anything, mock.Anything)
+		mockDA.AssertNotCalled(t, "GetProofs", context.Background(), mock.Anything, mock.Anything)
 		mockDA.AssertNotCalled(t, "Validate", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("Non-Proposer Mode", func(t *testing.T) {
 		t.Run("Valid Proofs", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
-			mockDALC := coreda.NewDummyClient(mockDA, namespace)
 			seq := &Sequencer{
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				dalc:             mockDALC,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "valid_proofs_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
 			}
 
-			mockDA.On("GetProofs", mock.Anything, batchData, namespace).Return(proofs, nil).Once()
+			mockDA.On("GetProofs", context.Background(), batchData, namespace).Return(proofs, nil).Once()
 			mockDA.On("Validate", mock.Anything, batchData, proofs, namespace).Return([]bool{true, true}, nil).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{RollupId: seq.rollupId, BatchData: batchData})
@@ -291,18 +287,16 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 		t.Run("Invalid Proof", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
-			mockDALC := coreda.NewDummyClient(mockDA, namespace)
 			seq := &Sequencer{
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				dalc:             mockDALC,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "invalid_proof_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
 			}
 
-			mockDA.On("GetProofs", mock.Anything, batchData, namespace).Return(proofs, nil).Once()
+			mockDA.On("GetProofs", context.Background(), batchData, namespace).Return(proofs, nil).Once()
 			mockDA.On("Validate", mock.Anything, batchData, proofs, namespace).Return([]bool{true, false}, nil).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{RollupId: seq.rollupId, BatchData: batchData})
@@ -314,19 +308,17 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 		t.Run("GetProofs Error", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
-			mockDALC := coreda.NewDummyClient(mockDA, namespace)
 			seq := &Sequencer{
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				dalc:             mockDALC,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "getproofs_err_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
 			}
 			expectedErr := errors.New("get proofs failed")
 
-			mockDA.On("GetProofs", mock.Anything, batchData, namespace).Return(nil, expectedErr).Once()
+			mockDA.On("GetProofs", context.Background(), batchData, namespace).Return(nil, expectedErr).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{RollupId: seq.rollupId, BatchData: batchData})
 			assert.Error(err)
@@ -338,19 +330,17 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 		t.Run("Validate Error", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
-			mockDALC := coreda.NewDummyClient(mockDA, namespace)
 			seq := &Sequencer{
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				dalc:             mockDALC,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "validate_err_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
 			}
 			expectedErr := errors.New("validate failed")
 
-			mockDA.On("GetProofs", mock.Anything, batchData, namespace).Return(proofs, nil).Once()
+			mockDA.On("GetProofs", context.Background(), batchData, namespace).Return(proofs, nil).Once()
 			mockDA.On("Validate", mock.Anything, batchData, proofs, namespace).Return(nil, expectedErr).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{RollupId: seq.rollupId, BatchData: batchData})
@@ -362,12 +352,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 		t.Run("Invalid Rollup ID", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
-			mockDALC := coreda.NewDummyClient(mockDA, namespace)
+
 			seq := &Sequencer{
 				logger:           log.NewNopLogger(),
 				rollupId:         rollupId,
 				proposer:         false,
-				dalc:             mockDALC,
 				da:               mockDA,
 				queue:            NewBatchQueue(db, "invalid_rollup_queue"),
 				daSubmissionChan: make(chan coresequencer.Batch, 1),
@@ -379,7 +368,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			assert.Nil(res)
 			assert.ErrorIs(err, ErrInvalidRollupId)
 
-			mockDA.AssertNotCalled(t, "GetProofs", mock.Anything, mock.Anything, mock.Anything)
+			mockDA.AssertNotCalled(t, "GetProofs", context.Background(), mock.Anything, mock.Anything)
 			mockDA.AssertNotCalled(t, "Validate", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		})
 	})
@@ -392,7 +381,7 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, mockDA, []byte("namespace"), []byte("rollup1"), 1*time.Second, metrics, false)
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, mockDA, []byte("rollup1"), 1*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
@@ -404,7 +393,6 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	}()
 
 	// Set up mock expectations
-	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(100_000_000), nil)
 	mockDA.On("GasPrice", mock.Anything).Return(float64(0), nil)
 	mockDA.On("GasMultiplier", mock.Anything).Return(float64(0), nil)
 	mockDA.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
