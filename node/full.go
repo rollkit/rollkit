@@ -31,8 +31,8 @@ import (
 	"github.com/rollkit/rollkit/pkg/sync"
 )
 
-// prefixes used in KV store to separate main node data from DALC data
-var mainPrefix = "0"
+// prefixes used in KV store to separate rollkit data from execution environment data (if the same data base is reused)
+var RollkitPrefix = "0"
 
 const (
 	// genesisChunkSize is the maximum size, in bytes, of each
@@ -84,7 +84,7 @@ func newFullNode(
 ) (fn *FullNode, err error) {
 	seqMetrics, _ := metricsProvider(genesis.ChainID)
 
-	mainKV := newPrefixKV(database, mainPrefix)
+	mainKV := newPrefixKV(database, RollkitPrefix)
 	headerSyncService, err := initHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	store := store.New(database)
+	store := store.New(mainKV)
 
 	blockManager, err := initBlockManager(
 		ctx,
