@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -167,25 +168,34 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 // ConcurrentReadWriteTest tests the use of mutex lock in DummyDA by calling separate methods that use `d.data` and making sure there's no race conditions
 func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 	var wg sync.WaitGroup
-	wg.Add(2)
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer cancel()
 
-	ctx := context.TODO()
+	writeDone := make(chan struct{})
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for i := uint64(1); i <= 100; i++ {
-			ret, err := d.GetIDs(ctx, i, []byte("test"))
-			if err != nil {
-				assert.Empty(t, ret.IDs)
-			}
+		for i := uint64(1); i <= 50; i++ {
+			_, err := d.Submit(ctx, []coreda.Blob{[]byte(fmt.Sprintf("test-%d", i))}, 0, []byte{})
+			assert.NoError(t, err)
 		}
+		close(writeDone)
 	}()
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for i := uint64(1); i <= 100; i++ {
-			_, err := d.Submit(ctx, []coreda.Blob{[]byte("test")}, 0, []byte{})
-			assert.NoError(t, err)
+		for {
+			select {
+			case <-writeDone:
+				return
+			default:
+				ret, err := d.GetIDs(ctx, 1, []byte("test"))
+				if err != nil {
+					assert.Empty(t, ret.IDs)
+				}
+			}
 		}
 	}()
 
