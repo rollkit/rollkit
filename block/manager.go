@@ -29,7 +29,7 @@ import (
 
 const (
 	// defaultDABlockTime is used only if DABlockTime is not configured for manager
-	defaultDABlockTime = 15 * time.Second
+	defaultDABlockTime = 6 * time.Second
 
 	// defaultBlockTime is used only if BlockTime is not configured for manager
 	defaultBlockTime = 1 * time.Second
