@@ -948,7 +948,7 @@ func TestDataCommitmentToHeight_HeaderAlreadySynced(t *testing.T) {
 		ChainID:         "syncLoopTest",
 		DAHeight:        350,
 	}
-	m, _, _, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, _, _, _, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	header, data, _ := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: initialHeight, NTxs: 1}, initialState.ChainID, initialState.AppHash)
@@ -987,13 +987,13 @@ func TestDataCommitmentToHeight_EmptyDataHash(t *testing.T) {
 		DAHeight:        450,
 	}
 	newHeight := initialHeight + 1
-	m, mockStore, mockExec, ctx, cancel, headerInCh, _, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, _, cancel, headerInCh, _, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	header, _, _ := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: newHeight, NTxs: 0}, initialState.ChainID, initialState.AppHash)
 	header.DataHash = DataHashForEmptyTxs
 	// Mock GetBlockData for previous height
-	mockStore.On("GetBlockData", mock.Anything, uint64(newHeight-1)).Return(nil, &types.Data{}, nil).Once()
+	mockStore.On("GetBlockData", mock.Anything, newHeight-1).Return(nil, &types.Data{}, nil).Once()
 	// Mock ExecuteTxs, SaveBlockData, UpdateState, SetHeight for empty block
 	mockExec.On("ExecuteTxs", mock.Anything, [][]byte{}, newHeight, header.Time(), initialState.AppHash).Return([]byte("new_app_hash5"), uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
@@ -1029,7 +1029,7 @@ func TestDataCommitmentToHeight_DataAlreadySeen(t *testing.T) {
 		DAHeight:        550,
 	}
 	newHeight := initialHeight + 1
-	m, _, _, ctx, cancel, _, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, _, _, _, cancel, _, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	_, data, _ := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: newHeight, NTxs: 1}, initialState.ChainID, initialState.AppHash)
