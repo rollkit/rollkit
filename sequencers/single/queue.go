@@ -16,7 +16,7 @@ import (
 )
 
 func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
-	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.Batching)
+	return ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)})
 }
 
 // BatchQueue implements a persistent queue for transaction batches

@@ -106,5 +106,4 @@ func TestPrefixKVBatch(t *testing.T) {
 	prefixbatchkv2, _ := badgerPrefixkv.NewTransaction(t.Context(), false)
 	err = prefixbatchkv2.Delete(t.Context(), ds.NewKey("key1"))
 	require.NoError(err)
-
 }
