@@ -21,18 +21,16 @@ func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
 
 // BatchQueue implements a persistent queue for transaction batches
 type BatchQueue struct {
-	queue  []coresequencer.Batch
-	mu     sync.Mutex
-	db     ds.Batching
-	prefix string
+	queue []coresequencer.Batch
+	mu    sync.Mutex
+	db    ds.Batching
 }
 
 // NewBatchQueue creates a new TransactionQueue
 func NewBatchQueue(db ds.Batching, prefix string) *BatchQueue {
 	return &BatchQueue{
-		queue:  make([]coresequencer.Batch, 0),
-		db:     newPrefixKV(db, prefix),
-		prefix: prefix,
+		queue: make([]coresequencer.Batch, 0),
+		db:    newPrefixKV(db, prefix),
 	}
 }
 
