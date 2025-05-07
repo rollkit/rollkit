@@ -157,6 +157,10 @@ type Manager struct {
 
 	// batchSubmissionChan is used to submit batches to the sequencer
 	batchSubmissionChan chan coresequencer.Batch
+
+	// dataCommitmentToHeight tracks the height a data commitment (data hash) has been seen on.
+	// Key: data commitment (string), Value: uint64 (height)
+	dataCommitmentToHeight sync.Map
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
