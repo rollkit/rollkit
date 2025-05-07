@@ -1,7 +1,6 @@
 package node
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/rollkit/rollkit/block"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 )
 
@@ -161,17 +159,9 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	s.NoError(err, "Failed to get DA inclusion")
 	// Verify that all blocks are DA included
 	for height := uint64(1); height <= n; height++ {
-		header, data, err := s.node.Store.GetBlockData(s.ctx, height)
+		ok, err := s.node.blockManager.IsDAIncluded(s.ctx, height)
 		require.NoError(s.T(), err)
-
-		headerHash := header.Hash()
-		dataHash := data.DACommitment()
-
-		isHeaderDAIncluded := s.node.blockManager.HeaderCache().IsDAIncluded(headerHash.String())
-		isDataDAIncluded := s.node.blockManager.DataCache().IsDAIncluded(dataHash.String()) || bytes.Equal(dataHash, block.DataHashForEmptyTxs)
-
-		require.True(s.T(), isHeaderDAIncluded, "Header at height %d is not DA included", height)
-		require.True(s.T(), isDataDAIncluded, "Data at height %d is not DA included", height)
+		require.True(s.T(), ok, "Block at height %d is not DA included", height)
 	}
 }
 

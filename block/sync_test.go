@@ -760,7 +760,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 	// Define the test data
 	headerHeight := 2
 	header := &types.Header{
-		DataHash: DataHashForEmptyTxs,
+		DataHash: dataHashForEmptyTxs,
 		BaseHeader: types.BaseHeader{
 			Height: 2,
 			Time:   uint64(time.Now().UnixNano()),
@@ -976,7 +976,7 @@ func TestDataCommitmentToHeight_HeaderAlreadySynced(t *testing.T) {
 	assert.False(ok, "Mapping should be cleaned up for already synced height")
 }
 
-// TestDataCommitmentToHeight_EmptyDataHash verifies that no mapping is created for DataHashForEmptyTxs and the empty block logic is handled correctly.
+// TestDataCommitmentToHeight_EmptyDataHash verifies that no mapping is created for dataHashForEmptyTxs and the empty block logic is handled correctly.
 func TestDataCommitmentToHeight_EmptyDataHash(t *testing.T) {
 	assert := assert.New(t)
 	initialHeight := uint64(500)
@@ -991,7 +991,7 @@ func TestDataCommitmentToHeight_EmptyDataHash(t *testing.T) {
 	defer cancel()
 
 	header, _, _ := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: newHeight, NTxs: 0}, initialState.ChainID, initialState.AppHash)
-	header.DataHash = DataHashForEmptyTxs
+	header.DataHash = dataHashForEmptyTxs
 	// Mock GetBlockData for previous height
 	mockStore.On("GetBlockData", mock.Anything, newHeight-1).Return(nil, &types.Data{}, nil).Once()
 	// Mock ExecuteTxs, SaveBlockData, UpdateState, SetHeight for empty block
@@ -1013,9 +1013,9 @@ func TestDataCommitmentToHeight_EmptyDataHash(t *testing.T) {
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
 	wg.Wait()
 
-	// No mapping should be created for DataHashForEmptyTxs
-	_, ok := m.dataCommitmentToHeight.Load(string(DataHashForEmptyTxs))
-	assert.False(ok, "No mapping should be created for DataHashForEmptyTxs")
+	// No mapping should be created for dataHashForEmptyTxs
+	_, ok := m.dataCommitmentToHeight.Load(string(dataHashForEmptyTxs))
+	assert.False(ok, "No mapping should be created for dataHashForEmptyTxs")
 }
 
 // TestDataCommitmentToHeight_DataAlreadySeen verifies that if data is already marked as seen, it is not set again for any height.

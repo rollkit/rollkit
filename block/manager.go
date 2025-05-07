@@ -59,7 +59,7 @@ const (
 
 var (
 	// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
-	DataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
+	dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
 
 	// initialBackoff defines initial value for block submission backoff
 	initialBackoff = 100 * time.Millisecond
@@ -443,7 +443,7 @@ func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error)
 		return false, err
 	}
 	headerHash, dataHash := header.Hash(), data.DACommitment()
-	isIncluded := m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, DataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String()))
+	isIncluded := m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, dataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String()))
 	return isIncluded, nil
 }
 
@@ -809,7 +809,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		}
 		header.DataHash = blockData.DACommitment()
 	} else {
-		header.DataHash = DataHashForEmptyTxs
+		header.DataHash = dataHashForEmptyTxs
 	}
 
 	return header, blockData, nil

@@ -188,7 +188,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		m.headerCache.DeleteItem(currentHeight + 1)
 		m.dataCache.DeleteItem(currentHeight + 1)
 		m.dataCache.DeleteItemByHash(h.DataHash.String())
-		if !bytes.Equal(h.DataHash, DataHashForEmptyTxs) {
+		if !bytes.Equal(h.DataHash, dataHashForEmptyTxs) {
 			m.dataCache.SetSeen(h.DataHash.String())
 		}
 		m.headerCache.SetSeen(h.Hash().String())
@@ -197,7 +197,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header) bool {
 	headerHeight := header.Height()
-	if bytes.Equal(header.DataHash, DataHashForEmptyTxs) {
+	if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
 		var lastDataHash types.Hash
 		var err error
 		var lastData *types.Data
