@@ -39,7 +39,7 @@ services:
       - rollkit-network
 
   rollkit-evm-single:
-    image: ghcr.io/rollkit/rollkit-evm-single:v0.1.2
+    image: ghcr.io/rollkit/rollkit-evm-single:v0.1.3
     depends_on:
       reth:
         condition: service_started
@@ -55,9 +55,9 @@ services:
       - EVM_GENESIS_HASH=0x0a962a0d163416829894c89cb604ae422323bcdf02d7ea08b94d68d3e026a380
       - EVM_BLOCK_TIME=1s
       - EVM_SIGNER_PASSPHRASE=secret
-      # - ROLLKIT_DA_ADDRESS=<da_address>
-      # - ROLLKIT_DA_AUTH_TOKEN=<da_auth_token>
-      # - ROLLKIT_DA_NAMESPACE=<da_namespace>
+      # - DA_ADDRESS=http://localhost:26658
+      # - DA_AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiXSwiTm9uY2UiOiJQcEswTmhyWi9IY05NWkVtUG9sSXNpRTRDcUpMdE9mbWtBMW0zMWFUaEswPSIsIkV4cGlyZXNBdCI6IjAwMDEtMDEtMDFUMDA6MDA6MDBaIn0.gaWh6tS6Rel1XFYclDkapNnZlaZVjrikCRNBxSDkCGk
+      # - DA_NAMESPACE=00000000000000000000000000000000000000000008e5f679bf7116c1
     networks:
       - rollkit-network
 
