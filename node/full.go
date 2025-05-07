@@ -95,7 +95,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	store := store.New(mainKV)
+	store := store.New(database)
 
 	blockManager, err := initBlockManager(
 		ctx,
