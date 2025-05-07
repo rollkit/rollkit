@@ -35,7 +35,7 @@ See [da implementation]
 
 [3] [proxy/jsonrpc][proxy/jsonrpc]
 
-[da implementation]: https://github.com/rollkit/rollkit/blob/main/core/da/da.go
+[da implementation]: https://github.com/rollkit/rollkit/blob/main/da/jsonrpc/client.go
 [go-da]: https://github.com/rollkit/go-da
 [proxy/grpc]: https://github.com/rollkit/go-da/tree/main/proxy/grpc
 [proxy/jsonrpc]: https://github.com/rollkit/go-da/tree/main/proxy/jsonrpc
