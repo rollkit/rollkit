@@ -314,13 +314,19 @@ gantt
 The <code>blockPublishLoop</code> in the full node continuously listens for new blocks from the <code>BlockCh</code> channel and when a new block is received, it is written to the block store and broadcasted to the network using the block sync service.</p>
 <p>Among non-sequencer full nodes, all the block gossiping is handled by the block sync service, and they do not need to publish blocks to the P2P network using any of the block manager components.</p>
 <h3 id="block-retrieval-from-p2p-network"><a class="header" href="#block-retrieval-from-p2p-network">Block Retrieval from P2P network</a></h3>
-<p>For non-sequencer full nodes, Blocks gossiped through the P2P network are retrieved from the <code>Block Store</code> in <code>BlockStoreRetrieveLoop</code> in Block Manager.
-Starting off with a block store height of zero, for every <code>blockTime</code> unit of time, a signal is sent to the <code>blockStoreCh</code> channel in the block manager and when this signal is received, the <code>BlockStoreRetrieveLoop</code> retrieves blocks from the block store.
-It keeps track of the last retrieved block's height and every time the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
+<p>For non-sequencer full nodes, blocks gossiped through the P2P network are retrieved from the <code>Block Store</code> in <code>BlockStoreRetrieveLoop</code> in Block Manager.<br />
+Starting off with a block store height of zero, for every <code>blockTime</code> unit of time, a signal is sent to the <code>blockStoreCh</code> channel in the block manager and when this signal is received, the <code>BlockStoreRetrieveLoop</code> retrieves blocks from the block store.<br />
+It keeps track of the last retrieved block's height and every time the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.<br />
 For each retrieved block, it sends a new block event to the <code>blockInCh</code> channel which is the same channel in which blocks retrieved from the DA layer are sent.</p>
-<p>This block is marked as soft confirmed by the validating full node until the same block data and the corresponding header is seen on the DA layer then marked DA-included.</p>
+<p>This block is marked as soft confirmed by the validating full node until the same block data and the corresponding header is seen on the DA layer, then it is marked DA-included.</p>
 <h4 id="about-soft-confirmations-and-da-inclusions"><a class="header" href="#about-soft-confirmations-and-da-inclusions">About Soft Confirmations and DA Inclusions</a></h4>
-<p>The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 15 seconds). The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked DA included. DA included blocks can be considered to have a higher level of finality.</p>
+<p>The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 6 seconds).<br />
+The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked DA-included.<br />
+DA-included blocks are considered to have a higher level of finality.</p>
+<p><strong>DAIncluderLoop</strong>:<br />
+A new loop, <code>DAIncluderLoop</code>, is responsible for advancing the <code>DAIncludedHeight</code> by checking if blocks after the current height have both their header and data marked as DA-included in the caches.<br />
+If either the header or data is missing, the loop stops advancing.<br />
+This ensures that only blocks with both header and data present are considered DA-included.</p>
 <h3 id="state-update-after-block-retrieval"><a class="header" href="#state-update-after-block-retrieval">State Update after Block Retrieval</a></h3>
 <p>The block manager stores and applies the block to update its state every time a new block is retrieved either via the P2P or DA network. State update involves:</p>
 <ul>
@@ -331,15 +337,10 @@ For each retrieved block, it sends a new block event to the <code>blockInCh</cod
 <h2 id="message-structurecommunication-format-1"><a class="header" href="#message-structurecommunication-format-1">Message Structure/Communication Format</a></h2>
 <p>The communication between the block manager and executor:</p>
 <ul>
-<li><code>InitChain</code>: using the genesis, a set of parameters, and validator set to invoke <code>InitChainSync</code> on the proxyApp to obtain initial <code>appHash</code> and initialize the state.</li>
-<li><code>Commit</code>: commit the execution and changes, update mempool, and publish events.</li>
+<li><code>InitChain</code>: initializes the chain state with the given genesis time, initial height, and chain ID using <code>InitChainSync</code> on the executor to obtain initial <code>appHash</code> and initialize the state.</li>
 <li><code>CreateBlock</code>: prepare a block by polling transactions from mempool.</li>
-<li><code>ApplyBlock</code>: validate the block, execute the block (apply transactions), validator updates, create and return updated state</li>
-</ul>
-<p>The communication between the full node and block manager:</p>
-<ul>
-<li>Notify when the block is published</li>
-<li>Notify when the block is done lazy building</li>
+<li><code>ApplyBlock</code>: validate the block, execute the block (apply transactions), validator updates, create and return updated state.</li>
+<li><code>SetFinal</code>: sets the block as final when it's corresponding header and data are seen on the dA layer.</li>
 </ul>
 <h2 id="assumptions-and-considerations-1"><a class="header" href="#assumptions-and-considerations-1">Assumptions and Considerations</a></h2>
 <ul>
