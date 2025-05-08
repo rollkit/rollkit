@@ -11,6 +11,7 @@ import (
 
 func main() {
 	rootDir := "." // Start from the current directory
+	var testFailures bool
 	err := filepath.WalkDir(rootDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			// Prevent panic if a directory is not accessible
@@ -37,6 +38,7 @@ func main() {
 			if err != nil {
 				// Log the error but continue checking other modules
 				log.Printf("Error running tests in %s: %v\n", modDir, err)
+				testFailures = true
 				// Optionally, return the error here if you want to stop the walk on the first failure
 				// return fmt.Errorf("tests failed in %s: %w", modDir, err)
 			} else {
@@ -50,6 +52,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error walking the path %q: %v\n", rootDir, err)
 	}
-
 	fmt.Println("--> Finished running tests for all modules.")
+	if testFailures {
+		os.Exit(1)
+	}
 }
