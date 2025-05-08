@@ -11,6 +11,7 @@ require (
 	connectrpc.com/grpcreflect v1.3.0
 	cosmossdk.io/log v1.5.1
 	github.com/celestiaorg/go-header v0.6.5
+	github.com/celestiaorg/go-square/v2 v2.2.0
 	github.com/celestiaorg/utils v0.1.0
 	github.com/go-kit/kit v0.13.0
 	github.com/goccy/go-yaml v1.17.1
