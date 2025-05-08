@@ -47,8 +47,8 @@ const (
 	// Applies to most channels, 100 is a large enough buffer to avoid blocking
 	channelLength = 100
 
-	// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
-	headerInChLength = 10000
+	// Applies to the headerInCh and dataInCh, 10000 is a large enough number for headers per DA block.
+	eventInChLength = 10000
 
 	// DAIncludedHeightKey is the key used for persisting the da included height in store.
 	DAIncludedHeightKey = "d"
@@ -114,14 +114,17 @@ type Manager struct {
 	headerCache *cache.Cache[types.SignedHeader]
 	dataCache   *cache.Cache[types.Data]
 
-	// headerStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve headers from headerStore
+	// headerStoreCh is used to notify sync goroutine (HeaderStoreRetrieveLoop) that it needs to retrieve headers from headerStore
 	headerStoreCh chan struct{}
 
-	// dataStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve data from dataStore
+	// dataStoreCh is used to notify sync goroutine (DataStoreRetrieveLoop) that it needs to retrieve data from dataStore
 	dataStoreCh chan struct{}
 
-	// retrieveCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
+	// retrieveCh is used to notify sync goroutine (RetrieveLoop) that it needs to retrieve data
 	retrieveCh chan struct{}
+
+	// daIncluderCh is used to notify sync goroutine (DAIncluderLoop) that it needs to set DA included height
+	daIncluderCh chan struct{}
 
 	logger log.Logger
 
@@ -151,6 +154,13 @@ type Manager struct {
 
 	// txNotifyCh is used to signal when new transactions are available
 	txNotifyCh chan struct{}
+
+	// batchSubmissionChan is used to submit batches to the sequencer
+	batchSubmissionChan chan coresequencer.Batch
+
+	// dataCommitmentToHeight tracks the height a data commitment (data hash) has been seen on.
+	// Key: data commitment (string), Value: uint64 (height)
+	dataCommitmentToHeight sync.Map
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -161,9 +171,18 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 	if errors.Is(err, ds.ErrNotFound) {
 		logger.Info("No state found in store, initializing new state")
 
+		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
+		// TODO(tzdybal): handle max bytes
+		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
+		if err != nil {
+			logger.Error("error while initializing chain", "error", err)
+			return types.State{}, err
+		}
+
 		// Initialize genesis block explicitly
 		header := types.Header{
-			DataHash:        new(types.Data).Hash(),
+			AppHash:         stateRoot,
+			DataHash:        new(types.Data).DACommitment(),
 			ProposerAddress: genesis.ProposerAddress,
 			BaseHeader: types.BaseHeader{
 				ChainID: genesis.ChainID,
@@ -207,14 +226,6 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 		)
 		if err != nil {
 			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
-		}
-
-		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
-		// TODO(tzdybal): handle max bytes
-		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
-		if err != nil {
-			logger.Error("error while initializing chain", "error", err)
-			return types.State{}, err
 		}
 
 		s := types.State{
@@ -321,33 +332,41 @@ func NewManager(
 		store:     store,
 		daHeight:  &daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:       make(chan *types.SignedHeader, channelLength),
-		DataCh:         make(chan *types.Data, channelLength),
-		headerInCh:     make(chan NewHeaderEvent, headerInChLength),
-		dataInCh:       make(chan NewDataEvent, headerInChLength),
-		headerStoreCh:  make(chan struct{}, 1),
-		dataStoreCh:    make(chan struct{}, 1),
-		headerStore:    headerStore,
-		dataStore:      dataStore,
-		lastStateMtx:   new(sync.RWMutex),
-		lastBatchData:  lastBatchData,
-		headerCache:    cache.NewCache[types.SignedHeader](),
-		dataCache:      cache.NewCache[types.Data](),
-		retrieveCh:     make(chan struct{}, 1),
-		logger:         logger,
-		txsAvailable:   false,
-		pendingHeaders: pendingHeaders,
-		metrics:        seqMetrics,
-		sequencer:      sequencer,
-		exec:           exec,
-		da:             da,
-		gasPrice:       gasPrice,
-		gasMultiplier:  gasMultiplier,
-		txNotifyCh:     make(chan struct{}, 1), // Non-blocking channel
+		HeaderCh:            make(chan *types.SignedHeader, channelLength),
+		DataCh:              make(chan *types.Data, channelLength),
+		headerInCh:          make(chan NewHeaderEvent, eventInChLength),
+		dataInCh:            make(chan NewDataEvent, eventInChLength),
+		headerStoreCh:       make(chan struct{}, 1),
+		dataStoreCh:         make(chan struct{}, 1),
+		headerStore:         headerStore,
+		dataStore:           dataStore,
+		lastStateMtx:        new(sync.RWMutex),
+		lastBatchData:       lastBatchData,
+		headerCache:         cache.NewCache[types.SignedHeader](),
+		dataCache:           cache.NewCache[types.Data](),
+		retrieveCh:          make(chan struct{}, 1),
+		daIncluderCh:        make(chan struct{}, 1),
+		logger:              logger,
+		txsAvailable:        false,
+		pendingHeaders:      pendingHeaders,
+		metrics:             seqMetrics,
+		sequencer:           sequencer,
+		exec:                exec,
+		da:                  da,
+		gasPrice:            gasPrice,
+		gasMultiplier:       gasMultiplier,
+		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
+		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
 	}
 	agg.init(ctx)
 	// Set the default publishBlock implementation
 	agg.publishBlock = agg.publishBlockInternal
+	if s, ok := agg.sequencer.(interface {
+		SetBatchSubmissionChan(chan coresequencer.Batch)
+	}); ok {
+		s.SetBatchSubmissionChan(agg.batchSubmissionChan)
+	}
+
 	return agg, nil
 }
 
@@ -363,6 +382,8 @@ func (m *Manager) SeqClient() coresequencer.Sequencer {
 
 // GetLastState returns the last recorded state.
 func (m *Manager) GetLastState() types.State {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
 	return m.lastState
 }
 
@@ -416,8 +437,14 @@ func (m *Manager) IsBlockHashSeen(blockHash string) bool {
 
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
 // TODO(tac0turtle): should we use this for pending header system to verify how far ahead a rollup is?
-func (m *Manager) IsDAIncluded(hash types.Hash) bool {
-	return m.headerCache.IsDAIncluded(hash.String())
+func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error) {
+	header, data, err := m.store.GetBlockData(ctx, height)
+	if err != nil {
+		return false, err
+	}
+	headerHash, dataHash := header.Hash(), data.DACommitment()
+	isIncluded := m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, dataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String()))
+	return isIncluded, nil
 }
 
 // GetExecutor returns the executor used by the manager.
@@ -455,7 +482,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		if len(res.Batch.Transactions) == 0 {
 			errRetrieveBatch = ErrNoBatch
 		}
-		// Even if there are no transactions, update lastBatchData so we don’t
+		// Even if there are no transactions, update lastBatchData so we don't
 		// repeatedly emit the same empty batch, and persist it to metadata.
 		if err := m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
 			m.logger.Error("error while setting last batch hash", "error", err)
@@ -479,9 +506,9 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	default:
 	}
 
-	if m.config.Node.MaxPendingBlocks != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingBlocks {
+	if m.config.Node.MaxPendingHeaders != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeaders {
 		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
-			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingBlocks)
+			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders)
 	}
 
 	var (
@@ -589,7 +616,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		LastDataHash: lastDataHash,
 	}
 	// Validate the created block before storing
-	if err := m.execValidate(m.lastState, header, data); err != nil {
+	if err := m.Validate(ctx, header, data); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
 	}
 
@@ -604,14 +631,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return SaveBlockError{err}
 	}
 
-	// Commit the new state and block which writes to disk on the proxy app
-	appHash, err := m.execCommit(ctx, newState, header, data)
-	if err != nil {
-		return err
-	}
-	// Update app hash in state
-	newState.AppHash = appHash
-
 	// Update the store height before submitting to the DA layer but after committing to the DB
 	err = m.store.SetHeight(ctx, headerHeight)
 	if err != nil {
@@ -621,7 +640,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	newState.DAHeight = m.daHeight.Load()
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
-	m.logger.Debug("updating state", "newState", newState)
 	err = m.updateState(ctx, newState)
 	if err != nil {
 		return err
@@ -678,7 +696,61 @@ func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature 
 	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
 }
 
-func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.execApplyBlock(ctx, m.lastState, header, data)
+}
+
+func (m *Manager) Validate(ctx context.Context, header *types.SignedHeader, data *types.Data) error {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.execValidate(m.lastState, header, data)
+}
+
+// execValidate validates a pair of header and data against the last state
+func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader, data *types.Data) error {
+	// Validate the basic structure of the header
+	if err := header.ValidateBasic(); err != nil {
+		return fmt.Errorf("invalid header: %w", err)
+	}
+
+	// Validate the header against the data
+	if err := types.Validate(header, data); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
+
+	// Ensure the header's Chain ID matches the expected state
+	if header.ChainID() != lastState.ChainID {
+		return fmt.Errorf("chain ID mismatch: expected %s, got %s", lastState.ChainID, header.ChainID())
+	}
+
+	// Check that the header's height is the expected next height
+	expectedHeight := lastState.LastBlockHeight + 1
+	if header.Height() != expectedHeight {
+		return fmt.Errorf("invalid height: expected %d, got %d", expectedHeight, header.Height())
+	}
+
+	// // Verify that the header's timestamp is strictly greater than the last block's time
+	// headerTime := header.Time()
+	// if header.Height() > 1 && lastState.LastBlockTime.After(headerTime) {
+	// 	return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
+	// 		headerTime.UnixNano(), lastState.LastBlockTime)
+	// }
+
+	// // Validate that the header's AppHash matches the lastState's AppHash
+	// // Note: Assumes deferred execution
+	// if !bytes.Equal(header.AppHash, lastState.AppHash) {
+	// 	return fmt.Errorf("app hash mismatch: expected %x, got %x", lastState.AppHash, header.AppHash)
+	// }
+
+	return nil
+}
+
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+	// Use when batchData is set to data IDs from the DA layer
+	// batchDataIDs := convertBatchDataToBytes(batchData.Data)
+
 	if m.signer == nil {
 		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
 	}
@@ -700,14 +772,6 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 	// Determine if this is an empty block
 	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
 
-	// Set the appropriate data hash based on whether this is an empty block
-	var dataHash types.Hash
-	if isEmpty {
-		dataHash = dataHashForEmptyTxs // Use dataHashForEmptyTxs for empty blocks
-	} else {
-		dataHash = convertBatchDataToBytes(batchData.Data)
-	}
-
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
@@ -719,8 +783,8 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 				Height:  height,
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
-			LastHeaderHash:  lastHeaderHash,
-			DataHash:        dataHash,
+			LastHeaderHash: lastHeaderHash,
+			// DataHash is set at the end of the function
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         m.lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
@@ -743,25 +807,12 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 		for i := range batchData.Transactions {
 			blockData.Txs[i] = types.Tx(batchData.Transactions[i])
 		}
+		header.DataHash = blockData.DACommitment()
+	} else {
+		header.DataHash = dataHashForEmptyTxs
 	}
 
 	return header, blockData, nil
-}
-
-func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.execApplyBlock(ctx, m.lastState, header, data)
-}
-
-func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Data) error {
-	// TODO(tzdybal): implement
-	return nil
-}
-
-func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
-	err := m.exec.SetFinal(ctx, h.Height())
-	return newState.AppHash, err
 }
 
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
@@ -774,25 +825,11 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 		return types.State{}, err
 	}
 
-	s, err := m.nextState(lastState, header, newStateRoot)
+	s, err := lastState.NextState(header, newStateRoot)
 	if err != nil {
 		return types.State{}, err
 	}
 
-	return s, nil
-}
-
-func (m *Manager) nextState(state types.State, header *types.SignedHeader, stateRoot []byte) (types.State, error) {
-	height := header.Height()
-
-	s := types.State{
-		Version:         state.Version,
-		ChainID:         state.ChainID,
-		InitialHeight:   state.InitialHeight,
-		LastBlockHeight: height,
-		LastBlockTime:   header.Time(),
-		AppHash:         stateRoot,
-	}
 	return s, nil
 }
 
@@ -887,4 +924,14 @@ func (m *Manager) NotifyNewTransactions() {
 		// Channel buffer is full, which means a notification is already pending
 		// This is fine, as we just need to trigger one block production
 	}
+}
+
+// HeaderCache returns the headerCache used by the manager.
+func (m *Manager) HeaderCache() *cache.Cache[types.SignedHeader] {
+	return m.headerCache
+}
+
+// DataCache returns the dataCache used by the manager.
+func (m *Manager) DataCache() *cache.Cache[types.Data] {
+	return m.dataCache
 }

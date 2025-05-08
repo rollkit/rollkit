@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -13,8 +12,9 @@ import (
 
 // dummySequencer is a dummy implementation of the Sequencer interface for testing
 type dummySequencer struct {
-	mu      sync.RWMutex
-	batches map[string]*Batch
+	mu                  sync.RWMutex
+	batches             map[string]*Batch
+	batchSubmissionChan chan Batch
 }
 
 // NewDummySequencer creates a new dummy Sequencer instance
@@ -30,6 +30,9 @@ func (s *dummySequencer) SubmitRollupBatchTxs(ctx context.Context, req SubmitRol
 	defer s.mu.Unlock()
 
 	s.batches[string(req.RollupId)] = req.Batch
+	if req.Batch != nil && len(req.Batch.Transactions) > 0 {
+		s.batchSubmissionChan <- *req.Batch
+	}
 	return &SubmitRollupBatchTxsResponse{}, nil
 }
 
@@ -40,7 +43,7 @@ func (s *dummySequencer) GetNextBatch(ctx context.Context, req GetNextBatchReque
 
 	batch, ok := s.batches[string(req.RollupId)]
 	if !ok {
-		return nil, fmt.Errorf("no batch found for rollup ID: %s", string(req.RollupId))
+		batch = &Batch{Transactions: nil}
 	}
 
 	return &GetNextBatchResponse{
@@ -54,4 +57,8 @@ func (s *dummySequencer) VerifyBatch(ctx context.Context, req VerifyBatchRequest
 	return &VerifyBatchResponse{
 		Status: true,
 	}, nil
+}
+
+func (s *dummySequencer) SetBatchSubmissionChan(batchSubmissionChan chan Batch) {
+	s.batchSubmissionChan = batchSubmissionChan
 }

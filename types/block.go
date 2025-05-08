@@ -38,12 +38,6 @@ type Data struct {
 // Signature represents signature of block creator.
 type Signature []byte
 
-// IntermediateStateRoots describes the state between transactions.
-// They are required for fraud proofs.
-type IntermediateStateRoots struct {
-	RawRootsList [][]byte
-}
-
 // ValidateBasic performs basic validation of a signature.
 func (signature *Signature) ValidateBasic() error {
 	if len(*signature) == 0 {
@@ -64,7 +58,7 @@ func Validate(header *SignedHeader, data *Data) error {
 	}
 	// exclude Metadata while computing the data hash for comparison
 	d := Data{Txs: data.Txs}
-	dataHash := d.Hash()
+	dataHash := d.DACommitment()
 	if !bytes.Equal(dataHash[:], header.DataHash[:]) {
 		return errors.New("dataHash from the header does not match with hash of the block's data")
 	}

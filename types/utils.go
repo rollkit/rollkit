@@ -37,10 +37,10 @@ func GetRandomBlock(height uint64, nTxs int, chainID string) (*SignedHeader, *Da
 	return header, data
 }
 
-// GenerateRandomBlockCustom returns a block with random data and the given height, transactions, privateKey and proposer address.
-func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHeader, *Data, crypto.PrivKey) {
+// GenerateRandomBlockCustomWithAppHash returns a block with random data and the given height, transactions, privateKey, proposer address, and custom appHash.
+func GenerateRandomBlockCustomWithAppHash(config *BlockConfig, chainID string, appHash []byte) (*SignedHeader, *Data, crypto.PrivKey) {
 	data := getBlockDataWith(config.NTxs)
-	dataHash := data.Hash()
+	dataHash := data.DACommitment()
 
 	if config.PrivKey == nil {
 		pk, _, err := crypto.GenerateEd25519Key(cryptoRand.Reader)
@@ -58,6 +58,7 @@ func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHead
 	headerConfig := HeaderConfig{
 		Height:   config.Height,
 		DataHash: dataHash,
+		AppHash:  appHash,
 		Signer:   noopSigner,
 	}
 
@@ -80,16 +81,23 @@ func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHead
 	return signedHeader, data, config.PrivKey
 }
 
+// GenerateRandomBlockCustom returns a block with random data and the given height, transactions, privateKey and proposer address.
+func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHeader, *Data, crypto.PrivKey) {
+	// Use random bytes for appHash
+	appHash := GetRandomBytes(32)
+	return GenerateRandomBlockCustomWithAppHash(config, chainID, appHash)
+}
+
 // HeaderConfig carries all necessary state for header generation
 type HeaderConfig struct {
-	Height      uint64
-	DataHash    header.Hash
-	Signer      signer.Signer
-	VotingPower int64
+	Height   uint64
+	DataHash header.Hash
+	AppHash  header.Hash
+	Signer   signer.Signer
 }
 
 // GetRandomHeader returns a header with random fields and current time
-func GetRandomHeader(chainID string) Header {
+func GetRandomHeader(chainID string, appHash []byte) Header {
 	return Header{
 		BaseHeader: BaseHeader{
 			Height:  uint64(rand.Int63()), //nolint:gosec
@@ -104,7 +112,7 @@ func GetRandomHeader(chainID string) Header {
 		LastCommitHash:  GetRandomBytes(32),
 		DataHash:        GetRandomBytes(32),
 		ConsensusHash:   GetRandomBytes(32),
-		AppHash:         GetRandomBytes(32),
+		AppHash:         appHash,
 		LastResultsHash: GetRandomBytes(32),
 		ProposerAddress: GetRandomBytes(32),
 		ValidatorHash:   GetRandomBytes(32),
@@ -114,7 +122,7 @@ func GetRandomHeader(chainID string) Header {
 // GetRandomNextHeader returns a header with random data and height of +1 from
 // the provided Header
 func GetRandomNextHeader(header Header, chainID string) Header {
-	nextHeader := GetRandomHeader(chainID)
+	nextHeader := GetRandomHeader(chainID, GetRandomBytes(32))
 	nextHeader.BaseHeader.Height = header.Height() + 1
 	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
 	nextHeader.LastHeaderHash = header.Hash()
@@ -135,10 +143,10 @@ func GetRandomSignedHeader(chainID string) (*SignedHeader, crypto.PrivKey, error
 		return nil, nil, err
 	}
 	config := HeaderConfig{
-		Height:      uint64(rand.Int63()), //nolint:gosec
-		DataHash:    GetRandomBytes(32),
-		Signer:      noopSigner,
-		VotingPower: 1,
+		Height:   uint64(rand.Int63()), //nolint:gosec
+		DataHash: GetRandomBytes(32),
+		AppHash:  GetRandomBytes(32),
+		Signer:   noopSigner,
 	}
 
 	signedHeader, err := GetRandomSignedHeaderCustom(&config, chainID)
@@ -160,7 +168,7 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig, chainID string) (*SignedH
 	}
 
 	signedHeader := &SignedHeader{
-		Header: GetRandomHeader(chainID),
+		Header: GetRandomHeader(chainID, config.AppHash),
 		Signer: signer,
 	}
 	signedHeader.BaseHeader.Height = config.Height
@@ -290,20 +298,15 @@ func GetSignature(header Header, signer signer.Signer) (Signature, error) {
 func getBlockDataWith(nTxs int) *Data {
 	data := &Data{
 		Txs: make(Txs, nTxs),
-		// IntermediateStateRoots: IntermediateStateRoots{
-		// 	RawRootsList: make([][]byte, nTxs),
-		// },
 	}
 
 	for i := range nTxs {
 		data.Txs[i] = GetRandomTx()
-		// block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
 	}
 
 	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
 	if nTxs == 0 {
 		data.Txs = nil
-		// block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 	return data
 }

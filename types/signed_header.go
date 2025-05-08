@@ -121,4 +121,9 @@ func (sh *SignedHeader) ValidateBasic() error {
 	return nil
 }
 
+// Validate performs basic validation of a signed header.
+func (sh *SignedHeader) Validate() error {
+	return sh.ValidateBasic()
+}
+
 var _ header.Header[*SignedHeader] = &SignedHeader{}

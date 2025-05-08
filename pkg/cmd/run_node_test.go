@@ -66,7 +66,7 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.node.lazy_mode",
 		"--rollkit.node.lazy_block_interval", "2m",
 		"--rollkit.node.light",
-		"--rollkit.node.max_pending_blocks", "100",
+		"--rollkit.node.max_pending_headers", "100",
 		"--rollkit.node.trusted_hash", "abcdef1234567890",
 		"--rollkit.da.submit_options", "custom-options",
 
@@ -126,7 +126,7 @@ func TestParseFlags(t *testing.T) {
 		{"LazyAggregator", nodeConfig.Node.LazyMode, true},
 		{"LazyBlockTime", nodeConfig.Node.LazyBlockInterval.Duration, 2 * time.Minute},
 		{"Light", nodeConfig.Node.Light, true},
-		{"MaxPendingBlocks", nodeConfig.Node.MaxPendingBlocks, uint64(100)},
+		{"MaxPendingHeaders", nodeConfig.Node.MaxPendingHeaders, uint64(100)},
 		{"TrustedHash", nodeConfig.Node.TrustedHash, "abcdef1234567890"},
 		{"DASubmitOptions", nodeConfig.DA.SubmitOptions, "custom-options"},
 

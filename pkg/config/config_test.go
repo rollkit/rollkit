@@ -30,7 +30,7 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, 6*time.Second, def.DA.BlockTime.Duration)
 	assert.Equal(t, uint64(0), def.DA.StartHeight)
 	assert.Equal(t, uint64(0), def.DA.MempoolTTL)
-	assert.Equal(t, uint64(0), def.Node.MaxPendingBlocks)
+	assert.Equal(t, uint64(0), def.Node.MaxPendingHeaders)
 	assert.Equal(t, false, def.Node.LazyMode)
 	assert.Equal(t, 60*time.Second, def.Node.LazyBlockInterval.Duration)
 	assert.Equal(t, "", def.Node.TrustedHash)
@@ -58,7 +58,7 @@ func TestAddFlags(t *testing.T) {
 	assertFlagValue(t, flags, FlagBlockTime, DefaultConfig.Node.BlockTime.Duration)
 	assertFlagValue(t, flags, FlagTrustedHash, DefaultConfig.Node.TrustedHash)
 	assertFlagValue(t, flags, FlagLazyAggregator, DefaultConfig.Node.LazyMode)
-	assertFlagValue(t, flags, FlagMaxPendingBlocks, DefaultConfig.Node.MaxPendingBlocks)
+	assertFlagValue(t, flags, FlagMaxPendingHeaders, DefaultConfig.Node.MaxPendingHeaders)
 	assertFlagValue(t, flags, FlagLazyBlockTime, DefaultConfig.Node.LazyBlockInterval.Duration)
 
 	// DA flags
