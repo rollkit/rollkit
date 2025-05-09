@@ -336,7 +336,7 @@ func TestEmptyBlockCreation(t *testing.T) {
 	defer blockTimer.Stop()
 
 	// Call produceBlock directly to test empty block creation
-	m.produceBlock(ctx, "test_trigger", lazyTimer, blockTimer)
+	require.NoError(m.produceBlock(ctx, "test_trigger", lazyTimer, blockTimer))
 
 	// Verify that the context was passed correctly
 	require.NotNil(capturedCtx, "Context should have been captured by mock publish function")
