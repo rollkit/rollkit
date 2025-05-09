@@ -352,9 +352,9 @@ func LoadFromViper(inputViper *viper.Viper) (Config, error) {
 	// then override with settings from input viper (higher precedence)
 	for _, key := range inputViper.AllKeys() {
 		// Handle special case for prefixed keys
-		if strings.HasPrefix(key, "rollkit.") {
+		if after, ok := strings.CutPrefix(key, "rollkit."); ok {
 			// Strip the prefix for the merged viper
-			strippedKey := strings.TrimPrefix(key, "rollkit.")
+			strippedKey := after
 			mergedViper.Set(strippedKey, inputViper.Get(key))
 		} else {
 			mergedViper.Set(key, inputViper.Get(key))
