@@ -21,6 +21,7 @@ func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 	startPort := 40000 + n*100 // Spread port ranges further apart
 	return rollkitconfig.Config{
 		RootDir: t.TempDir(),
+		ChainID: "test-chain",
 		Node: rollkitconfig.NodeConfig{
 			Aggregator:        true,
 			BlockTime:         rollkitconfig.DurationWrapper{Duration: 500 * time.Millisecond},

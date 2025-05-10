@@ -169,7 +169,8 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				ChainID: genesis.ChainID,
 				Height:  genesis.InitialHeight,
 				Time:    uint64(genesis.GenesisDAStartTime.UnixNano()),
-			}}
+			},
+		}
 
 		var signature types.Signature
 
@@ -264,7 +265,7 @@ func NewManager(
 		logger.Error("error while getting initial state", "error", err)
 		return nil, err
 	}
-	//set block height in store
+	// set block height in store
 	err = store.SetHeight(ctx, s.LastBlockHeight)
 	if err != nil {
 		return nil, err
