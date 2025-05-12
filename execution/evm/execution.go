@@ -103,11 +103,6 @@ func (c *EngineClient) InitChain(ctx context.Context, genesisTime time.Time, ini
 		return nil, 0, fmt.Errorf("engine_forkchoiceUpdatedV3 failed: %w", err)
 	}
 
-	if forkchoiceResult.PayloadStatus.Status != engine.VALID {
-		return nil, 0, fmt.Errorf("genesis forkchoice status is %s: %w",
-			forkchoiceResult.PayloadStatus.Status, ErrInvalidPayloadStatus)
-	}
-
 	_, stateRoot, gasLimit, _, err := c.getBlockInfo(ctx, 0)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get block info: %w", err)
@@ -222,7 +217,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		return nil, 0, fmt.Errorf("new payload submission failed: %w", err)
 	}
 
-	if newPayloadResult.Status != engine.VALID && newPayloadResult.Status != engine.ACCEPTED {
+	if newPayloadResult.Status != engine.VALID {
 		return nil, 0, ErrInvalidPayloadStatus
 	}
 
@@ -254,9 +249,9 @@ func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFi
 		return fmt.Errorf("forkchoice update failed with error: %w", err)
 	}
 
-	if forkchoiceResult.PayloadStatus.Status != engine.VALID {
-		return ErrInvalidPayloadStatus
-	}
+	// if forkchoiceResult.PayloadStatus.Status != engine.VALID {
+	// 	return ErrInvalidPayloadStatus
+	// }
 
 	return nil
 }
