@@ -141,7 +141,7 @@ func TestEngineExecution(t *testing.T) {
 
 	// start new container and try to sync
 	t.Run("Sync chain", func(tt *testing.T) {
-		jwtSecret := setupTestRethEngine(t)
+		jwtSecret := setupTestRethEngine(tt)
 
 		executionClient, err := NewEngineExecutionClient(
 			TEST_ETH_URL,
