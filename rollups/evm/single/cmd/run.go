@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/da/jsonrpc"
 	"github.com/rollkit/rollkit/sequencers/single"
 	"github.com/rs/zerolog"
 
@@ -50,7 +50,7 @@ var RunCmd = &cobra.Command{
 
 		logger := rollcmd.SetupLogger(nodeConfig.Log)
 
-		daJrpc, err := da.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
+		daJrpc, err := jsonrpc.NewClient(context.Background(), logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 		if err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ var RunCmd = &cobra.Command{
 			context.Background(),
 			logger,
 			datastore,
-			daJrpc,
+			&daJrpc.DA,
 			[]byte(nodeConfig.ChainID),
 			nodeConfig.Node.BlockTime.Duration,
 			singleMetrics,
@@ -89,7 +89,7 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, daJrpc, nodeKey, p2pClient, datastore, nodeConfig)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, nodeKey, p2pClient, datastore, nodeConfig)
 	},
 }
 

@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
-	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/da/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -53,7 +53,10 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		daJrpc, err := da.NewClient(logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		daJrpc, err := jsonrpc.NewClient(ctx, logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 		if err != nil {
 			return err
 		}
@@ -73,9 +76,6 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
 		// Start the KV executor HTTP server
 		if kvEndpoint != "" { // Only start if endpoint is provided
 			httpServer := kvexecutor.NewHTTPServer(executor, kvEndpoint)
@@ -91,7 +91,7 @@ var RunCmd = &cobra.Command{
 			ctx,
 			logger,
 			datastore,
-			daJrpc,
+			&daJrpc.DA,
 			[]byte(nodeConfig.ChainID),
 			nodeConfig.Node.BlockTime.Duration,
 			singleMetrics,
@@ -106,6 +106,6 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, daJrpc, nodeKey, p2pClient, datastore, nodeConfig)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, nodeKey, p2pClient, datastore, nodeConfig)
 	},
 }
