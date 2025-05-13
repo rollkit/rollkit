@@ -1,6 +1,6 @@
 # Local DA
 
-Local DA implements the [go-da][go-da] interface over a Local Data Availability service.
+Local DA implements the [da][da] interface over a Local Data Availability service.
 
 It is intended to be used for testing DA layers without having to set up the actual services.
 
@@ -15,28 +15,39 @@ make build
 ./build/local-da
 ```
 
-should output
+This will start the Local DA service with default settings, listening on `localhost:7980` and with a default maximum blob size.
+
+The output should look similar to this (the timestamp and maxBlobSize might vary):
 
 ```sh
-2024/04/11 12:23:34 Listening on: localhost:7980
+I[2025-05-13|10:00:00.000] Listening on                               module=da host=localhost port=7980 maxBlobSize=1974272
 ```
 
 Which exposes the [go-da] interface over JSONRPC and can be accessed with an HTTP client like [xh][xh]:
 
-You can also run local-da with a `-listen-all` flag which will make the process listen on 0.0.0.0 so that it can be accessed from other machines.
+#### Flags
+
+You can customize the behavior of the `local-da` binary using the following flags:
+
+* `-port <port>`: Specifies the listening port. Default: `7980`.
+* `-host <host>`: Specifies the listening address. Default: `localhost`.
+* `-listen-all`: If set, the service listens on all network interfaces (`0.0.0.0`) instead of just `localhost`. This allows access from other machines.
+* `-max-blob-size <bytes>`: Sets the maximum blob size in bytes that the DA service will accept. Default: `1974272` (which is `64 * 64 * 482`).
+
+**Example with flags:**
+
+To run `local-da` on port `8000`, accessible from any IP, with a max blob size of `1000000` bytes:
 
 ```sh
-$ ./build/local-da -listen-all
-2024/04/11 12:23:34 Listening on: 0.0.0.0:7980
+./build/local-da -port 8000 -listen-all -max-blob-size 1000000
 ```
 
-### Docker
-
-You can also run the local-da service using docker:
+Output:
 
 ```sh
-make docker-build
-docker run --rm -p 7980:7980 local-da
+11:07AM INF NewLocalDA: initialized LocalDA module=local-da
+11:07AM INF Listening on host=localhost maxBlobSize=1974272 module=da port=7980
+11:07AM INF server started listening on=localhost:7980 module=da
 ```
 
 ### MaxBlobSize
@@ -93,9 +104,9 @@ output:
 
 ## References
 
-[1] [go-da][go-da]
+[1] [da][ da]
 
 [2] [xh][xh]
 
-[go-da]: https://github.com/rollkit/go-da
+[da]: https://github.com/rollkit/rollkit/blob/main/core/da/da.go#L11
 [xh]: https://github.com/ducaale/xh
