@@ -20,10 +20,12 @@ This will start the Local DA service with default settings, listening on `localh
 The output should look similar to this (the timestamp and maxBlobSize might vary):
 
 ```sh
-I[2025-05-13|10:00:00.000] Listening on                               module=da host=localhost port=7980 maxBlobSize=1974272
+11:07AM INF NewLocalDA: initialized LocalDA module=local-da
+11:07AM INF Listening on host=localhost maxBlobSize=1974272 module=da port=7980
+11:07AM INF server started listening on=localhost:7980 module=da
 ```
 
-Which exposes the [go-da] interface over JSONRPC and can be accessed with an HTTP client like [xh][xh]:
+Which exposes the [da] interface over JSONRPC and can be accessed with an HTTP client like [xh][xh]:
 
 #### Flags
 
@@ -46,8 +48,8 @@ Output:
 
 ```sh
 11:07AM INF NewLocalDA: initialized LocalDA module=local-da
-11:07AM INF Listening on host=localhost maxBlobSize=1974272 module=da port=7980
-11:07AM INF server started listening on=localhost:7980 module=da
+11:07AM INF Listening on host=0.0.0.0 maxBlobSize=1974272 module=da port=8000
+11:07AM INF server started listening on=0.0.0.0:8000 module=da
 ```
 
 ### MaxBlobSize
