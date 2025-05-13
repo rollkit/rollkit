@@ -82,9 +82,7 @@ func TestBootstrapping(t *testing.T) {
 	assert := assert.New(t)
 	logger := log.NewTestLogger(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	clients := startTestNetwork(ctx, t, 4, map[int]hostDescr{
+	clients := startTestNetwork(t.Context(), t, 4, map[int]hostDescr{
 		1: {conns: []int{0}},
 		2: {conns: []int{0, 1}},
 		3: {conns: []int{0}},
@@ -105,9 +103,7 @@ func TestDiscovery(t *testing.T) {
 	assert := assert.New(t)
 	logger := log.NewTestLogger(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
+	clients := startTestNetwork(t.Context(), t, 5, map[int]hostDescr{
 		1: {conns: []int{0}, chainID: "ORU2"},
 		2: {conns: []int{0}, chainID: "ORU2"},
 		3: {conns: []int{1}, chainID: "ORU1"},

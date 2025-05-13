@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	coreda "github.com/rollkit/rollkit/core/da"
+	"github.com/rollkit/rollkit/types"
 )
 
 // HeaderSubmissionLoop is responsible for submitting blocks to the DA layer.
@@ -49,11 +50,7 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	}
 	numSubmittedHeaders := 0
 	attempt := 0
-	maxBlobSize, err := m.dalc.MaxBlobSize(ctx)
-	if err != nil {
-		return err
-	}
-	initialMaxBlobSize := maxBlobSize
+
 	gasPrice := m.gasPrice
 	initialGasPrice := gasPrice
 
@@ -80,7 +77,7 @@ daSubmitRetryLoop:
 		}
 
 		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
-		res := m.dalc.Submit(ctx, headersBz, maxBlobSize, gasPrice)
+		res := types.SubmitWithHelpers(ctx, m.da, m.logger, headersBz, gasPrice, nil)
 		cancel()
 
 		switch res.Code {
@@ -107,25 +104,18 @@ daSubmitRetryLoop:
 			// reset submission options when successful
 			// scale back gasPrice gradually
 			backoff = 0
-			maxBlobSize = initialMaxBlobSize
 			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice / m.gasMultiplier
-				if gasPrice < initialGasPrice {
-					gasPrice = initialGasPrice
-				}
+				gasPrice = max(gasPrice, initialGasPrice)
 			}
-			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
+			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL) //nolint:gosec
 			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * m.gasMultiplier
 			}
-			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
-
-		case coreda.StatusTooBig:
-			maxBlobSize = maxBlobSize / 4
-			fallthrough
+			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.exponentialBackoff(backoff)

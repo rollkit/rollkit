@@ -36,7 +36,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	// Lazy Aggregator mode.
 	// In Lazy Aggregator mode, blocks are built only when there are
 	// transactions or every LazyBlockTime.
-	if m.config.Node.LazyAggregator {
+	if m.config.Node.LazyMode {
 		m.lazyAggregationLoop(ctx, blockTimer)
 		return
 	}
@@ -55,21 +55,38 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 			return
 
 		case <-lazyTimer.C:
+			m.logger.Debug("Lazy timer triggered block production")
+			m.produceBlock(ctx, "lazy_timer", lazyTimer, blockTimer)
+
 		case <-blockTimer.C:
+			if m.txsAvailable {
+				m.produceBlock(ctx, "block_timer", lazyTimer, blockTimer)
+				m.txsAvailable = false
+			} else {
+				// Ensure we keep ticking even when there are no txs
+				blockTimer.Reset(m.config.Node.BlockTime.Duration)
+			}
+		case <-m.txNotifyCh:
+			m.txsAvailable = true
 		}
-
-		// Reset the start time
-		start := time.Now()
-
-		// Attempt to publish the block regardless of activity
-		if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
-			m.logger.Error("error while publishing block", "error", err)
-		}
-
-		// Reset both timers for the next aggregation window
-		lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockTime.Duration))
-		blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 	}
+}
+
+// produceBlock handles the common logic for producing a block and resetting timers
+func (m *Manager) produceBlock(ctx context.Context, mode string, lazyTimer, blockTimer *time.Timer) {
+	// Record the start time
+	start := time.Now()
+
+	// Attempt to publish the block
+	if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
+		m.logger.Error("error while publishing block", "mode", mode, "error", err)
+	} else {
+		m.logger.Debug("Successfully published block", "mode", mode)
+	}
+
+	// Reset both timers for the next aggregation window
+	lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockInterval.Duration))
+	blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 }
 
 func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
@@ -87,6 +104,12 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 			// Reset the blockTimer to signal the next block production
 			// period based on the block time.
 			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
+
+		case <-m.txNotifyCh:
+			// Transaction notifications are intentionally ignored in normal mode
+			// to avoid triggering block production outside the scheduled intervals.
+			// We just update the txsAvailable flag for tracking purposes
+			m.txsAvailable = true
 		}
 	}
 }

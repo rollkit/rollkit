@@ -7,7 +7,7 @@ import (
 func TestGetRandomTx(t *testing.T) {
 	// Generate 100 random transactions and check that they are all unique
 	txSet := make(map[string]bool)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		tx := GetRandomTx()
 		key := string(tx[:])
 		if _, ok := txSet[key]; ok {
@@ -20,7 +20,7 @@ func TestGetRandomTx(t *testing.T) {
 func TestGetRandomBytes(t *testing.T) {
 	// Generate 100 random byte slices of length 32 and check that they are all unique
 	byteSet := make(map[string]bool)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		bytes := GetRandomBytes(32)
 		key := string(bytes[:])
 		if _, ok := byteSet[key]; ok {
@@ -33,7 +33,7 @@ func TestGetRandomBytes(t *testing.T) {
 func TestGetRandomHeader(t *testing.T) {
 	// Generate 100 random headers and check that they are all unique
 	headerSet := make(map[string]bool)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		header := GetRandomHeader("TestGetRandomHeader")
 		headerHash := header.Hash().String()
 		if _, ok := headerSet[headerHash]; ok {

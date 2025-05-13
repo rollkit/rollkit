@@ -227,6 +227,9 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	noopSigner, err := noopsigner.NewNoopSigner(privKey)
 	require.NoError(err)
 
+	daH := atomic.Uint64{}
+	daH.Store(0)
+
 	m := &Manager{
 		store:     mockStore,
 		sequencer: mockSeq,
@@ -245,6 +248,18 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		},
 		lastStateMtx: &sync.RWMutex{},
 		metrics:      NopMetrics(),
+		lastState: types.State{
+			ChainID:         chainID,
+			InitialHeight:   1,
+			LastBlockHeight: 1,
+			LastBlockTime:   time.Now(),
+			AppHash:         []byte("initialAppHash"),
+		},
+		headerCache: cache.NewCache[types.SignedHeader](),
+		dataCache:   cache.NewCache[types.Data](),
+		HeaderCh:    make(chan *types.SignedHeader, 1),
+		DataCh:      make(chan *types.Data, 1),
+		daHeight:    &daH,
 	}
 
 	m.publishBlock = m.publishBlockInternal
@@ -279,18 +294,33 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	})
 	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(emptyBatchResponse, nil).Once()
 
+	// Mock SetMetadata for LastBatchDataKey (required for empty batch handling)
+	mockStore.On("SetMetadata", ctx, "l", mock.AnythingOfType("[]uint8")).Return(nil).Once()
+
+	// With our new implementation, we should expect SaveBlockData to be called for empty blocks
+	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
+
+	// We should also expect ExecuteTxs to be called with an empty transaction list
+	newAppHash := []byte("newAppHash")
+	mockExec.On("ExecuteTxs", ctx, mock.Anything, currentHeight+1, mock.AnythingOfType("time.Time"), m.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
+
+	// SetFinal should be called
+	mockExec.On("SetFinal", ctx, currentHeight+1).Return(nil).Once()
+
+	// SetHeight should be called
+	mockStore.On("SetHeight", ctx, currentHeight+1).Return(nil).Once()
+
+	// UpdateState should be called
+	mockStore.On("UpdateState", ctx, mock.AnythingOfType("types.State")).Return(nil).Once()
+
+	// SaveBlockData should be called again after validation
+	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
+
 	// Call publishBlock
 	err = m.publishBlock(ctx)
 
 	// Assertions
 	require.NoError(err, "publishBlock should return nil error when the batch is empty")
-
-	// Verify mocks: Ensure methods after the check were NOT called
-	mockStore.AssertNotCalled(t, "SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-	mockExec.AssertNotCalled(t, "ExecuteTxs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-	mockExec.AssertNotCalled(t, "SetFinal", mock.Anything, mock.Anything)
-	mockStore.AssertNotCalled(t, "SetHeight", mock.Anything, mock.Anything)
-	mockStore.AssertNotCalled(t, "UpdateState", mock.Anything, mock.Anything)
 
 	mockSeq.AssertExpectations(t)
 	mockStore.AssertExpectations(t)
@@ -301,8 +331,6 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 // is successfully created, applied, and published.
 func Test_publishBlock_Success(t *testing.T) {
 	require := require.New(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	initialHeight := uint64(5)
 	newHeight := initialHeight + 1
@@ -311,25 +339,25 @@ func Test_publishBlock_Success(t *testing.T) {
 	manager, mockStore, mockExec, mockSeq, _, headerCh, dataCh, _ := setupManagerForPublishBlockTest(t, true, initialHeight, 0)
 	manager.lastState.LastBlockHeight = initialHeight
 
-	mockStore.On("Height", ctx).Return(initialHeight, nil).Once()
+	mockStore.On("Height", t.Context()).Return(initialHeight, nil).Once()
 	mockSignature := types.Signature([]byte{1, 2, 3})
-	mockStore.On("GetSignature", ctx, initialHeight).Return(&mockSignature, nil).Once()
+	mockStore.On("GetSignature", t.Context(), initialHeight).Return(&mockSignature, nil).Once()
 	lastHeader, lastData := types.GetRandomBlock(initialHeight, 5, chainID)
 	lastHeader.ProposerAddress = manager.genesis.ProposerAddress
-	mockStore.On("GetBlockData", ctx, initialHeight).Return(lastHeader, lastData, nil).Once()
-	mockStore.On("GetBlockData", ctx, newHeight).Return(nil, nil, errors.New("not found")).Once()
-	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
-	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
-	mockStore.On("SetHeight", ctx, newHeight).Return(nil).Once()
-	mockStore.On("UpdateState", ctx, mock.AnythingOfType("types.State")).Return(nil).Once()
-	mockStore.On("SetMetadata", ctx, LastBatchDataKey, mock.AnythingOfType("[]uint8")).Return(nil).Once()
+	mockStore.On("GetBlockData", t.Context(), initialHeight).Return(lastHeader, lastData, nil).Once()
+	mockStore.On("GetBlockData", t.Context(), newHeight).Return(nil, nil, errors.New("not found")).Once()
+	mockStore.On("SaveBlockData", t.Context(), mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
+	mockStore.On("SaveBlockData", t.Context(), mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
+	mockStore.On("SetHeight", t.Context(), newHeight).Return(nil).Once()
+	mockStore.On("UpdateState", t.Context(), mock.AnythingOfType("types.State")).Return(nil).Once()
+	mockStore.On("SetMetadata", t.Context(), LastBatchDataKey, mock.AnythingOfType("[]uint8")).Return(nil).Once()
 
 	// --- Mock Executor ---
 	sampleTxs := [][]byte{[]byte("tx1"), []byte("tx2")}
 	// No longer mocking GetTxs since it's handled by reaper.go
 	newAppHash := []byte("newAppHash")
-	mockExec.On("ExecuteTxs", ctx, mock.Anything, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
-	mockExec.On("SetFinal", ctx, newHeight).Return(nil).Once()
+	mockExec.On("ExecuteTxs", t.Context(), mock.Anything, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
+	mockExec.On("SetFinal", t.Context(), newHeight).Return(nil).Once()
 
 	// No longer mocking SubmitRollupBatchTxs since it's handled by reaper.go
 	batchTimestamp := lastHeader.Time().Add(1 * time.Second)
@@ -344,8 +372,8 @@ func Test_publishBlock_Success(t *testing.T) {
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
 		return string(req.RollupId) == chainID
 	})
-	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(batchResponse, nil).Once()
-	err := manager.publishBlock(ctx)
+	mockSeq.On("GetNextBatch", t.Context(), batchReqMatcher).Return(batchResponse, nil).Once()
+	err := manager.publishBlock(t.Context())
 	require.NoError(err, "publishBlock should succeed")
 
 	select {

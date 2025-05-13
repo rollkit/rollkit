@@ -395,7 +395,7 @@ func TestConcurrentAccess(t *testing.T) {
 		go func(routineNum int) {
 			for j := 0; j < messageCount; j++ {
 				// Create a unique message per goroutine and iteration
-				message := []byte(fmt.Sprintf("Message %d-%d", routineNum, j))
+				message := fmt.Appendf(nil, "Message %d-%d", routineNum, j)
 
 				// Get public key
 				pubKey, err := signer.GetPublic()

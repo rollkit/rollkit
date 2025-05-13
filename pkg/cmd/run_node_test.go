@@ -23,11 +23,12 @@ import (
 	filesigner "github.com/rollkit/rollkit/pkg/signer/file"
 )
 
-func createTestComponents(_ context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.Client, signer.Signer, *p2p.Client, datastore.Batching) {
+const MockDANamespace = "test"
+
+func createTestComponents(_ context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.DA, signer.Signer, *p2p.Client, datastore.Batching) {
 	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
-	dac := coreda.NewDummyClient(dummyDA, []byte("test"))
 	tmpDir := t.TempDir()
 	keyProvider, err := filesigner.CreateFileSystemSigner(filepath.Join(tmpDir, "config"), []byte{})
 	if err != nil {
@@ -37,7 +38,7 @@ func createTestComponents(_ context.Context, t *testing.T) (coreexecutor.Executo
 	p2pClient := &p2p.Client{}
 	ds := datastore.NewMapDatastore()
 
-	return executor, sequencer, dac, keyProvider, p2pClient, ds
+	return executor, sequencer, dummyDA, keyProvider, p2pClient, ds
 }
 
 func TestParseFlags(t *testing.T) {
@@ -62,8 +63,8 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.da.mempool_ttl", "10",
 		"--rollkit.da.namespace", "namespace",
 		"--rollkit.da.start_height", "100",
-		"--rollkit.node.lazy_aggregator",
-		"--rollkit.node.lazy_block_time", "2m",
+		"--rollkit.node.lazy_mode",
+		"--rollkit.node.lazy_block_interval", "2m",
 		"--rollkit.node.light",
 		"--rollkit.node.max_pending_blocks", "100",
 		"--rollkit.node.trusted_hash", "abcdef1234567890",
@@ -99,8 +100,8 @@ func TestParseFlags(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		got      interface{}
-		expected interface{}
+		got      any
+		expected any
 	}{
 		{"RootDir", nodeConfig.RootDir, "custom/root/dir"},
 		{"DBPath", nodeConfig.DBPath, "custom/db/path"},
@@ -122,8 +123,8 @@ func TestParseFlags(t *testing.T) {
 		{"DAMempoolTTL", nodeConfig.DA.MempoolTTL, uint64(10)},
 		{"DANamespace", nodeConfig.DA.Namespace, "namespace"},
 		{"DAStartHeight", nodeConfig.DA.StartHeight, uint64(100)},
-		{"LazyAggregator", nodeConfig.Node.LazyAggregator, true},
-		{"LazyBlockTime", nodeConfig.Node.LazyBlockTime.Duration, 2 * time.Minute},
+		{"LazyAggregator", nodeConfig.Node.LazyMode, true},
+		{"LazyBlockTime", nodeConfig.Node.LazyBlockInterval.Duration, 2 * time.Minute},
 		{"Light", nodeConfig.Node.Light, true},
 		{"MaxPendingBlocks", nodeConfig.Node.MaxPendingBlocks, uint64(100)},
 		{"TrustedHash", nodeConfig.Node.TrustedHash, "abcdef1234567890"},
@@ -435,7 +436,7 @@ func newRunNodeCmd(
 	ctx context.Context,
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	dac coreda.Client,
+	dac coreda.DA,
 	remoteSigner signer.Signer,
 	nodeKey *key.NodeKey,
 	p2pClient *p2p.Client,
