@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -246,7 +247,12 @@ func newClient(ctx context.Context, logger log.Logger, addr string, authHeader h
 	var multiCloser multiClientCloser
 	var client Client
 	client.DA.Logger = logger
-	client.DA.Namespace = []byte(namespace)
+	namespaceBytes, err := hex.DecodeString(namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode namespace: %w", err)
+	}
+	client.DA.Namespace = namespaceBytes
+	logger.Info("Creating new client", "namespace", namespace)
 	errs := getKnownErrorsMapping()
 	for name, module := range moduleMap(&client) {
 		closer, err := jsonrpc.NewMergeClient(ctx, addr, name, []interface{}{module}, authHeader, jsonrpc.WithErrors(errs))
