@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	da "github.com/rollkit/rollkit/core/da"
+	da "command-line-arguments"
 	context "context"
 
 	mock "github.com/stretchr/testify/mock"
@@ -37,62 +37,6 @@ func (_m *DA) Commit(ctx context.Context, blobs [][]byte, namespace []byte) ([][
 
 	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, []byte) error); ok {
 		r1 = rf(ctx, blobs, namespace)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GasMultiplier provides a mock function with given fields: ctx
-func (_m *DA) GasMultiplier(ctx context.Context) (float64, error) {
-	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GasMultiplier")
-	}
-
-	var r0 float64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (float64, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) float64); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Get(0).(float64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GasPrice provides a mock function with given fields: ctx
-func (_m *DA) GasPrice(ctx context.Context) (float64, error) {
-	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GasPrice")
-	}
-
-	var r0 float64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (float64, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) float64); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Get(0).(float64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -190,37 +134,9 @@ func (_m *DA) GetProofs(ctx context.Context, ids [][]byte, namespace []byte) ([]
 	return r0, r1
 }
 
-// MaxBlobSize provides a mock function with given fields: ctx
-func (_m *DA) MaxBlobSize(ctx context.Context) (uint64, error) {
-	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for MaxBlobSize")
-	}
-
-	var r0 uint64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (uint64, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Get(0).(uint64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Submit provides a mock function with given fields: ctx, blobs, gasPrice, namespace
-func (_m *DA) Submit(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte) ([][]byte, error) {
-	ret := _m.Called(ctx, blobs, gasPrice, namespace)
+// Submit provides a mock function with given fields: ctx, blobs
+func (_m *DA) Submit(ctx context.Context, blobs [][]byte) ([][]byte, error) {
+	ret := _m.Called(ctx, blobs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Submit")
@@ -228,19 +144,19 @@ func (_m *DA) Submit(ctx context.Context, blobs [][]byte, gasPrice float64, name
 
 	var r0 [][]byte
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte) ([][]byte, error)); ok {
-		return rf(ctx, blobs, gasPrice, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) ([][]byte, error)); ok {
+		return rf(ctx, blobs)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte) [][]byte); ok {
-		r0 = rf(ctx, blobs, gasPrice, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) [][]byte); ok {
+		r0 = rf(ctx, blobs)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([][]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, float64, []byte) error); ok {
-		r1 = rf(ctx, blobs, gasPrice, namespace)
+	if rf, ok := ret.Get(1).(func(context.Context, [][]byte) error); ok {
+		r1 = rf(ctx, blobs)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -248,9 +164,9 @@ func (_m *DA) Submit(ctx context.Context, blobs [][]byte, gasPrice float64, name
 	return r0, r1
 }
 
-// SubmitWithOptions provides a mock function with given fields: ctx, blobs, gasPrice, namespace, options
-func (_m *DA) SubmitWithOptions(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte, options []byte) ([][]byte, error) {
-	ret := _m.Called(ctx, blobs, gasPrice, namespace, options)
+// SubmitWithOptions provides a mock function with given fields: ctx, blobs, options
+func (_m *DA) SubmitWithOptions(ctx context.Context, blobs [][]byte, options []byte) ([][]byte, error) {
+	ret := _m.Called(ctx, blobs, options)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SubmitWithOptions")
@@ -258,19 +174,19 @@ func (_m *DA) SubmitWithOptions(ctx context.Context, blobs [][]byte, gasPrice fl
 
 	var r0 [][]byte
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte, []byte) ([][]byte, error)); ok {
-		return rf(ctx, blobs, gasPrice, namespace, options)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, []byte) ([][]byte, error)); ok {
+		return rf(ctx, blobs, options)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte, []byte) [][]byte); ok {
-		r0 = rf(ctx, blobs, gasPrice, namespace, options)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, []byte) [][]byte); ok {
+		r0 = rf(ctx, blobs, options)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([][]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, float64, []byte, []byte) error); ok {
-		r1 = rf(ctx, blobs, gasPrice, namespace, options)
+	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, []byte) error); ok {
+		r1 = rf(ctx, blobs, options)
 	} else {
 		r1 = ret.Error(1)
 	}

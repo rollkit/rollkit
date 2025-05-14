@@ -137,9 +137,8 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 	}, nil
 }
 
-func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
+func (c *Sequencer) recordMetrics(blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
 	if c.metrics != nil {
-		c.metrics.GasPrice.Set(gasPrice)
 		c.metrics.LastBlobSize.Set(float64(blobSize))
 		c.metrics.TransactionStatus.With("status", fmt.Sprintf("%d", statusCode)).Add(1)
 		c.metrics.NumPendingBlocks.Set(float64(numPendingBlocks))
@@ -168,14 +167,6 @@ func (c *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Bat
 	submittedTxCount := 0
 	attempt := 0
 
-	// Store initial values to be able to reset or compare later
-	initialGasPrice, err := c.da.GasPrice(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial gas price: %w", err)
-	}
-
-	gasPrice := initialGasPrice
-
 daSubmitRetryLoop:
 	for !submittedAllTxs && attempt < maxSubmitAttempts {
 		// Wait for backoff duration or exit if context is done
@@ -186,19 +177,12 @@ daSubmitRetryLoop:
 		}
 
 		// Attempt to submit the batch to the DA layer using the helper function
-		res := types.SubmitWithHelpers(ctx, c.da, c.logger, currentBatch.Transactions, gasPrice, nil)
-
-		gasMultiplier, multErr := c.da.GasMultiplier(ctx)
-		if multErr != nil {
-			c.logger.Error("failed to get gas multiplier", "error", multErr)
-			gasMultiplier = 0
-		}
+		res := types.SubmitWithHelpers(ctx, c.da, c.logger, currentBatch.Transactions, nil)
 
 		switch res.Code {
 		case coreda.StatusSuccess:
 			submittedTxs := int(res.SubmittedCount)
 			c.logger.Info("successfully submitted transactions to DA layer",
-				"gasPrice", gasPrice,
 				"height", res.Height,
 				"submittedTxs", submittedTxs,
 				"remainingTxs", len(currentBatch.Transactions)-submittedTxs)
@@ -216,22 +200,13 @@ daSubmitRetryLoop:
 			// Reset submission parameters after success
 			backoff = 0
 
-			// Gradually reduce gas price on success, but not below initial price
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice / gasMultiplier
-				if gasPrice < initialGasPrice {
-					gasPrice = initialGasPrice
-				}
-			}
-			c.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
+			c.logger.Debug("resetting DA layer submission options", "backoff", backoff)
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			c.logger.Error("single sequencer: DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.batchTime * time.Duration(defaultMempoolTTL)
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice * gasMultiplier
-			}
-			c.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
+
+			c.logger.Info("retrying DA layer submission with", "backoff", backoff)
 
 		case coreda.StatusTooBig:
 			// Blob size adjustment is handled within DA impl or SubmitWithOptions call
@@ -243,7 +218,7 @@ daSubmitRetryLoop:
 			backoff = c.exponentialBackoff(backoff)
 		}
 
-		c.recordMetrics(gasPrice, res.BlobSize, res.Code, len(currentBatch.Transactions), res.Height)
+		c.recordMetrics(res.BlobSize, res.Code, len(currentBatch.Transactions), res.Height)
 		attempt++
 	}
 

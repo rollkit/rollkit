@@ -51,9 +51,6 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	numSubmittedHeaders := 0
 	attempt := 0
 
-	gasPrice := m.gasPrice
-	initialGasPrice := gasPrice
-
 daSubmitRetryLoop:
 	for !submittedAllHeaders && attempt < maxSubmitAttempts {
 		select {
@@ -77,12 +74,12 @@ daSubmitRetryLoop:
 		}
 
 		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
-		res := types.SubmitWithHelpers(ctx, m.da, m.logger, headersBz, gasPrice, nil)
+		res := types.SubmitWithHelpers(ctx, m.da, m.logger, headersBz, nil)
 		cancel()
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount)
+			m.logger.Info("successfully submitted Rollkit headers to DA layer", "daHeight", res.Height, "headerCount", res.SubmittedCount)
 			if res.SubmittedCount == uint64(len(headersToSubmit)) {
 				submittedAllHeaders = true
 			}
@@ -104,18 +101,12 @@ daSubmitRetryLoop:
 			// reset submission options when successful
 			// scale back gasPrice gradually
 			backoff = 0
-			if m.gasMultiplier > 0 && gasPrice != -1 {
-				gasPrice = gasPrice / m.gasMultiplier
-				gasPrice = max(gasPrice, initialGasPrice)
-			}
-			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
+
+			m.logger.Debug("resetting DA layer submission options", "backoff", backoff)
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL) //nolint:gosec
-			if m.gasMultiplier > 0 && gasPrice != -1 {
-				gasPrice = gasPrice * m.gasMultiplier
-			}
-			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
+			m.logger.Info("retrying DA layer submission with", "backoff", backoff)
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.exponentialBackoff(backoff)
