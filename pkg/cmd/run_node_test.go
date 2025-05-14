@@ -118,8 +118,6 @@ func TestParseFlags(t *testing.T) {
 		{"DAAddress", nodeConfig.DA.Address, "http://127.0.0.1:27005"},
 		{"DAAuthToken", nodeConfig.DA.AuthToken, "token"},
 		{"DABlockTime", nodeConfig.DA.BlockTime.Duration, 20 * time.Second},
-		{"DAGasMultiplier", nodeConfig.DA.GasMultiplier, 1.5},
-		{"DAGasPrice", nodeConfig.DA.GasPrice, 1.5},
 		{"DAMempoolTTL", nodeConfig.DA.MempoolTTL, uint64(10)},
 		{"DANamespace", nodeConfig.DA.Namespace, "namespace"},
 		{"DAStartHeight", nodeConfig.DA.StartHeight, uint64(100)},

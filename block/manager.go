@@ -139,8 +139,6 @@ type Manager struct {
 	// in the DA
 	daIncludedHeight atomic.Uint64
 	da               coreda.DA
-	gasPrice         float64
-	gasMultiplier    float64
 
 	sequencer     coresequencer.Sequencer
 	lastBatchData [][]byte
@@ -256,8 +254,6 @@ func NewManager(
 	headerStore goheader.Store[*types.SignedHeader],
 	dataStore goheader.Store[*types.Data],
 	seqMetrics *Metrics,
-	gasPrice float64,
-	gasMultiplier float64,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
 	if err != nil {
@@ -341,8 +337,6 @@ func NewManager(
 		sequencer:      sequencer,
 		exec:           exec,
 		da:             da,
-		gasPrice:       gasPrice,
-		gasMultiplier:  gasMultiplier,
 		txNotifyCh:     make(chan struct{}, 1), // Non-blocking channel
 	}
 	agg.init(ctx)

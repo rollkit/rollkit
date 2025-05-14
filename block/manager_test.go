@@ -41,13 +41,11 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) *Manager {
 	logger := log.NewTestLogger(t)
 	m := &Manager{
-		da:            da,
-		headerCache:   cache.NewCache[types.SignedHeader](),
-		logger:        logger,
-		gasPrice:      gasPrice,
-		gasMultiplier: gasMultiplier,
-		lastStateMtx:  &sync.RWMutex{},
-		metrics:       NopMetrics(),
+		da:           da,
+		headerCache:  cache.NewCache[types.SignedHeader](),
+		logger:       logger,
+		lastStateMtx: &sync.RWMutex{},
+		metrics:      NopMetrics(),
 	}
 
 	m.publishBlock = m.publishBlockInternal

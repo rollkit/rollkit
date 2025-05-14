@@ -28,19 +28,13 @@ type DA interface {
 	//
 	// This method is synchronous. Upon successful submission to Data Availability layer, it returns the IDs identifying blobs
 	// in DA.
-	Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte) ([]ID, error)
+	Submit(ctx context.Context, blobs []Blob) ([]ID, error)
 
 	// SubmitWithOptions submits the Blobs to Data Availability layer with additional options.
-	SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, error)
+	SubmitWithOptions(ctx context.Context, blobs []Blob, options []byte) ([]ID, error)
 
 	// Validate validates Commitments against the corresponding Proofs. This should be possible without retrieving the Blobs.
 	Validate(ctx context.Context, ids []ID, proofs []Proof, namespace []byte) ([]bool, error)
-
-	// GasPrice returns the gas price for the DA layer.
-	GasPrice(ctx context.Context) (float64, error)
-
-	// GasMultiplier returns the gas multiplier for the DA layer.
-	GasMultiplier(ctx context.Context) (float64, error)
 }
 
 // Blob is the data submitted/received from DA interface.
