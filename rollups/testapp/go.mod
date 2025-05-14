@@ -10,7 +10,7 @@ replace (
 )
 
 require (
-	cosmossdk.io/log v1.5.1
+	cosmossdk.io/log v1.6.0
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/da v0.0.0-00010101000000-000000000000

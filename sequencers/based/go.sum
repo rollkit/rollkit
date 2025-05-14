@@ -1,5 +1,5 @@
-cosmossdk.io/log v1.5.1 h1:wLwiYXmfrort/O+j6EkjF+HvbdrRQd+4cYCPKFSm+zM=
-cosmossdk.io/log v1.5.1/go.mod h1:5cXXBvfBkR2/BcXmosdCSLXllvgSjphrrDVdfVRmBGM=
+cosmossdk.io/log v1.6.0 h1:SJIOmJ059wi1piyRgNRXKXhlDXGqnB5eQwhcZKv2tOk=
+cosmossdk.io/log v1.6.0/go.mod h1:5cXXBvfBkR2/BcXmosdCSLXllvgSjphrrDVdfVRmBGM=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/benbjohnson/clock v1.3.5 h1:VvXlSJBzZpA/zum6Sj74hxwYI2DIxRWuNIoXAzHZz5o=
 github.com/benbjohnson/clock v1.3.5/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
