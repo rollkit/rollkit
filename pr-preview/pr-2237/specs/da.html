@@ -156,7 +156,7 @@
 <p>The <code>RetrieveBlocks</code> retrieves the rollup blocks for a given DA height using <a href="https://github.com/rollkit/go-da">go-da</a> <code>GetIDs</code> and <code>Get</code> methods. If there are no blocks available for a given DA height, <code>StatusNotFound</code> is returned (which is not an error case). The retrieved blobs are converted back to rollup blocks and returned on successful retrieval.</p>
 <p>Both <code>SubmitBlocks</code> and <code>RetrieveBlocks</code> may be unsuccessful if the DA node and the DA blockchain that the DA implementation is using have failures. For example, failures such as, DA mempool is full, DA submit transaction is nonce clashing with other transaction from the DA submitter account, DA node is not synced, etc.</p>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>See <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">da implementation</a></p>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/main/da/jsonrpc/client.go">da implementation</a></p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/go-da">go-da</a></p>
 <p>[2] <a href="https://github.com/rollkit/go-da/tree/main/proxy/grpc">proxy/grpc</a></p>
