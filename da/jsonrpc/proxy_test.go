@@ -33,47 +33,32 @@ const (
 var testNamespace = []byte("test")
 var emptyOptions = []byte{}
 
-// TestProxy runs the go-da DA test suite against the JSONRPC service
-// NOTE: This test requires a test JSONRPC service to run on the port
-// 3450 which is chosen to be sufficiently distinct from the default port
-func TestProxy(t *testing.T) {
+// setupTestProxy initializes a DA server and client for testing.
+func setupTestProxy(t *testing.T) (coreda.DA, func()) {
+	t.Helper()
+
 	dummy := coreda.NewDummyDA(100_000, 0, 0)
 	logger := log.NewTestLogger(t)
 	server := proxy.NewServer(logger, ServerHost, ServerPort, dummy)
 	err := server.Start(context.Background())
 	require.NoError(t, err)
-	defer func() {
-		if err := server.Stop(context.Background()); err != nil {
-			require.NoError(t, err)
-		}
-	}()
 
 	client, err := proxy.NewClient(context.Background(), logger, ClientURL, "", "74657374")
 	require.NoError(t, err)
-	RunDATestSuite(t, &client.DA)
+
+	cleanup := func() {
+		if err := server.Stop(context.Background()); err != nil {
+			require.NoError(t, err)
+		}
+	}
+	return &client.DA, cleanup
 }
 
-// RunDATestSuite runs all tests against given DA
-func RunDATestSuite(t *testing.T, d coreda.DA) {
-	t.Run("Basic DA test", func(t *testing.T) {
-		BasicDATest(t, d)
-	})
-	t.Run("Get IDs and all data", func(t *testing.T) {
-		GetIDsTest(t, d)
-	})
-	t.Run("Check Errors", func(t *testing.T) {
-		CheckErrors(t, d)
-	})
-	t.Run("Concurrent read/write test", func(t *testing.T) {
-		ConcurrentReadWriteTest(t, d)
-	})
-	t.Run("Given height is from the future", func(t *testing.T) {
-		HeightFromFutureTest(t, d)
-	})
-}
+// TestProxyBasicDATest tests round trip of messages to DA and back.
+func TestProxyBasicDATest(t *testing.T) {
+	d, cleanup := setupTestProxy(t)
+	defer cleanup()
 
-// BasicDATest tests round trip of messages to DA and back.
-func BasicDATest(t *testing.T, d coreda.DA) {
 	msg1 := []byte("message 1")
 	msg2 := []byte("message 2")
 
@@ -117,8 +102,11 @@ func BasicDATest(t *testing.T, d coreda.DA) {
 	}
 }
 
-// CheckErrors ensures that errors are handled properly by DA.
-func CheckErrors(t *testing.T, d coreda.DA) {
+// TestProxyCheckErrors ensures that errors are handled properly by DA.
+func TestProxyCheckErrors(t *testing.T) {
+	d, cleanup := setupTestProxy(t)
+	defer cleanup()
+
 	ctx := context.TODO()
 	blob, err := d.Get(ctx, []coreda.ID{[]byte("invalid blob id")})
 	assert.Error(t, err)
@@ -126,8 +114,11 @@ func CheckErrors(t *testing.T, d coreda.DA) {
 	assert.Empty(t, blob)
 }
 
-// GetIDsTest tests iteration over DA
-func GetIDsTest(t *testing.T, d coreda.DA) {
+// TestProxyGetIDsTest tests iteration over DA
+func TestProxyGetIDsTest(t *testing.T) {
+	d, cleanup := setupTestProxy(t)
+	defer cleanup()
+
 	msgs := []coreda.Blob{[]byte("msg1"), []byte("msg2"), []byte("msg3")}
 
 	ctx := context.TODO()
@@ -167,8 +158,11 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 	assert.True(t, found)
 }
 
-// ConcurrentReadWriteTest tests the use of mutex lock in DummyDA by calling separate methods that use `d.data` and making sure there's no race conditions
-func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
+// TestProxyConcurrentReadWriteTest tests the use of mutex lock in DummyDA
+func TestProxyConcurrentReadWriteTest(t *testing.T) {
+	d, cleanup := setupTestProxy(t)
+	defer cleanup()
+
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
@@ -204,8 +198,11 @@ func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 	wg.Wait()
 }
 
-// HeightFromFutureTest tests the case when the given height is from the future
-func HeightFromFutureTest(t *testing.T, d coreda.DA) {
+// TestProxyHeightFromFutureTest tests the case when the given height is from the future
+func TestProxyHeightFromFutureTest(t *testing.T) {
+	d, cleanup := setupTestProxy(t)
+	defer cleanup()
+
 	ctx := context.TODO()
 	_, err := d.GetIDs(ctx, 999999999)
 	assert.Error(t, err)
