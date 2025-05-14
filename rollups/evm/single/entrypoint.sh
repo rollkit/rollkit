@@ -9,20 +9,20 @@ sleep 5
 
 # Conditionally add --rollkit.da.address if ROLLKIT_DA_ADDRESS is set
 da_flag=""
-if [ -n "$ROLLKIT_DA_ADDRESS" ]; then
-  da_flag="--rollkit.da.address $ROLLKIT_DA_ADDRESS"
+if [ -n "$DA_ADDRESS" ]; then
+  da_flag="--rollkit.da.address $DA_ADDRESS"
 fi
 
 # Conditionally add --rollkit.da.auth_token if ROLLKIT_DA_AUTH_TOKEN is set
 da_auth_token_flag=""
 if [ -n "$DA_AUTH_TOKEN" ]; then
-  da_auth_token_flag="--rollkit.da.auth_token $ROLLKIT_DA_AUTH_TOKEN"
+  da_auth_token_flag="--rollkit.da.auth_token $DA_AUTH_TOKEN"
 fi
 
 # Conditionally add --rollkit.da.namespace if ROLLKIT_DA_NAMESPACE is set
 da_namespace_flag=""
 if [ -n "$DA_NAMESPACE" ]; then
-  da_namespace_flag="--rollkit.da.namespace $ROLLKIT_DA_NAMESPACE"
+  da_namespace_flag="--rollkit.da.namespace $DA_NAMESPACE"
 fi
 
 exec ./evm-single start \
