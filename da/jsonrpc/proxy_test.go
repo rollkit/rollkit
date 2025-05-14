@@ -222,8 +222,13 @@ func TestSubmitWithOptions(t *testing.T) {
 
 	// Helper function to create a client with a mocked internal API
 	createMockedClient := func(internalAPI *mocks.DA) *proxy.Client {
+
+		swo := func(ctx context.Context, blobs []coreda.Blob, gasPrice float64, ns, options []byte) ([]coreda.ID, error) {
+			// Mock the behavior of the internal API's SubmitWithOptions method
+			return internalAPI.Submit(ctx, blobs, gasPrice, options)
+		}
 		client := &proxy.Client{}
-		client.DA.Internal.SubmitWithOptions = internalAPI.SubmitWithOptions
+		client.DA.Internal.SubmitWithOptions = swo
 		client.DA.Namespace = testNamespace
 		client.DA.MaxBlobSize = testMaxBlobSize
 		client.DA.Logger = log.NewTestLogger(t)
