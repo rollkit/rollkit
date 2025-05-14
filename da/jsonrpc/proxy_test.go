@@ -78,38 +78,38 @@ func BasicDATest(t *testing.T, d coreda.DA) {
 	msg2 := []byte("message 2")
 
 	ctx := context.TODO()
-	id1, err := d.Submit(ctx, []coreda.Blob{msg1}, 0, testNamespace)
+	id1, err := d.Submit(ctx, []coreda.Blob{msg1}, 0, nil)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, id1)
 
-	id2, err := d.Submit(ctx, []coreda.Blob{msg2}, 0, testNamespace)
+	id2, err := d.Submit(ctx, []coreda.Blob{msg2}, 0, nil)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, id2)
 
-	id3, err := d.SubmitWithOptions(ctx, []coreda.Blob{msg1}, 0, testNamespace, []byte("random options"))
+	id3, err := d.Submit(ctx, []coreda.Blob{msg1}, 0, []byte("random options"))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, id3)
 
 	assert.NotEqual(t, id1, id2)
 	assert.NotEqual(t, id1, id3)
 
-	ret, err := d.Get(ctx, id1, testNamespace)
+	ret, err := d.Get(ctx, id1)
 	assert.NoError(t, err)
 	assert.Equal(t, []coreda.Blob{msg1}, ret)
 
-	commitment1, err := d.Commit(ctx, []coreda.Blob{msg1}, []byte{})
+	commitment1, err := d.Commit(ctx, []coreda.Blob{msg1})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, commitment1)
 
-	commitment2, err := d.Commit(ctx, []coreda.Blob{msg2}, []byte{})
+	commitment2, err := d.Commit(ctx, []coreda.Blob{msg2})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, commitment2)
 
 	ids := []coreda.ID{id1[0], id2[0], id3[0]}
-	proofs, err := d.GetProofs(ctx, ids, testNamespace)
+	proofs, err := d.GetProofs(ctx, ids)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, proofs)
-	oks, err := d.Validate(ctx, ids, proofs, testNamespace)
+	oks, err := d.Validate(ctx, ids, proofs)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, oks)
 	for _, ok := range oks {
@@ -120,7 +120,7 @@ func BasicDATest(t *testing.T, d coreda.DA) {
 // CheckErrors ensures that errors are handled properly by DA.
 func CheckErrors(t *testing.T, d coreda.DA) {
 	ctx := context.TODO()
-	blob, err := d.Get(ctx, []coreda.ID{[]byte("invalid blob id")}, testNamespace)
+	blob, err := d.Get(ctx, []coreda.ID{[]byte("invalid blob id")})
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, coreda.ErrBlobNotFound.Error())
 	assert.Empty(t, blob)
@@ -131,7 +131,7 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 	msgs := []coreda.Blob{[]byte("msg1"), []byte("msg2"), []byte("msg3")}
 
 	ctx := context.TODO()
-	ids, err := d.Submit(ctx, msgs, 0, testNamespace)
+	ids, err := d.Submit(ctx, msgs, 0, nil)
 	assert.NoError(t, err)
 	assert.Len(t, ids, len(msgs))
 	found := false
@@ -141,14 +141,14 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 	// As we're the only user, we don't need to handle external data (that could be submitted in real world).
 	// There is no notion of height, so we need to scan the DA to get test data back.
 	for i := uint64(1); !found && !time.Now().After(end); i++ {
-		ret, err := d.GetIDs(ctx, i, []byte{})
+		ret, err := d.GetIDs(ctx, i)
 		if err != nil {
 			t.Error("failed to get IDs:", err)
 		}
 		assert.NotNil(t, ret)
 		assert.NotZero(t, ret.Timestamp)
 		if len(ret.IDs) > 0 {
-			blobs, err := d.Get(ctx, ret.IDs, testNamespace)
+			blobs, err := d.Get(ctx, ret.IDs)
 			assert.NoError(t, err)
 
 			// Submit ensures atomicity of batch, so it makes sense to compare actual blobs (bodies) only when lengths
@@ -193,7 +193,7 @@ func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 			case <-writeDone:
 				return
 			default:
-				ret, err := d.GetIDs(ctx, 1, []byte("test"))
+				ret, err := d.GetIDs(ctx, 1)
 				if err != nil {
 					assert.Empty(t, ret.IDs)
 				}
@@ -207,7 +207,7 @@ func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 // HeightFromFutureTest tests the case when the given height is from the future
 func HeightFromFutureTest(t *testing.T, d coreda.DA) {
 	ctx := context.TODO()
-	_, err := d.GetIDs(ctx, 999999999, []byte("test"))
+	_, err := d.GetIDs(ctx, 999999999)
 	assert.Error(t, err)
 	// Specifically check if the error is ErrBlobNotFound (or contains its message)
 	assert.ErrorContains(t, err, coreda.ErrBlobNotFound.Error())
@@ -237,9 +237,9 @@ func TestSubmitWithOptions(t *testing.T) {
 		blobs := []coreda.Blob{[]byte("blob1"), []byte("blob2")}
 		expectedIDs := []coreda.ID{[]byte("id1"), []byte("id2")}
 
-		mockAPI.On("SubmitWithOptions", ctx, blobs, gasPrice, testNamespace, testOptions).Return(expectedIDs, nil).Once()
+		mockAPI.On("Submit", ctx, blobs, gasPrice, testOptions).Return(expectedIDs, nil).Once()
 
-		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+		ids, err := client.DA.Submit(ctx, blobs, gasPrice, testOptions)
 
 		require.NoError(t, err)
 		assert.Equal(t, expectedIDs, ids)
@@ -253,7 +253,7 @@ func TestSubmitWithOptions(t *testing.T) {
 		largerBlob := make([]byte, testMaxBlobSize+1)
 		blobs := []coreda.Blob{largerBlob, []byte("this blob is definitely too large")}
 
-		_, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+		_, err := client.DA.Submit(ctx, blobs, gasPrice, testOptions)
 
 		require.Error(t, err)
 		mockAPI.AssertExpectations(t)
@@ -270,9 +270,9 @@ func TestSubmitWithOptions(t *testing.T) {
 
 		expectedSubmitBlobs := []coreda.Blob{blobs[0], blobs[1]}
 		expectedIDs := []coreda.ID{[]byte("idA"), []byte("idB")}
-		mockAPI.On("SubmitWithOptions", ctx, expectedSubmitBlobs, gasPrice, testNamespace, testOptions).Return(expectedIDs, nil).Once()
+		mockAPI.On("Submit", ctx, expectedSubmitBlobs, gasPrice, testOptions).Return(expectedIDs, nil).Once()
 
-		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+		ids, err := client.DA.Submit(ctx, blobs, gasPrice, testOptions)
 
 		require.NoError(t, err)
 		assert.Equal(t, expectedIDs, ids)
@@ -286,13 +286,13 @@ func TestSubmitWithOptions(t *testing.T) {
 		largerBlob := make([]byte, testMaxBlobSize+1)
 		blobs := []coreda.Blob{largerBlob, []byte("small")}
 
-		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+		ids, err := client.DA.Submit(ctx, blobs, gasPrice, testOptions)
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, coreda.ErrBlobSizeOverLimit)
 		assert.Nil(t, ids)
 
-		mockAPI.AssertNotCalled(t, "SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		mockAPI.AssertNotCalled(t, "Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		mockAPI.AssertExpectations(t)
 	})
 
@@ -302,25 +302,25 @@ func TestSubmitWithOptions(t *testing.T) {
 
 		var blobs []coreda.Blob
 
-		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+		ids, err := client.DA.Submit(ctx, blobs, gasPrice, testOptions)
 
 		require.NoError(t, err)
 		assert.Empty(t, ids)
 
-		mockAPI.AssertNotCalled(t, "SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		mockAPI.AssertNotCalled(t, "Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		mockAPI.AssertExpectations(t)
 	})
 
-	t.Run("Error During SubmitWithOptions RPC", func(t *testing.T) {
+	t.Run("Error During Submit RPC", func(t *testing.T) {
 		mockAPI := mocks.NewDA(t)
 		client := createMockedClient(mockAPI)
 
 		blobs := []coreda.Blob{[]byte("blob1")}
 		expectedError := errors.New("rpc submit failed")
 
-		mockAPI.On("SubmitWithOptions", ctx, blobs, gasPrice, testNamespace, testOptions).Return(nil, expectedError).Once()
+		mockAPI.On("Submit", ctx, blobs, gasPrice, testOptions).Return(nil, expectedError).Once()
 
-		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
+		ids, err := client.DA.Submit(ctx, blobs, gasPrice, testOptions)
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, expectedError)
