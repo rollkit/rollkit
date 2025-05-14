@@ -11,6 +11,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"github.com/rollkit/rollkit/core/da"
+	internal "github.com/rollkit/rollkit/da/jsonrpc/internal"
 )
 
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module
@@ -34,17 +35,6 @@ type API struct {
 		GasMultiplier     func(context.Context) (float64, error)                                         `perm:"read"`
 		GasPrice          func(context.Context) (float64, error)                                         `perm:"read"`
 	}
-}
-
-// MaxBlobSize returns the max blob size
-func (api *API) MaxBlobSize(ctx context.Context) (uint64, error) {
-	res, err := api.Internal.MaxBlobSize(ctx)
-	if err != nil {
-		api.Logger.Error("RPC call failed", "method", "MaxBlobSize", "error", err)
-	} else {
-		api.Logger.Debug("RPC call successful", "method", "MaxBlobSize", "result", res)
-	}
-	return res, err
 }
 
 // Get returns Blob for each given ID, or an error.
@@ -135,11 +125,7 @@ func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, _
 // SubmitWithOptions submits the Blobs to Data Availability layer with additional options.
 // It checks blobs against MaxBlobSize and submits only those that fit.
 func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gasPrice float64, _ []byte, options []byte) ([]da.ID, error) {
-	maxBlobSize, err := api.MaxBlobSize(ctx)
-	if err != nil {
-		api.Logger.Error("Failed to get MaxBlobSize for blob filtering", "error", err)
-		return nil, fmt.Errorf("failed to get max blob size for submission: %w", err)
-	}
+	maxBlobSize := uint64(internal.DefaultMaxBytes)
 
 	var (
 		blobsToSubmit [][]byte = make([][]byte, 0, len(inputBlobs))

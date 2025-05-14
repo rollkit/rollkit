@@ -1,0 +1,61 @@
+name: Check Celestia App Consts Drift
+
+on:
+  schedule:
+    - cron: "0 0 * * 0" # Run every Sunday at midnight UTC
+  workflow_dispatch: # Allows manual triggering
+  pull_request:
+
+jobs:
+  check_drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Celestia App Consts
+        id: fetch_celestia_consts
+        run: |
+          curl -sSL https://raw.githubusercontent.com/celestiaorg/celestia-app/main/pkg/appconsts/initial_consts.go -o /tmp/celestia_initial_consts.go
+          if [ $? -ne 0 ]; then
+            echo "Failed to download Celestia app consts file."
+            exit 1
+          fi
+          echo "celestia_file_path=/tmp/celestia_initial_consts.go" >> $GITHUB_OUTPUT
+
+      - name: Compare Files
+        id: diff_files
+        run: |
+          LOCAL_FILE="da/jsonrpc/internal/consts.go" # Relative path from repo root
+          CELESTIA_FILE="${{ steps.fetch_celestia_consts.outputs.celestia_file_path }}"
+
+          if [ ! -f "$LOCAL_FILE" ]; then
+            echo "Local consts.go file not found at $LOCAL_FILE"
+            exit 1
+          fi
+
+          echo "Comparing $LOCAL_FILE (excluding last line) with $CELESTIA_FILE (excluding last line)"
+
+          # Create temporary files without the last line
+          LOCAL_FILE_TMP=$(mktemp)
+          CELESTIA_FILE_TMP=$(mktemp)
+
+          head -n -1 "$LOCAL_FILE" > "$LOCAL_FILE_TMP"
+          head -n -1 "$CELESTIA_FILE" > "$CELESTIA_FILE_TMP"
+
+          diff_output=$(diff -u "$LOCAL_FILE_TMP" "$CELESTIA_FILE_TMP")
+
+          # Clean up temporary files
+          rm "$LOCAL_FILE_TMP"
+          rm "$CELESTIA_FILE_TMP"
+
+          if [ $? -ne 0 ]; then
+            echo "Files are different (excluding last line)."
+            echo "diff_output<<EOF" >> $GITHUB_OUTPUT
+            echo "$diff_output" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "files_differ=true" >> $GITHUB_OUTPUT
+          else
+            echo "Files are identical (excluding last line)."
+            echo "files_differ=false" >> $GITHUB_OUTPUT
+          fi
