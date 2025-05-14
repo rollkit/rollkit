@@ -44,18 +44,18 @@ func (m *Manager) DAIncluderLoop(ctx context.Context) {
 func (m *Manager) incrementDAIncludedHeight(ctx context.Context) error {
 	currentHeight := m.GetDAIncludedHeight()
 	newHeight := currentHeight + 1
+	m.logger.Debug("setting final", "height", newHeight)
+	err := m.exec.SetFinal(ctx, newHeight)
+	if err != nil {
+		m.logger.Error("failed to set final", "height", newHeight, "error", err)
+		return err
+	}
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, newHeight)
 	m.logger.Debug("setting DA included height", "height", newHeight)
-	err := m.store.SetMetadata(ctx, DAIncludedHeightKey, heightBytes)
+	err = m.store.SetMetadata(ctx, DAIncludedHeightKey, heightBytes)
 	if err != nil {
 		m.logger.Error("failed to set DA included height", "height", newHeight, "error", err)
-		return err
-	}
-	m.logger.Debug("setting final", "height", newHeight)
-	err = m.exec.SetFinal(ctx, newHeight)
-	if err != nil {
-		m.logger.Error("failed to set final", "height", newHeight, "error", err)
 		return err
 	}
 	if !m.daIncludedHeight.CompareAndSwap(currentHeight, newHeight) {
