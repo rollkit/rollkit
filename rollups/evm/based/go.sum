@@ -85,8 +85,8 @@ github.com/bytedance/sonic v1.13.2/go.mod h1:o68xyaF9u2gvVBuGHPlUVCy+ZfmNNO5ETf1
 github.com/bytedance/sonic/loader v0.1.1/go.mod h1:ncP89zfokxS5LZrJxl5z0UJcsk4M4yY2JpfqGeCtNLU=
 github.com/bytedance/sonic/loader v0.2.4 h1:ZWCw4stuXUsn1/+zQDqeE7JKP+QO47tz7QCNan80NzY=
 github.com/bytedance/sonic/loader v0.2.4/go.mod h1:N8A3vUdtUebEY2/VQC0MyhYeKUFosQU6FxH2JmUe6VI=
-github.com/celestiaorg/go-header v0.6.5 h1:4zR666BypzaEvmIAkoowEklZ6Kj+4wIpYh4blngrVic=
-github.com/celestiaorg/go-header v0.6.5/go.mod h1:BTIw7TGoH3FabsHkxNGQdFZy4WjQ3fWPVjKrPjWIVZg=
+github.com/celestiaorg/go-header v0.6.6 h1:17GvSXU/w8L1YWHZP4pYm9/4YHA8iy5Ku2wTEKYYkCU=
+github.com/celestiaorg/go-header v0.6.6/go.mod h1:RdnlTmsyuNerztNiJiQE5G/EGEH+cErhQ83xNjuGcaQ=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2 h1:osoUfqjss7vWTIZrrDSy953RjQz+ps/vBFE7bychLEc=
 github.com/celestiaorg/go-libp2p-messenger v0.2.2/go.mod h1:oTCRV5TfdO7V/k6nkx7QjQzGrWuJbupv+0o1cgnY2i4=
 github.com/celestiaorg/utils v0.1.0 h1:WsP3O8jF7jKRgLNFmlDCwdThwOFMFxg0MnqhkLFVxPo=
