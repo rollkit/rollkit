@@ -1,4 +1,6 @@
 name: Check Celestia App Consts Drift
+permissions:
+  contents: read
 
 on:
   schedule:
