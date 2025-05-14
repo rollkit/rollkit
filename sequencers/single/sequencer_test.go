@@ -395,7 +395,7 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	// Set up mock expectations
 	mockDA.On("GasPrice", mock.Anything).Return(float64(0), nil)
 	mockDA.On("GasMultiplier", mock.Anything).Return(float64(0), nil)
-	mockDA.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("mock DA always rejects submissions"))
 
 	// Submit a batch

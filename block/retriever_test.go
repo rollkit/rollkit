@@ -119,12 +119,12 @@ func TestProcessNextDAHeader_Success_SingleHeader(t *testing.T) {
 	headerBytes, err := proto.Marshal(headerProto)
 	require.NoError(t, err)
 
-	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
+	mockDAClient.On("GetIDs", mock.Anything, daHeight).Return(&coreda.GetIDsResult{
 		IDs:       []coreda.ID{[]byte("dummy-id")},
 		Timestamp: time.Now(),
 	}, nil).Once()
 
-	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}, []byte("placeholder")).Return(
+	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}).Return(
 		[]coreda.Blob{headerBytes}, nil,
 	).Once()
 
@@ -153,7 +153,7 @@ func TestProcessNextDAHeader_NotFound(t *testing.T) {
 	defer cancel()
 
 	// Mock GetIDs to return empty IDs to simulate "not found" scenario
-	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
+	mockDAClient.On("GetIDs", mock.Anything, daHeight).Return(&coreda.GetIDsResult{
 		IDs:       []coreda.ID{}, // Empty IDs array
 		Timestamp: time.Now(),
 	}, coreda.ErrBlobNotFound).Once()
@@ -179,13 +179,13 @@ func TestProcessNextDAHeader_UnmarshalError(t *testing.T) {
 	invalidBytes := []byte("this is not a valid protobuf message")
 
 	// Mock GetIDs to return success with dummy ID
-	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
+	mockDAClient.On("GetIDs", mock.Anything, daHeight).Return(&coreda.GetIDsResult{
 		IDs:       []coreda.ID{[]byte("dummy-id")},
 		Timestamp: time.Now(),
 	}, nil).Once()
 
 	// Mock Get to return invalid bytes
-	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}, []byte("placeholder")).Return(
+	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}).Return(
 		[]coreda.Blob{invalidBytes}, nil,
 	).Once()
 
@@ -230,13 +230,13 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Mock GetIDs to return success with dummy ID
-	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
+	mockDAClient.On("GetIDs", mock.Anything, daHeight).Return(&coreda.GetIDsResult{
 		IDs:       []coreda.ID{[]byte("dummy-id")},
 		Timestamp: time.Now(),
 	}, nil).Once()
 
 	// Mock Get to return header bytes
-	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}, []byte("placeholder")).Return(
+	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}).Return(
 		[]coreda.Blob{headerBytes}, nil,
 	).Once()
 
@@ -267,7 +267,7 @@ func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	fetchErr := errors.New("persistent DA connection error")
 
 	// Mock GetIDs to return error for all retries
-	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(
+	mockDAClient.On("GetIDs", mock.Anything, daHeight).Return(
 		nil, fetchErr,
 	).Times(dAFetcherRetries)
 
@@ -352,12 +352,12 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 	futureErr := fmt.Errorf("some error wrapping: %w", ErrHeightFromFutureStr)
 
 	// Mock GetIDs to return future error for all retries
-	mockDAClient.On("GetIDs", mock.Anything, startDAHeight, []byte("placeholder")).Return(
+	mockDAClient.On("GetIDs", mock.Anything, startDAHeight).Return(
 		nil, futureErr,
 	).Times(dAFetcherRetries)
 
 	// Optional: Mock for the next height if needed
-	mockDAClient.On("GetIDs", mock.Anything, startDAHeight+1, []byte("placeholder")).Return(
+	mockDAClient.On("GetIDs", mock.Anything, startDAHeight+1).Return(
 		&coreda.GetIDsResult{IDs: []coreda.ID{}}, coreda.ErrBlobNotFound,
 	).Maybe()
 
@@ -399,7 +399,7 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	otherErr := errors.New("some other DA error")
 
 	// Mock GetIDs to return error for all retries
-	mockDAClient.On("GetIDs", mock.Anything, startDAHeight, []byte("placeholder")).Return(
+	mockDAClient.On("GetIDs", mock.Anything, startDAHeight).Return(
 		nil, otherErr,
 	).Times(dAFetcherRetries)
 
