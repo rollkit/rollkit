@@ -21,10 +21,10 @@ type Module interface {
 
 // API defines the jsonrpc service module API
 type API struct {
-	Logger    log.Logger
-	Namespace []byte
-	Internal  struct {
-		MaxBlobSize       func(ctx context.Context) (uint64, error)                                      `perm:"read"`
+	Logger      log.Logger
+	Namespace   []byte
+	MaxBlobSize uint64
+	Internal    struct {
 		Get               func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Blob, error)           `perm:"read"`
 		GetIDs            func(ctx context.Context, height uint64, ns []byte) (*da.GetIDsResult, error)  `perm:"read"`
 		GetProofs         func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Proof, error)          `perm:"read"`
@@ -125,7 +125,7 @@ func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, _
 // SubmitWithOptions submits the Blobs to Data Availability layer with additional options.
 // It checks blobs against MaxBlobSize and submits only those that fit.
 func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gasPrice float64, _ []byte, options []byte) ([]da.ID, error) {
-	maxBlobSize := uint64(internal.DefaultMaxBytes)
+	maxBlobSize := api.MaxBlobSize
 
 	var (
 		blobsToSubmit [][]byte = make([][]byte, 0, len(inputBlobs))
@@ -233,6 +233,7 @@ func newClient(ctx context.Context, logger log.Logger, addr string, authHeader h
 	var multiCloser multiClientCloser
 	var client Client
 	client.DA.Logger = logger
+	client.DA.MaxBlobSize = internal.DefaultMaxBytes
 	namespaceBytes, err := hex.DecodeString(namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode namespace: %w", err)
