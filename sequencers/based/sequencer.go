@@ -218,13 +218,13 @@ func (s *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 		return nil, ErrInvalidRollupId
 	}
 	// Use stored namespace
-	proofs, err := s.DA.GetProofs(ctx, req.BatchData, []byte("placeholder"))
+	proofs, err := s.DA.GetProofs(ctx, req.BatchData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proofs: %w", err)
 	}
 
 	// verify the proof
-	valid, err := s.DA.Validate(ctx, req.BatchData, proofs, []byte("placeholder"))
+	valid, err := s.DA.Validate(ctx, req.BatchData, proofs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate proof: %w", err)
 	}
