@@ -364,3 +364,8 @@ func TestDAIncluderLoop_DoesNotAdvanceWhenDataHashIsEmptyAndHeaderNotDAIncluded(
 	assert.Equal(t, startDAIncludedHeight, m.GetDAIncludedHeight())
 	store.AssertExpectations(t)
 }
+
+// Note: It is not practical to unit test a CompareAndSwap failure for incrementDAIncludedHeight
+// because the atomic value is always read at the start of the function, and there is no way to
+// inject a failure or race another goroutine reliably in a unit test. To test this path, the code
+// would need to be refactored to allow injection or mocking of the atomic value.
