@@ -10,9 +10,6 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 )
 
-// TODO: remove this after we modify the da interfaces
-var nameSpacePlaceholder = []byte("placeholder")
-
 // SubmitWithHelpers performs blob submission using the underlying DA layer,
 // handling error mapping to produce a ResultSubmit.
 // It assumes blob size filtering is handled within the DA implementation's SubmitWithOptions.
@@ -25,7 +22,7 @@ func SubmitWithHelpers(
 	gasPrice float64,
 	options []byte,
 ) coreda.ResultSubmit { // Return core ResultSubmit type
-	ids, err := da.SubmitWithOptions(ctx, data, gasPrice, nameSpacePlaceholder, options)
+	ids, err := da.Submit(ctx, data, gasPrice, options)
 
 	// Handle errors returned by SubmitWithOptions
 	if err != nil {
@@ -86,7 +83,7 @@ func RetrieveWithHelpers(
 ) coreda.ResultRetrieve {
 
 	// 1. Get IDs
-	idsResult, err := da.GetIDs(ctx, dataLayerHeight, nameSpacePlaceholder)
+	idsResult, err := da.GetIDs(ctx, dataLayerHeight)
 	if err != nil {
 		// Handle specific "not found" error
 		if errors.Is(err, coreda.ErrBlobNotFound) {
@@ -123,7 +120,7 @@ func RetrieveWithHelpers(
 	}
 
 	// 2. Get Blobs using the retrieved IDs
-	blobs, err := da.Get(ctx, idsResult.IDs, []byte("placeholder"))
+	blobs, err := da.Get(ctx, idsResult.IDs)
 	if err != nil {
 		// Handle errors during Get
 		logger.Error("Retrieve helper: Failed to get blobs", "height", dataLayerHeight, "num_ids", len(idsResult.IDs), "error", err)
