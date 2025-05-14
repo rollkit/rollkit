@@ -1,12 +1,10 @@
 name: Check Celestia App Consts Drift
 permissions:
   contents: read
-  issues: write # Added issues: write permission
+  issues: write 
 
 on:
-  schedule:
-    - cron: "0 0 * * 0" # Run every Sunday at midnight UTC
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch:
   pull_request:
 
 jobs:
@@ -72,6 +70,7 @@ jobs:
               echo "$diff_command_output" >> $GITHUB_OUTPUT
               echo "EOF" >> $GITHUB_OUTPUT
               echo "files_differ=true" >> $GITHUB_OUTPUT
+              exit 1 # Fail the step
             else
               # Exit code > 1 means diff encountered an error
               echo "Error: diff command failed with exit code $diff_exit_code."
@@ -82,8 +81,7 @@ jobs:
               echo "$diff_command_output" >> $GITHUB_OUTPUT
               echo "EOF" >> $GITHUB_OUTPUT
               echo "files_differ=true" >> $GITHUB_OUTPUT # Treat as a difference to create an issue
-              # Optionally, exit with diff's error code to make the step fail clearly
-              # exit $diff_exit_code
+              exit $diff_exit_code
             fi
           else
             # diff exited with 0, files are identical
