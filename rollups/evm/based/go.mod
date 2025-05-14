@@ -38,6 +38,7 @@ require (
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/celestiaorg/go-header v0.6.5 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2 // indirect
+	github.com/celestiaorg/go-square/v2 v2.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/consensys/bavard v0.1.22 // indirect
