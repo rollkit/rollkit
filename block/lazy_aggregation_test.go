@@ -99,7 +99,7 @@ func TestLazyAggregationLoop_BlockTimerTrigger(t *testing.T) {
 		defer wg.Done()
 		blockTimer := time.NewTimer(0) // Fire immediately first time
 		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		require.NoError(m.lazyAggregationLoop(ctx, blockTimer))
 	}()
 
 	// Wait for at least one block to be published
@@ -137,7 +137,7 @@ func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
 		// Use real timers for this test
 		blockTimer := time.NewTimer(0) // Fire immediately first time
 		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		require.NoError(m.lazyAggregationLoop(ctx, blockTimer))
 	}()
 
 	// Wait for the first publish call triggered by the initial immediate lazyTimer fire
@@ -186,7 +186,7 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 		// Use real timers
 		blockTimer := time.NewTimer(0)
 		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		require.Error(m.lazyAggregationLoop(ctx, blockTimer))
 	}()
 
 	// Wait for the first publish attempt (which will fail)
@@ -267,7 +267,7 @@ func TestLazyAggregationLoop_TxNotification(t *testing.T) {
 		// Start with a timer that won't fire immediately
 		blockTimer := time.NewTimer(blockTime)
 		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		require.NoError(m.lazyAggregationLoop(ctx, blockTimer))
 	}()
 
 	// Wait for the initial lazy timer to fire and publish a block
@@ -342,7 +342,7 @@ func TestEmptyBlockCreation(t *testing.T) {
 	defer blockTimer.Stop()
 
 	// Call produceBlock directly to test empty block creation
-	m.produceBlock(ctx, "test_trigger", lazyTimer, blockTimer)
+	require.NoError(m.produceBlock(ctx, "test_trigger", lazyTimer, blockTimer))
 
 	// Verify that the context was passed correctly
 	require.NotNil(capturedCtx, "Context should have been captured by mock publish function")
@@ -370,7 +370,7 @@ func TestNormalAggregationLoop_TxNotification(t *testing.T) {
 		defer wg.Done()
 		blockTimer := time.NewTimer(blockTime)
 		defer blockTimer.Stop()
-		m.normalAggregationLoop(ctx, blockTimer)
+		require.NoError(m.normalAggregationLoop(ctx, blockTimer))
 	}()
 
 	// Wait for the first block to be published by the timer

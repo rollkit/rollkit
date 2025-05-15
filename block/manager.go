@@ -507,8 +507,8 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	if m.config.Node.MaxPendingHeaders != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeaders {
-		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
-			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders)
+		m.logger.Warn("refusing to create block: pending blocks [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders)
+		return nil
 	}
 
 	var (
@@ -566,7 +566,8 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 				}
 				m.logger.Info("Creating empty block", "height", newHeight)
 			} else {
-				return fmt.Errorf("failed to get transactions from batch: %w", err)
+				m.logger.Warn("failed to get transactions from batch", "error", err)
+				return nil
 			}
 		} else {
 			if batchData.Before(lastHeaderTime) {
@@ -582,7 +583,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 
 		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
-			return SaveBlockError{err}
+			return fmt.Errorf("failed to save block: %w", err)
 		}
 	}
 
@@ -624,7 +625,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlockData(ctx, header, data, &signature)
 	if err != nil {
-		return SaveBlockError{err}
+		return fmt.Errorf("failed to save block: %w", err)
 	}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB

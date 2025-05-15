@@ -163,7 +163,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 
 		if err = m.store.SaveBlockData(ctx, h, d, &h.Signature); err != nil {
-			return SaveBlockError{err}
+			return fmt.Errorf("failed to save block: %w", err)
 		}
 
 		// Height gets updated
