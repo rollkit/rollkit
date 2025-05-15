@@ -26,6 +26,8 @@ const (
 	ServerPort = "3450"
 	// ClientURL is the url to dial for the test JSONRPC client
 	ClientURL = "http://localhost:3450"
+
+	testMaxBlobSize = 100
 )
 
 var testNamespace = []byte("test")
@@ -221,9 +223,9 @@ func TestSubmitWithOptions(t *testing.T) {
 	// Helper function to create a client with a mocked internal API
 	createMockedClient := func(internalAPI *mocks.DA) *proxy.Client {
 		client := &proxy.Client{}
-		client.DA.Internal.MaxBlobSize = internalAPI.MaxBlobSize
 		client.DA.Internal.SubmitWithOptions = internalAPI.SubmitWithOptions
 		client.DA.Namespace = testNamespace
+		client.DA.MaxBlobSize = testMaxBlobSize
 		client.DA.Logger = log.NewTestLogger(t)
 		return client
 	}
@@ -234,9 +236,7 @@ func TestSubmitWithOptions(t *testing.T) {
 
 		blobs := []coreda.Blob{[]byte("blob1"), []byte("blob2")}
 		expectedIDs := []coreda.ID{[]byte("id1"), []byte("id2")}
-		maxSize := uint64(100)
 
-		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
 		mockAPI.On("SubmitWithOptions", ctx, blobs, gasPrice, testNamespace, testOptions).Return(expectedIDs, nil).Once()
 
 		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
@@ -250,10 +250,8 @@ func TestSubmitWithOptions(t *testing.T) {
 		mockAPI := mocks.NewDA(t)
 		client := createMockedClient(mockAPI)
 
-		blobs := []coreda.Blob{[]byte("small"), []byte("this blob is definitely too large")}
-		maxSize := uint64(20)
-
-		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
+		largerBlob := make([]byte, testMaxBlobSize+1)
+		blobs := []coreda.Blob{largerBlob, []byte("this blob is definitely too large")}
 
 		_, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
 
@@ -265,10 +263,11 @@ func TestSubmitWithOptions(t *testing.T) {
 		mockAPI := mocks.NewDA(t)
 		client := createMockedClient(mockAPI)
 
-		blobs := []coreda.Blob{[]byte("blobA"), []byte("blobB"), []byte("blobC")}
-		maxSize := uint64(12)
+		blobsizes := make([]byte, testMaxBlobSize/3)
+		blobsizesOver := make([]byte, testMaxBlobSize)
 
-		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
+		blobs := []coreda.Blob{blobsizes, blobsizes, blobsizesOver}
+
 		expectedSubmitBlobs := []coreda.Blob{blobs[0], blobs[1]}
 		expectedIDs := []coreda.ID{[]byte("idA"), []byte("idB")}
 		mockAPI.On("SubmitWithOptions", ctx, expectedSubmitBlobs, gasPrice, testNamespace, testOptions).Return(expectedIDs, nil).Once()
@@ -284,10 +283,8 @@ func TestSubmitWithOptions(t *testing.T) {
 		mockAPI := mocks.NewDA(t)
 		client := createMockedClient(mockAPI)
 
-		blobs := []coreda.Blob{[]byte("this first blob is too large"), []byte("small")}
-		maxSize := uint64(20)
-
-		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
+		largerBlob := make([]byte, testMaxBlobSize+1)
+		blobs := []coreda.Blob{largerBlob, []byte("small")}
 
 		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
 
@@ -304,8 +301,6 @@ func TestSubmitWithOptions(t *testing.T) {
 		client := createMockedClient(mockAPI)
 
 		var blobs []coreda.Blob
-		maxSize := uint64(100)
-		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
 
 		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
 
@@ -316,33 +311,13 @@ func TestSubmitWithOptions(t *testing.T) {
 		mockAPI.AssertExpectations(t)
 	})
 
-	t.Run("Error Getting MaxBlobSize", func(t *testing.T) {
-		mockAPI := mocks.NewDA(t)
-		client := createMockedClient(mockAPI)
-
-		blobs := []coreda.Blob{[]byte("blob1")}
-		expectedError := errors.New("failed to get max size")
-
-		mockAPI.On("MaxBlobSize", ctx).Return(uint64(0), expectedError).Once()
-
-		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
-
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "failed to get max blob size for submission")
-		assert.ErrorIs(t, err, expectedError)
-		assert.Nil(t, ids)
-		mockAPI.AssertExpectations(t)
-	})
-
 	t.Run("Error During SubmitWithOptions RPC", func(t *testing.T) {
 		mockAPI := mocks.NewDA(t)
 		client := createMockedClient(mockAPI)
 
 		blobs := []coreda.Blob{[]byte("blob1")}
-		maxSize := uint64(100)
 		expectedError := errors.New("rpc submit failed")
 
-		mockAPI.On("MaxBlobSize", ctx).Return(maxSize, nil).Once()
 		mockAPI.On("SubmitWithOptions", ctx, blobs, gasPrice, testNamespace, testOptions).Return(nil, expectedError).Once()
 
 		ids, err := client.DA.SubmitWithOptions(ctx, blobs, gasPrice, testNamespace, testOptions)
