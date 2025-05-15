@@ -196,16 +196,17 @@ func TestIncrementDAIncludedHeight_Success(t *testing.T) {
 }
 
 // TestIncrementDAIncludedHeight_SetMetadataError verifies that incrementDAIncludedHeight returns an error
-// if SetMetadata fails after CompareAndSwap succeeds.
+// if SetMetadata fails after SetFinal succeeds.
 func TestIncrementDAIncludedHeight_SetMetadataError(t *testing.T) {
 	t.Parallel()
-	m, store, _, mockLogger := newTestManager(t)
+	m, store, exec, mockLogger := newTestManager(t)
 	startDAIncludedHeight := uint64(4)
 	expectedDAIncludedHeight := startDAIncludedHeight + 1
 	m.daIncludedHeight.Store(startDAIncludedHeight)
 
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
+	exec.On("SetFinal", mock.Anything, expectedDAIncludedHeight).Return(nil).Once()
 	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(assert.AnError).Once()
 
 	// Expect the error log for failed to set DA included height
@@ -216,11 +217,12 @@ func TestIncrementDAIncludedHeight_SetMetadataError(t *testing.T) {
 	err := m.incrementDAIncludedHeight(context.Background())
 	assert.Error(t, err)
 	store.AssertExpectations(t)
+	exec.AssertExpectations(t)
 	mockLogger.AssertExpectations(t)
 }
 
 // TestIncrementDAIncludedHeight_SetFinalError verifies that incrementDAIncludedHeight returns an error
-// if SetFinal fails after SetMetadata succeeds, and logs the error.
+// if SetFinal fails before SetMetadata, and logs the error.
 func TestIncrementDAIncludedHeight_SetFinalError(t *testing.T) {
 	t.Parallel()
 	m, store, exec, mockLogger := newTestManager(t)
@@ -230,10 +232,10 @@ func TestIncrementDAIncludedHeight_SetFinalError(t *testing.T) {
 
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
-	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(nil).Once()
 
 	setFinalErr := assert.AnError
 	exec.On("SetFinal", mock.Anything, expectedDAIncludedHeight).Return(setFinalErr).Once()
+	// SetMetadata should NOT be called if SetFinal fails
 
 	mockLogger.ExpectedCalls = nil // Clear any previous expectations
 	// Expect the error log for failed to set final
@@ -243,8 +245,8 @@ func TestIncrementDAIncludedHeight_SetFinalError(t *testing.T) {
 
 	err := m.incrementDAIncludedHeight(context.Background())
 	assert.Error(t, err)
-	store.AssertExpectations(t)
 	exec.AssertExpectations(t)
+	store.AssertExpectations(t)
 	mockLogger.AssertExpectations(t)
 }
 
@@ -364,3 +366,8 @@ func TestDAIncluderLoop_DoesNotAdvanceWhenDataHashIsEmptyAndHeaderNotDAIncluded(
 	assert.Equal(t, startDAIncludedHeight, m.GetDAIncludedHeight())
 	store.AssertExpectations(t)
 }
+
+// Note: It is not practical to unit test a CompareAndSwap failure for incrementDAIncludedHeight
+// because the atomic value is always read at the start of the function, and there is no way to
+// inject a failure or race another goroutine reliably in a unit test. To test this path, the code
+// would need to be refactored to allow injection or mocking of the atomic value.
