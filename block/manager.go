@@ -175,8 +175,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 		// TODO(tzdybal): handle max bytes
 		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
-			logger.Error("error while initializing chain", "error", err)
-			return types.State{}, err
+			return types.State{}, fmt.Errorf("failed to initialize chain: %w", err)
 		}
 
 		// Initialize genesis block explicitly
@@ -188,7 +187,8 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				ChainID: genesis.ChainID,
 				Height:  genesis.InitialHeight,
 				Time:    uint64(genesis.GenesisDAStartTime.UnixNano()),
-			}}
+			},
+		}
 
 		var signature types.Signature
 
@@ -272,10 +272,10 @@ func NewManager(
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
 	if err != nil {
-		logger.Error("error while getting initial state", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get initial state: %w", err)
 	}
-	//set block height in store
+
+	// set block height in store
 	err = store.SetHeight(ctx, s.LastBlockHeight)
 	if err != nil {
 		return nil, err
@@ -596,16 +596,12 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	if err := header.ValidateBasic(); err != nil {
 		// If this ever happens, for recovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
-		panic(fmt.Errorf("critical: newly produced header failed validation: %w", err))
+		return fmt.Errorf("header validation error: %w", err)
 	}
 
 	newState, err := m.applyBlock(ctx, header, data)
 	if err != nil {
-		if ctx.Err() != nil {
-			return err
-		}
-		// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
-		panic(err)
+		return fmt.Errorf("error applying block: %w", err)
 	}
 
 	// append metadata to Data before validating and saving
@@ -632,19 +628,19 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
-	err = m.store.SetHeight(ctx, headerHeight)
-	if err != nil {
+	if err = m.store.SetHeight(ctx, headerHeight); err != nil {
 		return err
 	}
 
 	newState.DAHeight = m.daHeight.Load()
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
-	err = m.updateState(ctx, newState)
-	if err != nil {
-		return err
+	if err = m.updateState(ctx, newState); err != nil {
+		return fmt.Errorf("failed to update state: %w", err)
 	}
+
 	m.recordMetrics(data)
+
 	// Check for shut down event prior to sending the header and block to
 	// their respective channels. The reason for checking for the shutdown
 	// event separately is due to the inconsistent nature of the select
@@ -820,9 +816,10 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
+
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
-		return types.State{}, err
+		return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)
 	}
 
 	s, err := lastState.NextState(header, newStateRoot)

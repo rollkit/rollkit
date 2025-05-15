@@ -2,6 +2,7 @@ package block
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -37,14 +38,19 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	// In Lazy Aggregator mode, blocks are built only when there are
 	// transactions or every LazyBlockTime.
 	if m.config.Node.LazyMode {
-		m.lazyAggregationLoop(ctx, blockTimer)
+		if err := m.lazyAggregationLoop(ctx, blockTimer); err != nil {
+			panic(fmt.Errorf("error in lazy aggregation loop: %w", err))
+		}
+
 		return
 	}
 
-	m.normalAggregationLoop(ctx, blockTimer)
+	if err := m.normalAggregationLoop(ctx, blockTimer); err != nil {
+		panic(fmt.Errorf("error in normal aggregation loop: %w", err))
+	}
 }
 
-func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
+func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Timer) error {
 	// lazyTimer triggers block publication even during inactivity
 	lazyTimer := time.NewTimer(0)
 	defer lazyTimer.Stop()
@@ -52,15 +58,21 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 
 		case <-lazyTimer.C:
 			m.logger.Debug("Lazy timer triggered block production")
-			m.produceBlock(ctx, "lazy_timer", lazyTimer, blockTimer)
 
+			err := m.produceBlock(ctx, "lazy_timer", lazyTimer, blockTimer)
+			if err != nil {
+				return err
+			}
 		case <-blockTimer.C:
 			if m.txsAvailable {
-				m.produceBlock(ctx, "block_timer", lazyTimer, blockTimer)
+				if err := m.produceBlock(ctx, "block_timer", lazyTimer, blockTimer); err != nil {
+					return err
+				}
+
 				m.txsAvailable = false
 			} else {
 				// Ensure we keep ticking even when there are no txs
@@ -73,34 +85,36 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 }
 
 // produceBlock handles the common logic for producing a block and resetting timers
-func (m *Manager) produceBlock(ctx context.Context, mode string, lazyTimer, blockTimer *time.Timer) {
-	// Record the start time
+func (m *Manager) produceBlock(ctx context.Context, mode string, lazyTimer, blockTimer *time.Timer) error {
 	start := time.Now()
 
 	// Attempt to publish the block
 	if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
-		m.logger.Error("error while publishing block", "mode", mode, "error", err)
-	} else {
-		m.logger.Debug("Successfully published block", "mode", mode)
+		return fmt.Errorf("error while publishing block: %w", err)
 	}
+
+	m.logger.Debug("Successfully published block", "mode", mode)
 
 	// Reset both timers for the next aggregation window
 	lazyTimer.Reset(getRemainingSleep(start, m.config.Node.LazyBlockInterval.Duration))
 	blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
+
+	return nil
 }
 
-func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
+func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Timer) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		case <-blockTimer.C:
 			// Define the start time for the block production period
 			start := time.Now()
 
 			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
-				m.logger.Error("error while publishing block", "error", err)
+				return fmt.Errorf("error while publishing block: %w", err)
 			}
+
 			// Reset the blockTimer to signal the next block production
 			// period based on the block time.
 			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
