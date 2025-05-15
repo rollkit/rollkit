@@ -63,8 +63,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		case <-lazyTimer.C:
 			m.logger.Debug("Lazy timer triggered block production")
 
-			err := m.produceBlock(ctx, "lazy_timer", lazyTimer, blockTimer)
-			if err != nil {
+			if err := m.produceBlock(ctx, "lazy_timer", lazyTimer, blockTimer); err != nil {
 				return err
 			}
 		case <-blockTimer.C:
