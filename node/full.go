@@ -395,26 +395,37 @@ func (n *FullNode) Run(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
+	errCh := make(chan error, 1)
+
 	if n.nodeConfig.Node.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
-		go n.blockManager.AggregationLoop(ctx)
+		go n.blockManager.AggregationLoop(ctx, errCh)
 		go n.reaper.Start(ctx)
 		go n.blockManager.HeaderSubmissionLoop(ctx)
 		go n.blockManager.BatchSubmissionLoop(ctx)
 		go n.headerPublishLoop(ctx)
 		go n.dataPublishLoop(ctx)
-		go n.blockManager.DAIncluderLoop(ctx)
+		go n.blockManager.DAIncluderLoop(ctx, errCh)
 	} else {
 		go n.blockManager.RetrieveLoop(ctx)
 		go n.blockManager.HeaderStoreRetrieveLoop(ctx)
 		go n.blockManager.DataStoreRetrieveLoop(ctx)
-		go n.blockManager.SyncLoop(ctx)
-		go n.blockManager.DAIncluderLoop(ctx)
+		go n.blockManager.SyncLoop(ctx, errCh)
+		go n.blockManager.DAIncluderLoop(ctx, errCh)
 	}
 
-	// Block until context is canceled
-	<-ctx.Done()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			n.Logger.Error("unrecoverable error in one of the go routines...", "error", err)
+			goto Cleanup
+		}
+	case <-ctx.Done():
+		// Block until context is canceled
+		n.Logger.Info("context canceled, stopping node")
+	}
 
+Cleanup:
 	// Perform cleanup
 	n.Logger.Info("halting full node...")
 	n.Logger.Info("shutting down full node sub services...")

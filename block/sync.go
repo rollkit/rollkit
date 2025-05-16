@@ -12,7 +12,7 @@ import (
 // SyncLoop is responsible for syncing blocks.
 //
 // SyncLoop processes headers gossiped in P2P network to know what's the latest block height, block data is retrieved from DA layer.
-func (m *Manager) SyncLoop(ctx context.Context) {
+func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 	daTicker := time.NewTicker(m.config.DA.BlockTime.Duration)
 	defer daTicker.Stop()
 	blockTicker := time.NewTicker(m.config.Node.BlockTime.Duration)
@@ -63,7 +63,8 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			}
 
 			if err = m.trySyncNextBlock(ctx, daHeight); err != nil {
-				panic(fmt.Errorf("failed to sync next block: %w", err))
+				errCh <- fmt.Errorf("failed to sync next block: %w", err)
+				return
 			}
 
 			m.headerCache.SetSeen(headerHash)
@@ -113,7 +114,8 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 
 			err = m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
-				panic(fmt.Errorf("failed to sync next block: %w", err))
+				errCh <- fmt.Errorf("failed to sync next block: %w", err)
+				return
 			}
 			m.dataCache.SetSeen(dataHash)
 		case <-ctx.Done():

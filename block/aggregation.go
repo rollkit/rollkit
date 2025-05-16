@@ -7,7 +7,7 @@ import (
 )
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
-func (m *Manager) AggregationLoop(ctx context.Context) {
+func (m *Manager) AggregationLoop(ctx context.Context, errCh chan<- error) {
 	initialHeight := m.genesis.InitialHeight //nolint:gosec
 	height, err := m.store.Height(ctx)
 	if err != nil {
@@ -39,14 +39,13 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	// transactions or every LazyBlockTime.
 	if m.config.Node.LazyMode {
 		if err := m.lazyAggregationLoop(ctx, blockTimer); err != nil {
-			panic(fmt.Errorf("error in lazy aggregation loop: %w", err))
+			errCh <- fmt.Errorf("error in lazy aggregation loop: %w", err)
 		}
-
 		return
 	}
 
 	if err := m.normalAggregationLoop(ctx, blockTimer); err != nil {
-		panic(fmt.Errorf("error in normal aggregation loop: %w", err))
+		errCh <- fmt.Errorf("error in normal aggregation loop: %w", err)
 	}
 }
 
