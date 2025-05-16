@@ -12,7 +12,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/signer"
 )
@@ -34,7 +33,6 @@ func NewNode(
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
 	signer signer.Signer,
-	nodeKey key.NodeKey,
 	p2pClient *p2p.Client,
 	genesis genesis.Genesis,
 	database ds.Batching,
@@ -42,7 +40,7 @@ func NewNode(
 	logger log.Logger,
 ) (Node, error) {
 	if conf.Node.Light {
-		return newLightNode(conf, genesis, p2pClient, nodeKey, database, logger)
+		return newLightNode(conf, genesis, p2pClient, database, logger)
 	}
 
 	return newFullNode(
@@ -50,7 +48,6 @@ func NewNode(
 		conf,
 		p2pClient,
 		signer,
-		nodeKey,
 		genesis,
 		database,
 		exec,
