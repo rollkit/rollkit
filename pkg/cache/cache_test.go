@@ -1,9 +1,15 @@
 package cache
 
 import (
+	"encoding/gob"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestNewCache verifies that NewCache initializes correctly
@@ -99,7 +105,7 @@ func TestCacheConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
 
-	for i := range goroutines {
+	for i := 0; i < goroutines; i++ {
 		go func(id int) {
 			defer wg.Done()
 			for j := 0; j < operations; j++ {
@@ -122,4 +128,146 @@ func TestCacheConcurrency(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// TestCachePersistence tests saving and loading the cache to/from disk.
+func TestCachePersistence(t *testing.T) {
+	// define a temporary folder for cache files
+	tempDir, err := os.MkdirTemp("", "cache_test")
+	require.NoError(t, err, "Failed to create temp dir")
+	defer os.RemoveAll(tempDir) // clean up
+
+	// register the type for gob encoding if it's a custom struct
+	// for basic types like string, int, this is not strictly necessary
+	// but good practice for generic cache testing.
+	type testStruct struct {
+		ID   int
+		Data string
+	}
+	gob.Register(&testStruct{}) // register pointer to ensure compatibility
+
+	cache1 := NewCache[testStruct]()
+	val1 := testStruct{ID: 1, Data: "hello"}
+	val2 := testStruct{ID: 2, Data: "world"}
+	hash1 := "hash_val1"
+	hash2 := "hash_val2"
+
+	// populate cache1
+	cache1.SetItem(100, &val1)
+	cache1.SetItemByHash(hash1, &val1)
+	cache1.SetItem(200, &val2)
+	cache1.SetItemByHash(hash2, &val2)
+	cache1.SetSeen(hash1)
+	cache1.SetDAIncluded(hash2)
+
+	// save cache1 to disk
+	err = cache1.SaveToDisk(tempDir)
+	require.NoError(t, err, "Failed to save cache to disk")
+
+	// create a new cache and load from disk
+	cache2 := NewCache[testStruct]()
+	err = cache2.LoadFromDisk(tempDir)
+	require.NoError(t, err, "Failed to load cache from disk")
+
+	// verify cache2 contents
+	// items by height
+	retrievedVal1Height := cache2.GetItem(100)
+	assert.NotNil(t, retrievedVal1Height, "Item by height 100 should exist")
+	assert.Equal(t, val1, *retrievedVal1Height, "Item by height 100 mismatch")
+
+	retrievedVal2Height := cache2.GetItem(200)
+	assert.NotNil(t, retrievedVal2Height, "Item by height 200 should exist")
+	assert.Equal(t, val2, *retrievedVal2Height, "Item by height 200 mismatch")
+
+	// items by hash
+	retrievedVal1Hash := cache2.GetItemByHash(hash1)
+	assert.NotNil(t, retrievedVal1Hash, "Item by hash hash_val1 should exist")
+	assert.Equal(t, val1, *retrievedVal1Hash, "Item by hash hash_val1 mismatch")
+
+	retrievedVal2Hash := cache2.GetItemByHash(hash2)
+	assert.NotNil(t, retrievedVal2Hash, "Item by hash hash_val2 should exist")
+	assert.Equal(t, val2, *retrievedVal2Hash, "Item by hash hash_val2 mismatch")
+
+	// seen hashes
+	assert.True(t, cache2.IsSeen(hash1), "Hash hash_val1 should be seen")
+	assert.False(t, cache2.IsSeen(hash2), "Hash hash_val2 should not be seen unless explicitly set") // only hash1 was SetSeen
+
+	// daIncluded hashes
+	assert.True(t, cache2.IsDAIncluded(hash2), "Hash hash_val2 should be DAIncluded")
+	assert.False(t, cache2.IsDAIncluded(hash1), "Hash hash_val1 should not be DAIncluded unless explicitly set") // only hash2 was SetDAIncluded
+
+	// test loading from a non-existent directory (should not error, should be empty)
+	cache3 := NewCache[testStruct]()
+	err = cache3.LoadFromDisk(filepath.Join(tempDir, "nonexistent_subdir"))
+	require.NoError(t, err, "Loading from non-existent dir should not error")
+	assert.Nil(t, cache3.GetItem(100), "Cache should be empty after loading from non-existent dir")
+
+	// test saving to a path where a file exists (should error)
+	filePath := filepath.Join(tempDir, "file_exists_test")
+	_, err = os.Create(filePath)
+	require.NoError(t, err)
+	cache4 := NewCache[testStruct]()
+	err = cache4.SaveToDisk(filePath) // try to save to a path that is a file
+	assert.Error(t, err, "Saving to a path that is a file should error")
+}
+
+// TestCachePersistence_EmptyCache tests saving and loading an empty cache.
+func TestCachePersistence_EmptyCache(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "empty_cache_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	gob.Register(&struct{}{}) // register dummy struct for generic type T
+
+	cache1 := NewCache[struct{}]()
+
+	err = cache1.SaveToDisk(tempDir)
+	require.NoError(t, err, "Failed to save empty cache")
+
+	cache2 := NewCache[struct{}]()
+	err = cache2.LoadFromDisk(tempDir)
+	require.NoError(t, err, "Failed to load empty cache")
+
+	// check a few operations to ensure it's empty
+	assert.Nil(t, cache2.GetItem(1), "Item should not exist in loaded empty cache")
+	assert.False(t, cache2.IsSeen("somehash"), "Hash should not be seen in loaded empty cache")
+	assert.False(t, cache2.IsDAIncluded("somehash"), "Hash should not be DA-included in loaded empty cache")
+}
+
+// TestCachePersistence_Overwrite tests overwriting existing cache files.
+func TestCachePersistence_Overwrite(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "overwrite_cache_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	gob.Register(0) // register int for generic type T
+
+	// initial save
+	cache1 := NewCache[int]()
+	val1 := 123
+	cache1.SetItem(1, &val1)
+	cache1.SetSeen("hash1")
+	err = cache1.SaveToDisk(tempDir)
+	require.NoError(t, err)
+
+	// second save (overwrite)
+	cache2 := NewCache[int]()
+	val2 := 456
+	cache2.SetItem(2, &val2)
+	cache2.SetDAIncluded("hash2")
+	err = cache2.SaveToDisk(tempDir) // save to the same directory
+	require.NoError(t, err)
+
+	// load and verify (should contain only cache2's data)
+	cache3 := NewCache[int]()
+	err = cache3.LoadFromDisk(tempDir)
+	require.NoError(t, err)
+
+	assert.Nil(t, cache3.GetItem(1), "Item from first save should be overwritten")
+	assert.False(t, cache3.IsSeen("hash1"), "Seen hash from first save should be overwritten")
+
+	loadedVal2 := cache3.GetItem(2)
+	assert.NotNil(t, loadedVal2)
+	assert.Equal(t, val2, *loadedVal2, "Item from second save should be present")
+	assert.True(t, cache3.IsDAIncluded("hash2"), "DAIncluded hash from second save should be present")
 }

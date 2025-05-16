@@ -501,11 +501,17 @@ func (n *FullNode) Run(ctx context.Context) error {
 		n.Logger.Info("full node halted successfully")
 	}
 
+	// Save caches if needed
+	if err := n.blockManager.SaveCache(); err != nil {
+		n.Logger.Error("error saving caches", "error", err)
+	}
+
 	// Return the original context error if it exists (e.g., context cancelled)
 	// or the combined shutdown error if the context cancellation was clean.
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+
 	return multiErr // Return shutdown errors if context was okay
 }
 
