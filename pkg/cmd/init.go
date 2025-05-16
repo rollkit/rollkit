@@ -7,7 +7,6 @@ import (
 
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/hash"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
 
@@ -47,16 +46,4 @@ func CreateSigner(config *rollconf.Config, homePath string, passphrase string) (
 	}
 
 	return nil, nil
-}
-
-// LoadOrGenNodeKey creates the node key file if it doesn't exist.
-func LoadOrGenNodeKey(homePath string) error {
-	nodeKeyFile := filepath.Join(homePath, "config")
-
-	_, err := key.LoadOrGenNodeKey(nodeKeyFile)
-	if err != nil {
-		return fmt.Errorf("failed to create node key: %w", err)
-	}
-
-	return nil
 }

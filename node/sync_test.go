@@ -11,11 +11,11 @@ import (
 
 func TestBlockSynchronization(t *testing.T) {
 	// Start primary node
-	primary, cleanup := setupTestNodeWithCleanup(t, getTestConfig(t, 1))
+	primary, cleanup := createNodeWithCleanup(t, getTestConfig(t, 1))
 	defer cleanup()
 
 	// Create syncing node
-	syncNode, syncCleanup := setupTestNodeWithCleanup(t, getTestConfig(t, 2))
+	syncNode, syncCleanup := createNodeWithCleanup(t, getTestConfig(t, 2))
 	defer syncCleanup()
 
 	// Verify sync
