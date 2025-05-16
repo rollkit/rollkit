@@ -504,6 +504,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 	// Save caches if needed
 	if err := n.blockManager.SaveCache(); err != nil {
 		n.Logger.Error("error saving caches", "error", err)
+		multiErr = errors.Join(multiErr, fmt.Errorf("saving caches: %w", err))
 	}
 
 	// Return the original context error if it exists (e.g., context cancelled)
