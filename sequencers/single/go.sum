@@ -2,8 +2,8 @@ cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMT
 cloud.google.com/go v0.31.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.37.0/go.mod h1:TS1dMSSfndXH133OKGwekG838Om/cQT0BUHV3HcBgoo=
-cosmossdk.io/log v1.5.1 h1:wLwiYXmfrort/O+j6EkjF+HvbdrRQd+4cYCPKFSm+zM=
-cosmossdk.io/log v1.5.1/go.mod h1:5cXXBvfBkR2/BcXmosdCSLXllvgSjphrrDVdfVRmBGM=
+cosmossdk.io/log v1.6.0 h1:SJIOmJ059wi1piyRgNRXKXhlDXGqnB5eQwhcZKv2tOk=
+cosmossdk.io/log v1.6.0/go.mod h1:5cXXBvfBkR2/BcXmosdCSLXllvgSjphrrDVdfVRmBGM=
 dmitri.shuralyov.com/app/changes v0.0.0-20180602232624-0a106ad413e3/go.mod h1:Yl+fi1br7+Rr3LqpNJf1/uxUdtRUV+Tnj0o93V2B9MU=
 dmitri.shuralyov.com/html/belt v0.0.0-20180602232347-f7d459c86be0/go.mod h1:JLBrvjyP0v+ecvNYvCpyZgu5/xkfAUhi6wJj28eUfSU=
 dmitri.shuralyov.com/service/change v0.0.0-20181023043359-a85b471d5412/go.mod h1:a1inKt/atXimZ4Mv927x+r7UpyzRUf4emIoiiSC2TN4=

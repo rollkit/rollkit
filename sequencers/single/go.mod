@@ -8,7 +8,7 @@ replace (
 )
 
 require (
-	cosmossdk.io/log v1.5.1
+	cosmossdk.io/log v1.6.0
 	github.com/go-kit/kit v0.13.0
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/prometheus/client_golang v1.21.1

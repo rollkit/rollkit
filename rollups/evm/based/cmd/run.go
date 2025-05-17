@@ -140,7 +140,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			sequencer, err := based.NewSequencer(
 				logger,
 				basedDA,
-				[]byte(basedNamespace), // Use the namespace from the flag
+				[]byte(nodeConfig.ChainID),
 				basedStartHeight,
 				basedMaxHeightDrift,
 				datastore,
