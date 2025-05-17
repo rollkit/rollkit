@@ -67,7 +67,7 @@ func TestDAIncluderLoop_AdvancesHeightWhenBothDAIncluded(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		m.DAIncluderLoop(ctx)
+		m.DAIncluderLoop(ctx, make(chan<- error))
 	}()
 
 	m.sendNonBlockingSignalToDAIncluderCh()
@@ -100,7 +100,7 @@ func TestDAIncluderLoop_StopsWhenHeaderNotDAIncluded(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.DAIncluderLoop(ctx)
+		m.DAIncluderLoop(ctx, make(chan<- error))
 	}()
 
 	m.sendNonBlockingSignalToDAIncluderCh()
@@ -132,7 +132,7 @@ func TestDAIncluderLoop_StopsWhenDataNotDAIncluded(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.DAIncluderLoop(ctx)
+		m.DAIncluderLoop(ctx, make(chan<- error))
 	}()
 
 	m.sendNonBlockingSignalToDAIncluderCh()
@@ -163,7 +163,7 @@ func TestDAIncluderLoop_StopsOnGetBlockDataError(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.DAIncluderLoop(ctx)
+		m.DAIncluderLoop(ctx, make(chan<- error))
 	}()
 
 	m.sendNonBlockingSignalToDAIncluderCh()
@@ -286,7 +286,7 @@ func TestDAIncluderLoop_MultipleConsecutiveHeightsDAIncluded(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.DAIncluderLoop(ctx)
+		m.DAIncluderLoop(ctx, make(chan<- error))
 	}()
 
 	m.sendNonBlockingSignalToDAIncluderCh()
@@ -325,7 +325,7 @@ func TestDAIncluderLoop_AdvancesHeightWhenDataHashIsEmptyAndHeaderDAIncluded(t *
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.DAIncluderLoop(ctx)
+		m.DAIncluderLoop(ctx, make(chan<- error))
 	}()
 
 	m.sendNonBlockingSignalToDAIncluderCh()
@@ -357,7 +357,7 @@ func TestDAIncluderLoop_DoesNotAdvanceWhenDataHashIsEmptyAndHeaderNotDAIncluded(
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.DAIncluderLoop(ctx)
+		m.DAIncluderLoop(ctx, make(chan<- error))
 	}()
 
 	m.sendNonBlockingSignalToDAIncluderCh()

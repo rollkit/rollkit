@@ -139,7 +139,7 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	t.Logf("Sending header event for height %d", newHeight)
@@ -226,7 +226,7 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	t.Logf("Sending data event for height %d", newHeight)
@@ -351,7 +351,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 		t.Log("SyncLoop exited.")
 	}()
 
@@ -498,7 +498,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 		t.Log("SyncLoop exited.")
 	}()
 
@@ -605,7 +605,7 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 		t.Log("SyncLoop exited.")
 	}()
 
@@ -703,7 +703,7 @@ func TestSyncLoop_PanicOnApplyError(t *testing.T) {
 				t.Error("SyncLoop did not panic as expected")
 			}
 		}()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 		t.Log("SyncLoop exited.")
 	}()
 
@@ -821,7 +821,7 @@ func TestDataCommitmentToHeight_HeaderThenData(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
@@ -868,7 +868,7 @@ func TestDataCommitmentToHeight_HeaderWithExistingData(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
@@ -911,7 +911,7 @@ func TestDataCommitmentToHeight_DataBeforeHeader(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	data.Metadata = nil
@@ -961,7 +961,7 @@ func TestDataCommitmentToHeight_HeaderAlreadySynced(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
@@ -1007,7 +1007,7 @@ func TestDataCommitmentToHeight_EmptyDataHash(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
@@ -1043,7 +1043,7 @@ func TestDataCommitmentToHeight_DataAlreadySeen(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	dataInCh <- NewDataEvent{Data: data, DAHeight: initialState.DAHeight}

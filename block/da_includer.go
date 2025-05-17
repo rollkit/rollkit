@@ -8,7 +8,7 @@ import (
 
 // DAIncluderLoop is responsible for advancing the DAIncludedHeight by checking if blocks after the current height
 // have both their header and data marked as DA-included in the caches. If so, it calls setDAIncludedHeight.
-func (m *Manager) DAIncluderLoop(ctx context.Context) {
+func (m *Manager) DAIncluderLoop(ctx context.Context, errCh chan<- error) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -28,8 +28,10 @@ func (m *Manager) DAIncluderLoop(ctx context.Context) {
 			if daIncluded {
 				// Both header and data are DA-included, so we can advance the height
 				if err := m.incrementDAIncludedHeight(ctx); err != nil {
-					panic(fmt.Errorf("error while incrementing DA included height: %w", err))
+					errCh <- fmt.Errorf("error while incrementing DA included height: %w", err)
+					return
 				}
+
 				currentDAIncluded = nextHeight
 			} else {
 				// Stop at the first block that is not DA-included

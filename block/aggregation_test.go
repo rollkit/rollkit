@@ -82,7 +82,7 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.AggregationLoop(ctx)
+		m.AggregationLoop(ctx, make(chan<- error))
 		m.logger.Info("AggregationLoop exited")
 	}()
 
@@ -188,7 +188,7 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.AggregationLoop(ctx)
+		m.AggregationLoop(ctx, make(chan<- error))
 		m.logger.Info("AggregationLoop exited")
 	}()
 
