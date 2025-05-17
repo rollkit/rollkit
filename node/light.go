@@ -47,7 +47,7 @@ func newLightNode(
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
 
-	store := store.New(database)
+	store := store.NewDefaultPruningStore(database, conf.Node.Pruning)
 
 	node := &LightNode{
 		P2P:          p2pClient,
