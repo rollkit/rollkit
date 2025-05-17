@@ -110,7 +110,7 @@ func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof) ([
 	return res, err
 }
 
-// SubmitWithOptions submits the Blobs to Data Availability layer with additional options.
+// Submit submits the Blobs to Data Availability layer with additional options.
 // It checks blobs against MaxBlobSize and submits only those that fit.
 func (api *API) Submit(ctx context.Context, inputBlobs []da.Blob, gasPrice float64, options []byte) ([]da.ID, error) {
 	maxBlobSize := api.MaxBlobSize
