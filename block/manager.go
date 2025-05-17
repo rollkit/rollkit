@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/gob"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -188,7 +190,8 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				ChainID: genesis.ChainID,
 				Height:  genesis.InitialHeight,
 				Time:    uint64(genesis.GenesisDAStartTime.UnixNano()),
-			}}
+			},
+		}
 
 		var signature types.Signature
 
@@ -275,7 +278,8 @@ func NewManager(
 		logger.Error("error while getting initial state", "error", err)
 		return nil, err
 	}
-	//set block height in store
+
+	// set block height in store
 	err = store.SetHeight(ctx, s.LastBlockHeight)
 	if err != nil {
 		return nil, err
@@ -324,7 +328,7 @@ func NewManager(
 	daH := atomic.Uint64{}
 	daH.Store(s.DAHeight)
 
-	agg := &Manager{
+	m := &Manager{
 		signer:    signer,
 		config:    config,
 		genesis:   genesis,
@@ -358,16 +362,26 @@ func NewManager(
 		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
 		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
 	}
-	agg.init(ctx)
-	// Set the default publishBlock implementation
-	agg.publishBlock = agg.publishBlockInternal
-	if s, ok := agg.sequencer.(interface {
-		SetBatchSubmissionChan(chan coresequencer.Batch)
-	}); ok {
-		s.SetBatchSubmissionChan(agg.batchSubmissionChan)
+
+	// initialize da included height
+	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
+		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
 	}
 
-	return agg, nil
+	// Set the default publishBlock implementation
+	m.publishBlock = m.publishBlockInternal
+	if s, ok := m.sequencer.(interface {
+		SetBatchSubmissionChan(chan coresequencer.Batch)
+	}); ok {
+		s.SetBatchSubmissionChan(m.batchSubmissionChan)
+	}
+
+	// fetch caches from disks
+	if err := m.LoadCache(); err != nil {
+		return nil, fmt.Errorf("failed to load cache: %w", err)
+	}
+
+	return m, nil
 }
 
 // PendingHeaders returns the pending headers.
@@ -385,13 +399,6 @@ func (m *Manager) GetLastState() types.State {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.lastState
-}
-
-func (m *Manager) init(ctx context.Context) {
-	// initialize da included height
-	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
-		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
-	}
 }
 
 // GetDAIncludedHeight returns the rollup height at which all blocks have been
@@ -926,6 +933,12 @@ func (m *Manager) NotifyNewTransactions() {
 	}
 }
 
+var (
+	cacheDir       = "cache"
+	headerCacheDir = filepath.Join(cacheDir, "header")
+	dataCacheDir   = filepath.Join(cacheDir, "data")
+)
+
 // HeaderCache returns the headerCache used by the manager.
 func (m *Manager) HeaderCache() *cache.Cache[types.SignedHeader] {
 	return m.headerCache
@@ -934,4 +947,32 @@ func (m *Manager) HeaderCache() *cache.Cache[types.SignedHeader] {
 // DataCache returns the dataCache used by the manager.
 func (m *Manager) DataCache() *cache.Cache[types.Data] {
 	return m.dataCache
+}
+
+// LoadCache loads the header and data caches from disk.
+func (m *Manager) LoadCache() error {
+	gob.Register(&types.SignedHeader{})
+	gob.Register(&types.Data{})
+
+	if err := m.headerCache.LoadFromDisk(filepath.Join(filepath.Dir(m.config.ConfigPath()), headerCacheDir)); err != nil {
+		return fmt.Errorf("failed to load header cache from disk: %w", err)
+	}
+
+	if err := m.dataCache.LoadFromDisk(filepath.Join(filepath.Dir(m.config.ConfigPath()), dataCacheDir)); err != nil {
+		return fmt.Errorf("failed to load data cache from disk: %w", err)
+	}
+
+	return nil
+}
+
+// SaveCache saves the header and data caches to disk.
+func (m *Manager) SaveCache() error {
+	if err := m.headerCache.SaveToDisk(filepath.Join(filepath.Dir(m.config.ConfigPath()), headerCacheDir)); err != nil {
+		return fmt.Errorf("failed to save header cache to disk: %w", err)
+	}
+
+	if err := m.dataCache.SaveToDisk(filepath.Join(filepath.Dir(m.config.ConfigPath()), dataCacheDir)); err != nil {
+		return fmt.Errorf("failed to save data cache to disk: %w", err)
+	}
+	return nil
 }
