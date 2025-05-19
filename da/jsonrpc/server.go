@@ -75,13 +75,7 @@ func (s *serverInternalAPI) GasPrice(ctx context.Context) (float64, error) {
 // GasMultiplier implements the RPC method.
 func (s *serverInternalAPI) GasMultiplier(ctx context.Context) (float64, error) {
 	s.logger.Debug("RPC server: GasMultiplier called")
-	if gasMultiplierDA, ok := s.daImpl.(interface {
-		GasMultiplier(context.Context) (float64, error)
-	}); ok {
-		return gasMultiplierDA.GasMultiplier(ctx)
-	}
-	s.logger.Warn("RPC server: GasMultiplier not implemented by underlying DA, returning default 1.0")
-	return 1.0, nil
+	return s.daImpl.GasMultiplier(ctx)
 }
 
 // NewServer accepts the host address port and the DA implementation to serve as a jsonrpc service

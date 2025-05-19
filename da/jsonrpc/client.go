@@ -115,7 +115,7 @@ func (api *API) Submit(ctx context.Context, inputBlobs []da.Blob, gasPrice float
 	maxBlobSize := api.MaxBlobSize
 
 	var (
-		blobsToSubmit [][]byte = make([][]byte, 0, len(inputBlobs))
+		blobsToSubmit []da.Blob = make([]da.Blob, 0, len(inputBlobs))
 		currentSize   uint64
 		oversizeBlobs int
 	)

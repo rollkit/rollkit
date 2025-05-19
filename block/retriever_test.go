@@ -224,11 +224,11 @@ func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
 	// Add a few more invalid blobs at the end
 	blobs = append(blobs, invalidBlob, []byte{})
 
-	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
+	mockDAClient.On("GetIDs", mock.Anything, daHeight).Return(&coreda.GetIDsResult{
 		IDs:       []coreda.ID{[]byte("dummy-id")},
 		Timestamp: time.Now(),
 	}, nil).Once()
-	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}, []byte("placeholder")).Return(
+	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}).Return(
 		blobs, nil,
 	).Once()
 
@@ -288,11 +288,11 @@ func TestProcessNextDAHeaderAndData_NotFound(t *testing.T) {
 	defer cancel()
 
 	// Mock GetIDs to return empty IDs to simulate "not found" scenario
+	// Example updates needed for one instance:
 	mockDAClient.On("GetIDs", mock.Anything, daHeight).Return(&coreda.GetIDsResult{
-		IDs:       []coreda.ID{}, // Empty IDs array
+		IDs:       []coreda.ID{},
 		Timestamp: time.Now(),
 	}, coreda.ErrBlobNotFound).Once()
-
 	ctx := context.Background()
 	err := manager.processNextDAHeaderAndData(ctx)
 	require.NoError(t, err)

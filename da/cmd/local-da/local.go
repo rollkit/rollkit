@@ -161,7 +161,7 @@ func (d *LocalDA) Commit(ctx context.Context, blobs []coreda.Blob) ([]coreda.Com
 
 // SubmitWithOptions stores blobs in DA layer (options are ignored).
 func (d *LocalDA) Submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, _ []byte) ([]coreda.ID, error) {
-	d.logger.Info("SubmitWithOptions called", "numBlobs", len(blobs), "gasPrice", gasPrice)
+	d.logger.Info("Submit called", "numBlobs", len(blobs), "gasPrice", gasPrice)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ids := make([]coreda.ID, len(blobs))
