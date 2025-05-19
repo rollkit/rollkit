@@ -352,7 +352,10 @@ func (n *FullNode) startInstrumentationServer() (*http.Server, *http.Server) {
 
 // Run implements the Service interface.
 // It starts all subservices and manages the node's lifecycle.
-func (n *FullNode) Run(ctx context.Context) error {
+func (n *FullNode) Run(parentCtx context.Context) error {
+	ctx, cancelNode := context.WithCancel(parentCtx)
+	defer cancelNode() // safety net
+
 	// begin prometheus metrics gathering if it is enabled
 	if n.nodeConfig.Instrumentation != nil &&
 		(n.nodeConfig.Instrumentation.IsPrometheusEnabled() || n.nodeConfig.Instrumentation.IsPprofEnabled()) {
@@ -395,6 +398,8 @@ func (n *FullNode) Run(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
+	// only the first error is propagated
+	// any error is an issue, so blocking is not a problem
 	errCh := make(chan error, 1)
 
 	if n.nodeConfig.Node.Aggregator {
@@ -418,14 +423,14 @@ func (n *FullNode) Run(ctx context.Context) error {
 	case err := <-errCh:
 		if err != nil {
 			n.Logger.Error("unrecoverable error in one of the go routines...", "error", err)
-			goto Cleanup
+			cancelNode() // propagate shutdown to all child goroutines
 		}
-	case <-ctx.Done():
-		// Block until context is canceled
+	case <-parentCtx.Done():
+		// Block until parent context is canceled
 		n.Logger.Info("context canceled, stopping node")
+		cancelNode() // propagate shutdown to all child goroutines
 	}
 
-Cleanup:
 	// Perform cleanup
 	n.Logger.Info("halting full node...")
 	n.Logger.Info("shutting down full node sub services...")
@@ -517,6 +522,7 @@ Cleanup:
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+
 	return multiErr // Return shutdown errors if context was okay
 }
 
