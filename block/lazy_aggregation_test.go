@@ -332,8 +332,7 @@ func TestEmptyBlockCreation(t *testing.T) {
 	m.publishBlock = mockPublishFn
 
 	// Create a context we can cancel
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Create timers for the test
 	lazyTimer := time.NewTimer(lazyTime)

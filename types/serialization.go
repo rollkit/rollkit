@@ -280,7 +280,7 @@ func txsToByteSlices(txs Txs) [][]byte {
 
 func byteSlicesToTxs(bytes [][]byte) Txs {
 	if len(bytes) == 0 {
-		return nil
+		return Txs{}
 	}
 	txs := make(Txs, len(bytes))
 	for i := range txs {
