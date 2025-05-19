@@ -26,14 +26,14 @@ body:
   - type: markdown
     attributes:
       value: "## ✅ Acceptance Criteria\n_List the high-level criteria that must be met for this epic to be considered complete._"
-  - type: checkboxes
+  - type: textarea
     id: acceptance_criteria
     attributes:
       label: Acceptance Criteria
-      options:
-        - label: Criterion 1
-        - label: Criterion 2
-        - label: Criterion 3
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
   - type: markdown
     attributes:
       value: "## 📁 Related User Stories / Tasks\n_Link to all child issues that belong to this epic._"
