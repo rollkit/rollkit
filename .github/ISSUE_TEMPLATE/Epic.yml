@@ -1,0 +1,68 @@
+name: Epic Template
+description: Use this template to create an epic with related stories and tasks
+title: "[EPIC] <Epic Title>"
+labels: [epic]
+body:
+  - type: markdown
+    attributes:
+      value: "## 🎯 Goal\n_Describe the high-level goal or outcome this epic aims to achieve._"
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      placeholder: Describe the intended outcome of this epic.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: "## 📋 Description\n_Provide a detailed overview of the epic, including context, problem/opportunity, and how it aligns with strategic objectives._"
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      placeholder: Include context, background, and strategic alignment.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: "## ✅ Acceptance Criteria\n_List the high-level criteria that must be met for this epic to be considered complete._"
+  - type: checkboxes
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: Criterion 1
+        - label: Criterion 2
+        - label: Criterion 3
+  - type: markdown
+    attributes:
+      value: "## 📁 Related User Stories / Tasks\n_Link to all child issues that belong to this epic._"
+  - type: textarea
+    id: related_tasks
+    attributes:
+      label: Related Tasks
+      placeholder: |
+        - [ ] [Story/Task #1](URL)
+        - [ ] [Story/Task #2](URL)
+        - [ ] [Story/Task #3](URL)
+  - type: markdown
+    attributes:
+      value: "## 📎 Dependencies / Risks\n_Identify any external or internal dependencies, and potential risks._"
+  - type: textarea
+    id: dependencies_risks
+    attributes:
+      label: Dependencies and Risks
+      placeholder: |
+        - **Dependency**: API v2 launch
+        - **Risk**: Delay in third-party integration
+  - type: markdown
+    attributes:
+      value: "## 🗨️ Notes / References\n_Include any relevant links, documents, designs, or background info._"
+  - type: textarea
+    id: references
+    attributes:
+      label: Notes and References
+      placeholder: |
+        - [Design Figma](URL)
+        - [Discovery Doc](URL)
+        - [Customer Feedback](URL)
