@@ -86,7 +86,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			err = deserializedData.UnmarshalBinary(blob)
 			assert.NoError(err)
 
-			// unserialized txs=nil are converted to empty slices to be for-loop safe
+			// When deserialized, nil Txs are converted to empty slices to prevent for-loop panics.
 			if c.data.Txs == nil {
 				c.data.Txs = Txs{}
 			}
