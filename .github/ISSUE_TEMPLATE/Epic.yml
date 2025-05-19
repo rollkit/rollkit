@@ -31,9 +31,9 @@ body:
     attributes:
       label: Acceptance Criteria
       placeholder: |
-        - [ ] [Story/Task #1](URL)
-        - [ ] [Story/Task #2](URL)
-        - [ ] [Story/Task #3](URL)
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
   - type: markdown
     attributes:
       value: "## 📁 Related User Stories / Tasks\n_Link to all child issues that belong to this epic._"
