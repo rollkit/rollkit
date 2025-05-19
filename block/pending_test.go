@@ -18,6 +18,7 @@ const (
 	testHeight = 3
 )
 
+// TestPendingBlocks verifies the PendingHeaders logic for tracking and retrieving pending headers.
 func TestPendingBlocks(t *testing.T) {
 	cases := []struct {
 		name                    string

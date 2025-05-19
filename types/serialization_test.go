@@ -63,7 +63,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			Signer:    signer1,
 		}, &Data{
 			Metadata: &Metadata{},
-			Txs:      nil,
+			Txs:      Txs{},
 		},
 		},
 	}
@@ -86,6 +86,10 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			err = deserializedData.UnmarshalBinary(blob)
 			assert.NoError(err)
 
+			// When deserialized, nil Txs are converted to empty slices to prevent for-loop panics.
+			if c.data.Txs == nil {
+				c.data.Txs = Txs{}
+			}
 			assert.Equal(c.data, deserializedData)
 		})
 	}
@@ -150,7 +154,7 @@ func TestTxsRoundtrip(t *testing.T) {
 	var txs Txs
 	byteSlices := txsToByteSlices(txs)
 	newTxs := byteSlicesToTxs(byteSlices)
-	assert.Nil(t, newTxs)
+	assert.Equal(t, Txs{}, newTxs)
 
 	// Generate 100 random transactions and convert them to byte slices
 	txs = make(Txs, 100)
