@@ -494,17 +494,16 @@ func (n *FullNode) Run(ctx context.Context) error {
 		multiErr = errors.Join(multiErr, fmt.Errorf("closing store: %w", err))
 	}
 
+	// Save caches if needed
+	if err := n.blockManager.SaveCache(); err != nil {
+		multiErr = errors.Join(multiErr, fmt.Errorf("saving caches: %w", err))
+	}
+
 	// Log final status
 	if multiErr != nil {
 		n.Logger.Error("errors encountered while stopping node", "errors", multiErr)
 	} else {
 		n.Logger.Info("full node halted successfully")
-	}
-
-	// Save caches if needed
-	if err := n.blockManager.SaveCache(); err != nil {
-		n.Logger.Error("error saving caches", "error", err)
-		multiErr = errors.Join(multiErr, fmt.Errorf("saving caches: %w", err))
 	}
 
 	// Return the original context error if it exists (e.g., context cancelled)

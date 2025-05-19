@@ -144,10 +144,13 @@ func (c *Cache[T]) SaveToDisk(folderPath string) error {
 	// prepare items maps
 	itemsByHeightMap := make(map[uint64]*T)
 	itemsByHashMap := make(map[string]*T)
+
+	var invalidItemsErr error
 	c.items.Range(func(k, v interface{}) bool {
 		itemVal, ok := v.(*T)
 		if !ok {
-			return true // continue iteration
+			invalidItemsErr = fmt.Errorf("invalid item type: %T", v)
+			return false // early exit if the value is not of type *T
 		}
 		switch key := k.(type) {
 		case uint64:
@@ -157,6 +160,10 @@ func (c *Cache[T]) SaveToDisk(folderPath string) error {
 		}
 		return true
 	})
+
+	if invalidItemsErr != nil {
+		return invalidItemsErr
+	}
 
 	if err := saveMapGob(filepath.Join(folderPath, itemsByHeightFilename), itemsByHeightMap); err != nil {
 		return err

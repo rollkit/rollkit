@@ -132,10 +132,7 @@ func TestCacheConcurrency(t *testing.T) {
 
 // TestCachePersistence tests saving and loading the cache to/from disk.
 func TestCachePersistence(t *testing.T) {
-	// define a temporary folder for cache files
-	tempDir, err := os.MkdirTemp("", "cache_test")
-	require.NoError(t, err, "Failed to create temp dir")
-	defer os.RemoveAll(tempDir) // clean up
+	tempDir := t.TempDir()
 
 	// register the type for gob encoding if it's a custom struct
 	// for basic types like string, int, this is not strictly necessary
@@ -161,7 +158,7 @@ func TestCachePersistence(t *testing.T) {
 	cache1.SetDAIncluded(hash2)
 
 	// save cache1 to disk
-	err = cache1.SaveToDisk(tempDir)
+	err := cache1.SaveToDisk(tempDir)
 	require.NoError(t, err, "Failed to save cache to disk")
 
 	// create a new cache and load from disk
@@ -213,15 +210,13 @@ func TestCachePersistence(t *testing.T) {
 
 // TestCachePersistence_EmptyCache tests saving and loading an empty cache.
 func TestCachePersistence_EmptyCache(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "empty_cache_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	gob.Register(&struct{}{}) // register dummy struct for generic type T
 
 	cache1 := NewCache[struct{}]()
 
-	err = cache1.SaveToDisk(tempDir)
+	err := cache1.SaveToDisk(tempDir)
 	require.NoError(t, err, "Failed to save empty cache")
 
 	cache2 := NewCache[struct{}]()
@@ -236,9 +231,7 @@ func TestCachePersistence_EmptyCache(t *testing.T) {
 
 // TestCachePersistence_Overwrite tests overwriting existing cache files.
 func TestCachePersistence_Overwrite(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "overwrite_cache_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	gob.Register(0) // register int for generic type T
 
@@ -247,7 +240,7 @@ func TestCachePersistence_Overwrite(t *testing.T) {
 	val1 := 123
 	cache1.SetItem(1, &val1)
 	cache1.SetSeen("hash1")
-	err = cache1.SaveToDisk(tempDir)
+	err := cache1.SaveToDisk(tempDir)
 	require.NoError(t, err)
 
 	// second save (overwrite)

@@ -954,11 +954,13 @@ func (m *Manager) LoadCache() error {
 	gob.Register(&types.SignedHeader{})
 	gob.Register(&types.Data{})
 
-	if err := m.headerCache.LoadFromDisk(filepath.Join(filepath.Dir(m.config.ConfigPath()), headerCacheDir)); err != nil {
+	cfgDir := filepath.Dir(m.config.ConfigPath())
+
+	if err := m.headerCache.LoadFromDisk(filepath.Join(cfgDir, headerCacheDir)); err != nil {
 		return fmt.Errorf("failed to load header cache from disk: %w", err)
 	}
 
-	if err := m.dataCache.LoadFromDisk(filepath.Join(filepath.Dir(m.config.ConfigPath()), dataCacheDir)); err != nil {
+	if err := m.dataCache.LoadFromDisk(filepath.Join(cfgDir, dataCacheDir)); err != nil {
 		return fmt.Errorf("failed to load data cache from disk: %w", err)
 	}
 
