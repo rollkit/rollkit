@@ -99,6 +99,8 @@ type Manager struct {
 	genesis genesis.Genesis
 
 	signer signer.Signer
+	// Injected hasher for ValidatorHash calculation
+	validatorHasher types.ValidatorHasher
 
 	daHeight *atomic.Uint64
 
@@ -258,6 +260,7 @@ func NewManager(
 	seqMetrics *Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
+	validatorHasher types.ValidatorHasher,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
 	if err != nil {
@@ -321,29 +324,30 @@ func NewManager(
 		store:     store,
 		daHeight:  &daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:       make(chan *types.SignedHeader, channelLength),
-		DataCh:         make(chan *types.Data, channelLength),
-		headerInCh:     make(chan NewHeaderEvent, headerInChLength),
-		dataInCh:       make(chan NewDataEvent, headerInChLength),
-		headerStoreCh:  make(chan struct{}, 1),
-		dataStoreCh:    make(chan struct{}, 1),
-		headerStore:    headerStore,
-		dataStore:      dataStore,
-		lastStateMtx:   new(sync.RWMutex),
-		lastBatchData:  lastBatchData,
-		headerCache:    cache.NewCache[types.SignedHeader](),
-		dataCache:      cache.NewCache[types.Data](),
-		retrieveCh:     make(chan struct{}, 1),
-		logger:         logger,
-		txsAvailable:   false,
-		pendingHeaders: pendingHeaders,
-		metrics:        seqMetrics,
-		sequencer:      sequencer,
-		exec:           exec,
-		da:             da,
-		gasPrice:       gasPrice,
-		gasMultiplier:  gasMultiplier,
-		txNotifyCh:     make(chan struct{}, 1), // Non-blocking channel
+		HeaderCh:        make(chan *types.SignedHeader, channelLength),
+		DataCh:          make(chan *types.Data, channelLength),
+		headerInCh:      make(chan NewHeaderEvent, headerInChLength),
+		dataInCh:        make(chan NewDataEvent, headerInChLength),
+		headerStoreCh:   make(chan struct{}, 1),
+		dataStoreCh:     make(chan struct{}, 1),
+		headerStore:     headerStore,
+		dataStore:       dataStore,
+		lastStateMtx:    new(sync.RWMutex),
+		lastBatchData:   lastBatchData,
+		headerCache:     cache.NewCache[types.SignedHeader](),
+		dataCache:       cache.NewCache[types.Data](),
+		retrieveCh:      make(chan struct{}, 1),
+		logger:          logger,
+		txsAvailable:    false,
+		pendingHeaders:  pendingHeaders,
+		metrics:         seqMetrics,
+		sequencer:       sequencer,
+		exec:            exec,
+		da:              da,
+		gasPrice:        gasPrice,
+		gasMultiplier:   gasMultiplier,
+		txNotifyCh:      make(chan struct{}, 1),
+		validatorHasher: validatorHasher,
 	}
 	agg.init(ctx)
 	// Set the default publishBlock implementation
@@ -455,7 +459,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		if len(res.Batch.Transactions) == 0 {
 			errRetrieveBatch = ErrNoBatch
 		}
-		// Even if there are no transactions, update lastBatchData so we don’t
+		// Even if there are no transactions, update lastBatchData so we don't
 		// repeatedly emit the same empty batch, and persist it to metadata.
 		if err := m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
 			m.logger.Error("error while setting last batch hash", "error", err)
@@ -697,6 +701,19 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
 	}
 
+	var validatorHash types.Hash
+	if m.validatorHasher != nil {
+		calculatedVHash, err := m.validatorHasher(m.genesis.ProposerAddress, key)
+		if err != nil {
+			m.logger.Info("Failed to calculate ValidatorHash using injected hasher", "error", err)
+		} else {
+			validatorHash = calculatedVHash
+			m.logger.Info("Successfully calculated ValidatorHash using injected hasher", "validatorHash", hex.EncodeToString(validatorHash))
+		}
+	} else {
+		m.logger.Info("ValidatorHasher not provided to Manager, ValidatorHash will be zero.")
+	}
+
 	// Determine if this is an empty block
 	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
 
@@ -711,7 +728,7 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
-				Block: m.lastState.Version.Block,
+				Block: 11, // hardcoded
 				App:   m.lastState.Version.App,
 			},
 			BaseHeader: types.BaseHeader{
@@ -724,6 +741,7 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         m.lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
+			ValidatorHash:   validatorHash,
 		},
 		Signature: *lastSignature,
 		Signer: types.Signer{

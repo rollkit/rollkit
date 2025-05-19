@@ -6,6 +6,8 @@ retract v0.12.0 // Published by accident
 
 replace github.com/rollkit/rollkit/core => ./core
 
+replace github.com/rollkit/rollkit/da => ./da
+
 require (
 	connectrpc.com/connect v1.18.1
 	connectrpc.com/grpcreflect v1.3.0
