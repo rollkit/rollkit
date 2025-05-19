@@ -38,21 +38,25 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 }
 
 // Returns a minimalistic block manager using a mock DA Client
-func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) *Manager {
+func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) (*Manager, *mocks.Store) {
 	logger := log.NewTestLogger(t)
+	mockStore := mocks.NewStore(t)
 	m := &Manager{
 		da:           da,
-		headerCache:  cache.NewCache[types.SignedHeader](),
 		logger:       logger,
 		lastStateMtx: &sync.RWMutex{},
 		metrics:      NopMetrics(),
+		headerCache:  cache.NewCache[types.SignedHeader](),
+		dataCache:    cache.NewCache[types.Data](),
+		store:        mockStore,
 	}
 
 	m.publishBlock = m.publishBlockInternal
 
-	return m
+	return m, mockStore
 }
 
+// TestInitialStateClean verifies that getInitialState initializes state correctly when no state is stored.
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
 	ctx := context.TODO()
@@ -78,6 +82,7 @@ func TestInitialStateClean(t *testing.T) {
 	mockExecutor.AssertExpectations(t)
 }
 
+// TestInitialStateStored verifies that getInitialState loads existing state from the store and does not call InitChain.
 func TestInitialStateStored(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -107,6 +112,7 @@ func TestInitialStateStored(t *testing.T) {
 	mockExecutor.AssertExpectations(t)
 }
 
+// TestInitialStateUnexpectedHigherGenesis verifies that getInitialState returns an error if the genesis initial height is higher than the stored state's last block height.
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)
@@ -139,10 +145,11 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	mockExecutor.AssertExpectations(t)
 }
 
+// TestSignVerifySignature verifies that signatures can be created and verified using the configured signer.
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
 	mockDAC := mocks.NewDA(t)
-	m := getManager(t, mockDAC, -1, -1)
+	m, _ := getManager(t, mockDAC, -1, -1)
 	payload := []byte("test")
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
@@ -170,22 +177,27 @@ func TestSignVerifySignature(t *testing.T) {
 
 func TestIsDAIncluded(t *testing.T) {
 	require := require.New(t)
+	mockDAC := mocks.NewDA(t)
 
 	// Create a minimalistic block manager
-	m := &Manager{
-		headerCache: cache.NewCache[types.SignedHeader](),
-	}
-	hash := types.Hash([]byte("hash"))
-
+	m, mockStore := getManager(t, mockDAC, -1, -1)
+	height := uint64(1)
+	header, data := types.GetRandomBlock(height, 5, "TestIsDAIncluded")
+	mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil).Times(3)
+	ctx := context.Background()
 	// IsDAIncluded should return false for unseen hash
-	require.False(m.IsDAIncluded(hash))
+	require.False(m.IsDAIncluded(ctx, height))
 
 	// Set the hash as DAIncluded and verify IsDAIncluded returns true
-	m.headerCache.SetDAIncluded(hash.String())
-	require.True(m.IsDAIncluded(hash))
+	m.headerCache.SetDAIncluded(header.Hash().String())
+	require.False(m.IsDAIncluded(ctx, height))
+
+	// Set the data as DAIncluded and verify IsDAIncluded returns true
+	m.dataCache.SetDAIncluded(data.DACommitment().String())
+	require.True(m.IsDAIncluded(ctx, height))
 }
 
-// Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
+// Test_submitBlocksToDA_BlockMarshalErrorCase1 verifies that a marshalling error in the first block prevents all blocks from being submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase1"
 	assert := assert.New(t)
@@ -193,7 +205,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	ctx := context.Background()
 
 	mockDA := mocks.NewDA(t)
-	m := getManager(t, mockDA, -1, -1)
+	m, _ := getManager(t, mockDA, -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -221,6 +233,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	mockDA.AssertExpectations(t)
 }
 
+// Test_submitBlocksToDA_BlockMarshalErrorCase2 verifies that a marshalling error in a later block prevents all blocks from being submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase2"
 	assert := assert.New(t)
@@ -228,7 +241,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	ctx := context.Background()
 
 	mockDA := mocks.NewDA(t)
-	m := getManager(t, mockDA, -1, -1)
+	m, _ := getManager(t, mockDA, -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -263,6 +276,7 @@ func invalidateBlockHeader(header *types.SignedHeader) {
 	header.Signer.PubKey = &crypto.Ed25519PublicKey{}
 }
 
+// Test_isProposer verifies the isProposer utility for matching the signing key to the genesis proposer public key.
 func Test_isProposer(t *testing.T) {
 	require := require.New(t)
 
@@ -322,7 +336,7 @@ func Test_isProposer(t *testing.T) {
 	}
 }
 
-// TestBytesToBatchData tests conversion between bytes and batch data.
+// TestBytesToBatchData verifies conversion between bytes and batch data, including error handling for corrupted data.
 func TestBytesToBatchData(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)

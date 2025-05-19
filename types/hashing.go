@@ -27,6 +27,16 @@ func (d *Data) Hash() Hash {
 	return leafHashOpt(sha256.New(), dBytes)
 }
 
+// DACommitment returns the DA commitment of the Data excluding the Metadata
+func (d *Data) DACommitment() Hash {
+	// Prune the Data to only include the Txs
+	prunedData := &Data{
+		Txs: d.Txs,
+	}
+	dBytes, _ := prunedData.MarshalBinary()
+	return leafHashOpt(sha256.New(), dBytes)
+}
+
 func leafHashOpt(s hash.Hash, leaf []byte) []byte {
 	s.Reset()
 	s.Write(leafPrefix)

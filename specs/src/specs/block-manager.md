@@ -121,17 +121,23 @@ Among non-sequencer full nodes, all the block gossiping is handled by the block 
 
 ### Block Retrieval from P2P network
 
-For non-sequencer full nodes, Blocks gossiped through the P2P network are retrieved from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.
-Starting off with a block store height of zero, for every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in the block manager and when this signal is received, the `BlockStoreRetrieveLoop` retrieves blocks from the block store.
-It keeps track of the last retrieved block's height and every time the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
+For non-sequencer full nodes, blocks gossiped through the P2P network are retrieved from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.  
+Starting off with a block store height of zero, for every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in the block manager and when this signal is received, the `BlockStoreRetrieveLoop` retrieves blocks from the block store.  
+It keeps track of the last retrieved block's height and every time the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.  
 For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel in which blocks retrieved from the DA layer are sent.
-This block is marked as soft confirmed by the validating full node until the same block is seen on the DA layer and then marked DA-included.
 
-Although a sequencer does not need to retrieve blocks from the P2P network, it still runs the `BlockStoreRetrieveLoop`.
+This block is marked as soft confirmed by the validating full node until the same block data and the corresponding header is seen on the DA layer, then it is marked DA-included.
 
 #### About Soft Confirmations and DA Inclusions
 
-The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 15 seconds). The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked DA included. DA included blocks can be considered to have a higher level of finality.
+The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 6 seconds).  
+The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked DA-included.  
+DA-included blocks are considered to have a higher level of finality.
+
+**DAIncluderLoop**:  
+A new loop, `DAIncluderLoop`, is responsible for advancing the `DAIncludedHeight` by checking if blocks after the current height have both their header and data marked as DA-included in the caches.  
+If either the header or data is missing, the loop stops advancing.  
+This ensures that only blocks with both header and data present are considered DA-included.
 
 ### State Update after Block Retrieval
 
@@ -145,15 +151,10 @@ The block manager stores and applies the block to update its state every time a 
 
 The communication between the block manager and executor:
 
-* `InitChain`: using the genesis, a set of parameters, and validator set to invoke `InitChainSync` on the proxyApp to obtain initial `appHash` and initialize the state.
-* `Commit`: commit the execution and changes, update mempool, and publish events.
+* `InitChain`: initializes the chain state with the given genesis time, initial height, and chain ID using `InitChainSync` on the executor to obtain initial `appHash` and initialize the state.
 * `CreateBlock`: prepare a block by polling transactions from mempool.
-* `ApplyBlock`: validate the block, execute the block (apply transactions), validator updates, create and return updated state
-
-The communication between the full node and block manager:
-
-* Notify when the block is published
-* Notify when the block is done lazy building
+* `ApplyBlock`: validate the block, execute the block (apply transactions), validator updates, create and return updated state.
+* `SetFinal`: sets the block as final when it's corresponding header and data are seen on the dA layer.
 
 ## Assumptions and Considerations
 

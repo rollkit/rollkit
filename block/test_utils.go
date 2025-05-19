@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"testing"
 
+	"cosmossdk.io/log"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,3 +28,14 @@ func GenerateHeaderHash(t *testing.T, height uint64, proposer []byte) []byte {
 
 	return hasher.Sum(nil)
 }
+
+type MockLogger struct {
+	mock.Mock
+}
+
+func (m *MockLogger) Debug(msg string, keyvals ...any) { m.Called(msg, keyvals) }
+func (m *MockLogger) Info(msg string, keyvals ...any)  { m.Called(msg, keyvals) }
+func (m *MockLogger) Warn(msg string, keyvals ...any)  { m.Called(msg, keyvals) }
+func (m *MockLogger) Error(msg string, keyvals ...any) { m.Called(msg, keyvals) }
+func (m *MockLogger) With(keyvals ...any) log.Logger   { return m }
+func (m *MockLogger) Impl() any                        { return m }

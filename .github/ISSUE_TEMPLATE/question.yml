@@ -1,0 +1,16 @@
+name: Question
+description: Ask a question or request help
+title: "[QUESTION] <Brief topic>"
+labels: [question]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you want to know?
+      placeholder: Ask your question clearly, with context if possible.
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      placeholder: Share any attempts or documents you've already consulted.
