@@ -25,15 +25,14 @@ type API struct {
 	Namespace   []byte
 	MaxBlobSize uint64
 	Internal    struct {
-		Get               func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Blob, error)           `perm:"read"`
-		GetIDs            func(ctx context.Context, height uint64, ns []byte) (*da.GetIDsResult, error)  `perm:"read"`
-		GetProofs         func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Proof, error)          `perm:"read"`
-		Commit            func(ctx context.Context, blobs []da.Blob, ns []byte) ([]da.Commitment, error) `perm:"read"`
-		Validate          func(context.Context, []da.ID, []da.Proof, []byte) ([]bool, error)             `perm:"read"`
-		Submit            func(context.Context, []da.Blob, float64, []byte) ([]da.ID, error)             `perm:"write"`
-		SubmitWithOptions func(context.Context, []da.Blob, float64, []byte, []byte) ([]da.ID, error)     `perm:"write"`
-		GasMultiplier     func(context.Context) (float64, error)                                         `perm:"read"`
-		GasPrice          func(context.Context) (float64, error)                                         `perm:"read"`
+		Get           func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Blob, error)           `perm:"read"`
+		GetIDs        func(ctx context.Context, height uint64, ns []byte) (*da.GetIDsResult, error)  `perm:"read"`
+		GetProofs     func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Proof, error)          `perm:"read"`
+		Commit        func(ctx context.Context, blobs []da.Blob, ns []byte) ([]da.Commitment, error) `perm:"read"`
+		Validate      func(context.Context, []da.ID, []da.Proof, []byte) ([]bool, error)             `perm:"read"`
+		Submit        func(context.Context, []da.Blob, float64, []byte, []byte) ([]da.ID, error)     `perm:"write"`
+		GasMultiplier func(context.Context) (float64, error)                                         `perm:"read"`
+		GasPrice      func(context.Context) (float64, error)                                         `perm:"read"`
 	}
 }
 
@@ -149,12 +148,12 @@ func (api *API) Submit(ctx context.Context, inputBlobs []da.Blob, gasPrice float
 		return []da.ID{}, nil
 	}
 
-	api.Logger.Debug("Making RPC call", "method", "SubmitWithOptions", "num_blobs_original", len(inputBlobs), "num_blobs_to_submit", len(blobsToSubmit), "gas_price", gasPrice, "namespace", string(api.Namespace))
-	res, err := api.Internal.SubmitWithOptions(ctx, blobsToSubmit, gasPrice, api.Namespace, options)
+	api.Logger.Debug("Making RPC call", "method", "Submit", "num_blobs_original", len(inputBlobs), "num_blobs_to_submit", len(blobsToSubmit), "gas_price", gasPrice, "namespace", string(api.Namespace))
+	res, err := api.Internal.Submit(ctx, blobsToSubmit, gasPrice, api.Namespace, options)
 	if err != nil {
-		api.Logger.Error("RPC call failed", "method", "SubmitWithOptions", "error", err)
+		api.Logger.Error("RPC call failed", "method", "Submit", "error", err)
 	} else {
-		api.Logger.Debug("RPC call successful", "method", "SubmitWithOptions", "num_ids_returned", len(res))
+		api.Logger.Debug("RPC call successful", "method", "Submit", "num_ids_returned", len(res))
 	}
 
 	return res, err

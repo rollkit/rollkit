@@ -19,6 +19,7 @@ type DummyDA struct {
 	maxBlobSize        uint64
 	gasPrice           float64
 	gasMultiplier      float64
+	height             uint64
 }
 
 // NewDummyDA creates a new instance of DummyDA with the specified maximum blob size.
@@ -32,6 +33,7 @@ func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64) *Du
 		maxBlobSize:        maxBlobSize,
 		gasPrice:           gasPrice,
 		gasMultiplier:      gasMultiplier,
+		height:             1,
 	}
 }
 
@@ -120,7 +122,9 @@ func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, op
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	height := uint64(len(d.blobsByHeight))
+	batchHeight := d.height
+	d.height++
+
 	ids := make([]ID, 0, len(blobs))
 	var currentSize uint64
 
@@ -149,7 +153,7 @@ func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, op
 		commitment := bz[:]
 
 		// Create ID from height and commitment
-		id := makeID(height, commitment)
+		id := makeID(batchHeight, commitment)
 		idStr := string(id)
 
 		d.blobs[idStr] = blob
@@ -159,8 +163,8 @@ func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, op
 		ids = append(ids, id)
 	}
 
-	d.blobsByHeight[height] = ids
-	d.timestampsByHeight[height] = time.Now()
+	d.blobsByHeight[batchHeight] = ids
+	d.timestampsByHeight[batchHeight] = time.Now()
 
 	return ids, nil
 }
