@@ -204,6 +204,6 @@ Implemented
 
 ## References
 
-- [Block Manager Implementation](../..//block/manager.go)
+- [Block Manager Implementation](../../block/manager.go)
 - [Block Aggregation Implementation](../../block/aggregation.go)
 - [Lazy Aggregation Tests](../../block/lazy_aggregation_test.go)
