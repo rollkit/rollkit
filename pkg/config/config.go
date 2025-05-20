@@ -51,10 +51,6 @@ const (
 	FlagDAAuthToken = "rollkit.da.auth_token" // #nosec G101
 	// FlagDABlockTime is a flag for specifying the data availability layer block time
 	FlagDABlockTime = "rollkit.da.block_time"
-	// FlagDAGasPrice is a flag for specifying the data availability layer gas price
-	FlagDAGasPrice = "rollkit.da.gas_price"
-	// FlagDAGasMultiplier is a flag for specifying the data availability layer gas price retry multiplier
-	FlagDAGasMultiplier = "rollkit.da.gas_multiplier"
 	// FlagDAStartHeight is a flag for specifying the data availability layer start height
 	FlagDAStartHeight = "rollkit.da.start_height"
 	// FlagDANamespace is a flag for specifying the DA namespace ID
@@ -146,8 +142,6 @@ type Config struct {
 type DAConfig struct {
 	Address       string          `mapstructure:"address" yaml:"address" comment:"Address of the data availability layer service (host:port). This is the endpoint where Rollkit will connect to submit and retrieve data."`
 	AuthToken     string          `mapstructure:"auth_token" yaml:"auth_token" comment:"Authentication token for the data availability layer service. Required if the DA service needs authentication."`
-	GasPrice      float64         `mapstructure:"gas_price" yaml:"gas_price" comment:"Gas price for data availability transactions. Use -1 for automatic gas price determination. Higher values may result in faster inclusion."`
-	GasMultiplier float64         `mapstructure:"gas_multiplier" yaml:"gas_multiplier" comment:"Multiplier applied to gas price when retrying failed DA submissions. Values > 1 increase gas price on retries to improve chances of inclusion."`
 	SubmitOptions string          `mapstructure:"submit_options" yaml:"submit_options" comment:"Additional options passed to the DA layer when submitting data. Format depends on the specific DA implementation being used."`
 	Namespace     string          `mapstructure:"namespace" yaml:"namespace" comment:"Namespace ID used when submitting blobs to the DA layer."`
 	BlockTime     DurationWrapper `mapstructure:"block_time" yaml:"block_time" comment:"Average block time of the DA chain (duration). Determines frequency of DA layer syncing, maximum backoff time for retries, and is multiplied by MempoolTTL to calculate transaction expiration. Examples: \"15s\", \"30s\", \"1m\", \"2m30s\", \"10m\"."`
@@ -248,8 +242,6 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")
 	cmd.Flags().String(FlagDAAuthToken, def.DA.AuthToken, "DA auth token")
 	cmd.Flags().Duration(FlagDABlockTime, def.DA.BlockTime.Duration, "DA chain block time (for syncing)")
-	cmd.Flags().Float64(FlagDAGasPrice, def.DA.GasPrice, "DA gas price for blob transactions")
-	cmd.Flags().Float64(FlagDAGasMultiplier, def.DA.GasMultiplier, "DA gas price multiplier for retrying blob transactions")
 	cmd.Flags().Uint64(FlagDAStartHeight, def.DA.StartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().String(FlagDANamespace, def.DA.Namespace, "DA namespace to submit blob transactions")
 	cmd.Flags().String(FlagDASubmitOptions, def.DA.SubmitOptions, "DA submit options")

@@ -42,15 +42,13 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 	logger := log.NewTestLogger(t)
 	mockStore := mocks.NewStore(t)
 	m := &Manager{
-		da:            da,
-		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
-		logger:        logger,
-		gasPrice:      gasPrice,
-		gasMultiplier: gasMultiplier,
-		lastStateMtx:  &sync.RWMutex{},
-		metrics:       NopMetrics(),
-		store:         mockStore,
+		da:           da,
+		logger:       logger,
+		lastStateMtx: &sync.RWMutex{},
+		metrics:      NopMetrics(),
+		headerCache:  cache.NewCache[types.SignedHeader](),
+		dataCache:    cache.NewCache[types.Data](),
+		store:        mockStore,
 	}
 
 	m.publishBlock = m.publishBlockInternal

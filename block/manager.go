@@ -142,8 +142,6 @@ type Manager struct {
 	// in the DA
 	daIncludedHeight atomic.Uint64
 	da               coreda.DA
-	gasPrice         float64
-	gasMultiplier    float64
 
 	sequencer     coresequencer.Sequencer
 	lastBatchData [][]byte
@@ -267,8 +265,6 @@ func NewManager(
 	headerStore goheader.Store[*types.SignedHeader],
 	dataStore goheader.Store[*types.Data],
 	seqMetrics *Metrics,
-	gasPrice float64,
-	gasMultiplier float64,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
 	if err != nil {
@@ -332,30 +328,29 @@ func NewManager(
 		store:     store,
 		daHeight:  &daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:            make(chan *types.SignedHeader, channelLength),
-		DataCh:              make(chan *types.Data, channelLength),
-		headerInCh:          make(chan NewHeaderEvent, eventInChLength),
-		dataInCh:            make(chan NewDataEvent, eventInChLength),
-		headerStoreCh:       make(chan struct{}, 1),
-		dataStoreCh:         make(chan struct{}, 1),
-		headerStore:         headerStore,
-		dataStore:           dataStore,
-		lastStateMtx:        new(sync.RWMutex),
-		lastBatchData:       lastBatchData,
-		headerCache:         cache.NewCache[types.SignedHeader](),
-		dataCache:           cache.NewCache[types.Data](),
-		retrieveCh:          make(chan struct{}, 1),
+		HeaderCh:       make(chan *types.SignedHeader, channelLength),
+		DataCh:         make(chan *types.Data, channelLength),
+		headerInCh:     make(chan NewHeaderEvent, eventInChLength),
+		dataInCh:       make(chan NewDataEvent, eventInChLength),
+		headerStoreCh:  make(chan struct{}, 1),
+		dataStoreCh:    make(chan struct{}, 1),
+		headerStore:    headerStore,
+		dataStore:      dataStore,
+		lastStateMtx:   new(sync.RWMutex),
+		lastBatchData:  lastBatchData,
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		retrieveCh:     make(chan struct{}, 1),
+		logger:         logger,
+		txsAvailable:   false,
+		pendingHeaders: pendingHeaders,
+		metrics:        seqMetrics,
+		sequencer:      sequencer,
+		exec:           exec,
+		da:             da,
+		txNotifyCh:     make(chan struct{}, 1),
+
 		daIncluderCh:        make(chan struct{}, 1),
-		logger:              logger,
-		txsAvailable:        false,
-		pendingHeaders:      pendingHeaders,
-		metrics:             seqMetrics,
-		sequencer:           sequencer,
-		exec:                exec,
-		da:                  da,
-		gasPrice:            gasPrice,
-		gasMultiplier:       gasMultiplier,
-		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
 		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
 	}
 	agg.init(ctx)

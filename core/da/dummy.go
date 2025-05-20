@@ -17,8 +17,6 @@ type DummyDA struct {
 	blobsByHeight      map[uint64][]ID
 	timestampsByHeight map[uint64]time.Time
 	maxBlobSize        uint64
-	gasPrice           float64
-	gasMultiplier      float64
 }
 
 // NewDummyDA creates a new instance of DummyDA with the specified maximum blob size.
@@ -30,24 +28,12 @@ func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64) *Du
 		blobsByHeight:      make(map[uint64][]ID),
 		timestampsByHeight: make(map[uint64]time.Time),
 		maxBlobSize:        maxBlobSize,
-		gasPrice:           gasPrice,
-		gasMultiplier:      gasMultiplier,
 	}
 }
 
 // MaxBlobSize returns the maximum blob size.
 func (d *DummyDA) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return d.maxBlobSize, nil
-}
-
-// GasPrice returns the gas price for the DA layer.
-func (d *DummyDA) GasPrice(ctx context.Context) (float64, error) {
-	return d.gasPrice, nil
-}
-
-// GasMultiplier returns the gas multiplier for the DA layer.
-func (d *DummyDA) GasMultiplier(ctx context.Context) (float64, error) {
-	return d.gasMultiplier, nil
 }
 
 // Get returns blobs for the given IDs.
@@ -116,12 +102,12 @@ func (d *DummyDA) Commit(ctx context.Context, blobs []Blob, namespace []byte) ([
 }
 
 // Submit submits blobs to the DA layer.
-func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte) ([]ID, error) {
-	return d.SubmitWithOptions(ctx, blobs, gasPrice, namespace, nil)
+func (d *DummyDA) Submit(ctx context.Context, blobs []Blob) ([]ID, error) {
+	return d.SubmitWithOptions(ctx, blobs, nil)
 }
 
 // SubmitWithOptions submits blobs to the DA layer with additional options.
-func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, error) {
+func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, options []byte) ([]ID, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
