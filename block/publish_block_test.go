@@ -1,6 +1,7 @@
 package block
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -27,7 +28,12 @@ import (
 )
 
 // setupManagerForPublishBlockTest creates a Manager instance with mocks for testing publishBlockInternal.
-func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeight uint64, lastSubmittedHeight uint64) (
+func setupManagerForPublishBlockTest(
+	t *testing.T,
+	initialHeight uint64,
+	lastSubmittedHeight uint64,
+	logBuffer *bytes.Buffer,
+) (
 	*Manager,
 	*mocks.Store,
 	*mocks.Executor,
@@ -57,7 +63,10 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 	headerCh := make(chan *types.SignedHeader, 1)
 	dataCh := make(chan *types.Data, 1)
 	_, cancel := context.WithCancel(context.Background())
-	logger := log.NewTestLogger(t)
+	logger := log.NewLogger(
+		logBuffer,
+		log.ColorOption(false),
+	)
 
 	lastSubmittedBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(lastSubmittedBytes, lastSubmittedHeight)
@@ -109,14 +118,14 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 // TestPublishBlockInternal_MaxPendingHeadersReached verifies that publishBlockInternal returns an error if the maximum number of pending headers is reached.
 func TestPublishBlockInternal_MaxPendingHeadersReached(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
 	require := require.New(t)
 
 	currentHeight := uint64(10)
 	lastSubmitted := uint64(5)
 	maxPending := uint64(5)
+	logBuffer := new(bytes.Buffer)
 
-	manager, mockStore, mockExec, mockSeq, _, _, _, cancel := setupManagerForPublishBlockTest(t, true, currentHeight+1, lastSubmitted)
+	manager, mockStore, mockExec, mockSeq, _, _, _, cancel := setupManagerForPublishBlockTest(t, currentHeight+1, lastSubmitted, logBuffer)
 	defer cancel()
 
 	manager.config.Node.MaxPendingHeaders = maxPending
@@ -126,8 +135,8 @@ func TestPublishBlockInternal_MaxPendingHeadersReached(t *testing.T) {
 
 	err := manager.publishBlock(ctx)
 
-	require.Error(err, "publishBlockInternal should return an error")
-	assert.Contains(err.Error(), "pending blocks [5] reached limit [5]", "error message mismatch")
+	require.Nil(err, "publishBlockInternal should not return an error (otherwise the chain would halt)")
+	require.Contains(logBuffer.String(), "pending blocks [5] reached limit [5]", "log message mismatch")
 
 	mockStore.AssertExpectations(t)
 	mockExec.AssertNotCalled(t, "GetTxs", mock.Anything)
@@ -336,7 +345,7 @@ func Test_publishBlock_Success(t *testing.T) {
 	newHeight := initialHeight + 1
 	chainID := "testchain"
 
-	manager, mockStore, mockExec, mockSeq, _, headerCh, dataCh, _ := setupManagerForPublishBlockTest(t, true, initialHeight, 0)
+	manager, mockStore, mockExec, mockSeq, _, headerCh, dataCh, _ := setupManagerForPublishBlockTest(t, initialHeight, 0, new(bytes.Buffer))
 	manager.lastState.LastBlockHeight = initialHeight
 
 	mockStore.On("Height", t.Context()).Return(initialHeight, nil).Once()

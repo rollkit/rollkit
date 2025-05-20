@@ -352,7 +352,10 @@ func (n *FullNode) startInstrumentationServer() (*http.Server, *http.Server) {
 
 // Run implements the Service interface.
 // It starts all subservices and manages the node's lifecycle.
-func (n *FullNode) Run(ctx context.Context) error {
+func (n *FullNode) Run(parentCtx context.Context) error {
+	ctx, cancelNode := context.WithCancel(parentCtx)
+	defer cancelNode() // safety net
+
 	// begin prometheus metrics gathering if it is enabled
 	if n.nodeConfig.Instrumentation != nil &&
 		(n.nodeConfig.Instrumentation.IsPrometheusEnabled() || n.nodeConfig.Instrumentation.IsPprofEnabled()) {
@@ -395,25 +398,38 @@ func (n *FullNode) Run(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
+	// only the first error is propagated
+	// any error is an issue, so blocking is not a problem
+	errCh := make(chan error, 1)
+
 	if n.nodeConfig.Node.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
-		go n.blockManager.AggregationLoop(ctx)
+		go n.blockManager.AggregationLoop(ctx, errCh)
 		go n.reaper.Start(ctx)
 		go n.blockManager.HeaderSubmissionLoop(ctx)
 		go n.blockManager.BatchSubmissionLoop(ctx)
 		go n.headerPublishLoop(ctx)
 		go n.dataPublishLoop(ctx)
-		go n.blockManager.DAIncluderLoop(ctx)
+		go n.blockManager.DAIncluderLoop(ctx, errCh)
 	} else {
 		go n.blockManager.RetrieveLoop(ctx)
 		go n.blockManager.HeaderStoreRetrieveLoop(ctx)
 		go n.blockManager.DataStoreRetrieveLoop(ctx)
-		go n.blockManager.SyncLoop(ctx)
-		go n.blockManager.DAIncluderLoop(ctx)
+		go n.blockManager.SyncLoop(ctx, errCh)
+		go n.blockManager.DAIncluderLoop(ctx, errCh)
 	}
 
-	// Block until context is canceled
-	<-ctx.Done()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			n.Logger.Error("unrecoverable error in one of the go routines...", "error", err)
+			cancelNode() // propagate shutdown to all child goroutines
+		}
+	case <-parentCtx.Done():
+		// Block until parent context is canceled
+		n.Logger.Info("context canceled, stopping node")
+		cancelNode() // propagate shutdown to all child goroutines
+	}
 
 	// Perform cleanup
 	n.Logger.Info("halting full node...")
@@ -506,6 +522,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+
 	return multiErr // Return shutdown errors if context was okay
 }
 

@@ -77,7 +77,7 @@ func TestDASpeed(t *testing.T) {
 			go manager.RetrieveLoop(ctx)
 			go manager.HeaderStoreRetrieveLoop(ctx)
 			go manager.DataStoreRetrieveLoop(ctx)
-			go manager.SyncLoop(ctx)
+			go manager.SyncLoop(ctx, make(chan<- error))
 
 			// then
 			assert.Eventually(t, func() bool {
@@ -116,7 +116,8 @@ func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollm
 		store: mockStore,
 		config: config.Config{
 			Node: config.NodeConfig{BlockTime: config.DurationWrapper{Duration: blockTime}},
-			DA:   config.DAConfig{BlockTime: config.DurationWrapper{Duration: blockTime}}},
+			DA:   config.DAConfig{BlockTime: config.DurationWrapper{Duration: blockTime}},
+		},
 		genesis:       genesis.Genesis{ProposerAddress: addr},
 		daHeight:      new(atomic.Uint64),
 		headerInCh:    make(chan NewHeaderEvent),
