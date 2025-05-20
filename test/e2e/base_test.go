@@ -206,6 +206,8 @@ func TestNodeRestartPersistence(t *testing.T) {
 	// Wait for a block to be produced after restart
 	time.Sleep(1 * time.Second)
 
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	state2, err := c.GetState(ctx)
 	require.NoError(t, err)
 	require.Greater(t, state2.LastBlockHeight, state.LastBlockHeight)
