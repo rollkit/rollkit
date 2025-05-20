@@ -172,6 +172,13 @@ func TestNodeRestartPersistence(t *testing.T) {
 	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
 	t.Log("Node started and is up.")
 
+	c := nodeclient.NewClient("http://127.0.0.1:7331")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	state, err := c.GetState(ctx)
+	require.NoError(t, err)
+	require.Greater(t, state.LastBlockHeight, uint64(1))
+
 	// Wait for a block to be produced
 	time.Sleep(1 * time.Second)
 
@@ -199,11 +206,7 @@ func TestNodeRestartPersistence(t *testing.T) {
 	// Wait for a block to be produced after restart
 	time.Sleep(1 * time.Second)
 
-	// Query state to verify node is operational
-	c := nodeclient.NewClient("http://127.0.0.1:7331")
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	state, err := c.GetState(ctx)
+	state2, err := c.GetState(ctx)
 	require.NoError(t, err)
-	require.Greater(t, state.LastBlockHeight, uint64(3))
+	require.Greater(t, state2.LastBlockHeight, state.LastBlockHeight)
 }
