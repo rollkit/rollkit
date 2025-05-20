@@ -210,7 +210,6 @@ func TestNodeRestartPersistence(t *testing.T) {
 	defer cancel2()
 	state2, err := c.GetState(ctx2)
 	defer cancel()
-	state2, err := c.GetState(ctx)
 	require.NoError(t, err)
 	require.Greater(t, state2.LastBlockHeight, state.LastBlockHeight)
 }
