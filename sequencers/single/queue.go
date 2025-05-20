@@ -2,6 +2,7 @@ package single
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -43,6 +44,7 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch coresequencer.Batch) e
 	if err != nil {
 		return err
 	}
+	key := hex.EncodeToString(hash)
 
 	pbBatch := &pb.Batch{
 		Txs: batch.Transactions,
@@ -54,7 +56,7 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch coresequencer.Batch) e
 	}
 
 	// First write to DB for durability
-	if err := bq.db.Put(ctx, ds.NewKey(string(hash)), encodedBatch); err != nil {
+	if err := bq.db.Put(ctx, ds.NewKey(key), encodedBatch); err != nil {
 		return err
 	}
 
@@ -80,9 +82,10 @@ func (bq *BatchQueue) Next(ctx context.Context) (*coresequencer.Batch, error) {
 	if err != nil {
 		return &coresequencer.Batch{Transactions: nil}, err
 	}
+	key := hex.EncodeToString(hash)
 
 	// Delete the batch from the WAL since it's been processed
-	err = bq.db.Delete(ctx, ds.NewKey(string(hash)))
+	err = bq.db.Delete(ctx, ds.NewKey(key))
 	if err != nil {
 		// Log the error but continue
 		fmt.Printf("Error deleting processed batch: %v\n", err)
