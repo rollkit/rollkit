@@ -163,7 +163,7 @@ func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
 	wg.Wait()
 }
 
-// TestLazyAggregationLoop_PublishError tests that the loop continues after a publish error.
+// TestLazyAggregationLoop_PublishError tests that the loop exits.
 func TestLazyAggregationLoop_PublishError(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -176,7 +176,7 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 	pubMock.err = errors.New("publish failed")
 	pubMock.mu.Unlock()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	var wg sync.WaitGroup
@@ -196,20 +196,8 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 		require.Fail("timed out waiting for first block publication attempt")
 	}
 
-	// Remove the error for subsequent calls
-	pubMock.mu.Lock()
-	pubMock.err = nil
-	pubMock.mu.Unlock()
+	// loop exited, nothing to do.
 
-	// Wait for the second publish attempt (should succeed)
-	// Use a longer timeout since we need to wait for either the lazy timer or block timer to fire
-	select {
-	case <-pubMock.calls:
-	case <-time.After(2 * lazyTime): // Use the longer of the two timers with some buffer
-		require.Fail("timed out waiting for second block publication attempt after error")
-	}
-
-	cancel()
 	wg.Wait()
 }
 

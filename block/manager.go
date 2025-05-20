@@ -499,6 +499,7 @@ func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) boo
 
 // publishBlockInternal is the internal implementation for publishing a block.
 // It's assigned to the publishBlock field by default.
+// Any error will be returned, unless the error is due to a publishing error.
 func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -507,7 +508,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	if m.config.Node.MaxPendingHeaders != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeaders {
-		m.logger.Warn("refusing to create block: pending blocks [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders)
+		m.logger.Warn(fmt.Sprintf("refusing to create block: pending blocks [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders))
 		return nil
 	}
 
