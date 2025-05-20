@@ -35,7 +35,7 @@ build:
 	@cd rollups/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp .
 	@echo "--> Testapp CLI Built!"
 	@echo "    Check the version with: rollups/testapp version"
-	@echo "    Check the binary with: $(CURDIR)/rollups/testapp"
+        @echo "    Check the binary with: $(CURDIR)/build/testapp"
 .PHONY: build
 
 ## build-testapp-bench:
@@ -51,20 +51,20 @@ build-evm-single:
 	@echo "--> Building EVM single"
 	@mkdir -p $(CURDIR)/build
 	@cd rollups/evm/single && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-single .
-	@echo "    Check the binary with: $(CURDIR)/rollups/evm-single"
+        @echo "    Check the binary with: $(CURDIR)/build/evm-single"
 
 ## biuld-evm-based: build evm based
 build-evm-based:
 	@echo "--> Building EVM based"
 	@mkdir -p $(CURDIR)/build
 	@cd rollups/evm/based && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-based .
-	@echo "    Check the binary with: $(CURDIR)/rollups/evm-based"
+        @echo "    Check the binary with: $(CURDIR)/build/evm-based"
 
 build-da:
 	@echo "--> Building local-da"
 	@mkdir -p $(CURDIR)/build
 	@cd da && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/local-da ./cmd/local-da
-	@echo "    Check the binary with: $(CURDIR)/rollups/local-da"
+        @echo "    Check the binary with: $(CURDIR)/build/local-da"
 .PHONY: build-da
 
 ## clean: clean and build
