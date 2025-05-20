@@ -3,7 +3,6 @@ package block
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -139,7 +138,7 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	t.Logf("Sending header event for height %d", newHeight)
@@ -226,7 +225,7 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	t.Logf("Sending data event for height %d", newHeight)
@@ -351,7 +350,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 		t.Log("SyncLoop exited.")
 	}()
 
@@ -498,7 +497,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 		t.Log("SyncLoop exited.")
 	}()
 
@@ -605,7 +604,7 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 		t.Log("SyncLoop exited.")
 	}()
 
@@ -647,8 +646,9 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	assert.Nil(m.dataCache.GetItem(heightH1), "Data cache should be cleared for H+1")
 }
 
-// TestSyncLoop_PanicOnApplyError verifies that the SyncLoop panics if ApplyBlock fails.
-func TestSyncLoop_PanicOnApplyError(t *testing.T) {
+// TestSyncLoop_ErrorOnApplyError verifies that the SyncLoop halts if ApplyBlock fails.
+// Halting after sync loop error is handled in full.go and is not tested here.
+func TestSyncLoop_ErrorOnApplyError(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -677,7 +677,6 @@ func TestSyncLoop_PanicOnApplyError(t *testing.T) {
 	}
 
 	applyErrorSignal := make(chan struct{})
-	panicCaughtSignal := make(chan struct{})
 	applyError := errors.New("apply failed")
 
 	// --- Mock Expectations ---
@@ -692,19 +691,12 @@ func TestSyncLoop_PanicOnApplyError(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
+	errCh := make(chan error, 1)
+
 	go func() {
 		defer wg.Done()
-		defer func() {
-			if r := recover(); r != nil {
-				t.Logf("Caught expected panic: %v", r)
-				assert.Contains(fmt.Sprintf("%v", r), applyError.Error(), "Panic message should contain the original error")
-				close(panicCaughtSignal)
-			} else {
-				t.Error("SyncLoop did not panic as expected")
-			}
-		}()
-		m.SyncLoop(ctx)
-		t.Log("SyncLoop exited.")
+		m.SyncLoop(ctx, errCh)
 	}()
 
 	// --- Send Events ---
@@ -722,13 +714,7 @@ func TestSyncLoop_PanicOnApplyError(t *testing.T) {
 		t.Fatal("Timeout waiting for ApplyBlock error signal")
 	}
 
-	t.Log("Waiting for panic to be caught...")
-	select {
-	case <-panicCaughtSignal:
-		t.Log("Panic caught.")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Timeout waiting for panic signal")
-	}
+	require.Error(<-errCh, "SyncLoop should return an error when ApplyBlock errors")
 
 	wg.Wait()
 
@@ -821,7 +807,7 @@ func TestDataCommitmentToHeight_HeaderThenData(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
@@ -868,7 +854,7 @@ func TestDataCommitmentToHeight_HeaderWithExistingData(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
@@ -911,7 +897,7 @@ func TestDataCommitmentToHeight_DataBeforeHeader(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	data.Metadata = nil
@@ -961,7 +947,7 @@ func TestDataCommitmentToHeight_HeaderAlreadySynced(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
@@ -1007,7 +993,7 @@ func TestDataCommitmentToHeight_EmptyDataHash(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
@@ -1043,7 +1029,7 @@ func TestDataCommitmentToHeight_DataAlreadySeen(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.SyncLoop(ctx)
+		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
 	dataInCh <- NewDataEvent{Data: data, DAHeight: initialState.DAHeight}
