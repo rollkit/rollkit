@@ -502,6 +502,33 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	newHeight := height + 1
+	prevHeight := height // This is H-1
+
+	var prevCalculatedCommitHash types.Hash
+	if newHeight > m.genesis.InitialHeight { // Only try to get if not the very first block after genesis
+		commitHashBytes, err := m.store.GetCalculatedCommitHash(ctx, prevHeight)
+		if err != nil {
+			// If not found, it might be the first block or an issue.
+			// For the very first block an empty hash is fine. For others, this might be an issue.
+			// The ADR suggests a nil or empty cmttypes.Commit is used by the adapter if attestation isn't found.
+			// So, a nil hash here should be acceptable.
+			if !errors.Is(err, ds.ErrNotFound) {
+				// Log non-ErrNotFound errors as it might indicate a problem with the store
+				m.logger.Error("failed to get previous calculated commit hash", "height", prevHeight, "error", err)
+			}
+			// prevCalculatedCommitHash remains nil (empty Hash)
+		} else {
+			if len(commitHashBytes) != len(types.Hash{}) && len(commitHashBytes) != 0 {
+				m.logger.Error("retrieved previous calculated commit hash has incorrect length", "height", prevHeight, "length", len(commitHashBytes))
+				// prevCalculatedCommitHash remains nil (empty Hash) to be safe
+			} else if len(commitHashBytes) == len(types.Hash{}) {
+				copy(prevCalculatedCommitHash[:], commitHashBytes)
+				m.logger.Info("Successfully retrieved previous calculated commit hash", "height", prevHeight, "hash", hex.EncodeToString(prevCalculatedCommitHash[:]))
+			}
+			// if len is 0, it's considered a nil hash, prevCalculatedCommitHash is already nil
+		}
+	}
+
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight <= m.genesis.InitialHeight {
 		// Special handling for genesis block
@@ -547,19 +574,24 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 			}
 		} else {
 			if batchData.Before(lastHeaderTime) {
-				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
+				// ADR: This timestamp check should use batchData.Time against m.getLastBlockTime()
+				// m.getLastBlockTime() gives m.lastState.LastBlockTime, which is time of H-1's header
+				// batchData.Time is for current block H
+				if batchData.Time.Before(m.getLastBlockTime()) { // Corrected
+					return fmt.Errorf("timestamp is not monotonically increasing: batch time %s < last block time %s", batchData.Time, m.getLastBlockTime())
+				}
+				m.logger.Info("Creating and publishing block", "height", newHeight)
+				m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
 			}
-			m.logger.Info("Creating and publishing block", "height", newHeight)
-			m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
-		}
 
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
-		if err != nil {
-			return err
-		}
+			header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, prevCalculatedCommitHash, batchData)
+			if err != nil {
+				return err
+			}
 
-		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
-			return SaveBlockError{err}
+			if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
+				return SaveBlockError{err}
+			}
 		}
 	}
 
@@ -649,6 +681,23 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	m.logger.Debug("successfully proposed header", "proposer", hex.EncodeToString(header.ProposerAddress), "height", headerHeight)
 
+	// ADR Phase 1.5: Create and save RollkitSequencerAttestation for the current block H (header, data)
+	// This attestation will be used by the adapter when processing block H+1.
+	currentBlockAttestation, err := m.createAndSignAttestation(ctx, header, data)
+	if err != nil {
+		// Log the error but don't let it stop the node.
+		// The adapter might not be able to form the LastCommit for the *next* block,
+		// but this block (H) is already processed and published.
+		m.logger.Error("failed to create and sign attestation for current block", "height", header.Height(), "error", err)
+	} else {
+		err = m.store.SaveSequencerAttestation(ctx, header.Height(), currentBlockAttestation)
+		if err != nil {
+			m.logger.Error("failed to save sequencer attestation for current block", "height", header.Height(), "error", err)
+		} else {
+			m.logger.Info("Successfully saved sequencer attestation", "height", header.Height())
+		}
+	}
+
 	return nil
 }
 
@@ -676,13 +725,13 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, prevCalculatedCommitHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, prevCalculatedCommitHash, m.lastState, batchData)
 }
 
-func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, prevCalculatedCommitHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	if m.signer == nil {
 		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
 	}
@@ -737,6 +786,7 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash:  lastHeaderHash,
+			LastCommitHash:  prevCalculatedCommitHash,
 			DataHash:        dataHash,
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         m.lastState.AppHash,
@@ -905,4 +955,70 @@ func (m *Manager) NotifyNewTransactions() {
 		// Channel buffer is full, which means a notification is already pending
 		// This is fine, as we just need to trigger one block production
 	}
+}
+
+// getAttestationSigningBytes constructs the canonical byte representation of attestation data for signing.
+// The order and format must be strictly defined and adhered to by any verifier.
+func (m *Manager) getAttestationSigningBytes(height uint64, round int32, blockHeaderHash []byte, blockDataHash []byte, timestamp time.Time) ([]byte, error) {
+	// Simple concatenation for this example. A more robust solution might use a specific
+	// protobuf definition or a library like go-amino or a custom binary marshaller.
+	// The exact serialization format must match what the adapter expects for constructing cmttypes.CommitSig.
+	// For cmttypes.Vote.SignBytes, it signs: VoteType, Height, Round, BlockID (hash & parts), Timestamp, ChainID
+	// We are simplifying here as Rollkit's attestation is sequencer-specific.
+
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, height)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write height to buffer: %w", err)
+	}
+	err = binary.Write(buf, binary.LittleEndian, round)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write round to buffer: %w", err)
+	}
+	buf.Write(blockHeaderHash)
+	buf.Write(blockDataHash)
+
+	// Convert time.Time to UnixNano for consistent representation
+	tsBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(tsBytes, uint64(timestamp.UnixNano()))
+	buf.Write(tsBytes)
+
+	return buf.Bytes(), nil
+}
+
+func (m *Manager) createAndSignAttestation(ctx context.Context, header *types.SignedHeader, data *types.Data) (*types.RollkitSequencerAttestation, error) {
+	if m.signer == nil {
+		return nil, errors.New("signer is nil, cannot create attestation")
+	}
+	sequencerAddress, err := m.signer.GetAddress()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sequencer address for attestation: %w", err)
+	}
+
+	// Use round 0 as per ADR suggestion for single sequencer
+	round := int32(0)
+	blockHeaderHash := header.Hash()
+	blockDataHash := data.Hash() // Assuming data.Hash() gives the correct DataHash for BlockID
+
+	signingBytes, err := m.getAttestationSigningBytes(header.Height(), round, blockHeaderHash, blockDataHash, header.Time())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attestation signing bytes: %w", err)
+	}
+
+	signature, err := m.signer.Sign(signingBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign attestation data: %w", err)
+	}
+
+	attestation := &types.RollkitSequencerAttestation{
+		Height:           header.Height(),
+		Round:            round,
+		BlockHeaderHash:  blockHeaderHash,
+		BlockDataHash:    blockDataHash,
+		SequencerAddress: sequencerAddress,
+		Timestamp:        header.Time(),
+		Signature:        signature,
+	}
+
+	return attestation, nil
 }

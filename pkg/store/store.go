@@ -14,13 +14,15 @@ import (
 )
 
 var (
-	headerPrefix    = "h"
-	dataPrefix      = "d"
-	indexPrefix     = "i"
-	signaturePrefix = "c"
-	statePrefix     = "s"
-	metaPrefix      = "m"
-	heightPrefix    = "t"
+	headerPrefix         = "h"
+	dataPrefix           = "d"
+	indexPrefix          = "i"
+	signaturePrefix      = "c"
+	statePrefix          = "s"
+	metaPrefix           = "m"
+	heightPrefix         = "t"
+	seqAttestationPrefix = "sa"
+	calcCommitHashPrefix = "ch"
 )
 
 // DefaultStore is a default store implmementation.
@@ -230,6 +232,60 @@ func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, err
 	return data, nil
 }
 
+// SaveSequencerAttestation saves the sequencer attestation for a given height.
+func (s *DefaultStore) SaveSequencerAttestation(ctx context.Context, height uint64, attestation *types.RollkitSequencerAttestation) error {
+	key := ds.NewKey(getSeqAttestationKey(height))
+	// TODO (gmm): consider using proto for marshalling if a proto definition exists or will be created.
+	// For now, using a simple binary marshaller if available, or json as a fallback.
+	// This will require RollkitSequencerAttestation to implement MarshalBinary and UnmarshalBinary.
+	// For simplicity in this example, let's assume it will be marshalled to protobuf if available, or JSON.
+	// As a placeholder, we'll use a direct proto marshal if the object were a proto message.
+	// If RollkitSequencerAttestation is not a proto message, this needs to be adapted (e.g. json.Marshal).
+	// For the ADR, it's defined as a simple Go struct. We'll use JSON for now.
+	attestationBytes, err := attestation.MarshalBinary() // Assuming MarshalBinary for now as per other types.
+	if err != nil {
+		return fmt.Errorf("failed to marshal sequencer attestation: %w", err)
+	}
+	return s.db.Put(ctx, key, attestationBytes)
+}
+
+// GetSequencerAttestation retrieves the sequencer attestation for a given height.
+func (s *DefaultStore) GetSequencerAttestation(ctx context.Context, height uint64) (*types.RollkitSequencerAttestation, error) {
+	key := ds.NewKey(getSeqAttestationKey(height))
+	attestationBytes, err := s.db.Get(ctx, key)
+	if errors.Is(err, ds.ErrNotFound) {
+		return nil, err // Return ErrNotFound directly
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sequencer attestation for height %d: %w", height, err)
+	}
+	attestation := new(types.RollkitSequencerAttestation)
+	// Assuming UnmarshalBinary for now.
+	if err := attestation.UnmarshalBinary(attestationBytes); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal sequencer attestation for height %d: %w", height, err)
+	}
+	return attestation, nil
+}
+
+// SaveCalculatedCommitHash saves the commit hash calculated by the adapter for a given height.
+func (s *DefaultStore) SaveCalculatedCommitHash(ctx context.Context, height uint64, hash []byte) error {
+	key := ds.NewKey(getCalcCommitHashKey(height))
+	return s.db.Put(ctx, key, hash)
+}
+
+// GetCalculatedCommitHash retrieves the commit hash calculated by the adapter for a given height.
+func (s *DefaultStore) GetCalculatedCommitHash(ctx context.Context, height uint64) ([]byte, error) {
+	key := ds.NewKey(getCalcCommitHashKey(height))
+	hash, err := s.db.Get(ctx, key)
+	if errors.Is(err, ds.ErrNotFound) {
+		return nil, err // Return ErrNotFound directly
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get calculated commit hash for height %d: %w", height, err)
+	}
+	return hash, nil
+}
+
 const heightLength = 8
 
 func encodeHeight(height uint64) []byte {
@@ -243,4 +299,12 @@ func decodeHeight(heightBytes []byte) (uint64, error) {
 		return 0, fmt.Errorf("invalid height length: %d (expected %d)", len(heightBytes), heightLength)
 	}
 	return binary.LittleEndian.Uint64(heightBytes), nil
+}
+
+func getSeqAttestationKey(height uint64) string {
+	return seqAttestationPrefix + string(encodeHeight(height))
+}
+
+func getCalcCommitHashKey(height uint64) string {
+	return calcCommitHashPrefix + string(encodeHeight(height))
 }
