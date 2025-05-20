@@ -12,8 +12,11 @@ The RPC implementation uses [Connect-Go](https://connectrpc.com/docs/go/getting-
 pkg/rpc/
   ├── client/       # Client implementation
   │   └── client.go
-  └── server/       # Server implementation
+  └── server/       # Core RPC handlers
       └── server.go
+
+pkg/execution/
+  └── server.go     # ExecutionService implementation
 ```
 
 ## Usage
@@ -77,13 +80,19 @@ func main() {
 
 ## Features
 
-The RPC service provides the following methods:
+The RPC services provide the following methods:
 
 - `GetHeight`: Returns the current height of the store
 - `GetBlock`: Returns a block by height or hash
 - `GetState`: Returns the current state
 - `GetMetadata`: Returns metadata for a specific key
 - `SetMetadata`: Sets metadata for a specific key
+
+ExecutionService:
+- `InitChain`: Initialize the execution environment
+- `GetTxs`: Retrieve pending transactions
+- `ExecuteTxs`: Execute a batch of transactions
+- `SetFinal`: Mark a block as finalized
 
 ## Protocol Buffers
 

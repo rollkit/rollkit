@@ -363,7 +363,7 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	}
 
 	// Start RPC server
-	handler, err := rpcserver.NewServiceHandler(n.Store, n.p2pClient)
+	handler, err := rpcserver.NewServiceHandler(n.Store, n.p2pClient, n.blockManager.GetExecutor())
 	if err != nil {
 		return fmt.Errorf("error creating RPC handler: %w", err)
 	}

@@ -13,6 +13,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	coreexec "github.com/rollkit/rollkit/core/execution"
+	execserver "github.com/rollkit/rollkit/pkg/execution"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
@@ -209,25 +211,38 @@ func (h *HealthServer) Livez(
 }
 
 // NewServiceHandler creates a new HTTP handler for Store, P2P and Health services
-func NewServiceHandler(store store.Store, peerManager p2p.P2PRPC) (http.Handler, error) {
+func NewServiceHandler(store store.Store, peerManager p2p.P2PRPC, exec coreexec.Executor) (http.Handler, error) {
 	storeServer := NewStoreServer(store)
+	var execServer *execserver.Server
+	if exec != nil {
+		execServer = execserver.NewServer(exec)
+	}
 	p2pServer := NewP2PServer(peerManager)
 	healthServer := NewHealthServer()
 
 	mux := http.NewServeMux()
 
 	compress1KB := connect.WithCompressMinBytes(1024)
-	reflector := grpcreflect.NewStaticReflector(
+	services := []string{
 		rpc.StoreServiceName,
 		rpc.P2PServiceName,
 		rpc.HealthServiceName,
-	)
+	}
+	if execServer != nil {
+		services = append(services, rpc.ExecutionServiceName)
+	}
+	reflector := grpcreflect.NewStaticReflector(services...)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, compress1KB))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector, compress1KB))
 
 	// Register StoreService
 	storePath, storeHandler := rpc.NewStoreServiceHandler(storeServer)
 	mux.Handle(storePath, storeHandler)
+
+	if execServer != nil {
+		execPath, execHandler := rpc.NewExecutionServiceHandler(execServer)
+		mux.Handle(execPath, execHandler)
+	}
 
 	// Register P2PService
 	p2pPath, p2pHandler := rpc.NewP2PServiceHandler(p2pServer)
