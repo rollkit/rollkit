@@ -71,8 +71,7 @@ func TestDASpeed(t *testing.T) {
 					return []coreda.Blob{headerBytes}, nil
 				})
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 
 			// when
 			go manager.RetrieveLoop(ctx)
