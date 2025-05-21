@@ -12,3 +12,4 @@ build
 .aider*
 .DS_Store
 coverage.out
+execution/evm/jwttoken
