@@ -139,7 +139,7 @@ func (m *Manager) BatchSubmissionLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			m.logger.Info("Batch submission loop stopped")
+			m.logger.Info("batch submission loop stopped")
 			return
 		case batch := <-m.batchSubmissionChan:
 			err := m.submitBatchToDA(ctx, batch)

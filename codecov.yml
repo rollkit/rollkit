@@ -10,4 +10,4 @@ ignore:
   - "test"
   - "types/pb"
   - "scripts/"
-  - "pkg/rpc/example*"
+  - "pkg/rpc/example/"
