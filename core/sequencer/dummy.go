@@ -10,22 +10,24 @@ import (
 // DummySequencer
 //---------------------
 
-// dummySequencer is a dummy implementation of the Sequencer interface for testing
-type dummySequencer struct {
+var _ Sequencer = (*DummySequencer)(nil)
+
+// DummySequencer is a dummy implementation of the Sequencer interface for testing
+type DummySequencer struct {
 	mu                  sync.RWMutex
 	batches             map[string]*Batch
 	batchSubmissionChan chan Batch
 }
 
 // NewDummySequencer creates a new dummy Sequencer instance
-func NewDummySequencer() Sequencer {
-	return &dummySequencer{
+func NewDummySequencer() *DummySequencer {
+	return &DummySequencer{
 		batches: make(map[string]*Batch),
 	}
 }
 
 // SubmitRollupBatchTxs submits a batch of transactions to the sequencer
-func (s *dummySequencer) SubmitRollupBatchTxs(ctx context.Context, req SubmitRollupBatchTxsRequest) (*SubmitRollupBatchTxsResponse, error) {
+func (s *DummySequencer) SubmitRollupBatchTxs(ctx context.Context, req SubmitRollupBatchTxsRequest) (*SubmitRollupBatchTxsResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -37,7 +39,7 @@ func (s *dummySequencer) SubmitRollupBatchTxs(ctx context.Context, req SubmitRol
 }
 
 // GetNextBatch gets the next batch from the sequencer
-func (s *dummySequencer) GetNextBatch(ctx context.Context, req GetNextBatchRequest) (*GetNextBatchResponse, error) {
+func (s *DummySequencer) GetNextBatch(ctx context.Context, req GetNextBatchRequest) (*GetNextBatchResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -53,12 +55,12 @@ func (s *dummySequencer) GetNextBatch(ctx context.Context, req GetNextBatchReque
 }
 
 // VerifyBatch verifies a batch of transactions received from the sequencer
-func (s *dummySequencer) VerifyBatch(ctx context.Context, req VerifyBatchRequest) (*VerifyBatchResponse, error) {
+func (s *DummySequencer) VerifyBatch(ctx context.Context, req VerifyBatchRequest) (*VerifyBatchResponse, error) {
 	return &VerifyBatchResponse{
 		Status: true,
 	}, nil
 }
 
-func (s *dummySequencer) SetBatchSubmissionChan(batchSubmissionChan chan Batch) {
+func (s *DummySequencer) SetBatchSubmissionChan(batchSubmissionChan chan Batch) {
 	s.batchSubmissionChan = batchSubmissionChan
 }
