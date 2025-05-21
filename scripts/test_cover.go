@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	rootDir := "." // Start from the current directory
+	rootDir := "."
 	var coverFiles []string
 	var testFailures bool
 
@@ -25,7 +25,6 @@ func main() {
 			return err // Skip this path
 		}
 
-		// Skip vendor directories, .git directories, and testdata directories
 		if d.IsDir() && (d.Name() == "vendor" || d.Name() == ".git" || strings.Contains(path, "testdata")) {
 			log.Printf("Skipping directory: %s\n", path)
 			return filepath.SkipDir
@@ -35,15 +34,12 @@ func main() {
 			modDir := filepath.Dir(path)
 			fmt.Printf("--> Found go.mod in: %s\n", modDir)
 
-			// This is the full path to where the cover.out will be created, relative to the project root.
-			// This path is used for collecting and merging.
 			fullCoverProfilePath := filepath.Join(modDir, "cover.out")
-			// This is the path that 'go test' will use for -coverprofile, relative to its working directory (modDir).
 			relativeCoverProfileArg := "cover.out"
 
 			fmt.Printf("--> Running tests with coverage in: %s (profile: %s)\n", modDir, relativeCoverProfileArg)
 			cmd := exec.Command("go", "test", "./...", "-coverprofile="+relativeCoverProfileArg, "-covermode=atomic")
-			cmd.Dir = modDir // Run the command in the module's directory
+			cmd.Dir = modDir
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 
