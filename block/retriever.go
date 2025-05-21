@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -28,6 +29,8 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-m.retrieveCh:
+
+			var wg sync.WaitGroup
 			workCh := make(chan uint64, dAFetcherWorkers*2)
 			stopCh := make(chan struct{}, 1)
 			validHeightCh := make(chan uint64, dAFetcherWorkers)
@@ -36,7 +39,9 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 
 			//start the multiple go routines that will fetch the blocks
 			for i := 0; i < dAFetcherWorkers; i++ {
+				wg.Add(1)
 				go func() {
+					defer wg.Done()
 					for height := range workCh {
 						err := m.processNextDAHeaderAndData(ctx, height)
 						if err != nil && ctx.Err() == nil {
@@ -77,10 +82,12 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 				select {
 				case <-ctx.Done():
 					close(workCh)
+					wg.Wait()
 					close(validHeightCh)
 					return
 				case <-stopCh: //if we are going to far we stop adding future heights
 					close(workCh)
+					wg.Wait()
 					close(validHeightCh)
 					break retrieveLoop
 				case workCh <- daHeight:
