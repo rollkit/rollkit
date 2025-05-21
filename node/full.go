@@ -377,12 +377,12 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	}
 
 	go func() {
-		if err := n.rpcServer.ListenAndServe(); err != http.ErrServerClosed {
+		err := n.rpcServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
 			n.Logger.Error("RPC server error", "err", err)
 		}
+		n.Logger.Info("started RPC server", "addr", n.nodeConfig.RPC.Address)
 	}()
-
-	n.Logger.Info("Started RPC server", "addr", n.nodeConfig.RPC.Address)
 
 	n.Logger.Info("starting P2P client")
 	err = n.p2pClient.Start(ctx)
@@ -432,8 +432,7 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	}
 
 	// Perform cleanup
-	n.Logger.Info("halting full node...")
-	n.Logger.Info("shutting down full node sub services...")
+	n.Logger.Info("halting full node and its sub services...")
 
 	// Use a timeout context to ensure shutdown doesn't hang
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -444,7 +443,6 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	// Stop P2P Client
 	err = n.p2pClient.Close()
 	if err != nil {
-		n.Logger.Error("error closing P2P client", "error", err)
 		multiErr = errors.Join(multiErr, fmt.Errorf("closing P2P client: %w", err))
 	}
 
@@ -479,7 +477,6 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		err = n.prometheusSrv.Shutdown(shutdownCtx)
 		// http.ErrServerClosed is expected on graceful shutdown
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			n.Logger.Error("error shutting down Prometheus server", "error", err)
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down Prometheus server: %w", err))
 		}
 	}
@@ -488,7 +485,6 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	if n.pprofSrv != nil {
 		err = n.pprofSrv.Shutdown(shutdownCtx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			n.Logger.Error("error shutting down pprof server", "error", err)
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down pprof server: %w", err))
 		}
 	}
@@ -497,22 +493,25 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	if n.rpcServer != nil {
 		err = n.rpcServer.Shutdown(shutdownCtx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			n.Logger.Error("error shutting down RPC server", "error", err)
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down RPC server: %w", err))
 		}
 	}
 
 	// Ensure Store.Close is called last to maximize chance of data flushing
-	err = n.Store.Close()
-	if err != nil {
-		// Store.Close() might log internally, but log here too for context
-		n.Logger.Error("error closing store", "error", err)
+	if err = n.Store.Close(); err != nil {
 		multiErr = errors.Join(multiErr, fmt.Errorf("closing store: %w", err))
+	}
+
+	// Save caches if needed
+	if err := n.blockManager.SaveCache(); err != nil {
+		multiErr = errors.Join(multiErr, fmt.Errorf("saving caches: %w", err))
 	}
 
 	// Log final status
 	if multiErr != nil {
-		n.Logger.Error("errors encountered while stopping node", "errors", multiErr)
+		for _, err := range multiErr.(interface{ Unwrap() []error }).Unwrap() {
+			n.Logger.Error("error during shutdown", "error", err)
+		}
 	} else {
 		n.Logger.Info("full node halted successfully")
 	}
