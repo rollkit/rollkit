@@ -487,7 +487,7 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		}
 	}
 
-	// Shutdown RPC Serverrllk
+	// Shutdown RPC Serverr
 	if n.rpcServer != nil {
 		err = n.rpcServer.Shutdown(shutdownCtx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
