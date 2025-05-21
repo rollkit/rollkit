@@ -452,11 +452,10 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		// Log context canceled errors at a lower level if desired, or handle specific non-cancel errors
 		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			n.Logger.Error("error stopping header sync service", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
 		} else {
 			n.Logger.Debug("header sync service stop context ended", "reason", err) // Log cancellation as debug
 		}
-		// Still include the error in multiErr for completeness if needed
-		multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
 	}
 
 	// Stop Data Sync Service
@@ -465,11 +464,10 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		// Log context canceled errors at a lower level if desired, or handle specific non-cancel errors
 		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			n.Logger.Error("error stopping data sync service", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("stopping data sync service: %w", err))
 		} else {
 			n.Logger.Debug("data sync service stop context ended", "reason", err) // Log cancellation as debug
 		}
-		// Still include the error in multiErr for completeness if needed
-		multiErr = errors.Join(multiErr, fmt.Errorf("stopping data sync service: %w", err))
 	}
 
 	// Shutdown Prometheus Server
@@ -489,7 +487,7 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		}
 	}
 
-	// Shutdown RPC Server
+	// Shutdown RPC Serverrllk
 	if n.rpcServer != nil {
 		err = n.rpcServer.Shutdown(shutdownCtx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {

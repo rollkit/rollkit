@@ -950,7 +950,7 @@ func (m *Manager) LoadCache() error {
 	gob.Register(&types.SignedHeader{})
 	gob.Register(&types.Data{})
 
-	cfgDir := filepath.Dir(m.config.ConfigPath())
+	cfgDir := filepath.Join(m.config.RootDir, "data")
 
 	if err := m.headerCache.LoadFromDisk(filepath.Join(cfgDir, headerCacheDir)); err != nil {
 		return fmt.Errorf("failed to load header cache from disk: %w", err)
@@ -965,11 +965,13 @@ func (m *Manager) LoadCache() error {
 
 // SaveCache saves the header and data caches to disk.
 func (m *Manager) SaveCache() error {
-	if err := m.headerCache.SaveToDisk(filepath.Join(filepath.Dir(m.config.ConfigPath()), headerCacheDir)); err != nil {
+	cfgDir := filepath.Join(m.config.RootDir, "data")
+
+	if err := m.headerCache.SaveToDisk(filepath.Join(cfgDir, headerCacheDir)); err != nil {
 		return fmt.Errorf("failed to save header cache to disk: %w", err)
 	}
 
-	if err := m.dataCache.SaveToDisk(filepath.Join(filepath.Dir(m.config.ConfigPath()), dataCacheDir)); err != nil {
+	if err := m.dataCache.SaveToDisk(filepath.Join(cfgDir, dataCacheDir)); err != nil {
 		return fmt.Errorf("failed to save data cache to disk: %w", err)
 	}
 	return nil
