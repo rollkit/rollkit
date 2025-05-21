@@ -23,7 +23,7 @@ cover:
 	@go-acc -o coverage.txt ./...
 .PHONY: cover
 
-## cover: generate to code coverage report.
+## test-cover: generate code coverage report.
 test-cover:
 	@echo "--> Running unit tests"
 	@go run -tags=cover scripts/test_cover.go
