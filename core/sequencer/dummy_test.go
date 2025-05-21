@@ -1,30 +1,16 @@
 package sequencer
 
 import (
-	"context"
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 )
 
-func TestNewDummySequencer(t *testing.T) {
-	seq := NewDummySequencer()
-	if seq == nil {
-		t.Fatal("NewDummySequencer should return a non-nil sequencer")
-	}
-
-	// Type assertion to ensure it's the correct type
-	_, ok := seq.(*dummySequencer)
-	if !ok {
-		t.Fatal("NewDummySequencer should return a *dummySequencer")
-	}
-}
-
 func TestDummySequencer_SubmitRollupBatchTxs(t *testing.T) {
 	seq := NewDummySequencer()
-	ctx := context.Background()
+	seq.SetBatchSubmissionChan(make(chan Batch, 1))
+	ctx := t.Context()
 
 	// Create a test batch
 	batch := &Batch{
@@ -66,21 +52,24 @@ func TestDummySequencer_SubmitRollupBatchTxs(t *testing.T) {
 
 func TestDummySequencer_GetNextBatch(t *testing.T) {
 	seq := NewDummySequencer()
-	ctx := context.Background()
+	seq.SetBatchSubmissionChan(make(chan Batch, 1))
+
+	ctx := t.Context()
 
 	t.Run("non-existent rollup ID", func(t *testing.T) {
 		// Try to get a batch for a non-existent rollup ID
 		nonExistentRollupID := []byte("non-existent-rollup")
-		_, err := seq.GetNextBatch(ctx, GetNextBatchRequest{
+		req, err := seq.GetNextBatch(ctx, GetNextBatchRequest{
 			RollupId: nonExistentRollupID,
 		})
-
-		// Should return an error
-		if err == nil {
-			t.Fatal("GetNextBatch should return an error for non-existent rollup ID")
+		if err != nil {
+			t.Fatalf("no error expected: %s", err)
 		}
-		if err.Error() == "" || !contains(err.Error(), "no batch found for rollup ID") {
-			t.Fatalf("Error message should indicate the rollup ID was not found, got: %v", err)
+		if req == nil || req.Batch == nil {
+			t.Fatal("unexpected nil response")
+		}
+		if len(req.Batch.Transactions) != 0 {
+			t.Error("batch should be empty")
 		}
 	})
 
@@ -131,7 +120,8 @@ func TestDummySequencer_GetNextBatch(t *testing.T) {
 
 func TestDummySequencer_VerifyBatch(t *testing.T) {
 	seq := NewDummySequencer()
-	ctx := context.Background()
+	seq.SetBatchSubmissionChan(make(chan Batch, 1))
+	ctx := t.Context()
 
 	// The dummy implementation always returns true regardless of input
 	rollupID := []byte("test-rollup")
@@ -156,7 +146,7 @@ func TestDummySequencer_VerifyBatch(t *testing.T) {
 
 func TestDummySequencer_Concurrency(t *testing.T) {
 	seq := NewDummySequencer()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Test concurrent submissions and retrievals
 	const numGoroutines = 10
@@ -165,6 +155,7 @@ func TestDummySequencer_Concurrency(t *testing.T) {
 	// Create a wait group to wait for all goroutines to finish
 	done := make(chan struct{})
 	errors := make(chan error, numGoroutines*numOperationsPerGoroutine)
+	seq.SetBatchSubmissionChan(make(chan Batch, numGoroutines*numOperationsPerGoroutine))
 
 	for i := 0; i < numGoroutines; i++ {
 		go func(routineID int) {
@@ -228,7 +219,9 @@ func TestDummySequencer_Concurrency(t *testing.T) {
 
 func TestDummySequencer_MultipleRollups(t *testing.T) {
 	seq := NewDummySequencer()
-	ctx := context.Background()
+	seq.SetBatchSubmissionChan(make(chan Batch, 3))
+
+	ctx := t.Context()
 
 	// Create multiple rollup IDs and batches
 	rollupIDs := [][]byte{
@@ -271,7 +264,8 @@ func TestDummySequencer_MultipleRollups(t *testing.T) {
 
 func TestDummySequencer_BatchOverwrite(t *testing.T) {
 	seq := NewDummySequencer()
-	ctx := context.Background()
+	seq.SetBatchSubmissionChan(make(chan Batch, 3))
+	ctx := t.Context()
 
 	rollupID := []byte("test-rollup")
 
@@ -322,9 +316,4 @@ func TestDummySequencer_BatchOverwrite(t *testing.T) {
 	if reflect.DeepEqual(batch1, getResp.Batch) {
 		t.Fatal("Retrieved batch should not be the first submitted one")
 	}
-}
-
-// Helper function to check if a string contains a substring
-func contains(s, substr string) bool {
-	return strings.Contains(s, substr)
 }
