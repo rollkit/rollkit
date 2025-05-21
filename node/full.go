@@ -268,7 +268,8 @@ func (n *FullNode) dataPublishLoop(ctx context.Context) {
 			if err != nil {
 				// failed to init or start blockstore
 				n.Logger.Error(err.Error())
-				return
+				panic(err)
+				//return
 			}
 		case <-ctx.Done():
 			return

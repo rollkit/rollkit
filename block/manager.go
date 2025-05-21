@@ -384,7 +384,7 @@ func monitorChannel[T any](ctx context.Context, logger log.Logger, name string, 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			logger.Info("+++ "+name, "i", fmt.Sprintf("%d?%d", len(ch), cap(ch)))
+			logger.Info("+++ "+name, "i", fmt.Sprintf("%d/%d", len(ch), cap(ch)))
 		}
 	}
 }
