@@ -23,54 +23,65 @@ const (
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
 
-	workCh := make(chan uint64, dAFetcherWorkers*2)
-	stopCh := make(chan struct{}, 1)
-	validHeightCh := make(chan uint64, dAFetcherWorkers)
-	defer close(validHeightCh)
-	defer close(stopCh)
-	defer close(workCh)
-
-	for i := 0; i < dAFetcherWorkers; i++ {
-		go func() {
-			for height := range workCh {
-				err := m.processNextDAHeaderAndData(ctx, height)
-				if err != nil && ctx.Err() == nil {
-					// if the requested da height is not yet available, wait silently, otherwise log the error and wait
-					if !m.areAllErrorsHeightFromFuture(err) {
-						m.logger.Error("failed to retrieve data from DALC", "daHeight", height, "errors", err.Error())
-					} else { //if the request height is not yet available stop fetching it
-						select {
-						case stopCh <- struct{}{}:
-						default:
-						}
-					}
-				} else if err == nil {
-					validHeightCh <- height
-				}
-			}
-		}()
-	}
-
-	go func() {
-		daHeight := m.daHeight.Load()
-		for height := range validHeightCh {
-			if height > daHeight {
-				m.daHeight.Store(height)
-				daHeight = height
-			}
-		}
-	}()
-
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-m.retrieveCh:
+			workCh := make(chan uint64, dAFetcherWorkers*2)
+			stopCh := make(chan struct{}, 1)
+			validHeightCh := make(chan uint64, dAFetcherWorkers)
+			defer close(stopCh)
 			daHeight := m.daHeight.Load()
+
+			//start the multiple go routines that will fetch the blocks
+			for i := 0; i < dAFetcherWorkers; i++ {
+				go func() {
+					for height := range workCh {
+						err := m.processNextDAHeaderAndData(ctx, height)
+						if err != nil && ctx.Err() == nil {
+							// if the requested da height is not yet available, wait silently, otherwise log the error and wait
+							if !m.areAllErrorsHeightFromFuture(err) {
+								m.logger.Error("failed to retrieve data from DALC", "daHeight", height, "errors", err.Error())
+							} else { //if the request height is not yet available stop fetching it
+								select {
+								case stopCh <- struct{}{}:
+								default:
+								}
+							}
+						} else if err == nil {
+							select {
+							case validHeightCh <- height:
+							case <-ctx.Done():
+								return
+							}
+						}
+					}
+				}()
+			}
+
+			//start the goroutine that will update the manager.daHeight
+			go func() {
+				daHeight := m.daHeight.Load()
+				for height := range validHeightCh {
+					if height > daHeight {
+						m.daHeight.Store(height)
+						daHeight = height
+					}
+				}
+			}()
+
+			//start the retrieve loop that will send block height that the workers will retrieve
 		retrieveLoop:
 			for {
 				select {
+				case <-ctx.Done():
+					close(workCh)
+					close(validHeightCh)
+					return
 				case <-stopCh: //if we are going to far we stop adding future heights
+					close(workCh)
+					close(validHeightCh)
 					break retrieveLoop
 				case workCh <- daHeight:
 					daHeight++
