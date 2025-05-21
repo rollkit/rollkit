@@ -68,8 +68,19 @@ func TestFullNodeSyncsFromAggregator(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(info.ListenAddresses[0])
 
-	// Wait for a few blocks to be produced
-	time.Sleep(1 * time.Second)
+	// Wait for the aggregator to produce at least two blocks
+	var blockProduced bool
+	for i := 0; i < 20; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		state, err := node1Client.GetState(ctx)
+		cancel()
+		if err == nil && state.LastBlockHeight > 1 {
+			blockProduced = true
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	require.True(t, blockProduced, "Aggregator did not produce any blocks")
 
 	// Init full node
 	output, err = sut.RunCmd(binaryPath,
