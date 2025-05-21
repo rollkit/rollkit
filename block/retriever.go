@@ -202,7 +202,7 @@ func (m *Manager) fetchBlobs(ctx context.Context, daHeight uint64) (coreda.Resul
 	var err error
 	ctx, cancel := context.WithTimeout(ctx, dAefetcherTimeout)
 	defer cancel()
-	//TODO: we should maintain the original error instead of creating a new one as we lose context by creating a new error.
+	// TODO: we should maintain the original error instead of creating a new one as we lose context by creating a new error.
 	blobsRes := types.RetrieveWithHelpers(ctx, m.da, m.logger, daHeight)
 	if blobsRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", blobsRes.Message)
