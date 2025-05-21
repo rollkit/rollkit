@@ -54,8 +54,19 @@ func TestFullNodeSyncsFromAggregator(t *testing.T) {
 		"--rollkit.da.block_time=200ms",
 		"--kv-endpoint=127.0.0.1:9090",
 	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
+
+	node1RPC := "http://127.0.0.1:7331"
+	sut.AwaitNodeUp(t, node1RPC, 2*time.Second)
 	t.Log("Aggregator node is up.")
+
+	node1Client := nodeclient.NewClient(node1RPC)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	info, err := node1Client.GetNetInfo(ctx)
+	cancel()
+
+	require.NoError(t, err)
+	t.Log(info.ListenAddresses[0])
 
 	// Wait for a few blocks to be produced
 	time.Sleep(1 * time.Second)
@@ -73,13 +84,14 @@ func TestFullNodeSyncsFromAggregator(t *testing.T) {
 
 	// Start full node
 	node2RPC := "127.0.0.1:7332"
-	node2P2P := "/ip4/0.0.0.0/tcp/7676"
+	node2P2P := "/ip4/0.0.0.0/tcp/7677"
 	sut.StartNode(
 		binaryPath,
 		"start",
 		"--home="+node2Home,
 		"--rollkit.log.level=debug",
 		"--rollkit.p2p.listen_address="+node2P2P,
+		"--rollkit.p2p.peers="+info.ListenAddresses[0],
 		fmt.Sprintf("--rollkit.rpc.address=%s", node2RPC),
 	)
 	sut.AwaitNodeUp(t, "http://"+node2RPC, 2*time.Second)
@@ -92,7 +104,7 @@ func TestFullNodeSyncsFromAggregator(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		state, err := fullNodeClient.GetState(ctx)
 		cancel()
-		if err == nil && state.LastBlockHeight > 2 {
+		if err == nil && state.LastBlockHeight > 10 {
 			synced = true
 			break
 		}
