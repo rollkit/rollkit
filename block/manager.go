@@ -558,7 +558,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// If there is use that instead of creating a new block
 	pendingHeader, pendingData, err := m.store.GetBlockData(ctx, newHeight)
 	if err == nil {
-		m.logger.Info("Using pending block", "height", newHeight)
+		m.logger.Info("using pending block", "height", newHeight)
 		header = pendingHeader
 		data = pendingData
 	} else {
@@ -566,10 +566,10 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		if err != nil {
 			if errors.Is(err, ErrNoBatch) {
 				if batchData == nil {
-					m.logger.Info("No batch retrieved from sequencer, skipping block production")
+					m.logger.Info("no batch retrieved from sequencer, skipping block production")
 					return nil
 				}
-				m.logger.Info("Creating empty block", "height", newHeight)
+				m.logger.Info("creating empty block", "height", newHeight)
 			} else {
 				m.logger.Warn("failed to get transactions from batch", "error", err)
 				return nil
@@ -578,7 +578,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 			if batchData.Before(lastHeaderTime) {
 				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 			}
-			m.logger.Info("Creating and publishing block", "height", newHeight)
+			m.logger.Info("creating and publishing block", "height", newHeight)
 			m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
 		}
 
@@ -950,7 +950,7 @@ func (m *Manager) LoadCache() error {
 	gob.Register(&types.SignedHeader{})
 	gob.Register(&types.Data{})
 
-	cfgDir := filepath.Dir(m.config.ConfigPath())
+	cfgDir := filepath.Join(m.config.RootDir, "data")
 
 	if err := m.headerCache.LoadFromDisk(filepath.Join(cfgDir, headerCacheDir)); err != nil {
 		return fmt.Errorf("failed to load header cache from disk: %w", err)
@@ -965,11 +965,13 @@ func (m *Manager) LoadCache() error {
 
 // SaveCache saves the header and data caches to disk.
 func (m *Manager) SaveCache() error {
-	if err := m.headerCache.SaveToDisk(filepath.Join(filepath.Dir(m.config.ConfigPath()), headerCacheDir)); err != nil {
+	cfgDir := filepath.Join(m.config.RootDir, "data")
+
+	if err := m.headerCache.SaveToDisk(filepath.Join(cfgDir, headerCacheDir)); err != nil {
 		return fmt.Errorf("failed to save header cache to disk: %w", err)
 	}
 
-	if err := m.dataCache.SaveToDisk(filepath.Join(filepath.Dir(m.config.ConfigPath()), dataCacheDir)); err != nil {
+	if err := m.dataCache.SaveToDisk(filepath.Join(cfgDir, dataCacheDir)); err != nil {
 		return fmt.Errorf("failed to save data cache to disk: %w", err)
 	}
 	return nil
