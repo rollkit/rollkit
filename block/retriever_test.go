@@ -134,7 +134,7 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 	).Once()
 
 	ctx := context.Background()
-	err = manager.processNextDAHeaderAndData(ctx)
+	err = manager.processNextDAHeaderAndData(ctx, manager.daHeight.Load())
 	require.NoError(t, err)
 
 	// Validate header event
@@ -233,7 +233,7 @@ func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
 	).Once()
 
 	ctx := context.Background()
-	err := manager.processNextDAHeaderAndData(ctx)
+	err := manager.processNextDAHeaderAndData(ctx, manager.daHeight.Load())
 	require.NoError(t, err)
 
 	// Validate all header events
@@ -294,7 +294,7 @@ func TestProcessNextDAHeaderAndData_NotFound(t *testing.T) {
 	}, coreda.ErrBlobNotFound).Once()
 
 	ctx := context.Background()
-	err := manager.processNextDAHeaderAndData(ctx)
+	err := manager.processNextDAHeaderAndData(ctx, manager.daHeight.Load())
 	require.NoError(t, err)
 
 	select {
@@ -338,7 +338,7 @@ func TestProcessNextDAHeaderAndData_UnmarshalHeaderError(t *testing.T) {
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
 
 	ctx := context.Background()
-	err := manager.processNextDAHeaderAndData(ctx)
+	err := manager.processNextDAHeaderAndData(ctx, manager.daHeight.Load())
 	require.NoError(t, err)
 
 	select {
@@ -396,7 +396,7 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
 
 	ctx := context.Background()
-	err = manager.processNextDAHeaderAndData(ctx)
+	err = manager.processNextDAHeaderAndData(ctx, manager.daHeight.Load())
 	require.NoError(t, err)
 
 	select {
@@ -430,7 +430,7 @@ func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	).Times(dAFetcherRetries)
 
 	ctx := context.Background()
-	err := manager.processNextDAHeaderAndData(ctx)
+	err := manager.processNextDAHeaderAndData(ctx, manager.daHeight.Load())
 	require.Error(t, err)
 	assert.ErrorContains(t, err, fetchErr.Error(), "Expected the final error after retries")
 
@@ -510,7 +510,7 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 	mockLogger.On("Debug", mock.Anything, mock.Anything, mock.Anything).Return()
 
 	ctx := context.Background()
-	err = manager.processNextDAHeaderAndData(ctx)
+	err = manager.processNextDAHeaderAndData(ctx, manager.daHeight.Load())
 	require.NoError(t, err)
 
 	// Verify no header event was sent
@@ -669,7 +669,7 @@ func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
 	).Once()
 
 	ctx := context.Background()
-	err = manager.processNextDAHeaderAndData(ctx)
+	err = manager.processNextDAHeaderAndData(ctx, manager.daHeight.Load())
 	require.NoError(t, err)
 
 	// Validate header event
