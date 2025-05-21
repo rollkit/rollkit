@@ -544,10 +544,12 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 		nil, futureErr,
 	).Times(dAFetcherRetries)
 
-	// Optional: Mock for the next height if needed
-	mockDAClient.On("GetIDs", mock.Anything, startDAHeight+1, []byte("placeholder")).Return(
-		&coreda.GetIDsResult{IDs: []coreda.ID{}}, coreda.ErrBlobNotFound,
-	).Maybe()
+	// Optional: Mock for the next heights if needed
+	for i := 1; i < 100; i++ {
+		mockDAClient.On("GetIDs", mock.Anything, startDAHeight+uint64(i), []byte("placeholder")).Return(
+			&coreda.GetIDsResult{IDs: []coreda.ID{}}, coreda.ErrBlobNotFound,
+		).Maybe()
+	}
 
 	errorLogged := atomic.Bool{}
 	mockLogger.ExpectedCalls = nil
