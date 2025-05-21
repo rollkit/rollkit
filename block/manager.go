@@ -505,6 +505,44 @@ func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) boo
 	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 
+// getBlockData retrieves or creates the block data for the given height.
+func (m *Manager) getBlockData(ctx context.Context, newHeight uint64, prevBlockData *previousBlockData) (*types.SignedHeader, *types.Data, error) {
+	// Check if there's an already stored block at a newer height
+	pendingHeader, pendingData, err := m.store.GetBlockData(ctx, newHeight)
+	if err == nil {
+		m.logger.Info("using pending block", "height", newHeight)
+		return pendingHeader, pendingData, nil
+	}
+
+	// If no pending block, try to get a new batch
+	batchData, err := m.retrieveBatch(ctx)
+	if err != nil {
+		if errors.Is(err, ErrNoBatch) {
+			if batchData == nil {
+				m.logger.Info("no batch retrieved from sequencer, skipping block production")
+				return nil, nil, nil
+			}
+			m.logger.Info("creating empty block", "height", newHeight)
+		} else {
+			m.logger.Warn("failed to get transactions from batch", "error", err)
+			return nil, nil, nil
+		}
+	} else {
+		if batchData.Before(prevBlockData.headerTime) {
+			return nil, nil, fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, prevBlockData.headerTime)
+		}
+		m.logger.Info("creating and publishing block", "height", newHeight)
+		m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
+	}
+
+	header, data, err := m.createBlock(ctx, newHeight, prevBlockData.signature, prevBlockData.headerHash, prevBlockData.commitHash, batchData)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return header, data, nil
+}
+
 // publishBlockInternal is the internal implementation for publishing a block.
 // It's assigned to the publishBlock field by default.
 // Any error will be returned, unless the error is due to a publishing error.
@@ -520,56 +558,20 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	newHeight := height + 1
 
-	prevCtx, err := m.getPreviousBlockData(ctx, newHeight)
+	prevBlockData, err := m.getPreviousBlockData(ctx, newHeight)
 	if err != nil {
-		return fmt.Errorf("error while getting previous block context: %w", err)
+		return fmt.Errorf("error while getting previous block data: %w", err)
 	}
 
-	var (
-		header    *types.SignedHeader
-		data      *types.Data
-		signature types.Signature
-	)
-
-	// Check if there's an already stored block at a newer height
-	// If there is use that instead of creating a new block
-	pendingHeader, pendingData, err := m.store.GetBlockData(ctx, newHeight)
-	if err == nil {
-		m.logger.Info("using pending block", "height", newHeight)
-		header = pendingHeader
-		data = pendingData
-	} else {
-		batchData, err := m.retrieveBatch(ctx)
-		if err != nil {
-			if errors.Is(err, ErrNoBatch) {
-				if batchData == nil {
-					m.logger.Info("no batch retrieved from sequencer, skipping block production")
-					return nil
-				}
-				m.logger.Info("creating empty block", "height", newHeight)
-			} else {
-				m.logger.Warn("failed to get transactions from batch", "error", err)
-				return nil
-			}
-		} else {
-			if batchData.Before(prevCtx.headerTime) {
-				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, prevCtx.headerTime)
-			}
-			m.logger.Info("creating and publishing block", "height", newHeight)
-			m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
-		}
-
-		header, data, err = m.createBlock(ctx, newHeight, prevCtx.signature, prevCtx.headerHash, prevCtx.commitHash, batchData)
-		if err != nil {
-			return err
-		}
-
-		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
-			return fmt.Errorf("failed to save block: %w", err)
-		}
+	header, data, err := m.getBlockData(ctx, newHeight, prevBlockData)
+	if err != nil {
+		return err
+	}
+	if header == nil || data == nil {
+		return nil // No block to publish
 	}
 
-	signature, err = m.getSignature(header.Header)
+	signature, err := m.getSignature(header.Header)
 	if err != nil {
 		return err
 	}
@@ -592,7 +594,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		ChainID:      header.ChainID(),
 		Height:       header.Height(),
 		Time:         header.BaseHeader.Time,
-		LastDataHash: prevCtx.dataHash,
+		LastDataHash: prevBlockData.dataHash,
 	}
 	// Validate the created block before storing
 	if err := m.Validate(ctx, header, data); err != nil {
@@ -623,7 +625,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	m.recordMetrics(data)
-
 	// Check for shut down event prior to sending the header and block to
 	// their respective channels. The reason for checking for the shutdown
 	// event separately is due to the inconsistent nature of the select
@@ -668,7 +669,8 @@ type previousBlockData struct {
 	commitHash types.Hash
 }
 
-// checkContextAndPendingBlocks performs initial checks before block production.
+// checkContextAndPendingBlocks checks if the context is done or if the number of pending headers has reached the limit.
+// It returns an error if the context is done or if the number of pending headers has reached the limit.
 func (m *Manager) checkContextAndPendingBlocks(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
