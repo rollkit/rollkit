@@ -278,8 +278,7 @@ func NewManager(
 	}
 
 	// set block height in store
-	err = store.SetHeight(ctx, s.LastBlockHeight)
-	if err != nil {
+	if err = store.SetHeight(ctx, s.LastBlockHeight); err != nil {
 		return nil, err
 	}
 
@@ -288,22 +287,22 @@ func NewManager(
 	}
 
 	if config.DA.BlockTime.Duration == 0 {
-		logger.Info("Using default DA block time", "DABlockTime", defaultDABlockTime)
+		logger.Info("using default DA block time", "DABlockTime", defaultDABlockTime)
 		config.DA.BlockTime.Duration = defaultDABlockTime
 	}
 
 	if config.Node.BlockTime.Duration == 0 {
-		logger.Info("Using default block time", "BlockTime", defaultBlockTime)
+		logger.Info("using default block time", "BlockTime", defaultBlockTime)
 		config.Node.BlockTime.Duration = defaultBlockTime
 	}
 
 	if config.Node.LazyBlockInterval.Duration == 0 {
-		logger.Info("Using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
+		logger.Info("using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
 		config.Node.LazyBlockInterval.Duration = defaultLazyBlockTime
 	}
 
 	if config.DA.MempoolTTL == 0 {
-		logger.Info("Using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
+		logger.Info("using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
 		config.DA.MempoolTTL = defaultMempoolTTL
 	}
 
@@ -314,7 +313,7 @@ func NewManager(
 
 	// If lastBatchHash is not set, retrieve the last batch hash from store
 	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
-	if err != nil {
+	if err != nil && s.LastBlockHeight > 0 {
 		logger.Error("error while retrieving last batch hash", "error", err)
 	}
 

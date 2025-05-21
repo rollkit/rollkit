@@ -239,7 +239,7 @@ func newClient(ctx context.Context, logger log.Logger, addr string, authHeader h
 		return nil, fmt.Errorf("failed to decode namespace: %w", err)
 	}
 	client.DA.Namespace = namespaceBytes
-	logger.Info("Creating new client", "namespace", namespace)
+	logger.Info("creating new client", "namespace", namespace)
 	errs := getKnownErrorsMapping()
 	for name, module := range moduleMap(&client) {
 		closer, err := jsonrpc.NewMergeClient(ctx, addr, name, []interface{}{module}, authHeader, jsonrpc.WithErrors(errs))
