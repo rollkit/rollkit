@@ -38,7 +38,7 @@ func main() {
 			relativeCoverProfileArg := "cover.out"
 
 			fmt.Printf("--> Running tests with coverage in: %s (profile: %s)\n", modDir, relativeCoverProfileArg)
-			cmd := exec.Command("go", "test", "./...", "-coverprofile="+relativeCoverProfileArg, "-covermode=atomic")
+			cmd := exec.Command("go", "test", "./...", "-race", "-coverprofile="+relativeCoverProfileArg, "-covermode=atomic")
 			cmd.Dir = modDir
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
