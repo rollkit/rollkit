@@ -24,7 +24,7 @@ func SubmitWithHelpers(
 ) coreda.ResultSubmit { // Return core ResultSubmit type
 	ids, err := da.Submit(ctx, data, gasPrice, options)
 
-	// Handle errors returned by SubmitWithOptions
+	// Handle errors returned by Submit
 	if err != nil {
 		status := coreda.StatusError
 		switch {
