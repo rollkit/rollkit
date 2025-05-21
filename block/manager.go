@@ -358,6 +358,14 @@ func NewManager(
 		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
 		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
 	}
+	go monitorChannel[*types.SignedHeader](ctx, logger, "HeaderCh", agg.HeaderCh)
+	go monitorChannel[*types.Data](ctx, logger, "DataCh", agg.DataCh)
+	go monitorChannel[NewHeaderEvent](ctx, logger, "headerInCh", agg.headerInCh)
+	go monitorChannel[NewDataEvent](ctx, logger, "dataInCh", agg.dataInCh)
+	go monitorChannel[struct{}](ctx, logger, "headerStoreCh", agg.headerStoreCh)
+	go monitorChannel[struct{}](ctx, logger, "dataStoreCh", agg.dataStoreCh)
+	go monitorChannel[struct{}](ctx, logger, "retrieveCh", agg.retrieveCh)
+	go monitorChannel[struct{}](ctx, logger, "daIncluderCh", agg.daIncluderCh)
 	agg.init(ctx)
 	// Set the default publishBlock implementation
 	agg.publishBlock = agg.publishBlockInternal
@@ -368,6 +376,17 @@ func NewManager(
 	}
 
 	return agg, nil
+}
+func monitorChannel[T any](ctx context.Context, logger log.Logger, name string, ch chan T) {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			logger.Info("+++ "+name, "i", fmt.Sprintf("%d?%d", len(ch), cap(ch)))
+		}
+	}
 }
 
 // PendingHeaders returns the pending headers.
