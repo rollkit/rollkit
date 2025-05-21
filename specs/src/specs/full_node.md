@@ -87,6 +87,6 @@ See [full node]
 [Store]: https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go
 [store interface]: https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go
 [Block Manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
-[dalc]: https://github.com/rollkit/rollkit/blob/main/da/da.go
+[dalc]: https://github.com/rollkit/rollkit/blob/main/core/da/da.go
 [Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go
 [Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go

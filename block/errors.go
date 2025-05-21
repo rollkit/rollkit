@@ -2,7 +2,6 @@ package block
 
 import (
 	"errors"
-	"fmt"
 )
 
 // These errors are used by Manager.
@@ -19,16 +18,3 @@ var (
 	// ErrHeightFromFutureStr is the error message for height from future returned by da
 	ErrHeightFromFutureStr = errors.New("given height is from the future")
 )
-
-// SaveBlockError is returned on failure to save block data
-type SaveBlockError struct {
-	Err error
-}
-
-func (e SaveBlockError) Error() string {
-	return fmt.Sprintf("failed to save block: %v", e.Err)
-}
-
-func (e SaveBlockError) Unwrap() error {
-	return e.Err
-}
