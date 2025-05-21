@@ -22,3 +22,9 @@ cover:
 	@go install github.com/ory/go-acc@latest
 	@go-acc -o coverage.txt ./...
 .PHONY: cover
+
+## cover: generate to code coverage report.
+test-cover:
+	@echo "--> Running unit tests"
+	@go run -tags=cover scripts/test_cover.go
+.PHONY: test-cover
