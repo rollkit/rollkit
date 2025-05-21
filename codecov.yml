@@ -10,3 +10,4 @@ ignore:
   - "test"
   - "types/pb"
   - "scripts/"
+  - "**/example*"
