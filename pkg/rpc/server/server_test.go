@@ -2,14 +2,18 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
@@ -64,6 +68,29 @@ func TestGetBlock(t *testing.T) {
 	})
 }
 
+func TestGetBlock_Latest(t *testing.T) {
+	mockStore := mocks.NewStore(t)
+	server := NewStoreServer(mockStore)
+
+	header := &types.SignedHeader{}
+	data := &types.Data{}
+
+	// Expectation for GetHeight (which should be called by GetLatestBlockHeight)
+	mockStore.On("Height", context.Background()).Return(uint64(20), nil).Once()
+	// Expectation for GetBlockData with the latest height
+	mockStore.On("GetBlockData", context.Background(), uint64(20)).Return(header, data, nil).Once()
+
+	req := connect.NewRequest(&pb.GetBlockRequest{
+		Identifier: &pb.GetBlockRequest_Height{
+			Height: 0, // Indicates latest block
+		},
+	})
+	resp, err := server.GetBlock(context.Background(), req)
+	require.NoError(t, err)
+	require.NotNil(t, resp.Msg.Block)
+	mockStore.AssertExpectations(t)
+}
+
 func TestGetState(t *testing.T) {
 	// Create a mock store
 	mockStore := mocks.NewStore(t)
@@ -104,6 +131,15 @@ func TestGetState(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
+func TestGetState_Error(t *testing.T) {
+	mockStore := mocks.NewStore(t)
+	mockStore.On("GetState", mock.Anything).Return(types.State{}, fmt.Errorf("state error"))
+	server := NewStoreServer(mockStore)
+	resp, err := server.GetState(context.Background(), connect.NewRequest(&emptypb.Empty{}))
+	require.Error(t, err)
+	require.Nil(t, resp)
+}
+
 func TestGetMetadata(t *testing.T) {
 	// Create a mock store
 	mockStore := mocks.NewStore(t)
@@ -128,4 +164,59 @@ func TestGetMetadata(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, value, resp.Msg.Value)
 	mockStore.AssertExpectations(t)
+}
+
+func TestGetMetadata_Error(t *testing.T) {
+	mockStore := mocks.NewStore(t)
+	mockStore.On("GetMetadata", mock.Anything, "bad").Return(nil, fmt.Errorf("meta error"))
+	server := NewStoreServer(mockStore)
+	resp, err := server.GetMetadata(context.Background(), connect.NewRequest(&pb.GetMetadataRequest{Key: "bad"}))
+	require.Error(t, err)
+	require.Nil(t, resp)
+}
+
+func TestP2PServer_GetPeerInfo(t *testing.T) {
+	mockP2P := &mocks.P2PRPC{}
+	addr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/4001")
+	require.NoError(t, err)
+	mockP2P.On("GetPeers").Return([]peer.AddrInfo{{ID: "id1", Addrs: []multiaddr.Multiaddr{addr}}}, nil)
+	server := NewP2PServer(mockP2P)
+	resp, err := server.GetPeerInfo(context.Background(), connect.NewRequest(&emptypb.Empty{}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Peers, 1)
+	mockP2P.AssertExpectations(t)
+
+	// Error case
+	mockP2P2 := &mocks.P2PRPC{}
+	mockP2P2.On("GetPeers").Return(nil, fmt.Errorf("p2p error"))
+	server2 := NewP2PServer(mockP2P2)
+	resp2, err2 := server2.GetPeerInfo(context.Background(), connect.NewRequest(&emptypb.Empty{}))
+	require.Error(t, err2)
+	require.Nil(t, resp2)
+}
+
+func TestP2PServer_GetNetInfo(t *testing.T) {
+	mockP2P := &mocks.P2PRPC{}
+	netInfo := p2p.NetworkInfo{ID: "nid", ListenAddress: []string{"addr1"}}
+	mockP2P.On("GetNetworkInfo").Return(netInfo, nil)
+	server := NewP2PServer(mockP2P)
+	resp, err := server.GetNetInfo(context.Background(), connect.NewRequest(&emptypb.Empty{}))
+	require.NoError(t, err)
+	require.Equal(t, netInfo.ID, resp.Msg.NetInfo.Id)
+	mockP2P.AssertExpectations(t)
+
+	// Error case
+	mockP2P2 := &mocks.P2PRPC{}
+	mockP2P2.On("GetNetworkInfo").Return(p2p.NetworkInfo{}, fmt.Errorf("netinfo error"))
+	server2 := NewP2PServer(mockP2P2)
+	resp2, err2 := server2.GetNetInfo(context.Background(), connect.NewRequest(&emptypb.Empty{}))
+	require.Error(t, err2)
+	require.Nil(t, resp2)
+}
+
+func TestHealthServer_Livez(t *testing.T) {
+	h := NewHealthServer()
+	resp, err := h.Livez(context.Background(), connect.NewRequest(&emptypb.Empty{}))
+	require.NoError(t, err)
+	require.Equal(t, pb.HealthStatus_PASS, resp.Msg.Status)
 }
