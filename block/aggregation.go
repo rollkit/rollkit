@@ -24,7 +24,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, errCh chan<- error) {
 	}
 
 	if delay > 0 {
-		m.logger.Info("Waiting to produce block", "delay", delay)
+		m.logger.Info("waiting to produce block", "delay", delay)
 		time.Sleep(delay)
 	}
 
