@@ -543,9 +543,17 @@ func (m *Manager) getBlockData(ctx context.Context, newHeight uint64, prevBlockD
 	return header, data, nil
 }
 
-// publishBlockInternal is the internal implementation for publishing a block.
-// It's assigned to the publishBlock field by default.
-// Any error will be returned, unless the error is due to a publishing error.
+// publishBlockInternal handles the core block production and publishing logic. It performs the following steps:
+// 1. Checks context and pending blocks limits
+// 2. Retrieves or creates a new block at the next height
+// 3. Signs and validates the block
+// 4. Applies the block to update the state
+// 5. Saves the block and updates the store
+// 6. Broadcasts the block through channels
+// 7. Creates and saves attestation for the block
+//
+// The function returns an error if any step fails, except for cases where no block needs to be published
+// (e.g., no transactions available). In such cases, it returns nil.
 func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	if err := m.checkContextAndPendingBlocks(ctx); err != nil {
 		return err
