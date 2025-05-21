@@ -477,24 +477,9 @@ func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) boo
 // publishBlockInternal is the internal implementation for publishing a block.
 // It's assigned to the publishBlock field by default.
 func (m *Manager) publishBlockInternal(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
+	if err := m.checkContextAndPendingBlocks(ctx); err != nil {
+		return err
 	}
-
-	if m.config.Node.MaxPendingBlocks != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingBlocks {
-		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
-			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingBlocks)
-	}
-
-	var (
-		lastSignature  *types.Signature
-		lastHeaderHash types.Hash
-		lastDataHash   types.Hash
-		lastHeaderTime time.Time
-		err            error
-	)
 
 	height, err := m.store.Height(ctx)
 	if err != nil {
@@ -502,49 +487,10 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	newHeight := height + 1
-	prevHeight := height // This is H-1
 
-	var prevCalculatedCommitHash types.Hash
-	if newHeight > m.genesis.InitialHeight { // Only try to get if not the very first block after genesis
-		commitHashBytes, err := m.store.GetCalculatedCommitHash(ctx, prevHeight)
-		if err != nil {
-			// If not found, it might be the first block or an issue.
-			// For the very first block an empty hash is fine. For others, this might be an issue.
-			// The ADR suggests a nil or empty cmttypes.Commit is used by the adapter if attestation isn't found.
-			// So, a nil hash here should be acceptable.
-			if !errors.Is(err, ds.ErrNotFound) {
-				// Log non-ErrNotFound errors as it might indicate a problem with the store
-				m.logger.Error("failed to get previous calculated commit hash", "height", prevHeight, "error", err)
-			}
-			// prevCalculatedCommitHash remains nil (empty Hash)
-		} else {
-			if len(commitHashBytes) != len(types.Hash{}) && len(commitHashBytes) != 0 {
-				m.logger.Error("retrieved previous calculated commit hash has incorrect length", "height", prevHeight, "length", len(commitHashBytes))
-				// prevCalculatedCommitHash remains nil (empty Hash) to be safe
-			} else if len(commitHashBytes) == len(types.Hash{}) {
-				copy(prevCalculatedCommitHash[:], commitHashBytes)
-				m.logger.Info("Successfully retrieved previous calculated commit hash", "height", prevHeight, "hash", hex.EncodeToString(prevCalculatedCommitHash[:]))
-			}
-			// if len is 0, it's considered a nil hash, prevCalculatedCommitHash is already nil
-		}
-	}
-
-	// this is a special case, when first block is produced - there is no previous commit
-	if newHeight <= m.genesis.InitialHeight {
-		// Special handling for genesis block
-		lastSignature = &types.Signature{}
-	} else {
-		lastSignature, err = m.store.GetSignature(ctx, height)
-		if err != nil {
-			return fmt.Errorf("error while loading last commit: %w, height: %d", err, height)
-		}
-		lastHeader, lastData, err := m.store.GetBlockData(ctx, height)
-		if err != nil {
-			return fmt.Errorf("error while loading last block: %w, height: %d", err, height)
-		}
-		lastHeaderHash = lastHeader.Hash()
-		lastDataHash = lastData.Hash()
-		lastHeaderTime = lastHeader.Time()
+	prevCtx, err := m.getPreviousBlockData(ctx, newHeight)
+	if err != nil {
+		return fmt.Errorf("error while getting previous block context: %w", err)
 	}
 
 	var (
@@ -573,25 +519,19 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 				return fmt.Errorf("failed to get transactions from batch: %w", err)
 			}
 		} else {
-			if batchData.Before(lastHeaderTime) {
-				// ADR: This timestamp check should use batchData.Time against m.getLastBlockTime()
-				// m.getLastBlockTime() gives m.lastState.LastBlockTime, which is time of H-1's header
-				// batchData.Time is for current block H
-				if batchData.Time.Before(m.getLastBlockTime()) { // Corrected
-					return fmt.Errorf("timestamp is not monotonically increasing: batch time %s < last block time %s", batchData.Time, m.getLastBlockTime())
-				}
-				m.logger.Info("Creating and publishing block", "height", newHeight)
-				m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
+			if batchData.Before(prevCtx.headerTime) {
+				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, prevCtx.headerTime)
 			}
+			m.logger.Info("Creating and publishing block", "height", newHeight)
+		}
 
-			header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, prevCalculatedCommitHash, batchData)
-			if err != nil {
-				return err
-			}
+		header, data, err = m.createBlock(ctx, newHeight, prevCtx.signature, prevCtx.headerHash, prevCtx.commitHash, batchData)
+		if err != nil {
+			return err
+		}
 
-			if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
-				return SaveBlockError{err}
-			}
+		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
+			return SaveBlockError{err}
 		}
 	}
 
@@ -622,7 +562,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		ChainID:      header.ChainID(),
 		Height:       header.Height(),
 		Time:         header.BaseHeader.Time,
-		LastDataHash: lastDataHash,
+		LastDataHash: prevCtx.dataHash,
 	}
 	// Validate the created block before storing
 	if err := m.execValidate(m.lastState, header, data); err != nil {
@@ -657,7 +597,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	newState.DAHeight = m.daHeight.Load()
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
-	m.logger.Debug("updating state", "newState", newState)
 	err = m.updateState(ctx, newState)
 	if err != nil {
 		return err
@@ -679,9 +618,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// Publish block to channel so that block exchange service can broadcast
 	m.DataCh <- data
 
-	m.logger.Debug("successfully proposed header", "proposer", hex.EncodeToString(header.ProposerAddress), "height", headerHeight)
-
-	// ADR Phase 1.5: Create and save RollkitSequencerAttestation for the current block H (header, data)
+	// Create and save RollkitSequencerAttestation for the current block H (header, data)
 	// This attestation will be used by the adapter when processing block H+1.
 	currentBlockAttestation, err := m.createAndSignAttestation(ctx, header, data)
 	if err != nil {
@@ -693,12 +630,85 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		err = m.store.SaveSequencerAttestation(ctx, header.Height(), currentBlockAttestation)
 		if err != nil {
 			m.logger.Error("failed to save sequencer attestation for current block", "height", header.Height(), "error", err)
-		} else {
-			m.logger.Info("Successfully saved sequencer attestation", "height", header.Height())
 		}
 	}
 
 	return nil
+}
+
+// previousBlockData holds information about the previous block,
+// necessary for creating the next block.
+type previousBlockData struct {
+	signature  *types.Signature
+	headerHash types.Hash
+	dataHash   types.Hash
+	headerTime time.Time
+	commitHash types.Hash
+}
+
+// checkContextAndPendingBlocks performs initial checks before block production.
+func (m *Manager) checkContextAndPendingBlocks(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	if m.config.Node.MaxPendingBlocks != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingBlocks {
+		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
+			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingBlocks)
+	}
+
+	return nil
+}
+
+// getPreviousBlockData gathers necessary information from the last processed block.
+func (m *Manager) getPreviousBlockData(ctx context.Context, newHeight uint64) (*previousBlockData, error) {
+	var prevCtx previousBlockData
+	var err error
+	prevHeight := newHeight - 1
+
+	// Logic to get prevCommitHash
+	if newHeight > m.genesis.InitialHeight {
+		commitHashBytes, errGetCommit := m.store.GetCommitHash(ctx, prevHeight)
+		if errGetCommit != nil {
+			if !errors.Is(errGetCommit, ds.ErrNotFound) {
+				m.logger.Error("failed to get previous calculated commit hash", "height", prevHeight, "error", errGetCommit)
+			}
+			return nil, fmt.Errorf("failed to get previous calculated commit hash: %w", errGetCommit)
+		}
+
+		const expectedHashLength = 32 // SHA256 produces 32-byte hashes
+		if len(commitHashBytes) == expectedHashLength {
+			prevCtx.commitHash = make(types.Hash, expectedHashLength)
+			copy(prevCtx.commitHash, commitHashBytes)
+		} else if len(commitHashBytes) == 0 {
+			m.logger.Info("Empty commit hash retrieved", "height", prevHeight)
+		} else {
+			m.logger.Error("retrieved previous calculated commit hash has incorrect length", "height", prevHeight, "expectedLength", expectedHashLength, "actualLength", len(commitHashBytes))
+		}
+	}
+
+	// Logic to get lastSignature, lastHeaderHash, lastDataHash, lastHeaderTime
+	if newHeight <= m.genesis.InitialHeight {
+		// Special handling for genesis block
+		prevCtx.signature = &types.Signature{}
+	} else {
+		prevCtx.signature, err = m.store.GetSignature(ctx, prevHeight)
+		if err != nil {
+			return nil, fmt.Errorf("error while loading last commit: %w, height: %d", err, prevHeight)
+		}
+		lastHeader, lastData, errGetBlockData := m.store.GetBlockData(ctx, prevHeight)
+		if errGetBlockData != nil {
+			return nil, fmt.Errorf("error while loading last block: %w, height: %d", errGetBlockData, prevHeight)
+		}
+
+		prevCtx.headerHash = lastHeader.Hash()
+		prevCtx.dataHash = lastData.Hash()
+		prevCtx.headerTime = lastHeader.Time()
+	}
+
+	return &prevCtx, nil
 }
 
 func (m *Manager) recordMetrics(data *types.Data) {
@@ -732,9 +742,10 @@ func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature 
 }
 
 func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, prevCalculatedCommitHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
-	if m.signer == nil {
-		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
+	if m.signer == nil { // Comprobación temprana para evitar pánicos posteriores
+		return nil, nil, fmt.Errorf("signer is nil; cannot create block in execCreateBlock")
 	}
+	m.logger.Info("execCreateBlock called", "height", height, "lastHeaderHash", hex.EncodeToString(lastHeaderHash[:]), "prevCalculatedCommitHash", hex.EncodeToString(prevCalculatedCommitHash[:]))
 
 	key, err := m.signer.GetPublic()
 	if err != nil {
@@ -837,6 +848,7 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
+
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
 		return types.State{}, err

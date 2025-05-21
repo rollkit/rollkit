@@ -267,14 +267,14 @@ func (s *DefaultStore) GetSequencerAttestation(ctx context.Context, height uint6
 	return attestation, nil
 }
 
-// SaveCalculatedCommitHash saves the commit hash calculated by the adapter for a given height.
-func (s *DefaultStore) SaveCalculatedCommitHash(ctx context.Context, height uint64, hash []byte) error {
+// SaveCommitHash saves the commit hash calculated by the adapter for a given height.
+func (s *DefaultStore) SaveCommitHash(ctx context.Context, height uint64, hash []byte) error {
 	key := ds.NewKey(getCalcCommitHashKey(height))
 	return s.db.Put(ctx, key, hash)
 }
 
-// GetCalculatedCommitHash retrieves the commit hash calculated by the adapter for a given height.
-func (s *DefaultStore) GetCalculatedCommitHash(ctx context.Context, height uint64) ([]byte, error) {
+// GetCommitHash retrieves the commit hash calculated by the adapter for a given height.
+func (s *DefaultStore) GetCommitHash(ctx context.Context, height uint64) ([]byte, error) {
 	key := ds.NewKey(getCalcCommitHashKey(height))
 	hash, err := s.db.Get(ctx, key)
 	if errors.Is(err, ds.ErrNotFound) {

@@ -45,10 +45,10 @@ type Store interface {
 	SaveSequencerAttestation(ctx context.Context, height uint64, attestation *types.RollkitSequencerAttestation) error
 	// GetSequencerAttestation retrieves the sequencer attestation for a given height.
 	GetSequencerAttestation(ctx context.Context, height uint64) (*types.RollkitSequencerAttestation, error)
-	// SaveCalculatedCommitHash saves the commit hash calculated by the adapter for a given height.
-	SaveCalculatedCommitHash(ctx context.Context, height uint64, hash []byte) error
-	// GetCalculatedCommitHash retrieves the commit hash calculated by the adapter for a given height.
-	GetCalculatedCommitHash(ctx context.Context, height uint64) ([]byte, error)
+	// SaveCommitHash saves the commit hash calculated by the adapter for a given height.
+	SaveCommitHash(ctx context.Context, height uint64, hash []byte) error
+	// GetCommitHash retrieves the commit hash calculated by the adapter for a given height.
+	GetCommitHash(ctx context.Context, height uint64) ([]byte, error)
 
 	// Close safely closes underlying data storage, to ensure that data is actually saved.
 	Close() error
