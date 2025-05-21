@@ -133,3 +133,82 @@ func TestBasic(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, state.LastBlockHeight, uint64(1))
 }
+
+func TestNodeRestartPersistence(t *testing.T) {
+	flag.Parse()
+	var (
+		workDir  = t.TempDir()
+		nodeHome = filepath.Join(workDir, "node1")
+	)
+
+	sut := NewSystemUnderTest(t)
+
+	// Start local DA if needed
+	localDABinary := filepath.Join(filepath.Dir(binaryPath), "local-da")
+	sut.StartNode(localDABinary)
+	time.Sleep(500 * time.Millisecond)
+
+	// Init node
+	output, err := sut.RunCmd(binaryPath,
+		"init",
+		"--home="+nodeHome,
+		"--chain_id=testing",
+		"--rollkit.node.aggregator",
+		"--rollkit.signer.passphrase=12345678",
+	)
+	require.NoError(t, err, "failed to init node", output)
+
+	// Start node
+	sut.StartNode(binaryPath,
+		"start",
+		"--home="+nodeHome,
+		"--chain_id=testing",
+		"--rollkit.node.aggregator",
+		"--rollkit.signer.passphrase=12345678",
+		"--rollkit.node.block_time=5ms",
+		"--rollkit.da.block_time=15ms",
+		"--kv-endpoint=127.0.0.1:9090",
+	)
+	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
+	t.Log("Node started and is up.")
+
+	c := nodeclient.NewClient("http://127.0.0.1:7331")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	state, err := c.GetState(ctx)
+	require.NoError(t, err)
+	require.Greater(t, state.LastBlockHeight, uint64(1))
+
+	// Wait for a block to be produced
+	time.Sleep(1 * time.Second)
+
+	// Shutdown node
+	sut.Shutdown()
+	t.Log("Node stopped.")
+
+	// Wait a moment to ensure shutdown
+	time.Sleep(500 * time.Millisecond)
+
+	// Restart node
+	sut.StartNode(binaryPath,
+		"start",
+		"--home="+nodeHome,
+		"--chain_id=testing",
+		"--rollkit.node.aggregator",
+		"--rollkit.signer.passphrase=12345678",
+		"--rollkit.node.block_time=5ms",
+		"--rollkit.da.block_time=15ms",
+		"--kv-endpoint=127.0.0.1:9090",
+	)
+	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
+	t.Log("Node restarted and is up.")
+
+	// Wait for a block to be produced after restart
+	time.Sleep(1 * time.Second)
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), time.Second)
+	defer cancel2()
+	state2, err := c.GetState(ctx2)
+	require.NoError(t, err)
+	require.Greater(t, state2.LastBlockHeight, state.LastBlockHeight)
+}

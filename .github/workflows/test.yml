@@ -41,7 +41,7 @@ jobs:
       - name: Run unit test
         run: go test -race -covermode=atomic -coverprofile=coverage.txt ./...
       - name: upload coverage report
-        uses: codecov/codecov-action@v5.4.2
+        uses: codecov/codecov-action@v5.4.3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt

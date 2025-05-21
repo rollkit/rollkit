@@ -1,6 +1,8 @@
 package types
 
 import (
+	"errors"
+
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -20,8 +22,7 @@ func (m *Metadata) UnmarshalBinary(metadata []byte) error {
 	if err != nil {
 		return err
 	}
-	m.FromProto(&pMetadata)
-	return nil
+	return m.FromProto(&pMetadata)
 }
 
 // MarshalBinary encodes Header into binary form and returns it.
@@ -83,6 +84,9 @@ func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
 // FromProto fills SignedHeader with data from protobuf representation. The contained
 // Signer can only be used to verify signatures, not to sign messages.
 func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
+	if other == nil {
+		return errors.New("signed header is nil")
+	}
 	err := sh.Header.FromProto(other.Header)
 	if err != nil {
 		return err
@@ -148,6 +152,9 @@ func (h *Header) ToProto() *pb.Header {
 
 // FromProto fills Header with data from its protobuf representation.
 func (h *Header) FromProto(other *pb.Header) error {
+	if other == nil {
+		return errors.New("header is nil")
+	}
 	h.Version.Block = other.Version.Block
 	h.Version.App = other.Version.App
 	h.BaseHeader.ChainID = other.ChainId
@@ -179,11 +186,15 @@ func (m *Metadata) ToProto() *pb.Metadata {
 }
 
 // FromProto fills Metadata with data from its protobuf representation.
-func (m *Metadata) FromProto(other *pb.Metadata) {
+func (m *Metadata) FromProto(other *pb.Metadata) error {
+	if other == nil {
+		return errors.New("metadata is nil")
+	}
 	m.ChainID = other.ChainId
 	m.Height = other.Height
 	m.Time = other.Time
 	m.LastDataHash = other.LastDataHash
+	return nil
 }
 
 // ToProto converts Data into protobuf representation and returns it.
@@ -195,24 +206,23 @@ func (d *Data) ToProto() *pb.Data {
 	return &pb.Data{
 		Metadata: mProto,
 		Txs:      txsToByteSlices(d.Txs),
-		// IntermediateStateRoots: d.IntermediateStateRoots.RawRootsList,
-		// Note: Temporarily remove Evidence #896
-		// Evidence:               evidenceToProto(d.Evidence),
 	}
 }
 
 // FromProto fills the Data with data from its protobuf representation
 func (d *Data) FromProto(other *pb.Data) error {
+	if other == nil {
+		return errors.New("data is nil")
+	}
 	if other.Metadata != nil {
 		if d.Metadata == nil {
 			d.Metadata = &Metadata{}
 		}
-		d.Metadata.FromProto(other.Metadata)
+		if err := d.Metadata.FromProto(other.Metadata); err != nil {
+			return err
+		}
 	}
 	d.Txs = byteSlicesToTxs(other.Txs)
-	// d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots
-	// Note: Temporarily remove Evidence #896
-	// d.Evidence = evidenceFromProto(other.Evidence)
 
 	return nil
 }
@@ -237,6 +247,9 @@ func (s *State) ToProto() (*pb.State, error) {
 
 // FromProto fills State with data from its protobuf representation.
 func (s *State) FromProto(other *pb.State) error {
+	if other == nil {
+		return errors.New("state is nil")
+	}
 	s.Version = Version{
 		Block: other.Version.Block,
 		App:   other.Version.App,
@@ -267,7 +280,7 @@ func txsToByteSlices(txs Txs) [][]byte {
 
 func byteSlicesToTxs(bytes [][]byte) Txs {
 	if len(bytes) == 0 {
-		return nil
+		return Txs{}
 	}
 	txs := make(Txs, len(bytes))
 	for i := range txs {

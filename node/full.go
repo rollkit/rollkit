@@ -352,7 +352,10 @@ func (n *FullNode) startInstrumentationServer() (*http.Server, *http.Server) {
 
 // Run implements the Service interface.
 // It starts all subservices and manages the node's lifecycle.
-func (n *FullNode) Run(ctx context.Context) error {
+func (n *FullNode) Run(parentCtx context.Context) error {
+	ctx, cancelNode := context.WithCancel(parentCtx)
+	defer cancelNode() // safety net
+
 	// begin prometheus metrics gathering if it is enabled
 	if n.nodeConfig.Instrumentation != nil &&
 		(n.nodeConfig.Instrumentation.IsPrometheusEnabled() || n.nodeConfig.Instrumentation.IsPprofEnabled()) {
@@ -374,12 +377,12 @@ func (n *FullNode) Run(ctx context.Context) error {
 	}
 
 	go func() {
-		if err := n.rpcServer.ListenAndServe(); err != http.ErrServerClosed {
+		err := n.rpcServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
 			n.Logger.Error("RPC server error", "err", err)
 		}
+		n.Logger.Info("started RPC server", "addr", n.nodeConfig.RPC.Address)
 	}()
-
-	n.Logger.Info("Started RPC server", "addr", n.nodeConfig.RPC.Address)
 
 	n.Logger.Info("starting P2P client")
 	err = n.p2pClient.Start(ctx)
@@ -395,26 +398,41 @@ func (n *FullNode) Run(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
+	// only the first error is propagated
+	// any error is an issue, so blocking is not a problem
+	errCh := make(chan error, 1)
+
 	if n.nodeConfig.Node.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
-		go n.blockManager.AggregationLoop(ctx)
+		go n.blockManager.AggregationLoop(ctx, errCh)
 		go n.reaper.Start(ctx)
 		go n.blockManager.HeaderSubmissionLoop(ctx)
+		go n.blockManager.BatchSubmissionLoop(ctx)
 		go n.headerPublishLoop(ctx)
 		go n.dataPublishLoop(ctx)
+		go n.blockManager.DAIncluderLoop(ctx, errCh)
 	} else {
 		go n.blockManager.RetrieveLoop(ctx)
 		go n.blockManager.HeaderStoreRetrieveLoop(ctx)
 		go n.blockManager.DataStoreRetrieveLoop(ctx)
-		go n.blockManager.SyncLoop(ctx)
+		go n.blockManager.SyncLoop(ctx, errCh)
+		go n.blockManager.DAIncluderLoop(ctx, errCh)
 	}
 
-	// Block until context is canceled
-	<-ctx.Done()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			n.Logger.Error("unrecoverable error in one of the go routines...", "error", err)
+			cancelNode() // propagate shutdown to all child goroutines
+		}
+	case <-parentCtx.Done():
+		// Block until parent context is canceled
+		n.Logger.Info("context canceled, stopping node")
+		cancelNode() // propagate shutdown to all child goroutines
+	}
 
 	// Perform cleanup
-	n.Logger.Info("halting full node...")
-	n.Logger.Info("shutting down full node sub services...")
+	n.Logger.Info("halting full node and its sub services...")
 
 	// Use a timeout context to ensure shutdown doesn't hang
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -425,7 +443,6 @@ func (n *FullNode) Run(ctx context.Context) error {
 	// Stop P2P Client
 	err = n.p2pClient.Close()
 	if err != nil {
-		n.Logger.Error("error closing P2P client", "error", err)
 		multiErr = errors.Join(multiErr, fmt.Errorf("closing P2P client: %w", err))
 	}
 
@@ -435,11 +452,10 @@ func (n *FullNode) Run(ctx context.Context) error {
 		// Log context canceled errors at a lower level if desired, or handle specific non-cancel errors
 		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			n.Logger.Error("error stopping header sync service", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
 		} else {
 			n.Logger.Debug("header sync service stop context ended", "reason", err) // Log cancellation as debug
 		}
-		// Still include the error in multiErr for completeness if needed
-		multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
 	}
 
 	// Stop Data Sync Service
@@ -448,11 +464,10 @@ func (n *FullNode) Run(ctx context.Context) error {
 		// Log context canceled errors at a lower level if desired, or handle specific non-cancel errors
 		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			n.Logger.Error("error stopping data sync service", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("stopping data sync service: %w", err))
 		} else {
 			n.Logger.Debug("data sync service stop context ended", "reason", err) // Log cancellation as debug
 		}
-		// Still include the error in multiErr for completeness if needed
-		multiErr = errors.Join(multiErr, fmt.Errorf("stopping data sync service: %w", err))
 	}
 
 	// Shutdown Prometheus Server
@@ -460,7 +475,6 @@ func (n *FullNode) Run(ctx context.Context) error {
 		err = n.prometheusSrv.Shutdown(shutdownCtx)
 		// http.ErrServerClosed is expected on graceful shutdown
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			n.Logger.Error("error shutting down Prometheus server", "error", err)
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down Prometheus server: %w", err))
 		}
 	}
@@ -469,7 +483,6 @@ func (n *FullNode) Run(ctx context.Context) error {
 	if n.pprofSrv != nil {
 		err = n.pprofSrv.Shutdown(shutdownCtx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			n.Logger.Error("error shutting down pprof server", "error", err)
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down pprof server: %w", err))
 		}
 	}
@@ -478,22 +491,25 @@ func (n *FullNode) Run(ctx context.Context) error {
 	if n.rpcServer != nil {
 		err = n.rpcServer.Shutdown(shutdownCtx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			n.Logger.Error("error shutting down RPC server", "error", err)
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down RPC server: %w", err))
 		}
 	}
 
 	// Ensure Store.Close is called last to maximize chance of data flushing
-	err = n.Store.Close()
-	if err != nil {
-		// Store.Close() might log internally, but log here too for context
-		n.Logger.Error("error closing store", "error", err)
+	if err = n.Store.Close(); err != nil {
 		multiErr = errors.Join(multiErr, fmt.Errorf("closing store: %w", err))
+	}
+
+	// Save caches if needed
+	if err := n.blockManager.SaveCache(); err != nil {
+		multiErr = errors.Join(multiErr, fmt.Errorf("saving caches: %w", err))
 	}
 
 	// Log final status
 	if multiErr != nil {
-		n.Logger.Error("errors encountered while stopping node", "errors", multiErr)
+		for _, err := range multiErr.(interface{ Unwrap() []error }).Unwrap() {
+			n.Logger.Error("error during shutdown", "error", err)
+		}
 	} else {
 		n.Logger.Info("full node halted successfully")
 	}
@@ -503,6 +519,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+
 	return multiErr // Return shutdown errors if context was okay
 }
 

@@ -20,8 +20,9 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// TestAggregationLoop_Normal_BasicInterval verifies the basic time interval logic of the normal aggregation loop.
+// TestAggregationLoop_Normal_BasicInterval verifies that the aggregation loop publishes blocks at the expected interval under normal conditions.
 func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -81,7 +82,7 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.AggregationLoop(ctx)
+		m.AggregationLoop(ctx, make(chan<- error))
 		m.logger.Info("AggregationLoop exited")
 	}()
 
@@ -114,14 +115,13 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	}
 }
 
-// TestAggregationLoop_Normal_PublishBlockError verifies the loop continues after publishBlock returns an error.
+// TestAggregationLoop_Normal_PublishBlockError verifies that the aggregation loop handles errors from publishBlock gracefully.
 func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
-	assert := assert.New(t)
+	t.Parallel()
 	require := require.New(t)
 
 	blockTime := 50 * time.Millisecond
 	waitTime := blockTime*4 + blockTime/2
-	tolerance := blockTime / 2
 
 	mockStore := mocks.NewStore(t)
 	mockStore.On("Height", mock.Anything).Return(uint64(1), nil).Maybe()
@@ -183,10 +183,12 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
+	errCh := make(chan error, 1)
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		m.AggregationLoop(ctx)
+		m.AggregationLoop(ctx, errCh)
 		m.logger.Info("AggregationLoop exited")
 	}()
 
@@ -199,12 +201,7 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 	defer publishLock.Unlock()
 
 	calls := publishCalls.Load()
-	assert.GreaterOrEqualf(calls, int64(4), "publishBlock should have been called multiple times (around 4), but was called %d times", calls)
-	assert.LessOrEqualf(calls, int64(5), "publishBlock should have been called multiple times (around 4-5), but was called %d times", calls)
-
-	require.GreaterOrEqual(len(publishTimes), 3, "Need at least 3 timestamps to check intervals after error")
-	for i := 2; i < len(publishTimes); i++ {
-		interval := publishTimes[i].Sub(publishTimes[i-1])
-		WithinDuration(t, blockTime, interval, tolerance)
-	}
+	require.Equal(calls, int64(1))
+	require.ErrorContains(<-errCh, expectedErr.Error())
+	require.Equal(len(publishTimes), 1, "Expected only one publish time after error")
 }

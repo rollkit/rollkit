@@ -34,7 +34,6 @@ linters:
       - examples$
 formatters:
   enable:
-    - gci
     - gofmt
   settings:
     gci:
