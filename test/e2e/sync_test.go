@@ -97,38 +97,38 @@ func TestFullNodeSyncsFromAggregator(t *testing.T) {
 	sut.AwaitNodeUp(t, "http://"+node2RPC, 2*time.Second)
 	t.Log("Full node is up.")
 
-    // Wait for the full node to sync
-    fullNodeClient := nodeclient.NewClient("http://" + node2RPC)
+	// Wait for the full node to sync
+	fullNodeClient := nodeclient.NewClient("http://" + node2RPC)
 
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel2()
 
-    var lastHeight int64
-    var synced bool
-    for !synced {
-        select {
-        case <-ctx.Done():
-            require.Fail(t, fmt.Sprintf(
-                "Timeout waiting for full node to sync. Last observed height: %d",
-                lastHeight,
-            ))
-            return
-        default:
-            innerCtx, innerCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-            state, err := fullNodeClient.GetState(innerCtx)
-            innerCancel()
+	var lastHeight uint64
+	var synced bool
+	for !synced {
+		select {
+		case <-ctx2.Done():
+			require.Fail(t, fmt.Sprintf(
+				"Timeout waiting for full node to sync. Last observed height: %d",
+				lastHeight,
+			))
+			return
+		default:
+			innerCtx, innerCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			state, err := fullNodeClient.GetState(innerCtx)
+			innerCancel()
 
-            if err == nil {
-                lastHeight = state.LastBlockHeight
-                if lastHeight > 10 {
-                    synced = true
-                    break
-                }
-            }
-            t.Logf("Waiting for sync: current height = %d", lastHeight)
-            time.Sleep(200 * time.Millisecond)
-        }
-    }
+			if err == nil {
+				lastHeight = state.LastBlockHeight
+				if lastHeight > 10 {
+					synced = true
+					break
+				}
+			}
+			t.Logf("Waiting for sync: current height = %d", lastHeight)
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
 
-    t.Logf("Full node successfully synced to height %d", lastHeight)
+	t.Logf("Full node successfully synced to height %d", lastHeight)
 }
