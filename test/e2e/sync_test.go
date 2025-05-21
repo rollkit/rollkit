@@ -97,19 +97,38 @@ func TestFullNodeSyncsFromAggregator(t *testing.T) {
 	sut.AwaitNodeUp(t, "http://"+node2RPC, 2*time.Second)
 	t.Log("Full node is up.")
 
-	// Wait for the full node to sync
-	fullNodeClient := nodeclient.NewClient("http://" + node2RPC)
-	var synced bool
-	for i := 0; i < 20; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-		state, err := fullNodeClient.GetState(ctx)
-		cancel()
-		if err == nil && state.LastBlockHeight > 10 {
-			synced = true
-			break
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	require.True(t, synced, "Full node did not sync to aggregator's latest block")
+    // Wait for the full node to sync
+    fullNodeClient := nodeclient.NewClient("http://" + node2RPC)
 
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    var lastHeight int64
+    var synced bool
+    for !synced {
+        select {
+        case <-ctx.Done():
+            require.Fail(t, fmt.Sprintf(
+                "Timeout waiting for full node to sync. Last observed height: %d",
+                lastHeight,
+            ))
+            return
+        default:
+            innerCtx, innerCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+            state, err := fullNodeClient.GetState(innerCtx)
+            innerCancel()
+
+            if err == nil {
+                lastHeight = state.LastBlockHeight
+                if lastHeight > 10 {
+                    synced = true
+                    break
+                }
+            }
+            t.Logf("Waiting for sync: current height = %d", lastHeight)
+            time.Sleep(200 * time.Millisecond)
+        }
+    }
+
+    t.Logf("Full node successfully synced to height %d", lastHeight)
 }
