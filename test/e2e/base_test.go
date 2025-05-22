@@ -7,6 +7,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"path/filepath"
 	"testing"
@@ -70,7 +71,9 @@ func TestBasic(t *testing.T) {
 	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
 
 	// Give aggregator more time before starting the next node
-	time.Sleep(1 * time.Second) // Increased wait time
+	time.Sleep(1 * time.Second)
+
+	submitTestappTransaction(t)
 
 	// Init the second node (full node)
 	output, err = sut.RunCmd(binaryPath,
@@ -98,28 +101,6 @@ func TestBasic(t *testing.T) {
 	sut.AwaitNodeUp(t, "http://"+node2RPC, 2*time.Second)
 	t.Logf("Full node (node 2) is up.")
 
-	// when a client TX for state update is executed
-	const myKey = "foo"
-	myValue := fmt.Sprintf("bar%d", time.Now().UnixNano())
-	tx := fmt.Sprintf("%s=%s", myKey, myValue)
-	kvStoreEndpoint := "http://127.0.0.1:9090/tx" // Assuming this is the endpoint based on init flag
-
-	ctx, done := context.WithTimeout(context.Background(), 5*time.Second) // Increased timeout for HTTP request
-	defer done()
-
-	// Submit transaction via HTTP POST to the KV store endpoint
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, kvStoreEndpoint, bytes.NewBufferString(tx))
-	require.NoError(t, err, "failed to create http request")
-	req.Header.Set("Content-Type", "text/plain") // Or application/octet-stream depending on server expectation
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	require.NoError(t, err, "failed to send http request")
-	defer resp.Body.Close()
-
-	require.Equal(t, http.StatusAccepted, resp.StatusCode, "transaction not accepted by kv store")
-	t.Logf("Transaction '%s' submitted successfully via HTTP to %s", tx, kvStoreEndpoint)
-
 	// wait for the transaction to be processed
 	time.Sleep(2 * time.Second)
 
@@ -127,7 +108,7 @@ func TestBasic(t *testing.T) {
 	c := nodeclient.NewClient("http://127.0.0.1:7331")
 	require.NoError(t, err)
 
-	ctx, done = context.WithTimeout(context.Background(), time.Second)
+	ctx, done := context.WithTimeout(context.Background(), time.Second)
 	defer done()
 	state, err := c.GetState(ctx)
 	require.NoError(t, err)
@@ -211,4 +192,35 @@ func TestNodeRestartPersistence(t *testing.T) {
 	state2, err := c.GetState(ctx2)
 	require.NoError(t, err)
 	require.Greater(t, state2.LastBlockHeight, state.LastBlockHeight)
+}
+
+func submitTestappTransaction(t *testing.T) {
+	r := rand.New(rand.NewSource(12345))
+	keyChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	keyLen := 10
+	myKeyBytes := make([]byte, keyLen)
+	for i := range myKeyBytes {
+		myKeyBytes[i] = keyChars[r.Intn(len(keyChars))]
+	}
+	myKey := string(myKeyBytes)
+
+	myValue := fmt.Sprintf("bar%d", time.Now().UnixNano())
+	tx := fmt.Sprintf("%s=%s", myKey, myValue)
+	kvStoreEndpoint := "http://127.0.0.1:9090/tx"
+
+	ctx, done := context.WithTimeout(context.Background(), 5*time.Second)
+	defer done()
+
+	// Submit transaction via HTTP POST to the KV store endpoint
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, kvStoreEndpoint, bytes.NewBufferString(tx))
+	require.NoError(t, err, "failed to create http request")
+	req.Header.Set("Content-Type", "text/plain")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err, "failed to send http request")
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusAccepted, resp.StatusCode, "transaction not accepted by kv store")
+	t.Logf("Transaction '%s' submitted successfully via HTTP to %s", tx, kvStoreEndpoint)
 }

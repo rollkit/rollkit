@@ -68,6 +68,8 @@ func TestFullNodeSyncsFromAggregator(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(info.ListenAddresses[0])
 
+	submitTestappTransaction(t)
+
 	// Wait for the aggregator to produce at least two blocks
 	var blockProduced bool
 	for i := 0; i < 20; i++ {
