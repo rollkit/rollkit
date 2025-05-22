@@ -532,7 +532,7 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 
 // TestRetrieveLoop_ProcessError_HeightFromFuture verifies that the loop continues without logging error if error is height from future.
 func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	startDAHeight := uint64(10)
 	manager, mockDAClient, _, mockLogger, _, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
 	defer cancel()
@@ -545,7 +545,7 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 	).Times(dAFetcherRetries)
 
 	// Optional: Mock for the next heights if needed
-	for i := 1; i < 100; i++ {
+	for i := 1; i < 10; i++ {
 		mockDAClient.On("GetIDs", mock.Anything, startDAHeight+uint64(i), []byte("placeholder")).Return(
 			&coreda.GetIDsResult{IDs: []coreda.ID{}}, coreda.ErrBlobNotFound,
 		).Maybe()
@@ -582,7 +582,7 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 
 // TestRetrieveLoop_ProcessError_Other verifies that the loop logs error and does not increment DA height on generic errors.
 func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	startDAHeight := uint64(15)
 	manager, mockDAClient, _, mockLogger, _, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
 	defer cancel()
@@ -641,7 +641,7 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 
 // TestProcessNextDAHeader_BatchWithNoTxs verifies that a batch with no transactions is ignored and does not emit events or mark as DA included.
 func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	daHeight := uint64(55)
 	blockHeight := uint64(140)
 	manager, mockDAClient, _, _, _, dataCache, cancel := setupManagerForRetrieverTest(t, daHeight)
@@ -698,7 +698,7 @@ func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
 
 // TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess verifies that DA height is incremented only after a successful retrieval or NotFound, and not after an error.
 func TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	startDAHeight := uint64(60)
 	manager, mockDAClient, _, _, _, _, cancel := setupManagerForRetrieverTest(t, startDAHeight)
 	defer cancel()
@@ -737,6 +737,12 @@ func TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess(t *testing.T) {
 			Timestamp: time.Now(),
 		}, errDA,
 	).Times(dAFetcherRetries)
+
+	for i := 1; i < 10; i++ {
+		mockDAClient.On("GetIDs", mock.Anything, startDAHeight+uint64(i)+3, []byte("placeholder")).Return(
+			&coreda.GetIDsResult{IDs: []coreda.ID{}}, coreda.ErrBlobNotFound,
+		).Maybe()
+	}
 
 	ctx, loopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer loopCancel()

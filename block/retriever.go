@@ -31,7 +31,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		case <-m.retrieveCh:
 
 			var wg sync.WaitGroup
-			workCh := make(chan uint64, dAFetcherWorkers*2)
+			workCh := make(chan uint64, dAFetcherWorkers)
 			stopCh := make(chan struct{}, 1)
 			validHeightCh := make(chan uint64, dAFetcherWorkers)
 			defer close(stopCh)
@@ -48,11 +48,11 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 							// if the requested da height is not yet available, wait silently, otherwise log the error and wait
 							if !m.areAllErrorsHeightFromFuture(err) {
 								m.logger.Error("failed to retrieve data from DALC", "daHeight", height, "errors", err.Error())
-							} else { //if the request height is not yet available stop fetching it
-								select {
-								case stopCh <- struct{}{}:
-								default:
-								}
+							}
+							fmt.Printf("[worker]******** ERROR: %d\n", height)
+							select {
+							case stopCh <- struct{}{}:
+							default:
 							}
 						} else if err == nil {
 							select {
@@ -69,6 +69,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 			go func() {
 				daHeight := m.daHeight.Load()
 				for height := range validHeightCh {
+					fmt.Printf("[result] Got valid height: %d\n", height) // Add 'i' as a parameter to the goroutine
 					if height > daHeight {
 						m.daHeight.Store(height)
 						daHeight = height
@@ -91,6 +92,8 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 					close(validHeightCh)
 					break retrieveLoop
 				case workCh <- daHeight:
+					m.da.GetIDs()
+					fmt.Printf("[main] Passing block height to worker: %d\n", daHeight)
 					daHeight++
 				}
 			}
