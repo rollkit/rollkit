@@ -47,7 +47,6 @@ func setupTestNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullN
 
 	executor, sequencer, dac, p2pClient, ds := createTestComponents(t)
 
-	nodeKey, err := InitFiles(config.RootDir)
 	require.NoError(t, err)
 
 	node, err := NewNode(
@@ -57,7 +56,6 @@ func setupTestNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullN
 		sequencer,
 		dac,
 		remoteSigner,
-		*nodeKey,
 		p2pClient,
 		genesis,
 		ds,
