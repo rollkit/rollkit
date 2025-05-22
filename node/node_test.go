@@ -171,7 +171,6 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 
 	executor, sequencer, dac, p2pClient, ds := createTestComponents(t)
 
-	nodeKey, err := InitFiles(config.RootDir)
 	require.NoError(t, err)
 
 	logger := log.NewTestLogger(t)
@@ -183,7 +182,6 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		sequencer,
 		dac,
 		remoteSigner,
-		*nodeKey,
 		p2pClient,
 		genesis,
 		ds,

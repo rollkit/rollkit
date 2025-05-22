@@ -171,7 +171,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			// StartNode might need adjustment if it strictly requires coreda.Client methods.
 			// For now, assume it can work with coreda.DA or will be adjusted later.
 			// We also need to pass the namespace config for rollDA.
-			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, nodeKey, p2pClient, datastore, nodeConfig)
+			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, p2pClient, datastore, nodeConfig)
 		},
 	}
 
