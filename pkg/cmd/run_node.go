@@ -25,6 +25,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
+	"github.com/rollkit/rollkit/types"
 )
 
 // ParseConfig is an helpers that loads the node configuration and validates it.
@@ -140,6 +141,7 @@ func StartNode(
 		datastore,
 		metrics,
 		logger,
+		types.ValidatorHasher(nil),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create node: %w", err)

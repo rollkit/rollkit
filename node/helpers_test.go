@@ -63,6 +63,7 @@ func setupTestNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullN
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
+		types.ValidatorHasher(nil),
 	)
 	require.NoError(t, err)
 
