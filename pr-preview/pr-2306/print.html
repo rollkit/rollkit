@@ -491,14 +491,14 @@ Block.Verify()
 <li><code>--rollkit.da_auth_token</code>: authentication token of the DA service</li>
 <li><code>--rollkit.da_namespace</code>: namespace to use when submitting blobs to the DA service</li>
 </ul>
-<p>Given a set of blocks to be submitted to DA by the block manager, the <code>SubmitBlocks</code> first encodes the blocks using protobuf (the encoded data are called blobs) and invokes the <code>Submit</code> method on the underlying DA implementation. On successful submission (<code>StatusSuccess</code>), the DA block height which included in the rollup blocks is returned.</p>
+<p>Given a set of blocks to be submitted to DA by the block manager, the <code>SubmitBlocks</code> first encodes the blocks using protobuf (the encoded data are called blobs) and invokes the <code>Submit</code> method on the underlying DA implementation. On successful submission (<code>StatusSuccess</code>), the DA block height which included in the blocks is returned.</p>
 <p>To make sure that the serialised blocks don't exceed the underlying DA's blob limits, it fetches the blob size limit by calling <code>Config</code> which returns the limit as <code>uint64</code> bytes, then includes serialised blocks until the limit is reached. If the limit is reached, it submits the partial set and returns the count of successfully submitted blocks as <code>SubmittedCount</code>. The caller should retry with the remaining blocks until all the blocks are submitted. If the first block itself is over the limit, it throws an error.</p>
 <p>The <code>Submit</code> call may result in an error (<code>StatusError</code>) based on the underlying DA implementations on following scenarios:</p>
 <ul>
 <li>the total blobs size exceeds the underlying DA's limits (includes empty blobs)</li>
 <li>the implementation specific failures, e.g., for <a href="https://github.com/rollkit/go-da/tree/main/proxy/jsonrpc">celestia-da-json-rpc</a>, invalid namespace, unable to create the commitment or proof, setting low gas price, etc, could return error.</li>
 </ul>
-<p>The <code>RetrieveBlocks</code> retrieves the rollup blocks for a given DA height using <a href="https://github.com/rollkit/go-da">go-da</a> <code>GetIDs</code> and <code>Get</code> methods. If there are no blocks available for a given DA height, <code>StatusNotFound</code> is returned (which is not an error case). The retrieved blobs are converted back to rollup blocks and returned on successful retrieval.</p>
+<p>The <code>RetrieveBlocks</code> retrieves the blocks for a given DA height using <a href="https://github.com/rollkit/go-da">go-da</a> <code>GetIDs</code> and <code>Get</code> methods. If there are no blocks available for a given DA height, <code>StatusNotFound</code> is returned (which is not an error case). The retrieved blobs are converted back to blocks and returned on successful retrieval.</p>
 <p>Both <code>SubmitBlocks</code> and <code>RetrieveBlocks</code> may be unsuccessful if the DA node and the DA blockchain that the DA implementation is using have failures. For example, failures such as, DA mempool is full, DA submit transaction is nonce clashing with other transaction from the DA submitter account, DA node is not synced, etc.</p>
 <h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/da/jsonrpc/client.go">da implementation</a></p>
@@ -515,7 +515,7 @@ Block.Verify()
 <p>Note that unlike a light node which only syncs and stores block headers seen on the P2P layer, the full node also syncs and stores full blocks seen on both the P2P network and the DA layer. Full blocks contain all the transactions published as part of the block.</p>
 <p>The Full Node mainly encapsulates and initializes/manages the following components:</p>
 <h3 id="genesisdoc"><a class="header" href="#genesisdoc">genesisDoc</a></h3>
-<p>The <a href="https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md">genesis</a> document contains information about the initial state of the rollup chain, in particular its validator set.</p>
+<p>The <a href="https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md">genesis</a> document contains information about the initial state of the chain, in particular its validator set.</p>
 <h3 id="conf"><a class="header" href="#conf">conf</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/config/config.go">node configuration</a> contains all the necessary settings for the node to be initialized and function properly.</p>
 <h3 id="p2p"><a class="header" href="#p2p">P2P</a></h3>
@@ -559,7 +559,7 @@ Block.Verify()
 </tbody></table>
 </div>
 <h2 id="details-2"><a class="header" href="#details-2">Details</a></h2>
-<p>All three types of nodes (sequencer, full, and light) run the header sync service to maintain the canonical view of the rollup chain (with respect to the P2P network).</p>
+<p>All three types of nodes (sequencer, full, and light) run the header sync service to maintain the canonical view of the chain (with respect to the P2P network).</p>
 <p>The header sync service inherits the <code>ConnectionGater</code> from the node's P2P client which enables blocking and allowing peers as needed by specifying the <code>P2PConfig.BlockedPeers</code> and <code>P2PConfig.AllowedPeers</code>.</p>
 <p><code>NodeConfig.BlockTime</code> is used to configure the syncer such that it can effectively decide the outdated headers while it receives headers from the P2P network.</p>
 <p>Both header and block sync utilizes <a href="https://github.com/celestiaorg/go-header">go-header</a> library and runs two separate sync services, for the headers and blocks. This distinction is mainly to serve light nodes which do not store blocks, but only headers synced from the P2P network.</p>
@@ -582,7 +582,7 @@ Block.Verify()
 <p>[4] <a href="https://github.com/celestiaorg/go-header">go-header</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="header-and-data-separation-adr"><a class="header" href="#header-and-data-separation-adr">Header and Data Separation ADR</a></h1>
 <h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
-<p>The separation of header and data structures in Rollkit unlocks expanding the sequencing scheme beyond single sequencing and unlocks the use of a decentralized sequencer mode. This means that the creation of list of the transactions can be done by another network as well while rollup nodes still produce headers after executing that list of transactions. This overall change is akin to the proposer-builder separation in the Ethereum protocol, where the Rollkit header producer acts as the proposer, and the sequencer, which produces a list of transactions, acts as the builder.</p>
+<p>The separation of header and data structures in Rollkit unlocks expanding the sequencing scheme beyond single sequencing and unlocks the use of a decentralized sequencer mode. This means that the creation of list of the transactions can be done by another network as well while nodes still produce headers after executing that list of transactions. This overall change is akin to the proposer-builder separation in the Ethereum protocol, where the Rollkit header producer acts as the proposer, and the sequencer, which produces a list of transactions, acts as the builder.</p>
 <h3 id="before-separation"><a class="header" href="#before-separation">Before Separation</a></h3>
 <pre><code class="language-mermaid">flowchart LR
     CS[Single Sequencer] --&gt;|Creates| B[Block]
@@ -600,14 +600,14 @@ Block.Verify()
     class HP,SEQ,SH2,D2 node
 </code></pre>
 <h2 id="protocolcomponent-description-2"><a class="header" href="#protocolcomponent-description-2">Protocol/Component Description</a></h2>
-<p>Before, Rollkit only supported the use of a single sequencer that was responsible for creating a list of rollup tx by reaping its mempool, executing them to produce a header, and putting them together in a rollup block. Rollkit headers and data were encapsulated within a single block structure. The block struct looked like this:</p>
+<p>Before, Rollkit only supported the use of a single sequencer that was responsible for creating a list of transactions by reaping its mempool, executing them to produce a header, and putting them together in a block. Rollkit headers and data were encapsulated within a single block structure. The block struct looked like this:</p>
 <pre><code class="language-go">// Block defines the structure of Rollkit block.
 type Block struct {
 	SignedHeader SignedHeader
 	Data         Data
 }
 </code></pre>
-<p>The separation of header and data into distinct structures allows them to be processed independently. The <code>SignedHeader</code> struct now focuses on the header information, while the <code>Data</code> struct handles transaction data separately. This separation is particularly beneficial in unlocking based rollups, where users submit transactions directly to the Data Availability layer which acts as the entity responsible for creating the list of transactions.</p>
+<p>The separation of header and data into distinct structures allows them to be processed independently. The <code>SignedHeader</code> struct now focuses on the header information, while the <code>Data</code> struct handles transaction data separately. This separation is particularly beneficial in unlocking based sequencing, where users submit transactions directly to the Data Availability layer which acts as the entity responsible for creating the list of transactions.</p>
 <pre><code class="language-mermaid">classDiagram
     class Block {
         SignedHeader
@@ -638,7 +638,7 @@ type Block struct {
     Block *-- Data
     SignedHeader *-- Header
 </code></pre>
-<p>This change also affects how rollup full nodes sync. Previously, rollup full nodes would apply the transactions from the <code>Block</code> struct and verify that the <code>header</code> in <code>SignedHeader</code> matched their locally produced header. Now, with the separation, full nodes obtain the transaction data separately (via the DA layer directly in based sequencer mode, or via p2p gossip/DA layer in single sequencer mode) and verify it against the header signed by the header producer once they have both components. If a full node receives the header/data via a p2p gossip layer, they should wait to see the same header/data on the DA layer before marking the corresponding block as finalized in their view.</p>
+<p>This change also affects how full nodes sync. Previously, full nodes would apply the transactions from the <code>Block</code> struct and verify that the <code>header</code> in <code>SignedHeader</code> matched their locally produced header. Now, with the separation, full nodes obtain the transaction data separately (via the DA layer directly in based sequencer mode, or via p2p gossip/DA layer in single sequencer mode) and verify it against the header signed by the header producer once they have both components. If a full node receives the header/data via a p2p gossip layer, they should wait to see the same header/data on the DA layer before marking the corresponding block as finalized in their view.</p>
 <p>This ensures that the data integrity and consistency are maintained across the network.</p>
 <pre><code class="language-go">// SignedHeader struct consists of the header and a signature
 type SignedHeader struct {
@@ -649,7 +649,7 @@ type SignedHeader struct {
 
 // Header struct focusing on header information
 type Header struct {
-    // Hash of the previous rollup block header.
+    // Hash of the previous block header.
     ParentHash Hash
     // Height represents the block height (aka block number) of a given header
     Height uint64
@@ -671,11 +671,11 @@ type Data struct {
 	Txs Txs // List of transactions to be executed
 }
 </code></pre>
-<p>The <code>publishBlock</code> method in <code>manager.go</code> now creates the header and data structures separately. This decoupling allows for the header to be submitted to the DA layer independently of the rollup block data, which can be built by a separate network. This change supports the transition from a single sequencer mode to a decentralized sequencer mode, making the system more modular.</p>
+<p>The <code>publishBlock</code> method in <code>manager.go</code> now creates the header and data structures separately. This decoupling allows for the header to be submitted to the DA layer independently of the block data, which can be built by a separate network. This change supports the transition from a single sequencer mode to a decentralized sequencer mode, making the system more modular.</p>
 <h2 id="message-structurecommunication-format-3"><a class="header" href="#message-structurecommunication-format-3">Message Structure/Communication Format</a></h2>
 <h3 id="header-producer"><a class="header" href="#header-producer">Header Producer</a></h3>
-<p>Before the separation: Only the entire <code>Block</code> struct composed of both header and data was submitted to the DA layer. The <code>Block</code> and <code>SignedHeader</code> were both gossipped over two separate p2p layers: gossipping <code>Block</code> to just full nodes and gossipping the <code>SignedHeader</code> to full nodes and future rollup light nodes to join that will only sync headers (and proofs).</p>
-<p>After the separation: The <code>SignedHeader</code> and <code>Data</code> are submitted separately to the DA layer. Note that the <code>SignedHeader</code> has a <code>Header</code> that is linked to the <code>Data</code> via a <code>DataCommitment</code> from the DA layer. <code>SignedHeader</code> and <code>Data</code> are both gossipped over two separate p2p layers: gossipping <code>Data</code> to just full nodes and gossipping the <code>SignedHeader</code> to full nodes and future rollup light nodes to join that will only sync headers (and proofs).</p>
+<p>Before the separation: Only the entire <code>Block</code> struct composed of both header and data was submitted to the DA layer. The <code>Block</code> and <code>SignedHeader</code> were both gossipped over two separate p2p layers: gossipping <code>Block</code> to just full nodes and gossipping the <code>SignedHeader</code> to full nodes and future light nodes to join that will only sync headers (and proofs).</p>
+<p>After the separation: The <code>SignedHeader</code> and <code>Data</code> are submitted separately to the DA layer. Note that the <code>SignedHeader</code> has a <code>Header</code> that is linked to the <code>Data</code> via a <code>DataCommitment</code> from the DA layer. <code>SignedHeader</code> and <code>Data</code> are both gossipped over two separate p2p layers: gossipping <code>Data</code> to just full nodes and gossipping the <code>SignedHeader</code> to full nodes and future light nodes to join that will only sync headers (and proofs).</p>
 <p>In based sequencing mode, the header producer is equivalent to a full node.</p>
 <h3 id="before-separation-1"><a class="header" href="#before-separation-1">Before Separation</a></h3>
 <pre><code class="language-mermaid">flowchart LR
@@ -707,7 +707,7 @@ type Data struct {
     class Users,DA3,FN3,LN3 node
 </code></pre>
 <h3 id="syncing-full-node"><a class="header" href="#syncing-full-node">Syncing Full Node</a></h3>
-<p>Before the separation: Full Nodes get the entire <code>Block</code> struct via p2p or the DA layer. They can choose to apply the block as soon as they get it via p2p OR just wait to see it on the DA layer. This depends on whether a full node opts in to the p2p layer or not. Gossipping the <code>SignedHeader</code> over p2p is primarily for rollup light nodes to get the header.</p>
+<p>Before the separation: Full Nodes get the entire <code>Block</code> struct via p2p or the DA layer. They can choose to apply the block as soon as they get it via p2p OR just wait to see it on the DA layer. This depends on whether a full node opts in to the p2p layer or not. Gossipping the <code>SignedHeader</code> over p2p is primarily for light nodes to get the header.</p>
 <p>After the separation: Full nodes get the <code>Data</code> struct and the <code>SignedHeader</code> struct separately over p2p and DA layers. In code, this refers to the <code>HeaderStore</code> and the <code>DataStore</code> in block manager. A Full node should wait for having both the <code>Data</code> struct and the corresponding <code>SignedHeader</code> to it before applying the block data to its associated state machine. This is so that the full node can verify that its locally produced header's state commitment after it applies the <code>Data</code> associated to a block is consistent with the <code>Header</code> inside the <code>SignedHeader</code> that is received from the header producer. The <code>Header</code> should contain a link to its associated Data via a <code>DataCommitment</code> that is a pointer to the location of the <code>Data</code> on the DA layer.</p>
 <pre><code class="language-mermaid">sequenceDiagram
     participant FN as Full Node
@@ -762,7 +762,7 @@ type Data struct {
 <h2 id="abstract-6"><a class="header" href="#abstract-6">Abstract</a></h2>
 <p>This document specifies a minimal header format for Rollkit, designed to eliminate the dependency on CometBFT's header format. This new format can then be used to produce an execution layer tailored header if needed. For example, the new ABCI Execution layer can have an ABCI-specific header for IBC compatibility. This allows Rollkit to define its own header structure while maintaining backward compatibility where necessary.</p>
 <h2 id="protocolcomponent-description-3"><a class="header" href="#protocolcomponent-description-3">Protocol/Component Description</a></h2>
-<p>The Rollkit minimal header is a streamlined version of the traditional header, focusing on essential information required for block processing and state management for rollup nodes. This header format is designed to be lightweight and efficient, facilitating faster processing and reduced overhead.</p>
+<p>The Rollkit minimal header is a streamlined version of the traditional header, focusing on essential information required for block processing and state management for nodes. This header format is designed to be lightweight and efficient, facilitating faster processing and reduced overhead.</p>
 <h3 id="rollkit-minimal-header-structure"><a class="header" href="#rollkit-minimal-header-structure">Rollkit Minimal Header Structure</a></h3>
 <pre><code class="language-ascii">┌─────────────────────────────────────────────┐
 │             Rollkit Minimal Header          │
@@ -788,7 +788,7 @@ type Data struct {
 <p>The header is defined in GoLang as follows:</p>
 <pre><code class="language-go">// Header struct focusing on header information
 type Header struct {
-    // Hash of the previous rollup block header.
+    // Hash of the previous block header.
     ParentHash Hash
     // Height represents the block height (aka block number) of a given header
     Height uint64
@@ -804,7 +804,7 @@ type Header struct {
     ExtraData []byte
 }
 </code></pre>
-<p>In case the rollup has a specific designated proposer or a proposer set, that information can be put in the <code>extraData</code> field. So in single sequencer mode, the <code>sequencerAddress</code> can live in <code>extraData</code>. For base sequencer mode, this information is not relevant.</p>
+<p>In case the chain has a specific designated proposer or a proposer set, that information can be put in the <code>extraData</code> field. So in single sequencer mode, the <code>sequencerAddress</code> can live in <code>extraData</code>. For base sequencer mode, this information is not relevant.</p>
 <p>This minimal Rollkit header can be transformed to be tailored to a specific execution layer as well by inserting additional information typically needed.</p>
 <h3 id="evm-execution-client"><a class="header" href="#evm-execution-client">EVM execution client</a></h3>
 <ul>
@@ -897,7 +897,7 @@ type Header struct {
 <h2 id="assumptions-and-considerations-4"><a class="header" href="#assumptions-and-considerations-4">Assumptions and Considerations</a></h2>
 <ul>
 <li>The Rollkit minimal header is designed to be flexible and adaptable, allowing for integration with various execution layers such as EVM and ABCI, without being constrained by CometBFT's header format.</li>
-<li>The <code>extraData</code> field provides a mechanism for including additional metadata, such as sequencer information, which can be crucial for certain rollup configurations.</li>
+<li>The <code>extraData</code> field provides a mechanism for including additional metadata, such as sequencer information, which can be crucial for certain chain configurations.</li>
 <li>The transformation of the Rollkit header into execution layer-specific headers should be done carefully to ensure compatibility and correctness, especially for IBC and any other cross-chain communication protocols.</li>
 </ul>
 <h3 id="header-transformation-flow"><a class="header" href="#header-transformation-flow">Header Transformation Flow</a></h3>
@@ -926,12 +926,12 @@ type Header struct {
 <li><a href="https://github.com/cosmos/ibc">IBC Protocol Specification</a>: Documentation on the Inter-Blockchain Communication (IBC) protocol, which includes details on how headers are used for cross-chain communication.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="p2p-1"><a class="header" href="#p2p-1">P2P</a></h1>
-<p>Every rollup node (both full and light) runs a P2P client using <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a> P2P networking stack for gossiping transactions in the rollup's P2P network. The same P2P client is also used by the header and block sync services for gossiping headers and blocks.</p>
+<p>Every  node (both full and light) runs a P2P client using <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a> P2P networking stack for gossiping transactions in the chain's P2P network. The same P2P client is also used by the header and block sync services for gossiping headers and blocks.</p>
 <p>Following parameters are required for creating a new instance of a P2P client:</p>
 <ul>
 <li>P2PConfig (described below)</li>
 <li><a href="https://github.com/libp2p/go-libp2p">go-libp2p</a> private key used to create a libp2p connection and join the p2p network.</li>
-<li>chainID: rollup identifier used as namespace within the p2p network for peer discovery. The namespace acts as a sub network in the p2p network, where peer connections are limited to the same namespace.</li>
+<li>chainID: identifier used as namespace within the p2p network for peer discovery. The namespace acts as a sub network in the p2p network, where peer connections are limited to the same namespace.</li>
 <li>datastore: an instance of <a href="https://github.com/ipfs/go-datastore">go-datastore</a> used for creating a connection gator and stores blocked and allowed peers.</li>
 <li>logger</li>
 </ul>

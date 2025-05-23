@@ -149,7 +149,7 @@
 </tbody></table>
 </div>
 <h2 id="details"><a class="header" href="#details">Details</a></h2>
-<p>All three types of nodes (sequencer, full, and light) run the header sync service to maintain the canonical view of the rollup chain (with respect to the P2P network).</p>
+<p>All three types of nodes (sequencer, full, and light) run the header sync service to maintain the canonical view of the chain (with respect to the P2P network).</p>
 <p>The header sync service inherits the <code>ConnectionGater</code> from the node's P2P client which enables blocking and allowing peers as needed by specifying the <code>P2PConfig.BlockedPeers</code> and <code>P2PConfig.AllowedPeers</code>.</p>
 <p><code>NodeConfig.BlockTime</code> is used to configure the syncer such that it can effectively decide the outdated headers while it receives headers from the P2P network.</p>
 <p>Both header and block sync utilizes <a href="https://github.com/celestiaorg/go-header">go-header</a> library and runs two separate sync services, for the headers and blocks. This distinction is mainly to serve light nodes which do not store blocks, but only headers synced from the P2P network.</p>
