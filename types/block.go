@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding"
 	"errors"
+	"fmt"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -103,7 +104,8 @@ func (d *Data) Verify(untrustedData *Data) error {
 	dataHash := d.Hash()
 	// Check if the data hash of the untrusted block matches the last data hash of the trusted block
 	if !bytes.Equal(dataHash[:], untrustedData.LastDataHash[:]) {
-		return errors.New("data hash of the trusted data does not match with last data hash of the untrusted data")
+		panic(fmt.Sprintf("+++ trusted height: %d, untrusted height: %d", d.Height(), untrustedData.Height()))
+		//return errors.New("data hash of the trusted data does not match with last data hash of the untrusted data")
 	}
 	return nil
 }
