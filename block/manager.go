@@ -333,7 +333,7 @@ func NewManager(
 		daHeight:  &daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:            make(chan *types.SignedHeader, 1),
-		DataCh:              make(chan *types.Data, 1),
+		DataCh:              make(chan *types.Data, 1000000),
 		headerInCh:          make(chan NewHeaderEvent, eventInChLength),
 		dataInCh:            make(chan NewDataEvent, eventInChLength),
 		headerStoreCh:       make(chan struct{}, 1),
