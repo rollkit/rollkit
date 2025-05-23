@@ -220,6 +220,6 @@ Proposed
 
 ## References
 
-- [Generic Sequencer Interface](https://github.com/rollkit/go-sequencing)
+- [Generic Sequencer Interface](https://github.com/rollkit/rollkit/blob/main/core/sequencer/sequencing.go)
 - [Rollkit Repository](https://github.com/rollkit/rollkit)
 - [Single Sequencer Repository](https://github.com/rollkit/centralized-sequencer)

@@ -398,7 +398,7 @@ func (m *Manager) GetLastState() types.State {
 	return m.lastState
 }
 
-// GetDAIncludedHeight returns the rollup height at which all blocks have been
+// GetDAIncludedHeight returns the height at which all blocks have been
 // included in the DA
 func (m *Manager) GetDAIncludedHeight() uint64 {
 	return m.daIncludedHeight.Load()
@@ -466,7 +466,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		"lastBatchData", m.lastBatchData)
 
 	req := coresequencer.GetNextBatchRequest{
-		RollupId:      []byte(m.genesis.ChainID),
+		Id:            []byte(m.genesis.ChainID),
 		LastBatchData: m.lastBatchData,
 	}
 

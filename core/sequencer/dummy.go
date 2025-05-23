@@ -26,16 +26,16 @@ func NewDummySequencer() *DummySequencer {
 	}
 }
 
-// SubmitRollupBatchTxs submits a batch of transactions to the sequencer
-func (s *DummySequencer) SubmitRollupBatchTxs(ctx context.Context, req SubmitRollupBatchTxsRequest) (*SubmitRollupBatchTxsResponse, error) {
+// SubmitBatchTxs submits a batch of transactions to the sequencer
+func (s *DummySequencer) SubmitBatchTxs(ctx context.Context, req SubmitBatchTxsRequest) (*SubmitBatchTxsResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.batches[string(req.RollupId)] = req.Batch
+	s.batches[string(req.Id)] = req.Batch
 	if req.Batch != nil && len(req.Batch.Transactions) > 0 {
 		s.batchSubmissionChan <- *req.Batch
 	}
-	return &SubmitRollupBatchTxsResponse{}, nil
+	return &SubmitBatchTxsResponse{}, nil
 }
 
 // GetNextBatch gets the next batch from the sequencer
@@ -43,7 +43,7 @@ func (s *DummySequencer) GetNextBatch(ctx context.Context, req GetNextBatchReque
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	batch, ok := s.batches[string(req.RollupId)]
+	batch, ok := s.batches[string(req.Id)]
 	if !ok {
 		batch = &Batch{Transactions: nil}
 	}

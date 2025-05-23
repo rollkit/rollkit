@@ -13,7 +13,7 @@ type Sequencer interface {
 	// RollupId is the unique identifier for the rollup chain
 	// Batch is the batch of transactions to submit
 	// returns an error if any from the sequencer
-	SubmitRollupBatchTxs(ctx context.Context, req SubmitRollupBatchTxsRequest) (*SubmitRollupBatchTxsResponse, error)
+	SubmitBatchTxs(ctx context.Context, req SubmitBatchTxsRequest) (*SubmitBatchTxsResponse, error)
 
 	// GetNextBatch returns the next batch of transactions from sequencer to rollup
 	// RollupId is the unique identifier for the rollup chain
@@ -64,24 +64,24 @@ func (batch *Batch) Hash() ([]byte, error) {
 	return hasher.Sum(nil), nil
 }
 
-// SubmitRollupBatchTxsRequest is a request to submit a batch of transactions from rollup to sequencer
-type SubmitRollupBatchTxsRequest struct {
-	RollupId []byte
-	Batch    *Batch
+// SubmitBatchTxsRequest is a request to submit a batch of transactions from chain to sequencer
+type SubmitBatchTxsRequest struct {
+	Id    []byte
+	Batch *Batch
 }
 
-// SubmitRollupBatchTxsResponse is a response to submitting a batch of transactions from rollup to sequencer
-type SubmitRollupBatchTxsResponse struct {
+// SubmitBatchTxsResponse is a response to submitting a batch of transactions from chain to sequencer
+type SubmitBatchTxsResponse struct {
 }
 
-// GetNextBatchRequest is a request to get the next batch of transactions from sequencer to rollup
+// GetNextBatchRequest is a request to get the next batch of transactions from sequencer to chain
 type GetNextBatchRequest struct {
-	RollupId      []byte
+	Id            []byte
 	LastBatchData [][]byte
 	MaxBytes      uint64
 }
 
-// GetNextBatchResponse is a response to getting the next batch of transactions from sequencer to rollup
+// GetNextBatchResponse is a response to getting the next batch of transactions from sequencer to chain
 type GetNextBatchResponse struct {
 	Batch     *Batch
 	Timestamp time.Time
@@ -90,7 +90,7 @@ type GetNextBatchResponse struct {
 
 // VerifyBatchRequest is a request to verify a batch of transactions received from the sequencer
 type VerifyBatchRequest struct {
-	RollupId  []byte
+	Id        []byte
 	BatchData [][]byte
 }
 
