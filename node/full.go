@@ -264,7 +264,7 @@ func (n *FullNode) dataPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case data := <-n.blockManager.DataCh:
-			time.Sleep(time.Millisecond * 100)
+			time.Sleep(time.Second)
 			err := n.dSyncService.WriteToStoreAndBroadcast(ctx, data)
 			if err != nil {
 				// failed to init or start blockstore
