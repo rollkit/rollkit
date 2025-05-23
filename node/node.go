@@ -17,7 +17,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer"
 )
 
-// Node is the interface for a rollup node
+// Node is the interface for an application node
 type Node interface {
 	service.Service
 

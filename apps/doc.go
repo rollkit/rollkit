@@ -1,20 +1,20 @@
 /*
-This pkg defines a set of rollup configurations that can be used out of the box.
+This pkg defines a set of sequencer configurations that can be used out of the box.
 
 The configurations are:
 
 RETH:
-- Single Sequencer rollup with RETH
-- Based rollup with RETH
+- Single with RETH
+- Based with RETH
 
 ABCI:
-- Based rollup with ABCI
-- Single sequencer with ABCI and an attestor set
+- Based with ABCI
+- Single with ABCI and an attestor set
 
 Custom:
-- Single sequencer rollup with grpc to an external execution environment
-- Based rollup with grpc to an external execution environment
+- Single sequencer with grpc to an external execution environment
+- Based with grpc to an external execution environment
 
-These configurations can be used as examples to develop your own rollup.
+These configurations can be used as examples to develop your own chain.
 */
-package rollups
+package apps

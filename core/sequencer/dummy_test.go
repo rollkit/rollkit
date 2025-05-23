@@ -21,7 +21,7 @@ func TestDummySequencer_SubmitBatchTxs(t *testing.T) {
 		},
 	}
 
-	ID := []byte("test-rollup-1")
+	ID := []byte("test-1")
 
 	// Submit the batch
 	resp, err := seq.SubmitBatchTxs(ctx, SubmitBatchTxsRequest{
@@ -56,9 +56,9 @@ func TestDummySequencer_GetNextBatch(t *testing.T) {
 
 	ctx := t.Context()
 
-	t.Run("non-existent rollup ID", func(t *testing.T) {
-		// Try to get a batch for a non-existent rollup ID
-		nonExistentID := []byte("non-existent-rollup")
+	t.Run("non-existent ID", func(t *testing.T) {
+		// Try to get a batch for a non-existent ID
+		nonExistentID := []byte("non-existent")
 		req, err := seq.GetNextBatch(ctx, GetNextBatchRequest{
 			Id: nonExistentID,
 		})
@@ -73,9 +73,9 @@ func TestDummySequencer_GetNextBatch(t *testing.T) {
 		}
 	})
 
-	t.Run("existing rollup ID", func(t *testing.T) {
+	t.Run("existing ID", func(t *testing.T) {
 		// Create and submit a test batch
-		ID := []byte("test-rollup-2")
+		ID := []byte("test-2")
 		batch := &Batch{
 			Transactions: [][]byte{
 				[]byte("tx1"),
@@ -99,7 +99,7 @@ func TestDummySequencer_GetNextBatch(t *testing.T) {
 
 		// Verify response
 		if err != nil {
-			t.Fatalf("GetNextBatch should not return an error for existing rollup ID: %v", err)
+			t.Fatalf("GetNextBatch should not return an error for existing ID: %v", err)
 		}
 		if getResp == nil {
 			t.Fatal("GetNextBatch should return a non-nil response")
@@ -124,7 +124,7 @@ func TestDummySequencer_VerifyBatch(t *testing.T) {
 	ctx := t.Context()
 
 	// The dummy implementation always returns true regardless of input
-	ID := []byte("test-rollup")
+	ID := []byte("test")
 	batchData := [][]byte{[]byte("tx1"), []byte("tx2")}
 
 	resp, err := seq.VerifyBatch(ctx, VerifyBatchRequest{
@@ -160,8 +160,8 @@ func TestDummySequencer_Concurrency(t *testing.T) {
 	for i := 0; i < numGoroutines; i++ {
 		go func(routineID int) {
 			for j := 0; j < numOperationsPerGoroutine; j++ {
-				// Create a unique rollup ID for this operation
-				ID := []byte(fmt.Sprintf("rollup-%d-%d", routineID, j))
+				// Create a unique  ID for this operation
+				ID := []byte(fmt.Sprintf("-%d-%d", routineID, j))
 
 				// Create a batch
 				batch := &Batch{
@@ -217,17 +217,17 @@ func TestDummySequencer_Concurrency(t *testing.T) {
 	}
 }
 
-func TestDummySequencer_MultipleRollups(t *testing.T) {
+func TestDummySequencer_Multiples(t *testing.T) {
 	seq := NewDummySequencer()
 	seq.SetBatchSubmissionChan(make(chan Batch, 3))
 
 	ctx := t.Context()
 
-	// Create multiple rollup IDs and batches
+	// Create multiple  IDs and batches
 	IDs := [][]byte{
-		[]byte("rollup-1"),
-		[]byte("rollup-2"),
-		[]byte("rollup-3"),
+		[]byte("-1"),
+		[]byte("-2"),
+		[]byte("-3"),
 	}
 
 	batches := []*Batch{
@@ -236,7 +236,7 @@ func TestDummySequencer_MultipleRollups(t *testing.T) {
 		{Transactions: [][]byte{[]byte("tx3-1"), []byte("tx3-2")}},
 	}
 
-	// Submit batches for each rollup
+	// Submit batches for each
 	for i, ID := range IDs {
 		_, err := seq.SubmitBatchTxs(ctx, SubmitBatchTxsRequest{
 			Id:    ID,
@@ -247,7 +247,7 @@ func TestDummySequencer_MultipleRollups(t *testing.T) {
 		}
 	}
 
-	// Retrieve and verify batches for each rollup
+	// Retrieve and verify batches for each chain
 	for i, ID := range IDs {
 		getResp, err := seq.GetNextBatch(ctx, GetNextBatchRequest{
 			Id: ID,
@@ -257,7 +257,7 @@ func TestDummySequencer_MultipleRollups(t *testing.T) {
 			t.Fatalf("GetNextBatch should not return an error: %v", err)
 		}
 		if !reflect.DeepEqual(batches[i], getResp.Batch) {
-			t.Fatalf("Retrieved batch should match submitted batch for rollup %s", ID)
+			t.Fatalf("Retrieved batch should match submitted batch for chain %s", ID)
 		}
 	}
 }
@@ -267,7 +267,7 @@ func TestDummySequencer_BatchOverwrite(t *testing.T) {
 	seq.SetBatchSubmissionChan(make(chan Batch, 3))
 	ctx := t.Context()
 
-	ID := []byte("test-rollup")
+	ID := []byte("test-chain")
 
 	// Create and submit first batch
 	batch1 := &Batch{
@@ -285,7 +285,7 @@ func TestDummySequencer_BatchOverwrite(t *testing.T) {
 		t.Fatalf("SubmitBatchTxs should not return an error: %v", err)
 	}
 
-	// Create and submit second batch for the same rollup ID
+	// Create and submit second batch for the same chain ID
 	batch2 := &Batch{
 		Transactions: [][]byte{
 			[]byte("batch2-tx1"),

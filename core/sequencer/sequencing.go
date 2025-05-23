@@ -7,23 +7,23 @@ import (
 	"time"
 )
 
-// Sequencer is a generic interface for a rollup sequencer
+// Sequencer is a generic interface for a sequencer
 type Sequencer interface {
-	// SubmitRollupBatchTxs submits a batch of transactions from rollup to sequencer
-	// RollupId is the unique identifier for the rollup chain
+	// SubmitBatchTxs submits a batch of transactions from  to sequencer
+	// Id is the unique identifier for the  chain
 	// Batch is the batch of transactions to submit
 	// returns an error if any from the sequencer
 	SubmitBatchTxs(ctx context.Context, req SubmitBatchTxsRequest) (*SubmitBatchTxsResponse, error)
 
-	// GetNextBatch returns the next batch of transactions from sequencer to rollup
-	// RollupId is the unique identifier for the rollup chain
-	// LastBatchHash is the cryptographic hash of the last batch received by the rollup
+	// GetNextBatch returns the next batch of transactions from sequencer to
+	// Id is the unique identifier for the  chain
+	// LastBatchHash is the cryptographic hash of the last batch received by the
 	// MaxBytes is the maximum number of bytes to return in the batch
 	// returns the next batch of transactions and an error if any from the sequencer
 	GetNextBatch(ctx context.Context, req GetNextBatchRequest) (*GetNextBatchResponse, error)
 
 	// VerifyBatch verifies a batch of transactions received from the sequencer
-	// RollupId is the unique identifier for the rollup chain
+	// Id is the unique identifier for the  chain
 	// BatchHash is the cryptographic hash of the batch to verify
 	// returns a boolean indicating if the batch is valid and an error if any from the sequencer
 	VerifyBatch(ctx context.Context, req VerifyBatchRequest) (*VerifyBatchResponse, error)

@@ -140,7 +140,7 @@ type Manager struct {
 
 	exec coreexecutor.Executor
 
-	// daIncludedHeight is rollup height at which all blocks have been included
+	// daIncludedHeight is rollkit height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
 	da               coreda.DA
@@ -440,7 +440,7 @@ func (m *Manager) IsBlockHashSeen(blockHash string) bool {
 }
 
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
-// TODO(tac0turtle): should we use this for pending header system to verify how far ahead a rollup is?
+// TODO(tac0turtle): should we use this for pending header system to verify how far ahead a chain is?
 func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error) {
 	header, data, err := m.store.GetBlockData(ctx, height)
 	if err != nil {
