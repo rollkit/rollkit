@@ -26,7 +26,7 @@ func TestNewSequencer(t *testing.T) {
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("rollup1"), 10*time.Second, metrics, false)
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("test1"), 10*time.Second, metrics, false)
 	seq.SetBatchSubmissionChan(make(chan coresequencer.Batch, 100))
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
@@ -58,7 +58,7 @@ func TestSequencer_SubmitBatchTxs(t *testing.T) {
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	Id := []byte("rollup1")
+	Id := []byte("test1")
 	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, Id, 10*time.Second, metrics, false)
 	seq.SetBatchSubmissionChan(make(chan coresequencer.Batch, 100))
 	if err != nil {
@@ -71,12 +71,12 @@ func TestSequencer_SubmitBatchTxs(t *testing.T) {
 		}
 	}()
 
-	// Test with initial rollup ID
+	// Test with initial ID
 	tx := []byte("transaction1")
 
 	res, err := seq.SubmitBatchTxs(context.Background(), coresequencer.SubmitBatchTxsRequest{Id: Id, Batch: &coresequencer.Batch{Transactions: [][]byte{tx}}})
 	if err != nil {
-		t.Fatalf("Failed to submit rollup transaction: %v", err)
+		t.Fatalf("Failed to submit  transaction: %v", err)
 	}
 	if res == nil {
 		t.Fatal("Expected response to not be nil")
@@ -91,10 +91,10 @@ func TestSequencer_SubmitBatchTxs(t *testing.T) {
 		t.Fatalf("Expected 1 transaction, got %d", len(nextBatchresp.Batch.Transactions))
 	}
 
-	// Test with a different rollup ID (expecting an error due to mismatch)
-	res, err = seq.SubmitBatchTxs(context.Background(), coresequencer.SubmitBatchTxsRequest{Id: []byte("rollup2"), Batch: &coresequencer.Batch{Transactions: [][]byte{tx}}})
+	// Test with a different  ID (expecting an error due to mismatch)
+	res, err = seq.SubmitBatchTxs(context.Background(), coresequencer.SubmitBatchTxsRequest{Id: []byte("test2"), Batch: &coresequencer.Batch{Transactions: [][]byte{tx}}})
 	if err == nil {
-		t.Fatal("Expected error for invalid rollup ID, got nil")
+		t.Fatal("Expected error for invalid  ID, got nil")
 	}
 	if !errors.Is(err, ErrInvalidId) {
 		t.Fatalf("Expected ErrInvalidId, got %v", err)
@@ -111,7 +111,7 @@ func TestSequencer_SubmitBatchTxs_EmptyBatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	Id := []byte("rollup1")
+	Id := []byte("test1")
 	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, Id, 10*time.Second, metrics, false)
 	seq.SetBatchSubmissionChan(make(chan coresequencer.Batch, 100))
 	require.NoError(t, err, "Failed to create sequencer")
@@ -154,7 +154,7 @@ func TestSequencer_GetNextBatch_NoLastBatch(t *testing.T) {
 
 	seq := &Sequencer{
 		queue: NewBatchQueue(db, "batches"),
-		Id:    []byte("rollup"),
+		Id:    []byte("test"),
 	}
 	defer func() {
 		err := db.Close()
@@ -190,7 +190,7 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 		logger:              log.NewNopLogger(),
 		queue:               NewBatchQueue(db, "batches"),
 		batchSubmissionChan: make(chan coresequencer.Batch, 100),
-		Id:                  []byte("rollup"),
+		Id:                  []byte("test"),
 	}
 	defer func() {
 		err := db.Close()
@@ -240,7 +240,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		require.NoError(err, "Failed to close datastore")
 	}()
 
-	Id := []byte("test-rollup")
+	Id := []byte("test")
 	namespace := []byte("placeholder")
 	batchData := [][]byte{[]byte("batch1"), []byte("batch2")}
 	proofs := [][]byte{[]byte("proof1"), []byte("proof2")}
@@ -353,7 +353,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			mockDA.AssertExpectations(t)
 		})
 
-		t.Run("Invalid Rollup ID", func(t *testing.T) {
+		t.Run("Invalid ID", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
 
 			seq := &Sequencer{
@@ -361,11 +361,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:                  Id,
 				proposer:            false,
 				da:                  mockDA,
-				queue:               NewBatchQueue(db, "invalid_rollup_queue"),
+				queue:               NewBatchQueue(db, "invalid_queue"),
 				batchSubmissionChan: make(chan coresequencer.Batch, 1),
 			}
 
-			invalidId := []byte("invalidRollup")
+			invalidId := []byte("invalid")
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: invalidId, BatchData: batchData})
 			assert.Error(err)
 			assert.Nil(res)
@@ -385,7 +385,7 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, mockDA, []byte("rollup1"), 1*time.Second, metrics, false)
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, mockDA, []byte("test1"), 1*time.Second, metrics, false)
 	seq.SetBatchSubmissionChan(make(chan coresequencer.Batch, 100))
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
@@ -404,14 +404,14 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 		Return(nil, errors.New("mock DA always rejects submissions"))
 
 	// Submit a batch
-	Id := []byte("rollup1")
+	Id := []byte("test1")
 	tx := []byte("transaction1")
 	res, err := seq.SubmitBatchTxs(context.Background(), coresequencer.SubmitBatchTxsRequest{
 		Id:    Id,
 		Batch: &coresequencer.Batch{Transactions: [][]byte{tx}},
 	})
 	if err != nil {
-		t.Fatalf("Failed to submit rollup transaction: %v", err)
+		t.Fatalf("Failed to submit  transaction: %v", err)
 	}
 	if res == nil {
 		t.Fatal("Expected response to not be nil")

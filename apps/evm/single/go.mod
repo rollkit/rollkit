@@ -1,4 +1,4 @@
-module github.com/rollkit/rollkit/rollups/evm/based
+module github.com/rollkit/rollkit/apps/evm/single
 
 go 1.24.1
 
@@ -9,23 +9,24 @@ replace (
 	github.com/rollkit/rollkit => ../../../
 	github.com/rollkit/rollkit/core => ../../../core
 	github.com/rollkit/rollkit/da => ../../../da
-	github.com/rollkit/rollkit/sequencers/based => ../../../sequencers/based
+	github.com/rollkit/rollkit/sequencers/single => ../../../sequencers/single
 )
 
 require (
+	cosmossdk.io/log v1.6.0
 	github.com/ethereum/go-ethereum v1.15.0
 	github.com/rollkit/go-execution-evm v0.1.1-0.20250328070936-d9a866002f5f
 	github.com/rollkit/rollkit v0.14.2-0.20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/core v0.0.0-20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/da v0.0.0-20250317130407-e9e0a1b0485e
-	github.com/rollkit/rollkit/sequencers/based v0.0.0-00010101000000-000000000000
+	github.com/rollkit/rollkit/sequencers/single v0.0.0-00010101000000-000000000000
+	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.9.1
 )
 
 require (
 	connectrpc.com/connect v1.18.1 // indirect
 	connectrpc.com/grpcreflect v1.3.0 // indirect
-	cosmossdk.io/log v1.6.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/Masterminds/semver/v3 v3.3.0 // indirect
@@ -176,7 +177,6 @@ require (
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
-	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect

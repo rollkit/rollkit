@@ -37,7 +37,7 @@ var (
 
 var _ coresequencer.Sequencer = &Sequencer{}
 
-// Sequencer is responsible for managing rollup transactions and interacting with the
+// Sequencer is responsible for managing  transactions and interacting with the
 // Data Availability (DA) layer. It handles tasks such as adding transactions to a
 // pending queue, retrieving batches of transactions, verifying batches, and submitting
 // them to the DA layer. The Sequencer ensures that transactions are processed in a
@@ -174,7 +174,7 @@ OuterLoop:
 			s.logger.Warn("failed to retrieve transactions from DA layer via helper", "error", res.Message)
 			break OuterLoop
 		}
-		if len(res.Data) == 0 { // TODO: some heights may not have rollup blobs, find a better way to handle this
+		if len(res.Data) == 0 { // TODO: some heights may not have  blobs, find a better way to handle this
 			// stop fetching more transactions and return the current batch
 			s.logger.Debug("no transactions to retrieve from DA layer via helper for", "height", nextDAHeight)
 			// don't break yet, wait for maxHeightDrift to elapse
