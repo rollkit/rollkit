@@ -565,6 +565,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	newHeight := height + 1
+	m.logger.Info("start publishing block", "height", newHeight)
 
 	prevBlockData, err := m.getPreviousBlockData(ctx, newHeight)
 	if err != nil {
@@ -590,6 +591,21 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	if err := header.ValidateBasic(); err != nil {
 		// If this ever happens, for recovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
 		return fmt.Errorf("header validation error: %w", err)
+	}
+
+	// Create and save RollkitSequencerAttestation for the current block H (header, data)
+	currentBlockAttestation, err := m.createAndSignAttestation(ctx, header, data)
+	if err != nil {
+		// Log the error but don't let it stop the node.
+		// The adapter might not be able to form the LastCommit for the *next* block,
+		// but this block (H) is already processed and published.
+		m.logger.Error("failed to create and sign attestation for current block", "height", header.Height(), "error", err)
+	} else {
+		err = m.store.SaveSequencerAttestation(ctx, header.Height(), currentBlockAttestation)
+		if err != nil {
+			m.logger.Error("failed to save sequencer attestation for current block", "height", header.Height(), "error", err)
+		}
+		m.logger.Info("saved sequencer attestation for current block", "height", header.Height(), "attestation", currentBlockAttestation)
 	}
 
 	newState, err := m.applyBlock(ctx, header, data)
@@ -649,21 +665,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// Publish block to channel so that block exchange service can broadcast
 	m.DataCh <- data
 
-	// Create and save RollkitSequencerAttestation for the current block H (header, data)
-	// This attestation will be used by the adapter when processing block H+1.
-	currentBlockAttestation, err := m.createAndSignAttestation(ctx, header, data)
-	if err != nil {
-		// Log the error but don't let it stop the node.
-		// The adapter might not be able to form the LastCommit for the *next* block,
-		// but this block (H) is already processed and published.
-		m.logger.Error("failed to create and sign attestation for current block", "height", header.Height(), "error", err)
-	} else {
-		err = m.store.SaveSequencerAttestation(ctx, header.Height(), currentBlockAttestation)
-		if err != nil {
-			m.logger.Error("failed to save sequencer attestation for current block", "height", header.Height(), "error", err)
-		}
-	}
-
 	return nil
 }
 
@@ -700,17 +701,16 @@ func (m *Manager) getPreviousBlockData(ctx context.Context, newHeight uint64) (*
 	var err error
 	prevHeight := newHeight - 1
 
-	// Logic to get prevCommitHash
-	if newHeight > m.genesis.InitialHeight {
+	if newHeight > m.genesis.InitialHeight+1 {
 		commitHashBytes, errGetCommit := m.store.GetCommitHash(ctx, prevHeight)
 		if errGetCommit != nil {
 			if !errors.Is(errGetCommit, ds.ErrNotFound) {
 				m.logger.Error("failed to get previous calculated commit hash", "height", prevHeight, "error", errGetCommit)
 			}
-			return nil, fmt.Errorf("failed to get previous calculated commit hash: %w", errGetCommit)
+			return nil, fmt.Errorf("failed to get previous calculated commit hash for height %d: %w", prevHeight, errGetCommit)
 		}
 
-		const expectedHashLength = 32 // SHA256 produces 32-byte hashes
+		const expectedHashLength = 32
 		if len(commitHashBytes) == expectedHashLength {
 			prevCtx.commitHash = make(types.Hash, expectedHashLength)
 			copy(prevCtx.commitHash, commitHashBytes)
@@ -828,7 +828,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	// Use when batchData is set to data IDs from the DA layer
 	// batchDataIDs := convertBatchDataToBytes(batchData.Data)
 
-	if m.signer == nil { // Comprobación temprana para evitar pánicos posteriores
+	if m.signer == nil {
 		return nil, nil, fmt.Errorf("signer is nil; cannot create block in execCreateBlock")
 	}
 	m.logger.Info("execCreateBlock called", "height", height, "lastHeaderHash", hex.EncodeToString(lastHeaderHash[:]), "prevCalculatedCommitHash", hex.EncodeToString(prevCalculatedCommitHash[:]))
