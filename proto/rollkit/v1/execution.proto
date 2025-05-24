@@ -1,0 +1,50 @@
+syntax = "proto3";
+package rollkit.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
+
+// ExecutionService defines RPCs exposing the execution layer
+service ExecutionService {
+  // InitChain initializes a new chain
+  rpc InitChain(InitChainRequest) returns (InitChainResponse) {}
+  // GetTxs returns available transactions
+  rpc GetTxs(google.protobuf.Empty) returns (GetTxsResponse) {}
+  // ExecuteTxs executes a batch of transactions
+  rpc ExecuteTxs(ExecuteTxsRequest) returns (ExecuteTxsResponse) {}
+  // SetFinal marks a block as finalized
+  rpc SetFinal(SetFinalRequest) returns (google.protobuf.Empty) {}
+}
+
+message InitChainRequest {
+  google.protobuf.Timestamp genesis_time = 1;
+  uint64 initial_height = 2;
+  string chain_id = 3;
+}
+
+message InitChainResponse {
+  bytes state_root = 1;
+  uint64 max_bytes = 2;
+}
+
+message GetTxsResponse {
+  repeated bytes txs = 1;
+}
+
+message ExecuteTxsRequest {
+  repeated bytes txs = 1;
+  uint64 block_height = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bytes prev_state_root = 4;
+}
+
+message ExecuteTxsResponse {
+  bytes updated_state_root = 1;
+  uint64 max_bytes = 2;
+}
+
+message SetFinalRequest {
+  uint64 block_height = 1;
+}
