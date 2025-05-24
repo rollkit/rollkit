@@ -348,7 +348,7 @@ func (x *Signer) GetPubKey() []byte {
 // Metadata is the metadata of a block in the blockchain.
 type Metadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Rollup chain id
+	// chain id
 	ChainId string `protobuf:"bytes,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
 	// Block height
 	Height uint64 `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`

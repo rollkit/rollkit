@@ -11,7 +11,7 @@ Manav Aggarwal (@Manav-Aggarwal)
 
 ## Context
 
-This ADR introduces a design for state fraud proofs in optimistic cosmos-sdk rollups using Rollkit.
+This ADR introduces a design for state fraud proofs in optimistic cosmos-sdk using Rollkit.
 It implements parts of Section 4 (Fraud Proofs) of Al-Bassam et al’s paper [“Fraud and Data Availability Proofs: Detecting Invalid Blocks in Light Clients”](http://www0.cs.ucl.ac.uk/staff/M.AlBassam/publications/fraudproofs.pdf).
 Some previous notes regarding this topic in the context of cosmos-sdk are described in Matthew Di Ferrante's [notes](https://github.com/rollkit/rollkit/issues/132).
 
@@ -24,8 +24,8 @@ Note that Rollkit State Fraud Proofs are still a work in progress and will requi
 List of caveats and required modifications to push State Fraud Proofs towards completion:
 
 - Add ability for light nodes to receive and verify state fraud proofs.
-- Add inclusion proofs over transactions so fraud proof verifiers have knowledge over which rollup transaction is being fraud proven.
-- Check for badly formatted underlying rollup data before verifying state transition inside the State Machine.
+- Add inclusion proofs over transactions so fraud proof verifiers have knowledge over which transaction is being fraud proven.
+- Check for badly formatted underlying data before verifying state transition inside the State Machine.
 - Limit number of state witnesses permissible in a state fraud proof since state keys accessed by a transaction can be limited by the state machine.
 - Write end to end network tests covering different scenarios that can occur in case of state fraud proof submission by a full node.
 - Support for multiple sequencers, in which case, fraud proof detection works the same as described above.

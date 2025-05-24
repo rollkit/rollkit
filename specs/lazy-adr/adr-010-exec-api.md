@@ -67,9 +67,9 @@ Initializes the blockchain's state based on genesis information. This method is 
 ##### Inputs
 
 - `ctx` (`context.Context`): Context for managing request timeouts and cancellations.
-- `genesisTime` (`time.Time`): The initial timestamp of the rollup.
-- `initialHeight` (`uint64`): The starting height of the rollup.
-- `chainID` (`string`): A unique identifier of the rollup network.
+- `genesisTime` (`time.Time`): The initial timestamp of the chain.
+- `initialHeight` (`uint64`): The starting height of the chain.
+- `chainID` (`string`): A unique identifier of the chain network.
 
 ##### Outputs
 
@@ -79,8 +79,8 @@ Initializes the blockchain's state based on genesis information. This method is 
 
 ##### Expected Behavior
 
-- Initialize rollup according to the genesis.
-- Generate an initial `stateRoot` representing the genesis state of the rollup.
+- Initialize the chain according to the genesis.
+- Generate an initial `stateRoot` representing the genesis state of the chain.
 - Return the maximum allowable block size (`maxBytes`).
 - Ensure all necessary state is initialized for subsequent operations.
 
@@ -119,7 +119,7 @@ Executes a given set of transactions, updating the blockchain state.
 - `txs` (`[]types.Tx`): A slice of transactions to be executed.
 - `blockHeight` (`uint64`): The height of the block these transactions belong to.
 - `timestamp` (`time.Time`): The block's timestamp.
-- `prevStateRoot` (`types.Hash`): The state root of the rollup before applying the transactions.
+- `prevStateRoot` (`types.Hash`): The state root of the chain before applying the transactions.
 
 ##### Outputs
 
@@ -247,7 +247,7 @@ sequenceDiagram
         R ->> +E: GetTxs
         E -->> -R: txs
         loop For each tx in txs
-            R ->> S: SubmitRollupTransaction
+            R ->> S: SubmitTransaction
         end
         R ->> +S: GetNextBatch
         S -->> -R: batch, time

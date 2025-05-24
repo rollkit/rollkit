@@ -1,14 +1,14 @@
 # Single Sequencer
 
-The single sequencer is a component of the Rollkit framework that handles transaction ordering and batch submission to a Data Availability (DA) layer. It provides a reliable way to sequence transactions for rollups via a designed node called the sequencer.
+The single sequencer is a component of the Rollkit framework that handles transaction ordering and batch submission to a Data Availability (DA) layer. It provides a reliable way to sequence transactions for applications via a designed node called the sequencer.
 
 ## Overview
 
-The sequencer receives transactions from rollup clients, batches them together, and submits these batches to a Data Availability layer. It maintains transaction and batch queues, handles recovery from crashes, and provides verification mechanisms for batches.
+The sequencer receives transactions from clients, batches them together, and submits these batches to a Data Availability layer. It maintains transaction and batch queues, handles recovery from crashes, and provides verification mechanisms for batches.
 
 ```mermaid
 flowchart LR
-    Client["Rollup Client"] --> Sequencer
+    Client["Client"] --> Sequencer
     Sequencer --> DA["DA Layer"]
     Sequencer <--> Database
 ```
@@ -19,7 +19,7 @@ flowchart LR
 
 The main component that orchestrates the entire sequencing process. It:
 
-- Receives transactions from rollup clients
+- Receives transactions from clients
 - Maintains transaction and batch queues
 - Periodically creates and submits batches to the DA layer
 - Handles recovery from crashes
@@ -65,7 +65,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["SubmitRollupBatchTxs()"] --> B["Validate RollupID"]
+    A["SubmitBatchTxs()"] --> B["Validate ID"]
     B --> C["AddTransaction to Queue"]
     C --> D["Store in DB"]
 ```
@@ -85,7 +85,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["GetNextBatch()"] --> B["Validate RollupID"]
+    A["GetNextBatch()"] --> B["Validate ID"]
     B --> C["Check batch hash match"]
     C --> D["If match or both nil"]
     D --> E["Get batch from BatchQueue"]
@@ -96,7 +96,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["VerifyBatch()"] --> B["Validate RollupID"]
+    A["VerifyBatch()"] --> B["Validate ID"]
     B --> C["Check if batch hash in seen batches map"]
     C --> D["Return status"]
 ```
@@ -177,7 +177,7 @@ seq, err := NewSequencer(
     database,
     daLayer,
     namespace,
-    rollupId,
+    Id,
     batchTime,
     metrics,
 )
@@ -186,10 +186,10 @@ seq, err := NewSequencer(
 To submit transactions:
 
 ```go
-response, err := seq.SubmitRollupBatchTxs(
+response, err := seq.SubmitBatchTxs(
     context.Background(),
-    coresequencer.SubmitRollupBatchTxsRequest{
-        RollupId: rollupId,
+    coresequencer.SubmitBatchTxsRequest{
+        Id: Id,
         Batch: &coresequencer.Batch{
             Transactions: [][]byte{transaction},
         },
@@ -203,7 +203,7 @@ To get the next batch:
 response, err := seq.GetNextBatch(
     context.Background(),
     coresequencer.GetNextBatchRequest{
-        RollupId: rollupId,
+        Id: Id,
         LastBatchHash: lastHash,
     },
 )
@@ -215,7 +215,7 @@ To verify a batch:
 response, err := seq.VerifyBatch(
     context.Background(),
     coresequencer.VerifyBatchRequest{
-        RollupId: rollupId,
+        Id: Id,
         BatchHash: batchHash,
     },
 )

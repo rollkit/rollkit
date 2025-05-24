@@ -44,28 +44,28 @@ func (_m *Sequencer) GetNextBatch(ctx context.Context, req sequencer.GetNextBatc
 	return r0, r1
 }
 
-// SubmitRollupBatchTxs provides a mock function with given fields: ctx, req
-func (_m *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req sequencer.SubmitRollupBatchTxsRequest) (*sequencer.SubmitRollupBatchTxsResponse, error) {
+// SubmitBatchTxs provides a mock function with given fields: ctx, req
+func (_m *Sequencer) SubmitBatchTxs(ctx context.Context, req sequencer.SubmitBatchTxsRequest) (*sequencer.SubmitBatchTxsResponse, error) {
 	ret := _m.Called(ctx, req)
 
 	if len(ret) == 0 {
-		panic("no return value specified for SubmitRollupBatchTxs")
+		panic("no return value specified for SubmitBatchTxs")
 	}
 
-	var r0 *sequencer.SubmitRollupBatchTxsResponse
+	var r0 *sequencer.SubmitBatchTxsResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, sequencer.SubmitRollupBatchTxsRequest) (*sequencer.SubmitRollupBatchTxsResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, sequencer.SubmitBatchTxsRequest) (*sequencer.SubmitBatchTxsResponse, error)); ok {
 		return rf(ctx, req)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, sequencer.SubmitRollupBatchTxsRequest) *sequencer.SubmitRollupBatchTxsResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, sequencer.SubmitBatchTxsRequest) *sequencer.SubmitBatchTxsResponse); ok {
 		r0 = rf(ctx, req)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*sequencer.SubmitRollupBatchTxsResponse)
+			r0 = ret.Get(0).(*sequencer.SubmitBatchTxsResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, sequencer.SubmitRollupBatchTxsRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, sequencer.SubmitBatchTxsRequest) error); ok {
 		r1 = rf(ctx, req)
 	} else {
 		r1 = ret.Error(1)

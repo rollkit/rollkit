@@ -6,7 +6,7 @@ This document specifies a minimal header format for Rollkit, designed to elimina
 
 ## Protocol/Component Description
 
-The Rollkit minimal header is a streamlined version of the traditional header, focusing on essential information required for block processing and state management for rollup nodes. This header format is designed to be lightweight and efficient, facilitating faster processing and reduced overhead.
+The Rollkit minimal header is a streamlined version of the traditional header, focusing on essential information required for block processing and state management for nodes. This header format is designed to be lightweight and efficient, facilitating faster processing and reduced overhead.
 
 ### Rollkit Minimal Header Structure
 
@@ -39,7 +39,7 @@ The header is defined in GoLang as follows:
 ```go
 // Header struct focusing on header information
 type Header struct {
-    // Hash of the previous rollup block header.
+    // Hash of the previous block header.
     ParentHash Hash
     // Height represents the block height (aka block number) of a given header
     Height uint64
@@ -56,7 +56,7 @@ type Header struct {
 }
 ```
 
-In case the rollup has a specific designated proposer or a proposer set, that information can be put in the `extraData` field. So in single sequencer mode, the `sequencerAddress` can live in `extraData`. For base sequencer mode, this information is not relevant.
+In case the chain has a specific designated proposer or a proposer set, that information can be put in the `extraData` field. So in single sequencer mode, the `sequencerAddress` can live in `extraData`. For base sequencer mode, this information is not relevant.
 
 This minimal Rollkit header can be transformed to be tailored to a specific execution layer as well by inserting additional information typically needed.
 
@@ -158,7 +158,7 @@ This header can be transformed into an ABCI-specific header for IBC compatibilit
 ## Assumptions and Considerations
 
 - The Rollkit minimal header is designed to be flexible and adaptable, allowing for integration with various execution layers such as EVM and ABCI, without being constrained by CometBFT's header format.
-- The `extraData` field provides a mechanism for including additional metadata, such as sequencer information, which can be crucial for certain rollup configurations.
+- The `extraData` field provides a mechanism for including additional metadata, such as sequencer information, which can be crucial for certain chain configurations.
 - The transformation of the Rollkit header into execution layer-specific headers should be done carefully to ensure compatibility and correctness, especially for IBC and any other cross-chain communication protocols.
 
 ### Header Transformation Flow

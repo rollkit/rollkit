@@ -25,8 +25,5 @@ func init() {
 // RootCmd is the root command for Rollkit
 var RootCmd = &cobra.Command{
 	Use:   AppName,
-	Short: "The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.",
-	Long: `
-Rollkit is the first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
-If the --home flag is not specified, the rollkit command will create a folder "~/.testapp" where it will store node keys, config, and data.`,
+	Short: "Testapp is a test application for Rollkit, it consists of a simple key-value store and a single sequencer.",
 }

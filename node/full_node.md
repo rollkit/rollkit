@@ -16,7 +16,7 @@ The Full Node mainly encapsulates and initializes/manages the following componen
 
 ### genesis
 
-The [genesis] document contains information about the initial state of the rollup chain, in particular its validator set.
+The [genesis] document contains information about the initial state of the chain, in particular its validator set.
 
 ### conf
 

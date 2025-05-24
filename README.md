@@ -1,6 +1,6 @@
 # Rollkit
 
-Rollkit is the first sovereign rollup framework. For more in-depth information about Rollkit, please visit our [website][docs].
+Rollkit is the first sovereign application framework. For more in-depth information about Rollkit, please visit our [website][docs].
 
 <!-- markdownlint-disable MD013 -->
 [![Go Report Card](https://goreportcard.com/badge/github.com/rollkit/rollkit)](https://goreportcard.com/report/github.com/rollkit/rollkit)
@@ -44,7 +44,7 @@ testapp start
 
 ## Building with Rollkit
 
-Rollkit is the first sovereign rollup framework that allows you to launch
+Rollkit is the first sovereign application framework that allows you to launch
 a sovereign, customizable blockchain as easily as a smart contract.
 TestApp serves as a reference implementation to help you get started with your own Rollkit-based blockchain.
 

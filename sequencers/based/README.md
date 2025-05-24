@@ -1,8 +1,8 @@
 # based-rollkit
 
-🚀 **Based Rollkit Node** is a sovereign rollup node powered by [Rollkit](https://rollkit.dev), configured to operate in *based sequencing mode*. This mode leverages Celestia as a base layer for ordering transactions and data availability.
+🚀 **Based Rollkit Node** is a sovereign application node powered by [Rollkit](https://rollkit.dev), configured to operate in *based sequencing mode*. This mode leverages Celestia as a base layer for ordering transactions and data availability.
 
-This implementation supports EVM execution via `go-execution-evm` and allows configuration for both **rollup DA** and **based sequencing DA** independently.
+This implementation supports EVM execution via `go-execution-evm` and allows configuration for both **chain DA** and **based sequencing DA** independently.
 
 ---
 
@@ -11,7 +11,7 @@ This implementation supports EVM execution via `go-execution-evm` and allows con
 - Modular Rollkit node launcher
 - Supports **based sequencing** via Celestia or dummy DA
 - Integrated with EVM execution (reth + op-geth compatible)
-- Configurable DA layers (rollup and based)
+- Configurable DA layers (chain and based)
 - Lightweight node initialization
 - RPC and P2P setup out of the box
 
@@ -63,7 +63,7 @@ based start \
 |------|-------------|
 | `--based.url` | URL for Celestia light node or other DA endpoint (default `http://localhost:26658`) |
 | `--based.auth` | Auth token for based DA layer |
-| `--based.namespace` | Hex-encoded namespace ID for submitting rollup transactions (e.g., `010203...`) |
+| `--based.namespace` | Hex-encoded namespace ID for submitting transactions (e.g., `010203...`) |
 | `--based.start-height` | Starting DA height for fetching transactions (default `0`) |
 | `--based.max-height-drift` | Max number of DA heights to look ahead during batching (default `1`) |
 | `--based.gas-multiplier` | Gas multiplier to apply on DA submission (default `1.0`) |

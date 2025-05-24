@@ -44,8 +44,8 @@ We don't need to introduce common interface `Node`s, because the plan is to use 
 ## `tendermint` vs `lazyledger-core`
 
 Right now, either `tendermint` or `lazyledger-core` can be used for base types (including interfaces).
-Similarly, vanilla `cosmos-sdk` (not a fork under lazyledger organization) can be used as a base for ORU client.
-`lazyledger-core` is a repository created because of needs related to lazyledger client, not optimistic rollups client.
+Similarly, vanilla `cosmos-sdk` (not a fork under lazyledger organization) can be used as a base for optimistic client.
+`lazyledger-core` is a repository created because of needs related to lazyledger client, not optimistic client.
 On the other hand, some of the functionality will be shared between both clients. This will have to be resolved later in time.
 Using 'vanilla' repositories (not forks) probably will make easier to upstream changes if required, and will make scaffolding
 easier.

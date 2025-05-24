@@ -197,11 +197,11 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	mockStore.On("GetBlockData", ctx, currentHeight).Return(lastHeader, lastData, nil)
 	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found"))
 
-	// No longer testing GetTxs and SubmitRollupBatchTxs since they're handled by reaper.go
+	// No longer testing GetTxs and SubmitBatchTxs since they're handled by reaper.go
 
 	// *** Crucial Mock: Sequencer returns ErrNoBatch ***
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
-		return string(req.RollupId) == chainID
+		return string(req.Id) == chainID
 	})
 	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(nil, ErrNoBatch).Once()
 
@@ -291,7 +291,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	mockStore.On("GetBlockData", ctx, currentHeight).Return(lastHeader, lastData, nil)
 	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found"))
 
-	// No longer testing GetTxs and SubmitRollupBatchTxs since they're handled by reaper.go
+	// No longer testing GetTxs and SubmitBatchTxs since they're handled by reaper.go
 
 	// *** Crucial Mock: Sequencer returns an empty batch ***
 	emptyBatchResponse := &coresequencer.GetNextBatchResponse{
@@ -302,7 +302,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		BatchData: [][]byte{[]byte("some_batch_data")},
 	}
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
-		return string(req.RollupId) == chainID
+		return string(req.Id) == chainID
 	})
 	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(emptyBatchResponse, nil).Once()
 
@@ -367,7 +367,7 @@ func Test_publishBlock_Success(t *testing.T) {
 	newAppHash := []byte("newAppHash")
 	mockExec.On("ExecuteTxs", t.Context(), mock.Anything, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
 
-	// No longer mocking SubmitRollupBatchTxs since it's handled by reaper.go
+	// No longer mocking SubmitBatchTxs since it's handled by reaper.go
 	batchTimestamp := lastHeader.Time().Add(1 * time.Second)
 	batchDataBytes := [][]byte{[]byte("batch_data_1")}
 	batchResponse := &coresequencer.GetNextBatchResponse{
@@ -378,7 +378,7 @@ func Test_publishBlock_Success(t *testing.T) {
 		BatchData: batchDataBytes,
 	}
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
-		return string(req.RollupId) == chainID
+		return string(req.Id) == chainID
 	})
 	mockSeq.On("GetNextBatch", t.Context(), batchReqMatcher).Return(batchResponse, nil).Once()
 	err := manager.publishBlock(t.Context())

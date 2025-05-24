@@ -9,8 +9,6 @@ import (
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 
-	"github.com/rollkit/go-sequencing"
-
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 )
@@ -99,9 +97,9 @@ func (r *Reaper) SubmitTxs() {
 
 	r.logger.Debug("Reaper submitting txs to sequencer", "txCount", len(newTxs))
 
-	_, err = r.sequencer.SubmitRollupBatchTxs(r.ctx, coresequencer.SubmitRollupBatchTxsRequest{
-		RollupId: sequencing.RollupId(r.chainID),
-		Batch:    &coresequencer.Batch{Transactions: newTxs},
+	_, err = r.sequencer.SubmitBatchTxs(r.ctx, coresequencer.SubmitBatchTxsRequest{
+		Id:    []byte(r.chainID),
+		Batch: &coresequencer.Batch{Transactions: newTxs},
 	})
 	if err != nil {
 		r.logger.Error("Reaper failed to submit txs to sequencer", "error", err)

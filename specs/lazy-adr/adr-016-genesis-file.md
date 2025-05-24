@@ -20,7 +20,7 @@ However, this approach has several limitations:
 2. There's no explicit validation of the genesis file specific to Rollkit's needs
 3. The conversion from CometBFT's GenesisDoc to RollkitGenesis is implicit and not well-documented
 4. There's no standardized way to create, share, or modify the genesis file
-5. The use of `GenesisTime` is problematic for rollups that are a function of a DA layer, as the chain's starting point should be defined by a DA block height rather than a timestamp
+5. The use of `GenesisTime` is problematic for chains that are a function of a DA layer, as the chain's starting point should be defined by a DA block height rather than a timestamp
 6. The hardcoded `ProposerAddress` field doesn't allow for flexibility in different sequencing mechanisms
 
 ## Alternative Approaches
@@ -31,7 +31,7 @@ We could continue using the CometBFT genesis format and enhance the conversion l
 
 ### 2. Create a Completely Custom Genesis Format (Chosen)
 
-We will define a completely new genesis file format specific to Rollkit with no dependency on CometBFT's format. This gives us maximum flexibility to define fields that are relevant to rollups and DA-based chains.
+We will define a completely new genesis file format specific to Rollkit with no dependency on CometBFT's format. This gives us maximum flexibility to define fields that are relevant to chains that rely on a DA layer.
 
 ### 3. Hybrid Approach
 
@@ -43,7 +43,7 @@ Define a Rollkit-specific genesis file format that:
 
 ## Decision
 
-We will implement a dedicated Rollkit genesis file format that is completely decoupled from CometBFT's format. This will allow us to define fields that are specifically relevant to rollups, such as `genesisDAStartHeight` instead of `genesisTime`, and a flexible `extraData` field instead of hardcoding a `proposerAddress`.
+We will implement a dedicated Rollkit genesis file format that is completely decoupled from CometBFT's format. This will allow us to define fields that are specifically relevant to chains of this type, such as `genesisDAStartHeight` instead of `genesisTime`, and a flexible `extraData` field instead of hardcoding a `proposerAddress`.
 
 The new genesis format will be defined in its own package (`genesis`) and will include validation and serialization methods.
 
@@ -53,11 +53,11 @@ The new genesis format will be defined in its own package (`genesis`) and will i
 
 The new genesis file structure will contain the following key fields:
 
-1. **GenesisDAStartHeight**: The DA layer height at which the rollup chain starts, replacing the traditional `GenesisTime` field. This provides a more accurate starting point for rollups built on a DA layer.
+1. **GenesisDAStartHeight**: The DA layer height at which the chain starts, replacing the traditional `GenesisTime` field. This provides a more accurate starting point for chains built on a DA layer.
 
-2. **InitialHeight**: The initial block height of the rollup.
+2. **InitialHeight**: The initial block height of the chain.
 
-3. **ChainID**: A unique identifier for the rollup chain.
+3. **ChainID**: A unique identifier for the chain.
 
 4. **ExtraData**: A flexible field that can contain chain-specific configuration, such as proposer/sequencer information or consensus parameters. This replaces the hardcoded `ProposerAddress` field.
 
@@ -145,11 +145,11 @@ Proposed
 
 ### Positive
 
-1. **DA-Centric Design**: Using `genesisDAStartHeight` instead of `genesisTime` provides a more accurate starting point for rollups built on a DA layer.
+1. **DA-Centric Design**: Using `genesisDAStartHeight` instead of `genesisTime` provides a more accurate starting point for chains built on a DA layer.
 2. **Flexibility**: The `extraData` field allows for different sequencing mechanisms and chain-specific configurations.
 3. **Simplicity**: A custom genesis format allows us to include only what's needed for Rollkit chains.
 4. **Independence**: No dependency on CometBFT's genesis format allows Rollkit to evolve independently.
-5. **Better Semantics**: The structure more accurately reflects how rollups initialize and operate.
+5. **Better Semantics**: The structure more accurately reflects how chains initialize and operate.
 
 ### Negative
 

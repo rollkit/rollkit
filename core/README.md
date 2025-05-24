@@ -40,8 +40,8 @@ The `Sequencer` interface outlines the responsibilities of the component that or
 
 // Sequencer defines the interface for the sequencing layer.
 type Sequencer interface {
-	// SubmitRollupBatchTxs submits rollup batch transactions to the sequencer.
-	SubmitRollupBatchTxs(ctx context.Context, req SubmitRollupBatchTxsRequest) (*SubmitRollupBatchTxsResponse, error)
+	// SubmitBatchTxs submits batch transactions to the sequencer.
+	SubmitBatchTxs(ctx context.Context, req SubmitBatchTxsRequest) (*SubmitBatchTxsResponse, error)
 	// GetNextBatch retrieves the next batch of transactions from the sequencer.
 	GetNextBatch(ctx context.Context, req GetNextBatchRequest) (*GetNextBatchResponse, error)
 	// VerifyBatch verifies a batch of transactions.

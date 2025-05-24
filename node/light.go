@@ -22,7 +22,7 @@ import (
 
 var _ Node = &LightNode{}
 
-// LightNode is a rollup node that only needs the header service
+// LightNode is a chain node that only needs the header service
 type LightNode struct {
 	service.BaseService
 

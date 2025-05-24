@@ -7,11 +7,11 @@
 
 ## Context
 
-Rollkit currently supports a single sequencer implementation as described in ADR-013. While this approach provides a simple and efficient solution, it introduces a single point of failure that can impact the liveness of the rollup network. If the sequencer goes down or becomes unresponsive, the rollup chain cannot progress.
+Rollkit currently supports a single sequencer implementation as described in ADR-013. While this approach provides a simple and efficient solution, it introduces a single point of failure that can impact the liveness of the network. If the sequencer goes down or becomes unresponsive, the chain cannot progress.
 
-To address this limitation and improve the liveness properties of rollups built with Rollkit, we propose implementing a forced inclusion mechanism. This mechanism will allow transactions to be included directly from the Data Availability (DA) layer when the sequencer is unresponsive, creating an "unstoppable" property for Rollkit-based chains.
+To address this limitation and improve the liveness properties of applications built with Rollkit, we propose implementing a forced inclusion mechanism. This mechanism will allow transactions to be included directly from the Data Availability (DA) layer when the sequencer is unresponsive, creating an "unstoppable" property for Rollkit-based chains.
 
-This enhancement aligns with the requirements defined in the [L2 Beat framework](https://forum.l2beat.com/t/the-stages-framework/291#p-516-stage-1-requirements-3) for Stage 1 L2s, advancing Rollkit's capabilities as a robust rollup framework.
+This enhancement aligns with the requirements defined in the [L2 Beat framework](https://forum.l2beat.com/t/the-stages-framework/291#p-516-stage-1-requirements-3) for Stage 1 L2s, advancing Rollkit's capabilities as a robust sequencer library.
 
 ## Alternative Approaches
 
@@ -52,7 +52,7 @@ flowchart TB
         end
     end
 
-    subgraph FN["Rollup Full Nodes"]
+    subgraph FN["Full Nodes"]
         subgraph NormalOp["Normal Operation"]
             follow["Follow sequencer produced blocks"]
             validate["Validate time windows"]
@@ -69,7 +69,7 @@ flowchart TB
     SEQ -->|"Publish Batches"| DAL
     DAL -->|"Direct Txs"| SEQ
     DAL -->|"Direct Txs"| FN
-    SEQ -->|"Rollup Blocks"| FN
+    SEQ -->|"Blocks"| FN
     NormalOp <--> FallbackMode
 ```
 
@@ -77,7 +77,7 @@ flowchart TB
 
 ### User Requirements
 
-- Rollup developers need a mechanism to ensure their chains can progress even when the single sequencer is unavailable
+- Developers need a mechanism to ensure their chains can progress even when the single sequencer is unavailable
 - The system should maintain a deterministic and consistent state regardless of sequencer availability
 - The transition between sequencer-led and forced inclusion modes should be seamless
 - Transactions must be included within a fixed time window from when they are first seen
@@ -106,8 +106,8 @@ type ForcedInclusionConfig struct {
 type DirectTransaction struct {
     TxHash          common.Hash
     FirstSeenAt     uint64      // DA block time when the tx was seen
-    Included        bool        // Whether it has been included in a rollup block
-    IncludedAt      uint64      // Height at which it was included in the rollup
+    Included        bool        // Whether it has been included in a block
+    IncludedAt      uint64      // Height at which it was included
 }
 
 type DirectTxTracker struct {
@@ -139,7 +139,7 @@ type DAClient interface {
 
     // New method for forced inclusion
     GetDirectTransactions(ctx context.Context, fromTime, toTime uint64) ([][]byte, error)
-    // Note: SubmitDirectTransaction is removed as it's not a responsibility of the rollup node
+    // Note: SubmitDirectTransaction is removed as it's not a responsibility of the node
 }
 ```
 
@@ -216,7 +216,7 @@ The following diagram illustrates the operation flow for the sequencer with forc
 ┌──────────────────────────────────┐      ┌────────────────────────────────────────┐
 │ 5. Time Window Validation        │      │ 6. Block Production                    │
 │                                  │      │                                        │
-│ - Check transaction timestamps   │      │ - Create rollup block with batch       │
+│ - Check transaction timestamps   │      │ - Create block with batch       │
 │ - Ensure within MaxInclusionDelay│─────►│ - Sign and publish block               │
 │ - Track inclusion times          │      │                                        │
 └──────────────────────────────────┘      └─────────────────┬──────────────────────┘
@@ -304,7 +304,7 @@ The following diagram illustrates the transition between normal operation and fa
 sequenceDiagram
     participant DA as Data Availability Layer
     participant S as Sequencer
-    participant R as Rollup Chain
+    participant R as Chain
 
     Note over S,R: Normal Operation
     DA->>S: DA Block N
@@ -400,7 +400,7 @@ type ForcedInclusionConfig struct {
 
 ### Breaking Changes
 
-This enhancement introduces no breaking changes to the existing API or data structures. It extends the current functionality by implementing time-based transaction tracking and inclusion rules, along with DA block-based delay validation, without modifying the core interfaces that rollup developers interact with.
+This enhancement introduces no breaking changes to the existing API or data structures. It extends the current functionality by implementing time-based transaction tracking and inclusion rules, along with DA block-based delay validation, without modifying the core interfaces that developers interact with.
 
 ## Status
 
@@ -412,7 +412,7 @@ Proposed
 
 - Improves the liveness guarantees of Rollkit-based chains
 - Provides a path for Rollkit to meet Stage 1 L2 requirements per the L2 Beat framework
-- Creates an "unstoppable" property for rollups, enhancing their reliability
+- Creates an "unstoppable" property for applications, enhancing their reliability
 - Maintains a deterministic chain state regardless of sequencer availability
 - More predictable deadlines in DA time
 - Easier to reason about for users and developers
@@ -429,8 +429,8 @@ Proposed
 
 ### Neutral
 
-- Requires rollup developers to consider both sequencer-batched and direct transaction flows
-- Introduces configuration options that rollup developers need to understand and set appropriately
+- Requires application developers to consider both sequencer-batched and direct transaction flows
+- Introduces configuration options that developers need to understand and set appropriately
 - Changes the mental model of how the chain progresses, from purely sequencer-driven to a hybrid approach
 - Users will need to use external tools or services to submit direct transactions to the DA layer during sequencer downtime
 
