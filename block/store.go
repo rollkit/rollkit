@@ -91,9 +91,7 @@ func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
 				}
 				//TODO: remove junk if possible
 				m.logger.Debug("data retrieved from p2p data sync", "dataHeight", d.Metadata.Height, "daHeight", daHeight)
-				// if len(d.Txs) > 0 {
 				m.dataInCh <- NewDataEvent{d, daHeight}
-				// }
 			}
 		}
 		lastDataStoreHeight = dataStoreHeight

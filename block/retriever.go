@@ -126,7 +126,6 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 	}
 	headerHash := header.Hash().String()
 	m.headerCache.SetDAIncluded(headerHash)
-	m.sendNonBlockingSignalToDAIncluderCh()
 	m.logger.Info("header marked as DA included", "headerHeight", header.Height(), "headerHash", headerHash)
 	if !m.headerCache.IsSeen(headerHash) {
 		select {
@@ -160,7 +159,6 @@ func (m *Manager) handlePotentialBatch(ctx context.Context, bz []byte, daHeight 
 	}
 	dataHashStr := data.DACommitment().String()
 	m.dataCache.SetDAIncluded(dataHashStr)
-	m.sendNonBlockingSignalToDAIncluderCh()
 	m.logger.Info("batch marked as DA included", "batchHash", dataHashStr, "daHeight", daHeight)
 	if !m.dataCache.IsSeen(dataHashStr) {
 		select {

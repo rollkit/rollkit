@@ -99,7 +99,6 @@ daSubmitRetryLoop:
 			}
 			m.pendingHeaders.setLastSubmittedHeight(ctx, lastSubmittedHeight)
 			headersToSubmit = notSubmittedHeaders
-			m.sendNonBlockingSignalToDAIncluderCh()
 			// reset submission options when successful
 			// scale back gasPrice gradually
 			backoff = 0
@@ -241,7 +240,6 @@ daSubmitRetryLoop:
 					data.Txs[i] = types.Tx(tx)
 				}
 				m.DataCache().SetDAIncluded(data.DACommitment().String())
-				m.sendNonBlockingSignalToDAIncluderCh()
 			}
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:

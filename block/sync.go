@@ -21,6 +21,7 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 		select {
 		case <-daTicker.C:
 			m.sendNonBlockingSignalToRetrieveCh()
+			m.sendNonBlockingSignalToDAIncluderCh()
 		case <-blockTicker.C:
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToDataStoreCh()
@@ -67,6 +68,10 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 			m.headerCache.SetSeen(headerHash)
 		case dataEvent := <-m.dataInCh:
 			data := dataEvent.Data
+			if len(data.Txs) == 0 {
+				continue
+			}
+
 			daHeight := dataEvent.DAHeight
 			dataHash := data.DACommitment().String()
 			if data.Metadata != nil {

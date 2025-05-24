@@ -3,11 +3,12 @@ package da
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func TestDummyDA(t *testing.T) {
 	// Create a new DummyDA instance with a max blob size of 1024 bytes
-	dummyDA := NewDummyDA(1024, 0, 0)
+	dummyDA := NewDummyDA(1024, 0, 0, 10*time.Second)
 	ctx := context.Background()
 
 	// Test MaxBlobSize

@@ -226,8 +226,8 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 
 	// Inject a transaction into the aggregator's executor
-	// executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
-	// executor.InjectTx([]byte("gossip tx"))
+	executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
+	executor.InjectTx([]byte("gossip tx"))
 
 	// Wait for all nodes to reach at least 3 blocks
 	for _, node := range nodes {

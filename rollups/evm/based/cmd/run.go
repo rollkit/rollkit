@@ -117,7 +117,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				}
 				rollDA = &client.DA
 			} else {
-				rollDA = coreda.NewDummyDA(100_000, 0, 0)
+				rollDA = coreda.NewDummyDA(100_000, 0, 0, nodeConfig.DA.BlockTime.Duration)
 			}
 
 			var basedDA coreda.DA
@@ -128,7 +128,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				}
 				basedDA = &client.DA
 			} else {
-				basedDA = coreda.NewDummyDA(100_000, 0, 0)
+				basedDA = coreda.NewDummyDA(100_000, 0, 0, nodeConfig.DA.BlockTime.Duration)
 			}
 
 			datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "based")

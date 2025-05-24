@@ -37,7 +37,7 @@ var emptyOptions = []byte{}
 // NOTE: This test requires a test JSONRPC service to run on the port
 // 3450 which is chosen to be sufficiently distinct from the default port
 func TestProxy(t *testing.T) {
-	dummy := coreda.NewDummyDA(100_000, 0, 0)
+	dummy := coreda.NewDummyDA(100_000, 0, 0, 10*time.Second)
 	logger := log.NewTestLogger(t)
 	server := proxy.NewServer(logger, ServerHost, ServerPort, dummy)
 	err := server.Start(context.Background())
