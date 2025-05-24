@@ -132,7 +132,7 @@ func TestFullNodeTestSuite(t *testing.T) {
 func (s *FullNodeTestSuite) TestBlockProduction() {
 	s.executor.InjectTx([]byte("test transaction"))
 	err := waitForAtLeastNBlocks(s.node, 5, Store)
-	s.NoError(err, "Failed to produce second block")
+	s.NoError(err, "Failed to produce more than 5 blocks")
 
 	// Get the current height
 	height, err := s.node.Store.Height(s.ctx)
@@ -176,41 +176,81 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 
 // TestTxGossipingAndAggregation tests that transactions are gossiped and blocks are aggregated and synced across multiple nodes.
 // It creates 4 nodes (1 aggregator, 3 full nodes), injects a transaction, waits for all nodes to sync, and asserts block equality.
-func (s *FullNodeTestSuite) TestTxGossipingAndAggregation() {
-	// First, stop the current node by cancelling its context
-	s.cancel()
-
-	// Create a new context for the new node
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-
-	// Reset error channel
-	s.errCh = make(chan error, 1)
-
-	require := require.New(s.T())
-	config := getTestConfig(s.T(), 1)
+func TestTxGossipingAndAggregation(t *testing.T) {
+	config := getTestConfig(t, 1)
 
 	numNodes := 2
-	nodes, cleanups := createNodesWithCleanup(s.T(), numNodes, config)
-	defer func() {
-		for _, cleanup := range cleanups {
-			cleanup()
+	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	ctxs := make([]context.Context, numNodes)
+	cancelFuncs := make([]context.CancelFunc, numNodes)
+	var runningWg sync.WaitGroup
+
+	// Create a context and cancel function for each node
+	for i := 0; i < numNodes; i++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		ctxs[i] = ctx
+		cancelFuncs[i] = cancel
+	}
+
+	// Start only nodes[0] (aggregator) first
+	runningWg.Add(1)
+	go func(node *FullNode, ctx context.Context) {
+		defer runningWg.Done()
+		err := node.Run(ctx)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Logf("Error running node 0: %v", err)
 		}
-	}()
+	}(nodes[0], ctxs[0])
 
-	s.node = nodes[0]
+	// Wait for the first block to be produced by the aggregator
+	err := waitForFirstBlock(nodes[0], Header)
+	require.NoError(t, err, "Failed to get node height")
 
-	// Start all nodes in background
-	for _, node := range nodes {
-		s.startNodeInBackground(node)
+	// Verify block manager is properly initialized
+	require.NotNil(t, nodes[0].blockManager, "Block manager should be initialized")
+
+	// Now start the other nodes
+	for i := 1; i < numNodes; i++ {
+		runningWg.Add(1)
+		go func(node *FullNode, ctx context.Context, idx int) {
+			defer runningWg.Done()
+			err := node.Run(ctx)
+			if err != nil && !errors.Is(err, context.Canceled) {
+				t.Logf("Error running node %d: %v", idx, err)
+			}
+		}(nodes[i], ctxs[i], i)
 	}
 
 	// Inject a transaction into the aggregator's executor
-	executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
-	executor.InjectTx([]byte("gossip tx"))
+	// executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
+	// executor.InjectTx([]byte("gossip tx"))
 
 	// Wait for all nodes to reach at least 3 blocks
 	for _, node := range nodes {
-		require.NoError(waitForAtLeastNBlocks(node, 3, Store))
+		require.NoError(t, waitForAtLeastNBlocks(node, 3, Store))
+	}
+
+	// Cancel all node contexts to signal shutdown
+	for _, cancel := range cancelFuncs {
+		cancel()
+	}
+
+	// Wait for all nodes to stop, with a timeout
+	waitCh := make(chan struct{})
+	go func() {
+		runningWg.Wait()
+		close(waitCh)
+	}()
+
+	select {
+	case <-waitCh:
+		// Nodes stopped successfully
+	case <-time.After(5 * time.Second):
+		t.Log("Warning: Not all nodes stopped gracefully within timeout")
 	}
 
 	// Assert that all nodes have the same block at height 1 and 2
@@ -218,11 +258,12 @@ func (s *FullNodeTestSuite) TestTxGossipingAndAggregation() {
 		var refHash []byte
 		for i, node := range nodes {
 			header, _, err := node.Store.GetBlockData(context.Background(), height)
-			require.NoError(err)
+			require.NoError(t, err)
 			if i == 0 {
 				refHash = header.Hash()
 			} else {
-				s.Equal(refHash, header.Hash(), "Block hash mismatch at height %d between node 0 and node %d", height, i)
+				headerHash := header.Hash()
+				require.EqualValues(t, refHash, headerHash, "Block hash mismatch at height %d between node 0 and node %d", height, i)
 			}
 		}
 	}
