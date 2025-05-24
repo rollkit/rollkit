@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -17,50 +18,97 @@ import (
 const (
 	dAefetcherTimeout = 30 * time.Second
 	dAFetcherRetries  = 10
+	dAFetcherWorkers  = 4
 )
 
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
-	// blobsFoundCh is used to track when we successfully found a header so
-	// that we can continue to try and find headers that are in the next DA height.
-	// This enables syncing faster than the DA block time.
-	blobsFoundCh := make(chan struct{}, 1)
-	defer close(blobsFoundCh)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-m.retrieveCh:
-		case <-blobsFoundCh:
-		}
-		daHeight := m.daHeight.Load()
-		err := m.processNextDAHeaderAndData(ctx)
-		if err != nil && ctx.Err() == nil {
-			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
-			if !m.areAllErrorsHeightFromFuture(err) {
-				m.logger.Error("failed to retrieve data from DALC", "daHeight", daHeight, "errors", err.Error())
+
+			var wg sync.WaitGroup
+			workCh := make(chan uint64, dAFetcherWorkers)
+			stopCh := make(chan struct{}, 1)
+			validHeightCh := make(chan uint64, dAFetcherWorkers)
+			defer close(stopCh)
+			daHeight := m.daHeight.Load()
+
+			//start the multiple go routines that will fetch the blocks
+			for i := 0; i < dAFetcherWorkers; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					for height := range workCh {
+						err := m.processNextDAHeaderAndData(ctx, height)
+						if err != nil && ctx.Err() == nil {
+							// if the requested da height is not yet available, wait silently, otherwise log the error and wait
+							if !m.areAllErrorsHeightFromFuture(err) {
+								m.logger.Error("failed to retrieve data from DALC", "daHeight", height, "errors", err.Error())
+							}
+							fmt.Printf("[worker]******** ERROR: %d\n", height)
+							select {
+							case stopCh <- struct{}{}:
+							default:
+							}
+						} else if err == nil {
+							select {
+							case validHeightCh <- height:
+							case <-ctx.Done():
+								return
+							}
+						}
+					}
+				}()
 			}
-			continue
+
+			//start the goroutine that will update the manager.daHeight
+			go func() {
+				daHeight := m.daHeight.Load()
+				for height := range validHeightCh {
+					fmt.Printf("[result] Got valid height: %d\n", height) // Add 'i' as a parameter to the goroutine
+					if height > daHeight {
+						m.daHeight.Store(height)
+						daHeight = height
+					}
+				}
+			}()
+
+			//start the retrieve loop that will send block height that the workers will retrieve
+		retrieveLoop:
+			for {
+				select {
+				case <-ctx.Done():
+					close(workCh)
+					wg.Wait()
+					close(validHeightCh)
+					return
+				case <-stopCh: //if we are going to far we stop adding future heights
+					close(workCh)
+					wg.Wait()
+					close(validHeightCh)
+					break retrieveLoop
+				case workCh <- daHeight:
+					m.da.GetIDs()
+					fmt.Printf("[main] Passing block height to worker: %d\n", daHeight)
+					daHeight++
+				}
+			}
 		}
-		// Signal the blobsFoundCh to try and retrieve the next set of blobs
-		select {
-		case blobsFoundCh <- struct{}{}:
-		default:
-		}
-		m.daHeight.Store(daHeight + 1)
 	}
 }
 
 // processNextDAHeaderAndData is responsible for retrieving a header and data from the DA layer.
 // It returns an error if the context is done or if the DA layer returns an error.
-func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
+func (m *Manager) processNextDAHeaderAndData(ctx context.Context, daHeight uint64) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
-
-	daHeight := m.daHeight.Load()
 
 	var err error
 	m.logger.Debug("trying to retrieve data from DA", "daHeight", daHeight)
