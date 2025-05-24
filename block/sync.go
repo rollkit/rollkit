@@ -21,6 +21,7 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 		select {
 		case <-daTicker.C:
 			m.sendNonBlockingSignalToRetrieveCh()
+			m.sendNonBlockingSignalToDAIncluderCh()
 		case <-blockTicker.C:
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToDataStoreCh()
@@ -46,9 +47,6 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 			}
 			m.headerCache.SetItem(headerHeight, header)
 
-			m.sendNonBlockingSignalToHeaderStoreCh()
-			m.sendNonBlockingSignalToRetrieveCh()
-
 			// check if the dataHash is dataHashForEmptyTxs
 			// no need to wait for syncing Data, instead prepare now and set
 			// so that trySyncNextBlock can progress
@@ -70,12 +68,24 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 			m.headerCache.SetSeen(headerHash)
 		case dataEvent := <-m.dataInCh:
 			data := dataEvent.Data
+			if len(data.Txs) == 0 {
+				continue
+			}
+
 			daHeight := dataEvent.DAHeight
 			dataHash := data.DACommitment().String()
-			m.logger.Debug("data retrieved",
-				"daHeight", daHeight,
-				"hash", dataHash,
-			)
+			if data.Metadata != nil {
+				m.logger.Debug("data retrieved",
+					"daHeight", daHeight,
+					"hash", dataHash,
+					"height", data.Metadata.Height,
+				)
+			} else {
+				m.logger.Debug("data retrieved",
+					"daHeight", daHeight,
+					"hash", dataHash,
+				)
+			}
 			if m.dataCache.IsSeen(dataHash) {
 				m.logger.Debug("data already seen", "data hash", dataHash)
 				continue
@@ -108,9 +118,6 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 			}
 
 			m.dataCache.SetItemByHash(dataHash, data)
-
-			m.sendNonBlockingSignalToDataStoreCh()
-			m.sendNonBlockingSignalToRetrieveCh()
 
 			err = m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {

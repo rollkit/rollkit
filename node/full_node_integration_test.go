@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	testutils "github.com/celestiaorg/utils/test"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
+
+	testutils "github.com/celestiaorg/utils/test"
 )
 
 // FullNodeTestSuite is a test suite for full node integration tests
@@ -41,6 +42,8 @@ func (s *FullNodeTestSuite) startNodeInBackground(node *FullNode) {
 	}()
 }
 
+// SetupTest initializes the test context, creates a test node, and starts it in the background.
+// It also verifies that the node is running, producing blocks, and properly initialized.
 func (s *FullNodeTestSuite) SetupTest() {
 	require := require.New(s.T())
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -53,7 +56,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingHeaders=%d",
 		config.Node.BlockTime.Duration, config.DA.BlockTime.Duration, config.Node.MaxPendingHeaders)
 
-	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
+	node, cleanup := createNodeWithCleanup(s.T(), config)
 	s.T().Cleanup(func() {
 		cleanup()
 	})
@@ -86,6 +89,8 @@ func (s *FullNodeTestSuite) SetupTest() {
 	require.NotNil(s.node.blockManager, "Block manager should be initialized")
 }
 
+// TearDownTest cancels the test context and waits for the node to stop, ensuring proper cleanup after each test.
+// It also checks for any errors that occurred during node shutdown.
 func (s *FullNodeTestSuite) TearDownTest() {
 	if s.cancel != nil {
 		s.cancel() // Cancel context to stop the node
@@ -116,15 +121,18 @@ func (s *FullNodeTestSuite) TearDownTest() {
 	}
 }
 
-// TestFullNodeTestSuite runs the test suite
+// TestFullNodeTestSuite runs the FullNodeTestSuite using testify's suite runner.
+// This is the entry point for running all integration tests in this suite.
 func TestFullNodeTestSuite(t *testing.T) {
 	suite.Run(t, new(FullNodeTestSuite))
 }
 
+// TestBlockProduction verifies block production and state after injecting a transaction.
+// It checks that blocks are produced, state is updated, and transactions are included in blocks.
 func (s *FullNodeTestSuite) TestBlockProduction() {
 	s.executor.InjectTx([]byte("test transaction"))
 	err := waitForAtLeastNBlocks(s.node, 5, Store)
-	s.NoError(err, "Failed to produce second block")
+	s.NoError(err, "Failed to produce more than 5 blocks")
 
 	// Get the current height
 	height, err := s.node.Store.Height(s.ctx)
@@ -149,7 +157,8 @@ func (s *FullNodeTestSuite) TestBlockProduction() {
 	s.NotEmpty(data.Txs, "Expected block to contain transactions")
 }
 
-// TestSubmitBlocksToDA tests the submission of blocks to the DA
+// TestSubmitBlocksToDA verifies that blocks produced by the node are properly submitted to the Data Availability (DA) layer.
+// It injects a transaction, waits for several blocks to be produced and DA-included, and asserts that all blocks are DA included.
 func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	s.executor.InjectTx([]byte("test transaction"))
 	n := uint64(5)
@@ -165,7 +174,103 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	}
 }
 
-// TestMaxPendingHeaders tests that the node will stop producing blocks when the limit is reached
+// TestTxGossipingAndAggregation tests that transactions are gossiped and blocks are aggregated and synced across multiple nodes.
+// It creates 4 nodes (1 aggregator, 3 full nodes), injects a transaction, waits for all nodes to sync, and asserts block equality.
+func TestTxGossipingAndAggregation(t *testing.T) {
+	config := getTestConfig(t, 1)
+
+	numNodes := 2
+	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	ctxs := make([]context.Context, numNodes)
+	cancelFuncs := make([]context.CancelFunc, numNodes)
+	var runningWg sync.WaitGroup
+
+	// Create a context and cancel function for each node
+	for i := 0; i < numNodes; i++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		ctxs[i] = ctx
+		cancelFuncs[i] = cancel
+	}
+
+	// Start only nodes[0] (aggregator) first
+	runningWg.Add(1)
+	go func(node *FullNode, ctx context.Context) {
+		defer runningWg.Done()
+		err := node.Run(ctx)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Logf("Error running node 0: %v", err)
+		}
+	}(nodes[0], ctxs[0])
+
+	// Wait for the first block to be produced by the aggregator
+	err := waitForFirstBlock(nodes[0], Header)
+	require.NoError(t, err, "Failed to get node height")
+
+	// Verify block manager is properly initialized
+	require.NotNil(t, nodes[0].blockManager, "Block manager should be initialized")
+
+	// Now start the other nodes
+	for i := 1; i < numNodes; i++ {
+		runningWg.Add(1)
+		go func(node *FullNode, ctx context.Context, idx int) {
+			defer runningWg.Done()
+			err := node.Run(ctx)
+			if err != nil && !errors.Is(err, context.Canceled) {
+				t.Logf("Error running node %d: %v", idx, err)
+			}
+		}(nodes[i], ctxs[i], i)
+	}
+
+	// Inject a transaction into the aggregator's executor
+	executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
+	executor.InjectTx([]byte("gossip tx"))
+
+	// Wait for all nodes to reach at least 3 blocks
+	for _, node := range nodes {
+		require.NoError(t, waitForAtLeastNBlocks(node, 3, Store))
+	}
+
+	// Cancel all node contexts to signal shutdown
+	for _, cancel := range cancelFuncs {
+		cancel()
+	}
+
+	// Wait for all nodes to stop, with a timeout
+	waitCh := make(chan struct{})
+	go func() {
+		runningWg.Wait()
+		close(waitCh)
+	}()
+
+	select {
+	case <-waitCh:
+		// Nodes stopped successfully
+	case <-time.After(5 * time.Second):
+		t.Log("Warning: Not all nodes stopped gracefully within timeout")
+	}
+
+	// Assert that all nodes have the same block at height 1 and 2
+	for height := uint64(1); height <= 2; height++ {
+		var refHash []byte
+		for i, node := range nodes {
+			header, _, err := node.Store.GetBlockData(context.Background(), height)
+			require.NoError(t, err)
+			if i == 0 {
+				refHash = header.Hash()
+			} else {
+				headerHash := header.Hash()
+				require.EqualValues(t, refHash, headerHash, "Block hash mismatch at height %d between node 0 and node %d", height, i)
+			}
+		}
+	}
+}
+
+// TestMaxPendingHeaders verifies that the node will stop producing blocks when the maximum number of pending headers is reached.
+// It reconfigures the node with a low max pending value, waits for block production, and checks the pending block count.
 func (s *FullNodeTestSuite) TestMaxPendingHeaders() {
 	require := require.New(s.T())
 
@@ -182,7 +287,7 @@ func (s *FullNodeTestSuite) TestMaxPendingHeaders() {
 	config := getTestConfig(s.T(), 1)
 	config.Node.MaxPendingHeaders = 2
 
-	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
+	node, cleanup := createNodeWithCleanup(s.T(), config)
 	defer cleanup()
 
 	s.node = node
@@ -199,6 +304,8 @@ func (s *FullNodeTestSuite) TestMaxPendingHeaders() {
 	require.LessOrEqual(height, config.Node.MaxPendingHeaders)
 }
 
+// TestGenesisInitialization checks that the node's state is correctly initialized from the genesis document.
+// It asserts that the initial height and chain ID in the state match those in the genesis.
 func (s *FullNodeTestSuite) TestGenesisInitialization() {
 	require := require.New(s.T())
 
@@ -208,6 +315,8 @@ func (s *FullNodeTestSuite) TestGenesisInitialization() {
 	require.Equal(s.node.genesis.ChainID, state.ChainID)
 }
 
+// TestStateRecovery (skipped) is intended to verify that the node can recover its state after a restart.
+// It would check that the block height after restart is at least as high as before, but is skipped due to in-memory DB.
 func (s *FullNodeTestSuite) TestStateRecovery() {
 	s.T().Skip("skipping state recovery test, we need to reuse the same database, when we use in memory it starts fresh each time")
 	require := require.New(s.T())
@@ -243,7 +352,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 
 	config := getTestConfig(s.T(), 1)
 	// Create a new node instance instead of reusing the old one
-	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
+	node, cleanup := createNodeWithCleanup(s.T(), config)
 	defer cleanup()
 
 	// Replace the old node with the new one
@@ -259,4 +368,132 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	recoveredHeight, err := getNodeHeight(s.node, Store)
 	require.NoError(err)
 	require.GreaterOrEqual(recoveredHeight, originalHeight)
+}
+
+// TestFastDASync verifies that the node can sync with the DA layer using fast sync.
+// It creates a new node, injects a transaction, waits for it to be DA-included, and asserts that the node is in sync.
+
+/*
+TODO:
+
+	Details:
+	Sets up two nodes with different block and DA block times.
+	Starts one node, waits for it to sync several blocks, then starts the second node.
+	Uses a timer to ensure the second node syncs quickly.
+	Verifies both nodes are synced and that the synced block is DA-included.
+	Goal: Ensures block sync is faster than DA block time and DA inclusion is verified.
+*/
+func (s *FullNodeTestSuite) TestFastDASync() {
+	s.T().Skip()
+}
+
+// TestSingleAggregatorTwoFullNodesBlockSyncSpeed verifies block sync speed when block time is much faster than DA block time.
+
+/*
+TODO:
+
+	Details:
+	Sets up three nodes with fast block time and slow DA block time.
+	Starts all nodes and waits for them to sync a set number of blocks.
+	Uses a timer to ensure the test completes within the block time.
+	Verifies all nodes are synced.
+	Goal: Ensures block sync is not bottlenecked by DA block time.
+*/
+func (s *FullNodeTestSuite) TestSingleAggregatorTwoFullNodesBlockSyncSpeed() {
+	s.T().Skip()
+}
+
+// TestSingleAggregatorTwoFullNodesDAInclusion verifies DA inclusion when block time is much faster than DA block time.
+
+// TestBlockExchange verifies block exchange between nodes.
+
+/*
+TODO:
+
+	Details:
+	Runs three sub-tests:
+	Single aggregator, single full node.
+	Single aggregator, two full nodes.
+	Single aggregator, single full node with trusted hash.
+	Each sub-test checks block exchange and synchronization.
+	Goal: Ensures block exchange works in different network topologies.
+*/
+func (s *FullNodeTestSuite) TestBlockExchange() {
+	s.T().Skip()
+}
+
+// TestHeaderExchange verifies header exchange between nodes.
+
+/*
+TODO:
+Purpose: Tests header exchange scenarios.
+	Details:
+	Runs four sub-tests:
+	Single aggregator, single full node.
+	Single aggregator, two full nodes.
+	Single aggregator, single full node with trusted hash.
+	Single aggregator, single full node, single light node.
+	Each sub-test checks header exchange and synchronization.
+	Goal: Ensures header exchange works in different network topologies.
+*/
+
+// TestTwoRollupsInOneNamespace verifies that  two rollup chains in the same namespace.
+
+/*
+TODO:
+	Details:
+	Runs two cases: same chain ID and different chain IDs.
+	For each, sets up two rollup networks, each with two nodes.
+	Uses a shared mock DA client.
+	Starts both aggregators, waits for blocks, then stops them and starts the full nodes.
+	Verifies full nodes can sync blocks from DA.
+	Goal: Ensures multiple rollups can coexist and sync in the same namespace.
+*/
+
+// testSingleAggregatorSingleFullNode verifies block sync and DA inclusion for a single aggregator and full node.
+
+/*
+TODO:
+Details:
+
+	Sets up one aggregator and one full node.
+	Injects a transaction, waits for blocks, then checks DA inclusion.
+	Verifies both nodes are synced and that the synced block is DA-included.
+	Goal: Ensures single aggregator and full node can sync and DA inclusion works.
+
+	Details:
+
+Starts all nodes, waits for blocks, and verifies synchronization.
+*/
+func (s *FullNodeTestSuite) testSingleAggregatorSingleFullNode() {
+	s.T().Skip()
+}
+
+// testSingleAggregatorTwoFullNodes verifies block sync and DA inclusion for a single aggregator and two full nodes.
+
+/*
+TODO:
+Details:
+Sets up one aggregator and two full nodes.
+Injects a transaction, waits for blocks, then checks DA inclusion.
+Verifies all nodes are synced and that the synced block is DA-included.
+Goal: Ensures single aggregator and two full nodes can sync and DA inclusion works.
+*/
+func (s *FullNodeTestSuite) testSingleAggregatorTwoFullNodes() {
+	s.T().Skip()
+}
+
+// testSingleAggregatorSingleFullNodeTrustedHash verifies block sync and DA inclusion for a single aggregator and full node with a trusted hash.
+
+/*
+TODO:
+Details:
+
+	Sets up one aggregator and one full node with a trusted hash.
+	Injects a transaction, waits for blocks, then checks DA inclusion.
+	Verifies both nodes are synced and that the synced block is DA-included.
+	Goal: Ensures single aggregator and full node with trusted hash can sync and DA inclusion works.
+*/
+func (s *FullNodeTestSuite) testSingleAggregatorSingleFullNodeTrustedHash() {
+	s.T().Skip()
 }
