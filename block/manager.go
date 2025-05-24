@@ -101,6 +101,8 @@ type Manager struct {
 	genesis genesis.Genesis
 
 	signer signer.Signer
+	// Injected hasher for ValidatorHash calculation
+	validatorHasher types.ValidatorHasher
 
 	daHeight *atomic.Uint64
 
@@ -271,6 +273,7 @@ func NewManager(
 	seqMetrics *Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
+	validatorHasher types.ValidatorHasher,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
 	if err != nil {
@@ -356,7 +359,8 @@ func NewManager(
 		da:                  da,
 		gasPrice:            gasPrice,
 		gasMultiplier:       gasMultiplier,
-		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
+		txNotifyCh:          make(chan struct{}, 1),
+		validatorHasher:     validatorHasher,
 		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
 	}
 
@@ -501,28 +505,59 @@ func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) boo
 	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 
-// publishBlockInternal is the internal implementation for publishing a block.
-// It's assigned to the publishBlock field by default.
-// Any error will be returned, unless the error is due to a publishing error.
+// getBlockData retrieves or creates the block data for the given height.
+func (m *Manager) getBlockData(ctx context.Context, newHeight uint64, prevBlockData *previousBlockData) (*types.SignedHeader, *types.Data, error) {
+	// Check if there's an already stored block at a newer height
+	pendingHeader, pendingData, err := m.store.GetBlockData(ctx, newHeight)
+	if err == nil {
+		m.logger.Info("using pending block", "height", newHeight)
+		return pendingHeader, pendingData, nil
+	}
+
+	// If no pending block, try to get a new batch
+	batchData, err := m.retrieveBatch(ctx)
+	if err != nil {
+		if errors.Is(err, ErrNoBatch) {
+			if batchData == nil {
+				m.logger.Info("no batch retrieved from sequencer, skipping block production")
+				return nil, nil, nil
+			}
+			m.logger.Info("creating empty block", "height", newHeight)
+		} else {
+			m.logger.Warn("failed to get transactions from batch", "error", err)
+			return nil, nil, nil
+		}
+	} else {
+		if batchData.Before(prevBlockData.headerTime) {
+			return nil, nil, fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, prevBlockData.headerTime)
+		}
+		m.logger.Info("creating and publishing block", "height", newHeight)
+		m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
+	}
+
+	header, data, err := m.createBlock(ctx, newHeight, prevBlockData.signature, prevBlockData.headerHash, prevBlockData.commitHash, batchData)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return header, data, nil
+}
+
+// publishBlockInternal handles the core block production and publishing logic. It performs the following steps:
+// 1. Checks context and pending blocks limits
+// 2. Retrieves or creates a new block at the next height
+// 3. Signs and validates the block
+// 4. Applies the block to update the state
+// 5. Saves the block and updates the store
+// 6. Broadcasts the block through channels
+// 7. Creates and saves attestation for the block
+//
+// The function returns an error if any step fails, except for cases where no block needs to be published
+// (e.g., no transactions available). In such cases, it returns nil.
 func (m *Manager) publishBlockInternal(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
+	if err := m.checkContextAndPendingBlocks(ctx); err != nil {
+		return err
 	}
-
-	if m.config.Node.MaxPendingHeaders != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeaders {
-		m.logger.Warn(fmt.Sprintf("refusing to create block: pending blocks [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders))
-		return nil
-	}
-
-	var (
-		lastSignature  *types.Signature
-		lastHeaderHash types.Hash
-		lastDataHash   types.Hash
-		lastHeaderTime time.Time
-		err            error
-	)
 
 	height, err := m.store.Height(ctx)
 	if err != nil {
@@ -530,69 +565,22 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	newHeight := height + 1
-	// this is a special case, when first block is produced - there is no previous commit
-	if newHeight <= m.genesis.InitialHeight {
-		// Special handling for genesis block
-		lastSignature = &types.Signature{}
-	} else {
-		lastSignature, err = m.store.GetSignature(ctx, height)
-		if err != nil {
-			return fmt.Errorf("error while loading last commit: %w, height: %d", err, height)
-		}
-		lastHeader, lastData, err := m.store.GetBlockData(ctx, height)
-		if err != nil {
-			return fmt.Errorf("error while loading last block: %w, height: %d", err, height)
-		}
-		lastHeaderHash = lastHeader.Hash()
-		lastDataHash = lastData.Hash()
-		lastHeaderTime = lastHeader.Time()
+	m.logger.Info("start publishing block", "height", newHeight)
+
+	prevBlockData, err := m.getPreviousBlockData(ctx, newHeight)
+	if err != nil {
+		return fmt.Errorf("error while getting previous block data: %w", err)
 	}
 
-	var (
-		header    *types.SignedHeader
-		data      *types.Data
-		signature types.Signature
-	)
-
-	// Check if there's an already stored block at a newer height
-	// If there is use that instead of creating a new block
-	pendingHeader, pendingData, err := m.store.GetBlockData(ctx, newHeight)
-	if err == nil {
-		m.logger.Info("using pending block", "height", newHeight)
-		header = pendingHeader
-		data = pendingData
-	} else {
-		batchData, err := m.retrieveBatch(ctx)
-		if err != nil {
-			if errors.Is(err, ErrNoBatch) {
-				if batchData == nil {
-					m.logger.Info("no batch retrieved from sequencer, skipping block production")
-					return nil
-				}
-				m.logger.Info("creating empty block", "height", newHeight)
-			} else {
-				m.logger.Warn("failed to get transactions from batch", "error", err)
-				return nil
-			}
-		} else {
-			if batchData.Before(lastHeaderTime) {
-				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
-			}
-			m.logger.Info("creating and publishing block", "height", newHeight)
-			m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
-		}
-
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
-		if err != nil {
-			return err
-		}
-
-		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
-			return fmt.Errorf("failed to save block: %w", err)
-		}
+	header, data, err := m.getBlockData(ctx, newHeight, prevBlockData)
+	if err != nil {
+		return err
+	}
+	if header == nil || data == nil {
+		return nil // No block to publish
 	}
 
-	signature, err = m.getSignature(header.Header)
+	signature, err := m.getSignature(header.Header)
 	if err != nil {
 		return err
 	}
@@ -605,6 +593,21 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return fmt.Errorf("header validation error: %w", err)
 	}
 
+	// Create and save RollkitSequencerAttestation for the current block H (header, data)
+	currentBlockAttestation, err := m.createAndSignAttestation(ctx, header, data)
+	if err != nil {
+		// Log the error but don't let it stop the node.
+		// The adapter might not be able to form the LastCommit for the *next* block,
+		// but this block (H) is already processed and published.
+		m.logger.Error("failed to create and sign attestation for current block", "height", header.Height(), "error", err)
+	} else {
+		err = m.store.SaveSequencerAttestation(ctx, header.Height(), currentBlockAttestation)
+		if err != nil {
+			m.logger.Error("failed to save sequencer attestation for current block", "height", header.Height(), "error", err)
+		}
+		m.logger.Info("saved sequencer attestation for current block", "height", header.Height(), "attestation", currentBlockAttestation)
+	}
+
 	newState, err := m.applyBlock(ctx, header, data)
 	if err != nil {
 		return fmt.Errorf("error applying block: %w", err)
@@ -615,7 +618,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		ChainID:      header.ChainID(),
 		Height:       header.Height(),
 		Time:         header.BaseHeader.Time,
-		LastDataHash: lastDataHash,
+		LastDataHash: prevBlockData.dataHash,
 	}
 	// Validate the created block before storing
 	if err := m.Validate(ctx, header, data); err != nil {
@@ -646,7 +649,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	m.recordMetrics(data)
-
 	// Check for shut down event prior to sending the header and block to
 	// their respective channels. The reason for checking for the shutdown
 	// event separately is due to the inconsistent nature of the select
@@ -663,9 +665,82 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// Publish block to channel so that block exchange service can broadcast
 	m.DataCh <- data
 
-	m.logger.Debug("successfully proposed header", "proposer", hex.EncodeToString(header.ProposerAddress), "height", headerHeight)
+	return nil
+}
+
+// previousBlockData holds information about the previous block,
+// necessary for creating the next block.
+type previousBlockData struct {
+	signature  *types.Signature
+	headerHash types.Hash
+	dataHash   types.Hash
+	headerTime time.Time
+	commitHash types.Hash
+}
+
+// checkContextAndPendingBlocks checks if the context is done or if the number of pending headers has reached the limit.
+// It returns an error if the context is done or if the number of pending headers has reached the limit.
+func (m *Manager) checkContextAndPendingBlocks(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	if m.config.Node.MaxPendingHeaders != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeaders {
+		return fmt.Errorf("refusing to create block: pending headers [%d] reached limit [%d]",
+			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders)
+	}
 
 	return nil
+}
+
+// getPreviousBlockData gathers necessary information from the last processed block.
+func (m *Manager) getPreviousBlockData(ctx context.Context, newHeight uint64) (*previousBlockData, error) {
+	var prevCtx previousBlockData
+	var err error
+	prevHeight := newHeight - 1
+
+	if newHeight > m.genesis.InitialHeight+1 {
+		commitHashBytes, errGetCommit := m.store.GetCommitHash(ctx, prevHeight)
+		if errGetCommit != nil {
+			if !errors.Is(errGetCommit, ds.ErrNotFound) {
+				m.logger.Error("failed to get previous calculated commit hash", "height", prevHeight, "error", errGetCommit)
+			}
+			return nil, fmt.Errorf("failed to get previous calculated commit hash for height %d: %w", prevHeight, errGetCommit)
+		}
+
+		const expectedHashLength = 32
+		if len(commitHashBytes) == expectedHashLength {
+			prevCtx.commitHash = make(types.Hash, expectedHashLength)
+			copy(prevCtx.commitHash, commitHashBytes)
+		} else if len(commitHashBytes) == 0 {
+			m.logger.Info("Empty commit hash retrieved", "height", prevHeight)
+		} else {
+			m.logger.Error("retrieved previous calculated commit hash has incorrect length", "height", prevHeight, "expectedLength", expectedHashLength, "actualLength", len(commitHashBytes))
+		}
+	}
+
+	// Logic to get lastSignature, lastHeaderHash, lastDataHash, lastHeaderTime
+	if newHeight <= m.genesis.InitialHeight {
+		// Special handling for genesis block
+		prevCtx.signature = &types.Signature{}
+	} else {
+		prevCtx.signature, err = m.store.GetSignature(ctx, prevHeight)
+		if err != nil {
+			return nil, fmt.Errorf("error while loading last commit: %w, height: %d", err, prevHeight)
+		}
+		lastHeader, lastData, errGetBlockData := m.store.GetBlockData(ctx, prevHeight)
+		if errGetBlockData != nil {
+			return nil, fmt.Errorf("error while loading last block: %w, height: %d", errGetBlockData, prevHeight)
+		}
+
+		prevCtx.headerHash = lastHeader.Hash()
+		prevCtx.dataHash = lastData.Hash()
+		prevCtx.headerTime = lastHeader.Time()
+	}
+
+	return &prevCtx, nil
 }
 
 func (m *Manager) recordMetrics(data *types.Data) {
@@ -692,10 +767,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, prevCalculatedCommitHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, prevCalculatedCommitHash, m.lastState, batchData)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
@@ -749,13 +824,14 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 	return nil
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, prevCalculatedCommitHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	// Use when batchData is set to data IDs from the DA layer
 	// batchDataIDs := convertBatchDataToBytes(batchData.Data)
 
 	if m.signer == nil {
-		return nil, nil, fmt.Errorf("signer is nil; cannot create block")
+		return nil, nil, fmt.Errorf("signer is nil; cannot create block in execCreateBlock")
 	}
+	m.logger.Info("execCreateBlock called", "height", height, "lastHeaderHash", hex.EncodeToString(lastHeaderHash[:]), "prevCalculatedCommitHash", hex.EncodeToString(prevCalculatedCommitHash[:]))
 
 	key, err := m.signer.GetPublic()
 	if err != nil {
@@ -771,13 +847,26 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
 	}
 
+	var validatorHash types.Hash
+	if m.validatorHasher != nil {
+		calculatedVHash, err := m.validatorHasher(m.genesis.ProposerAddress, key)
+		if err != nil {
+			m.logger.Info("Failed to calculate ValidatorHash using injected hasher", "error", err)
+		} else {
+			validatorHash = calculatedVHash
+			m.logger.Info("Successfully calculated ValidatorHash using injected hasher", "validatorHash", hex.EncodeToString(validatorHash))
+		}
+	} else {
+		m.logger.Info("ValidatorHasher not provided to Manager, ValidatorHash will be zero.")
+	}
+
 	// Determine if this is an empty block
 	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
 
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
-				Block: m.lastState.Version.Block,
+				Block: 11, // hardcoded
 				App:   m.lastState.Version.App,
 			},
 			BaseHeader: types.BaseHeader{
@@ -786,10 +875,12 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash: lastHeaderHash,
+			LastCommitHash: prevCalculatedCommitHash,
 			// DataHash is set at the end of the function
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         m.lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
+			ValidatorHash:   validatorHash,
 		},
 		Signature: *lastSignature,
 		Signer: types.Signer{
@@ -975,4 +1066,70 @@ func (m *Manager) SaveCache() error {
 		return fmt.Errorf("failed to save data cache to disk: %w", err)
 	}
 	return nil
+}
+
+// getAttestationSigningBytes constructs the canonical byte representation of attestation data for signing.
+// The order and format must be strictly defined and adhered to by any verifier.
+func (m *Manager) getAttestationSigningBytes(height uint64, round int32, blockHeaderHash []byte, blockDataHash []byte, timestamp time.Time) ([]byte, error) {
+	// Simple concatenation for this example. A more robust solution might use a specific
+	// protobuf definition or a library like go-amino or a custom binary marshaller.
+	// The exact serialization format must match what the adapter expects for constructing cmttypes.CommitSig.
+	// For cmttypes.Vote.SignBytes, it signs: VoteType, Height, Round, BlockID (hash & parts), Timestamp, ChainID
+	// We are simplifying here as Rollkit's attestation is sequencer-specific.
+
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, height)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write height to buffer: %w", err)
+	}
+	err = binary.Write(buf, binary.LittleEndian, round)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write round to buffer: %w", err)
+	}
+	buf.Write(blockHeaderHash)
+	buf.Write(blockDataHash)
+
+	// Convert time.Time to UnixNano for consistent representation
+	tsBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(tsBytes, uint64(timestamp.UnixNano()))
+	buf.Write(tsBytes)
+
+	return buf.Bytes(), nil
+}
+
+func (m *Manager) createAndSignAttestation(ctx context.Context, header *types.SignedHeader, data *types.Data) (*types.RollkitSequencerAttestation, error) {
+	if m.signer == nil {
+		return nil, errors.New("signer is nil, cannot create attestation")
+	}
+	sequencerAddress, err := m.signer.GetAddress()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sequencer address for attestation: %w", err)
+	}
+
+	// Use round 0 as per ADR suggestion for single sequencer
+	round := int32(0)
+	blockHeaderHash := header.Hash()
+	blockDataHash := data.Hash() // Assuming data.Hash() gives the correct DataHash for BlockID
+
+	signingBytes, err := m.getAttestationSigningBytes(header.Height(), round, blockHeaderHash, blockDataHash, header.Time())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attestation signing bytes: %w", err)
+	}
+
+	signature, err := m.signer.Sign(signingBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign attestation data: %w", err)
+	}
+
+	attestation := &types.RollkitSequencerAttestation{
+		Height:           header.Height(),
+		Round:            round,
+		BlockHeaderHash:  blockHeaderHash,
+		BlockDataHash:    blockDataHash,
+		SequencerAddress: sequencerAddress,
+		Timestamp:        header.Time(),
+		Signature:        signature,
+	}
+
+	return attestation, nil
 }

@@ -15,6 +15,14 @@ type Store struct {
 	mock.Mock
 }
 
+type Store_Expecter struct {
+	mock *mock.Mock
+}
+
+func (_m *Store) EXPECT() *Store_Expecter {
+	return &Store_Expecter{mock: &_m.Mock}
+}
+
 // Close provides a mock function with no fields
 func (_m *Store) Close() error {
 	ret := _m.Called()
@@ -31,6 +39,33 @@ func (_m *Store) Close() error {
 	}
 
 	return r0
+}
+
+// Store_Close_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Close'
+type Store_Close_Call struct {
+	*mock.Call
+}
+
+// Close is a helper method to define mock.On call
+func (_e *Store_Expecter) Close() *Store_Close_Call {
+	return &Store_Close_Call{Call: _e.mock.On("Close")}
+}
+
+func (_c *Store_Close_Call) Run(run func()) *Store_Close_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Store_Close_Call) Return(_a0 error) *Store_Close_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_Close_Call) RunAndReturn(run func() error) *Store_Close_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // GetBlockByHash provides a mock function with given fields: ctx, hash
@@ -72,6 +107,35 @@ func (_m *Store) GetBlockByHash(ctx context.Context, hash []byte) (*types.Signed
 	return r0, r1, r2
 }
 
+// Store_GetBlockByHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBlockByHash'
+type Store_GetBlockByHash_Call struct {
+	*mock.Call
+}
+
+// GetBlockByHash is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hash []byte
+func (_e *Store_Expecter) GetBlockByHash(ctx interface{}, hash interface{}) *Store_GetBlockByHash_Call {
+	return &Store_GetBlockByHash_Call{Call: _e.mock.On("GetBlockByHash", ctx, hash)}
+}
+
+func (_c *Store_GetBlockByHash_Call) Run(run func(ctx context.Context, hash []byte)) *Store_GetBlockByHash_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]byte))
+	})
+	return _c
+}
+
+func (_c *Store_GetBlockByHash_Call) Return(_a0 *types.SignedHeader, _a1 *types.Data, _a2 error) *Store_GetBlockByHash_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *Store_GetBlockByHash_Call) RunAndReturn(run func(context.Context, []byte) (*types.SignedHeader, *types.Data, error)) *Store_GetBlockByHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBlockData provides a mock function with given fields: ctx, height
 func (_m *Store) GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error) {
 	ret := _m.Called(ctx, height)
@@ -111,6 +175,94 @@ func (_m *Store) GetBlockData(ctx context.Context, height uint64) (*types.Signed
 	return r0, r1, r2
 }
 
+// Store_GetBlockData_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBlockData'
+type Store_GetBlockData_Call struct {
+	*mock.Call
+}
+
+// GetBlockData is a helper method to define mock.On call
+//   - ctx context.Context
+//   - height uint64
+func (_e *Store_Expecter) GetBlockData(ctx interface{}, height interface{}) *Store_GetBlockData_Call {
+	return &Store_GetBlockData_Call{Call: _e.mock.On("GetBlockData", ctx, height)}
+}
+
+func (_c *Store_GetBlockData_Call) Run(run func(ctx context.Context, height uint64)) *Store_GetBlockData_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64))
+	})
+	return _c
+}
+
+func (_c *Store_GetBlockData_Call) Return(_a0 *types.SignedHeader, _a1 *types.Data, _a2 error) *Store_GetBlockData_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *Store_GetBlockData_Call) RunAndReturn(run func(context.Context, uint64) (*types.SignedHeader, *types.Data, error)) *Store_GetBlockData_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCommitHash provides a mock function with given fields: ctx, height
+func (_m *Store) GetCommitHash(ctx context.Context, height uint64) ([]byte, error) {
+	ret := _m.Called(ctx, height)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommitHash")
+	}
+
+	var r0 []byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) ([]byte, error)); ok {
+		return rf(ctx, height)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) []byte); ok {
+		r0 = rf(ctx, height)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+		r1 = rf(ctx, height)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_GetCommitHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommitHash'
+type Store_GetCommitHash_Call struct {
+	*mock.Call
+}
+
+// GetCommitHash is a helper method to define mock.On call
+//   - ctx context.Context
+//   - height uint64
+func (_e *Store_Expecter) GetCommitHash(ctx interface{}, height interface{}) *Store_GetCommitHash_Call {
+	return &Store_GetCommitHash_Call{Call: _e.mock.On("GetCommitHash", ctx, height)}
+}
+
+func (_c *Store_GetCommitHash_Call) Run(run func(ctx context.Context, height uint64)) *Store_GetCommitHash_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64))
+	})
+	return _c
+}
+
+func (_c *Store_GetCommitHash_Call) Return(_a0 []byte, _a1 error) *Store_GetCommitHash_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_GetCommitHash_Call) RunAndReturn(run func(context.Context, uint64) ([]byte, error)) *Store_GetCommitHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMetadata provides a mock function with given fields: ctx, key
 func (_m *Store) GetMetadata(ctx context.Context, key string) ([]byte, error) {
 	ret := _m.Called(ctx, key)
@@ -139,6 +291,94 @@ func (_m *Store) GetMetadata(ctx context.Context, key string) ([]byte, error) {
 	}
 
 	return r0, r1
+}
+
+// Store_GetMetadata_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMetadata'
+type Store_GetMetadata_Call struct {
+	*mock.Call
+}
+
+// GetMetadata is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *Store_Expecter) GetMetadata(ctx interface{}, key interface{}) *Store_GetMetadata_Call {
+	return &Store_GetMetadata_Call{Call: _e.mock.On("GetMetadata", ctx, key)}
+}
+
+func (_c *Store_GetMetadata_Call) Run(run func(ctx context.Context, key string)) *Store_GetMetadata_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *Store_GetMetadata_Call) Return(_a0 []byte, _a1 error) *Store_GetMetadata_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_GetMetadata_Call) RunAndReturn(run func(context.Context, string) ([]byte, error)) *Store_GetMetadata_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSequencerAttestation provides a mock function with given fields: ctx, height
+func (_m *Store) GetSequencerAttestation(ctx context.Context, height uint64) (*types.RollkitSequencerAttestation, error) {
+	ret := _m.Called(ctx, height)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSequencerAttestation")
+	}
+
+	var r0 *types.RollkitSequencerAttestation
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*types.RollkitSequencerAttestation, error)); ok {
+		return rf(ctx, height)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) *types.RollkitSequencerAttestation); ok {
+		r0 = rf(ctx, height)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.RollkitSequencerAttestation)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+		r1 = rf(ctx, height)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_GetSequencerAttestation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSequencerAttestation'
+type Store_GetSequencerAttestation_Call struct {
+	*mock.Call
+}
+
+// GetSequencerAttestation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - height uint64
+func (_e *Store_Expecter) GetSequencerAttestation(ctx interface{}, height interface{}) *Store_GetSequencerAttestation_Call {
+	return &Store_GetSequencerAttestation_Call{Call: _e.mock.On("GetSequencerAttestation", ctx, height)}
+}
+
+func (_c *Store_GetSequencerAttestation_Call) Run(run func(ctx context.Context, height uint64)) *Store_GetSequencerAttestation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64))
+	})
+	return _c
+}
+
+func (_c *Store_GetSequencerAttestation_Call) Return(_a0 *types.RollkitSequencerAttestation, _a1 error) *Store_GetSequencerAttestation_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_GetSequencerAttestation_Call) RunAndReturn(run func(context.Context, uint64) (*types.RollkitSequencerAttestation, error)) *Store_GetSequencerAttestation_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // GetSignature provides a mock function with given fields: ctx, height
@@ -171,6 +411,35 @@ func (_m *Store) GetSignature(ctx context.Context, height uint64) (*types.Signat
 	return r0, r1
 }
 
+// Store_GetSignature_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSignature'
+type Store_GetSignature_Call struct {
+	*mock.Call
+}
+
+// GetSignature is a helper method to define mock.On call
+//   - ctx context.Context
+//   - height uint64
+func (_e *Store_Expecter) GetSignature(ctx interface{}, height interface{}) *Store_GetSignature_Call {
+	return &Store_GetSignature_Call{Call: _e.mock.On("GetSignature", ctx, height)}
+}
+
+func (_c *Store_GetSignature_Call) Run(run func(ctx context.Context, height uint64)) *Store_GetSignature_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64))
+	})
+	return _c
+}
+
+func (_c *Store_GetSignature_Call) Return(_a0 *types.Signature, _a1 error) *Store_GetSignature_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_GetSignature_Call) RunAndReturn(run func(context.Context, uint64) (*types.Signature, error)) *Store_GetSignature_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSignatureByHash provides a mock function with given fields: ctx, hash
 func (_m *Store) GetSignatureByHash(ctx context.Context, hash []byte) (*types.Signature, error) {
 	ret := _m.Called(ctx, hash)
@@ -201,6 +470,35 @@ func (_m *Store) GetSignatureByHash(ctx context.Context, hash []byte) (*types.Si
 	return r0, r1
 }
 
+// Store_GetSignatureByHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSignatureByHash'
+type Store_GetSignatureByHash_Call struct {
+	*mock.Call
+}
+
+// GetSignatureByHash is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hash []byte
+func (_e *Store_Expecter) GetSignatureByHash(ctx interface{}, hash interface{}) *Store_GetSignatureByHash_Call {
+	return &Store_GetSignatureByHash_Call{Call: _e.mock.On("GetSignatureByHash", ctx, hash)}
+}
+
+func (_c *Store_GetSignatureByHash_Call) Run(run func(ctx context.Context, hash []byte)) *Store_GetSignatureByHash_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]byte))
+	})
+	return _c
+}
+
+func (_c *Store_GetSignatureByHash_Call) Return(_a0 *types.Signature, _a1 error) *Store_GetSignatureByHash_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_GetSignatureByHash_Call) RunAndReturn(run func(context.Context, []byte) (*types.Signature, error)) *Store_GetSignatureByHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetState provides a mock function with given fields: ctx
 func (_m *Store) GetState(ctx context.Context) (types.State, error) {
 	ret := _m.Called(ctx)
@@ -227,6 +525,34 @@ func (_m *Store) GetState(ctx context.Context) (types.State, error) {
 	}
 
 	return r0, r1
+}
+
+// Store_GetState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetState'
+type Store_GetState_Call struct {
+	*mock.Call
+}
+
+// GetState is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Store_Expecter) GetState(ctx interface{}) *Store_GetState_Call {
+	return &Store_GetState_Call{Call: _e.mock.On("GetState", ctx)}
+}
+
+func (_c *Store_GetState_Call) Run(run func(ctx context.Context)) *Store_GetState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *Store_GetState_Call) Return(_a0 types.State, _a1 error) *Store_GetState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_GetState_Call) RunAndReturn(run func(context.Context) (types.State, error)) *Store_GetState_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // Height provides a mock function with given fields: ctx
@@ -257,6 +583,34 @@ func (_m *Store) Height(ctx context.Context) (uint64, error) {
 	return r0, r1
 }
 
+// Store_Height_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Height'
+type Store_Height_Call struct {
+	*mock.Call
+}
+
+// Height is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Store_Expecter) Height(ctx interface{}) *Store_Height_Call {
+	return &Store_Height_Call{Call: _e.mock.On("Height", ctx)}
+}
+
+func (_c *Store_Height_Call) Run(run func(ctx context.Context)) *Store_Height_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *Store_Height_Call) Return(_a0 uint64, _a1 error) *Store_Height_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_Height_Call) RunAndReturn(run func(context.Context) (uint64, error)) *Store_Height_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SaveBlockData provides a mock function with given fields: ctx, header, data, signature
 func (_m *Store) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
 	ret := _m.Called(ctx, header, data, signature)
@@ -273,6 +627,133 @@ func (_m *Store) SaveBlockData(ctx context.Context, header *types.SignedHeader, 
 	}
 
 	return r0
+}
+
+// Store_SaveBlockData_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveBlockData'
+type Store_SaveBlockData_Call struct {
+	*mock.Call
+}
+
+// SaveBlockData is a helper method to define mock.On call
+//   - ctx context.Context
+//   - header *types.SignedHeader
+//   - data *types.Data
+//   - signature *types.Signature
+func (_e *Store_Expecter) SaveBlockData(ctx interface{}, header interface{}, data interface{}, signature interface{}) *Store_SaveBlockData_Call {
+	return &Store_SaveBlockData_Call{Call: _e.mock.On("SaveBlockData", ctx, header, data, signature)}
+}
+
+func (_c *Store_SaveBlockData_Call) Run(run func(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature)) *Store_SaveBlockData_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*types.SignedHeader), args[2].(*types.Data), args[3].(*types.Signature))
+	})
+	return _c
+}
+
+func (_c *Store_SaveBlockData_Call) Return(_a0 error) *Store_SaveBlockData_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_SaveBlockData_Call) RunAndReturn(run func(context.Context, *types.SignedHeader, *types.Data, *types.Signature) error) *Store_SaveBlockData_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SaveCommitHash provides a mock function with given fields: ctx, height, hash
+func (_m *Store) SaveCommitHash(ctx context.Context, height uint64, hash []byte) error {
+	ret := _m.Called(ctx, height, hash)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SaveCommitHash")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte) error); ok {
+		r0 = rf(ctx, height, hash)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Store_SaveCommitHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveCommitHash'
+type Store_SaveCommitHash_Call struct {
+	*mock.Call
+}
+
+// SaveCommitHash is a helper method to define mock.On call
+//   - ctx context.Context
+//   - height uint64
+//   - hash []byte
+func (_e *Store_Expecter) SaveCommitHash(ctx interface{}, height interface{}, hash interface{}) *Store_SaveCommitHash_Call {
+	return &Store_SaveCommitHash_Call{Call: _e.mock.On("SaveCommitHash", ctx, height, hash)}
+}
+
+func (_c *Store_SaveCommitHash_Call) Run(run func(ctx context.Context, height uint64, hash []byte)) *Store_SaveCommitHash_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].([]byte))
+	})
+	return _c
+}
+
+func (_c *Store_SaveCommitHash_Call) Return(_a0 error) *Store_SaveCommitHash_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_SaveCommitHash_Call) RunAndReturn(run func(context.Context, uint64, []byte) error) *Store_SaveCommitHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SaveSequencerAttestation provides a mock function with given fields: ctx, height, attestation
+func (_m *Store) SaveSequencerAttestation(ctx context.Context, height uint64, attestation *types.RollkitSequencerAttestation) error {
+	ret := _m.Called(ctx, height, attestation)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SaveSequencerAttestation")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *types.RollkitSequencerAttestation) error); ok {
+		r0 = rf(ctx, height, attestation)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Store_SaveSequencerAttestation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveSequencerAttestation'
+type Store_SaveSequencerAttestation_Call struct {
+	*mock.Call
+}
+
+// SaveSequencerAttestation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - height uint64
+//   - attestation *types.RollkitSequencerAttestation
+func (_e *Store_Expecter) SaveSequencerAttestation(ctx interface{}, height interface{}, attestation interface{}) *Store_SaveSequencerAttestation_Call {
+	return &Store_SaveSequencerAttestation_Call{Call: _e.mock.On("SaveSequencerAttestation", ctx, height, attestation)}
+}
+
+func (_c *Store_SaveSequencerAttestation_Call) Run(run func(ctx context.Context, height uint64, attestation *types.RollkitSequencerAttestation)) *Store_SaveSequencerAttestation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(*types.RollkitSequencerAttestation))
+	})
+	return _c
+}
+
+func (_c *Store_SaveSequencerAttestation_Call) Return(_a0 error) *Store_SaveSequencerAttestation_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_SaveSequencerAttestation_Call) RunAndReturn(run func(context.Context, uint64, *types.RollkitSequencerAttestation) error) *Store_SaveSequencerAttestation_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // SetHeight provides a mock function with given fields: ctx, height
@@ -293,6 +774,35 @@ func (_m *Store) SetHeight(ctx context.Context, height uint64) error {
 	return r0
 }
 
+// Store_SetHeight_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetHeight'
+type Store_SetHeight_Call struct {
+	*mock.Call
+}
+
+// SetHeight is a helper method to define mock.On call
+//   - ctx context.Context
+//   - height uint64
+func (_e *Store_Expecter) SetHeight(ctx interface{}, height interface{}) *Store_SetHeight_Call {
+	return &Store_SetHeight_Call{Call: _e.mock.On("SetHeight", ctx, height)}
+}
+
+func (_c *Store_SetHeight_Call) Run(run func(ctx context.Context, height uint64)) *Store_SetHeight_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64))
+	})
+	return _c
+}
+
+func (_c *Store_SetHeight_Call) Return(_a0 error) *Store_SetHeight_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_SetHeight_Call) RunAndReturn(run func(context.Context, uint64) error) *Store_SetHeight_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetMetadata provides a mock function with given fields: ctx, key, value
 func (_m *Store) SetMetadata(ctx context.Context, key string, value []byte) error {
 	ret := _m.Called(ctx, key, value)
@@ -311,6 +821,36 @@ func (_m *Store) SetMetadata(ctx context.Context, key string, value []byte) erro
 	return r0
 }
 
+// Store_SetMetadata_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetMetadata'
+type Store_SetMetadata_Call struct {
+	*mock.Call
+}
+
+// SetMetadata is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - value []byte
+func (_e *Store_Expecter) SetMetadata(ctx interface{}, key interface{}, value interface{}) *Store_SetMetadata_Call {
+	return &Store_SetMetadata_Call{Call: _e.mock.On("SetMetadata", ctx, key, value)}
+}
+
+func (_c *Store_SetMetadata_Call) Run(run func(ctx context.Context, key string, value []byte)) *Store_SetMetadata_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].([]byte))
+	})
+	return _c
+}
+
+func (_c *Store_SetMetadata_Call) Return(_a0 error) *Store_SetMetadata_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_SetMetadata_Call) RunAndReturn(run func(context.Context, string, []byte) error) *Store_SetMetadata_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateState provides a mock function with given fields: ctx, state
 func (_m *Store) UpdateState(ctx context.Context, state types.State) error {
 	ret := _m.Called(ctx, state)
@@ -327,6 +867,35 @@ func (_m *Store) UpdateState(ctx context.Context, state types.State) error {
 	}
 
 	return r0
+}
+
+// Store_UpdateState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateState'
+type Store_UpdateState_Call struct {
+	*mock.Call
+}
+
+// UpdateState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - state types.State
+func (_e *Store_Expecter) UpdateState(ctx interface{}, state interface{}) *Store_UpdateState_Call {
+	return &Store_UpdateState_Call{Call: _e.mock.On("UpdateState", ctx, state)}
+}
+
+func (_c *Store_UpdateState_Call) Run(run func(ctx context.Context, state types.State)) *Store_UpdateState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(types.State))
+	})
+	return _c
+}
+
+func (_c *Store_UpdateState_Call) Return(_a0 error) *Store_UpdateState_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_UpdateState_Call) RunAndReturn(run func(context.Context, types.State) error) *Store_UpdateState_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // NewStore creates a new instance of Store. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

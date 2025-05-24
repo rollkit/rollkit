@@ -189,6 +189,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		logger,
+		types.ValidatorHasher(nil),
 	)
 	return node, genesisValidatorKey, err
 }
