@@ -95,7 +95,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	store := store.New(mainKV)
+	store := store.NewDefaultPruningStore(mainKV, nodeConfig.Node.Pruning)
 
 	blockManager, err := initBlockManager(
 		ctx,
