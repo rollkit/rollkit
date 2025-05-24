@@ -197,7 +197,7 @@ func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
 	return false
 }
 
-// featchHeaders retrieves blobs from the DA layer
+// fetchBlobs retrieves blobs from the DA layer
 func (m *Manager) fetchBlobs(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
 	var err error
 	ctx, cancel := context.WithTimeout(ctx, dAefetcherTimeout)
