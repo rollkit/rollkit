@@ -162,7 +162,7 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	height := uint64(len(d.blobsByHeight))
+	height := d.currentHeight
 	ids := make([]ID, 0, len(blobs))
 	var currentSize uint64
 

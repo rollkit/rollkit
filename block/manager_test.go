@@ -61,7 +61,7 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 // TestInitialStateClean verifies that getInitialState initializes state correctly when no state is stored.
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	// Create genesis document
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateClean")

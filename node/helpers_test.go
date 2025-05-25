@@ -43,7 +43,6 @@ func createTestComponents(t *testing.T, config rollkitconfig.Config) (coreexecut
 	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0, config.DA.BlockTime.Duration)
-	dummyDA.StartHeightTicker()
 
 	// Create genesis and keys for P2P client
 	_, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
