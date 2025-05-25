@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 
 	testutils "github.com/celestiaorg/utils/test"
 )
@@ -140,6 +141,11 @@ func (s *FullNodeTestSuite) TestBlockProduction() {
 	require.NoError(s.T(), err)
 	s.GreaterOrEqual(height, uint64(5), "Expected block height >= 5")
 
+	// Verify chain state
+	state, err := s.node.Store.GetState(s.ctx)
+	s.NoError(err)
+	s.GreaterOrEqual(state.LastBlockHeight, height)
+
 	foundTx := false
 	for h := uint64(1); h <= height; h++ {
 		// Get the block data for each height
@@ -159,11 +165,6 @@ func (s *FullNodeTestSuite) TestBlockProduction() {
 			}
 		}
 	}
-
-	// Verify chain state
-	state, err := s.node.Store.GetState(s.ctx)
-	s.NoError(err)
-	s.GreaterOrEqual(state.LastBlockHeight, height)
 
 	// Verify at least one block contains the test transaction
 	s.True(foundTx, "Expected at least one block to contain the test transaction")
@@ -284,37 +285,54 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 
 // TestMaxPendingHeaders verifies that the node will stop producing blocks when the maximum number of pending headers is reached.
 // It reconfigures the node with a low max pending value, waits for block production, and checks the pending block count.
-func (s *FullNodeTestSuite) TestMaxPendingHeaders() {
-	require := require.New(s.T())
-
-	// First, stop the current node by cancelling its context
-	s.cancel()
-
-	// Create a new context for the new node
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-
-	// Reset error channel
-	s.errCh = make(chan error, 1)
+func TestMaxPendingHeaders(t *testing.T) {
+	require := require.New(t)
 
 	// Reconfigure node with low max pending
-	config := getTestConfig(s.T(), 1)
+	config := getTestConfig(t, 1)
 	config.Node.MaxPendingHeaders = 2
 
-	node, cleanup := createNodeWithCleanup(s.T(), config)
+	// Set DA block time large enough to avoid header submission to DA layer
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 20 * time.Second}
+
+	node, cleanup := createNodeWithCleanup(t, config)
 	defer cleanup()
 
-	s.node = node
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Start the node using Run in a goroutine
-	s.startNodeInBackground(s.node)
+	var runningWg sync.WaitGroup
+	runningWg.Add(1)
+	go func() {
+		defer runningWg.Done()
+		err := node.Run(ctx)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Logf("Error running node: %v", err)
+		}
+	}()
 
 	// Wait blocks to be produced up to max pending
-	time.Sleep(time.Duration(config.Node.MaxPendingHeaders+1) * config.Node.BlockTime.Duration)
+	time.Sleep(time.Duration(config.Node.MaxPendingHeaders+5) * config.Node.BlockTime.Duration)
 
 	// Verify that number of pending blocks doesn't exceed max
-	height, err := getNodeHeight(s.node, Header)
+	height, err := getNodeHeight(node, Store)
 	require.NoError(err)
 	require.LessOrEqual(height, config.Node.MaxPendingHeaders)
+
+	// Stop the node and wait for shutdown
+	cancel()
+	waitCh := make(chan struct{})
+	go func() {
+		runningWg.Wait()
+		close(waitCh)
+	}()
+
+	select {
+	case <-waitCh:
+		// Node stopped successfully
+	case <-time.After(5 * time.Second):
+		t.Log("Warning: Node did not stop gracefully within timeout")
+	}
 }
 
 // TestGenesisInitialization checks that the node's state is correctly initialized from the genesis document.

@@ -103,7 +103,6 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 					continue
 				}
 				m.dataCache.SetItem(dataHeight, data)
-				m.dataCache.SetItemByHash(dataHash, data)
 			}
 			// If the header is synced already, the data commitment should be associated with a height
 			if val, ok := m.dataCommitmentToHeight.Load(dataHash); ok {
