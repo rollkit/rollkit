@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,7 +42,8 @@ const (
 func createTestComponents(t *testing.T, config rollkitconfig.Config) (coreexecutor.Executor, coresequencer.Sequencer, coreda.DA, *p2p.Client, datastore.Batching, *key.NodeKey) {
 	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0, config.DA.BlockTime.Duration)
+	dummyDA.StartHeightTicker()
 
 	// Create genesis and keys for P2P client
 	_, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
@@ -162,12 +164,14 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 
 	nodes[0], cleanups[0] = aggNode.(*FullNode), cleanup
 	config.Node.Aggregator = false
+	aggPeerAddress := fmt.Sprintf("%s/p2p/%s", aggListenAddress, aggPeerID.Loggable()["peerID"].(string))
+	peersList := []string{aggPeerAddress}
 	for i := 1; i < num; i++ {
 		ctx, cancel := context.WithCancel(context.Background())
+		config.P2P.Peers = strings.Join(peersList, ",")
 		config.P2P.ListenAddress = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", 40001+i)
-		config.RPC.Address = fmt.Sprintf("127.0.0.1:%d", 8000+i+1)
-		config.P2P.Peers = fmt.Sprintf("%s/p2p/%s", aggListenAddress, aggPeerID.Loggable()["peerID"].(string))
-		executor, sequencer, _, p2pClient, ds, _ = createTestComponents(t, config)
+		config.RPC.Address = fmt.Sprintf("127.0.0.1:%d", 8001+i)
+		executor, sequencer, _, p2pClient, _, nodeP2PKey := createTestComponents(t, config)
 		node, err := NewNode(
 			ctx,
 			config,
@@ -188,6 +192,9 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 			cancel()
 		}
 		nodes[i], cleanups[i] = node.(*FullNode), cleanup
+		nodePeerID, err := peer.IDFromPrivateKey(nodeP2PKey.PrivKey)
+		require.NoError(err)
+		peersList = append(peersList, fmt.Sprintf("%s/p2p/%s", config.P2P.ListenAddress, nodePeerID.Loggable()["peerID"].(string)))
 	}
 
 	return nodes, cleanups

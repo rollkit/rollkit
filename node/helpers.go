@@ -39,7 +39,7 @@ func waitForFirstBlock(node Node, source Source) error {
 	return waitForAtLeastNBlocks(node, 1, source)
 }
 
-func waitForFirstBlockToBeDAIncludedHeight(node Node) error {
+func waitForFirstBlockToBeDAIncluded(node Node) error {
 	return waitForAtLeastNDAIncludedHeight(node, 1)
 }
 

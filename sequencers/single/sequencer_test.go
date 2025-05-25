@@ -21,7 +21,7 @@ import (
 
 func TestNewSequencer(t *testing.T) {
 	// Create a new sequencer with mock DA client
-	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0)
+	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0, 10*time.Second)
 	metrics, _ := NopMetrics()
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -54,7 +54,7 @@ func TestNewSequencer(t *testing.T) {
 func TestSequencer_SubmitBatchTxs(t *testing.T) {
 	// Initialize a new sequencer
 	metrics, _ := NopMetrics()
-	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0)
+	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0, 10*time.Second)
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -107,7 +107,7 @@ func TestSequencer_SubmitBatchTxs(t *testing.T) {
 func TestSequencer_SubmitBatchTxs_EmptyBatch(t *testing.T) {
 	// Initialize a new sequencer
 	metrics, _ := NopMetrics()
-	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0)
+	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0, 10*time.Second)
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

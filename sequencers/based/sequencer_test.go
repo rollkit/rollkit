@@ -15,7 +15,7 @@ import (
 )
 
 func newTestSequencer(t *testing.T) *based.Sequencer {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
+	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5, 10*time.Second)
 	store := ds.NewMapDatastore()
 	seq, err := based.NewSequencer(log.NewNopLogger(), dummyDA, []byte("test1"), 0, 2, store)
 	assert.NoError(t, err)
@@ -86,7 +86,7 @@ func TestSequencer_GetNextBatch_Invalid(t *testing.T) {
 }
 
 func TestSequencer_GetNextBatch_ExceedsMaxDrift(t *testing.T) {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
+	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5, 10*time.Second)
 	store := ds.NewMapDatastore()
 	sequencer, err := based.NewSequencer(log.NewNopLogger(), dummyDA, []byte("test1"), 0, 0, store)
 	assert.NoError(t, err)

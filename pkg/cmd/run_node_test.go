@@ -27,7 +27,8 @@ const MockDANamespace = "test"
 func createTestComponents(_ context.Context, t *testing.T) (coreexecutor.Executor, coresequencer.Sequencer, coreda.DA, signer.Signer, *p2p.Client, datastore.Batching) {
 	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0, 10*time.Second)
+	dummyDA.StartHeightTicker()
 	tmpDir := t.TempDir()
 	keyProvider, err := filesigner.CreateFileSystemSigner(filepath.Join(tmpDir, "config"), []byte{})
 	if err != nil {
