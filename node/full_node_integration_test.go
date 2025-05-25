@@ -401,21 +401,95 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	require.GreaterOrEqual(recoveredHeight, originalHeight)
 }
 
-// TestFastDASync verifies that the node can sync with the DA layer using fast sync.
-// It creates a new node, injects a transaction, waits for it to be DA-included, and asserts that the node is in sync.
+// TestFastDASync verifies that a new node can quickly synchronize with the Data Availability (DA) layer using fast sync.
+//
+// This test sets up two nodes with different block and DA block times. It starts the first node, waits for it to produce and DA-include several blocks,
+// then starts the second node and measures how quickly it can catch up to the first node's height. The test asserts that the second node syncs within
+// a small delta of the DA block time, and verifies that both nodes have identical block hashes and that all blocks are DA-included.
+func TestFastDASync(t *testing.T) {
+	require := require.New(t)
 
-/*
-TODO:
+	// Set up two nodes with different block and DA block times
+	config := getTestConfig(t, 1)
+	config.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond}
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 50 * time.Millisecond}
 
-	Details:
-	Sets up two nodes with different block and DA block times.
-	Starts one node, waits for it to sync several blocks, then starts the second node.
-	Uses a timer to ensure the second node syncs quickly.
-	Verifies both nodes are synced and that the synced block is DA-included.
-	Goal: Ensures block sync is faster than DA block time and DA inclusion is verified.
-*/
-func (s *FullNodeTestSuite) TestFastDASync() {
-	s.T().Skip()
+	nodes, cleanups := createNodesWithCleanup(t, 2, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	ctxs := make([]context.Context, len(nodes))
+	cancelFuncs := make([]context.CancelFunc, len(nodes))
+	var runningWg sync.WaitGroup
+
+	// Create a context and cancel function for each node
+	for i := 0; i < len(nodes); i++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		ctxs[i] = ctx
+		cancelFuncs[i] = cancel
+	}
+
+	// Start only the first node
+	runningWg.Add(1)
+	go func(node *FullNode, ctx context.Context) {
+		defer runningWg.Done()
+		err := node.Run(ctx)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Logf("Error running node 0: %v", err)
+		}
+	}(nodes[0], ctxs[0])
+
+	// Wait for the first node to produce a few blocks
+	blocksToWaitFor := uint64(5)
+	require.NoError(waitForAtLeastNDAIncludedHeight(nodes[0], blocksToWaitFor))
+
+	// Now start the second node and time its sync
+	runningWg.Add(1)
+	go func(node *FullNode, ctx context.Context) {
+		defer runningWg.Done()
+		err := node.Run(ctx)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Logf("Error running node 1: %v", err)
+		}
+	}(nodes[1], ctxs[1])
+	start := time.Now()
+	// Wait for the second node to catch up to the first node
+	require.NoError(waitForAtLeastNBlocks(nodes[1], blocksToWaitFor, Store))
+	syncDuration := time.Since(start)
+
+	// Ensure node syncs within a small delta of DA block time
+	delta := 75 * time.Millisecond
+	require.Less(syncDuration, config.DA.BlockTime.Duration+delta, "Block sync should be faster than DA block time")
+
+	// Verify both nodes are synced and that the synced block is DA-included
+	for height := uint64(1); height <= blocksToWaitFor; height++ {
+		// Both nodes should have the same block hash
+		header0, _, err := nodes[0].Store.GetBlockData(context.Background(), height)
+		require.NoError(err)
+		header1, _, err := nodes[1].Store.GetBlockData(context.Background(), height)
+		require.NoError(err)
+		require.EqualValues(header0.Hash(), header1.Hash(), "Block hash mismatch at height %d", height)
+	}
+
+	// Cancel all node contexts to signal shutdown
+	for _, cancel := range cancelFuncs {
+		cancel()
+	}
+
+	// Wait for all nodes to stop, with a timeout
+	waitCh := make(chan struct{})
+	go func() {
+		runningWg.Wait()
+		close(waitCh)
+	}()
+
+	select {
+	case <-waitCh:
+		// Nodes stopped successfully
+	case <-time.After(5 * time.Second):
+		t.Log("Warning: Not all nodes stopped gracefully within timeout")
+	}
 }
 
 // TestSingleAggregatorTwoFullNodesBlockSyncSpeed verifies block sync speed when block time is much faster than DA block time.

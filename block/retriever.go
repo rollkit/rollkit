@@ -76,7 +76,7 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 				m.logger.Debug("no blob data found", "daHeight", daHeight, "reason", blobsResp.Message)
 				return nil
 			}
-			m.logger.Debug("retrieved potential data", "n", len(blobsResp.Data), "daHeight", daHeight)
+			m.logger.Debug("retrieved potential blob data", "n", len(blobsResp.Data), "daHeight", daHeight)
 			for _, bz := range blobsResp.Data {
 				if len(bz) == 0 {
 					m.logger.Debug("ignoring nil or empty blob", "daHeight", daHeight)
@@ -126,6 +126,7 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 	}
 	headerHash := header.Hash().String()
 	m.headerCache.SetDAIncluded(headerHash)
+	m.sendNonBlockingSignalToDAIncluderCh()
 	m.logger.Info("header marked as DA included", "headerHeight", header.Height(), "headerHash", headerHash)
 	if !m.headerCache.IsSeen(headerHash) {
 		select {
@@ -159,6 +160,7 @@ func (m *Manager) handlePotentialBatch(ctx context.Context, bz []byte, daHeight 
 	}
 	dataHashStr := data.DACommitment().String()
 	m.dataCache.SetDAIncluded(dataHashStr)
+	m.sendNonBlockingSignalToDAIncluderCh()
 	m.logger.Info("batch marked as DA included", "batchHash", dataHashStr, "daHeight", daHeight)
 	if !m.dataCache.IsSeen(dataHashStr) {
 		select {

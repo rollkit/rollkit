@@ -21,7 +21,6 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 		select {
 		case <-daTicker.C:
 			m.sendNonBlockingSignalToRetrieveCh()
-			m.sendNonBlockingSignalToDAIncluderCh()
 		case <-blockTicker.C:
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToDataStoreCh()
@@ -170,6 +169,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to apply block: %w", err)
 		}
 
+		if err = m.updateState(ctx, newState); err != nil {
+			return fmt.Errorf("failed to save updated state: %w", err)
+		}
+
 		if err = m.store.SaveBlockData(ctx, h, d, &h.Signature); err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
@@ -181,10 +184,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
-		}
-
-		if err = m.updateState(ctx, newState); err != nil {
-			return fmt.Errorf("failed to save updated state: %w", err)
 		}
 
 		m.headerCache.DeleteItem(currentHeight + 1)
