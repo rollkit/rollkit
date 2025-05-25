@@ -186,6 +186,7 @@ func TestIsDAIncluded(t *testing.T) {
 	height := uint64(1)
 	header, data := types.GetRandomBlock(height, 5, "TestIsDAIncluded")
 	mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil).Times(3)
+	mockStore.On("Height", mock.Anything).Return(uint64(100), nil).Maybe()
 	ctx := context.Background()
 	// IsDAIncluded should return false for unseen hash
 	require.False(m.IsDAIncluded(ctx, height))

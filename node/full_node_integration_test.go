@@ -300,15 +300,16 @@ func testSingleSequencerSingleFullNodeTrustedHash(t *testing.T, source Source) {
 
 	// Get the hash of the first block (using the correct source)
 	var trustedHash string
-	if source == Data {
+	switch source {
+	case Data:
 		trustedHashValue, err := nodes[0].dSyncService.Store().GetByHeight(ctxs[0], 1)
 		require.NoError(err)
 		trustedHash = trustedHashValue.Hash().String()
-	} else if source == Header {
+	case Header:
 		trustedHashValue, err := nodes[0].hSyncService.Store().GetByHeight(ctxs[0], 1)
 		require.NoError(err)
 		trustedHash = trustedHashValue.Hash().String()
-	} else {
+	default:
 		t.Fatalf("unsupported source for trusted hash test: %v", source)
 	}
 
