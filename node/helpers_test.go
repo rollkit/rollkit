@@ -84,6 +84,7 @@ func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 		RPC: rollkitconfig.RPCConfig{
 			Address: fmt.Sprintf("127.0.0.1:%d", 8000+n),
 		},
+		ChainID: "test-chain",
 	}
 }
 
@@ -92,7 +93,7 @@ func createNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullNode
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Generate genesis and keys
-	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey(config.ChainID)
 	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
 	require.NoError(t, err)
 

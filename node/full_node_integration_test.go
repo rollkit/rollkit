@@ -360,5 +360,67 @@ func TestTwoChainsInOneNamespace(t *testing.T) {
 // testTwoChainsInOneNamespace sets up two chains in the same namespace, starts the sequencers, waits for blocks, then starts the full nodes.
 // It waits for all nodes to reach a target block height, and verifies that all nodes are fully synced, and then shuts them down.
 func testTwoChainsInOneNamespace(t *testing.T, chainID1 string, chainID2 string) {
-	t.Skip()
+	require := require.New(t)
+
+	// Set up nodes for the first chain
+	configChain1 := getTestConfig(t, 1)
+	configChain1.ChainID = chainID1
+
+	numNodes := 2
+	nodes1, cleanups := createNodesWithCleanup(t, numNodes, configChain1)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	// Set up nodes for the second chain
+	configChain2 := getTestConfig(t, 1000)
+	configChain2.ChainID = chainID2
+
+	numNodes = 2
+	nodes2, cleanups := createNodesWithCleanup(t, numNodes, configChain2)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	// Set up context and wait group for the sequencer of chain 1
+	ctxs1, cancels1 := createNodeContexts(numNodes)
+	var runningWg1 sync.WaitGroup
+
+	// Start the sequencer of chain 1
+	startNodeInBackground(t, nodes1, ctxs1, &runningWg1, 0)
+
+	// Wait for the sequencer to produce at least one block
+	require.NoError(waitForAtLeastNBlocks(nodes1[0], 1, Store))
+
+	// Set up context and wait group for the sequencer of chain 2
+	ctxs2, cancels2 := createNodeContexts(numNodes)
+	var runningWg2 sync.WaitGroup
+
+	// Start the sequencer of chain 2
+	startNodeInBackground(t, nodes2, ctxs2, &runningWg2, 0)
+
+	// Wait for the sequencer to produce at least one block
+	require.NoError(waitForAtLeastNBlocks(nodes2[0], 1, Store))
+
+	// Start the full node of chain 1
+	startNodeInBackground(t, nodes1, ctxs1, &runningWg1, 1)
+
+	// Start the full node of chain 2
+	startNodeInBackground(t, nodes2, ctxs2, &runningWg2, 1)
+
+	blocksToWaitFor := uint64(3)
+
+	// Wait for the full node of chain 1 to reach at least 3 blocks
+	require.NoError(waitForAtLeastNBlocks(nodes1[1], blocksToWaitFor, Store))
+
+	// Wait for the full node of chain 2 to reach at least 3 blocks
+	require.NoError(waitForAtLeastNBlocks(nodes2[1], blocksToWaitFor, Store))
+
+	// Verify both full nodes are synced using the helper
+	require.NoError(verifyNodesSynced(nodes1[0], nodes1[1], Store))
+	require.NoError(verifyNodesSynced(nodes2[0], nodes2[1], Store))
+
+	// Cancel all node contexts to signal shutdown and wait for both chains
+	shutdownAndWait(t, cancels1, &runningWg1, 5*time.Second)
+	shutdownAndWait(t, cancels2, &runningWg2, 5*time.Second)
 }
