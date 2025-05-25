@@ -2,8 +2,10 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -198,4 +200,64 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 	}
 
 	return nodes, cleanups
+}
+
+// Helper to create N contexts and cancel functions
+func createNodeContexts(n int) ([]context.Context, []context.CancelFunc) {
+	ctxs := make([]context.Context, n)
+	cancels := make([]context.CancelFunc, n)
+	for i := 0; i < n; i++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		ctxs[i] = ctx
+		cancels[i] = cancel
+	}
+	return ctxs, cancels
+}
+
+// Helper to start a single node in a goroutine and add to wait group
+func startNodeInBackground(t *testing.T, nodes []*FullNode, ctxs []context.Context, wg *sync.WaitGroup, idx int) {
+	wg.Add(1)
+	go func(node *FullNode, ctx context.Context, idx int) {
+		defer wg.Done()
+		err := node.Run(ctx)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Logf("Error running node %d: %v", idx, err)
+		}
+	}(nodes[idx], ctxs[idx], idx)
+}
+
+// Helper to cancel all contexts and wait for goroutines with timeout
+func shutdownAndWait(t *testing.T, cancels []context.CancelFunc, wg *sync.WaitGroup, timeout time.Duration) {
+	for _, cancel := range cancels {
+		cancel()
+	}
+	waitCh := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(waitCh)
+	}()
+	select {
+	case <-waitCh:
+		// Nodes stopped successfully
+	case <-time.After(timeout):
+		t.Log("Warning: Not all nodes stopped gracefully within timeout")
+	}
+}
+
+// Helper to check that all nodes are synced up to a given height (all block hashes match for all heights up to maxHeight)
+func assertAllNodesSynced(t *testing.T, nodes []*FullNode, maxHeight uint64) {
+	t.Helper()
+	for height := uint64(1); height <= maxHeight; height++ {
+		var refHash []byte
+		for i, node := range nodes {
+			header, _, err := node.Store.GetBlockData(context.Background(), height)
+			require.NoError(t, err)
+			if i == 0 {
+				refHash = header.Hash()
+			} else {
+				headerHash := header.Hash()
+				require.EqualValues(t, refHash, headerHash, "Block hash mismatch at height %d between node 0 and node %d", height, i)
+			}
+		}
+	}
 }

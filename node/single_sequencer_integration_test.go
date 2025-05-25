@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 
 	testutils "github.com/celestiaorg/utils/test"
 )
@@ -250,4 +251,38 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	recoveredHeight, err := getNodeHeight(s.node, Store)
 	require.NoError(err)
 	require.GreaterOrEqual(recoveredHeight, originalHeight)
+}
+
+// TestMaxPendingHeaders verifies that the sequencer will stop producing blocks when the maximum number of pending headers is reached.
+// It reconfigures the node with a low max pending value, waits for block production, and checks the pending block count.
+func TestMaxPendingHeaders(t *testing.T) {
+	require := require.New(t)
+
+	// Reconfigure node with low max pending
+	config := getTestConfig(t, 1)
+	config.Node.MaxPendingHeaders = 2
+
+	// Set DA block time large enough to avoid header submission to DA layer
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 20 * time.Second}
+
+	node, cleanup := createNodeWithCleanup(t, config)
+	defer cleanup()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var runningWg sync.WaitGroup
+	startNodeInBackground(t, []*FullNode{node}, []context.Context{ctx}, &runningWg, 0)
+
+	// Wait blocks to be produced up to max pending
+	numExtraHeaders := uint64(5)
+	time.Sleep(time.Duration(config.Node.MaxPendingHeaders+numExtraHeaders) * config.Node.BlockTime.Duration)
+
+	// Verify that number of pending blocks doesn't exceed max
+	height, err := getNodeHeight(node, Store)
+	require.NoError(err)
+	require.LessOrEqual(height, config.Node.MaxPendingHeaders)
+
+	// Stop the node and wait for shutdown
+	shutdownAndWait(t, []context.CancelFunc{cancel}, &runningWg, 5*time.Second)
 }
