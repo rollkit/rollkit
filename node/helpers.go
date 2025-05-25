@@ -11,10 +11,10 @@ import (
 type Source int
 
 const (
-	// Header is the source of height from the header service
+	// Header is the source of height from the header sync service
 	Header Source = iota
-	// Block is the source of height from the block service
-	Block
+	// Data is the source of height from the data sync service
+	Data
 	// Store is the source of height from the block manager store
 	Store
 )
@@ -47,8 +47,8 @@ func getNodeHeight(node Node, source Source) (uint64, error) {
 	switch source {
 	case Header:
 		return getNodeHeightFromHeader(node)
-	case Block:
-		return getNodeHeightFromBlock(node)
+	case Data:
+		return getNodeHeightFromData(node)
 	case Store:
 		return getNodeHeightFromStore(node)
 	default:
@@ -66,7 +66,7 @@ func getNodeHeightFromHeader(node Node) (uint64, error) {
 	return 0, errors.New("not a full or light node")
 }
 
-func getNodeHeightFromBlock(node Node) (uint64, error) {
+func getNodeHeightFromData(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
 		return fn.dSyncService.Store().Height(), nil
 	}

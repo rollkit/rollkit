@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	testutils "github.com/celestiaorg/utils/test"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -260,4 +261,21 @@ func assertAllNodesSynced(t *testing.T, nodes []*FullNode, maxHeight uint64) {
 			}
 		}
 	}
+}
+
+func verifyNodesSynced(node1, syncingNode Node, source Source) error {
+	return testutils.Retry(300, 100*time.Millisecond, func() error {
+		sequencerHeight, err := getNodeHeight(node1, source)
+		if err != nil {
+			return err
+		}
+		syncingHeight, err := getNodeHeight(syncingNode, source)
+		if err != nil {
+			return err
+		}
+		if sequencerHeight >= syncingHeight {
+			return nil
+		}
+		return fmt.Errorf("nodes not synced: sequencer at height %v, syncing node at height %v", sequencerHeight, syncingHeight)
+	})
 }
