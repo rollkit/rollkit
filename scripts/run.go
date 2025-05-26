@@ -359,7 +359,7 @@ func isProjectRoot(dir string) bool {
 	// Check for key directories/files that would indicate the project root
 	markers := []string{
 		"da",
-		"rollups",
+		"apps",
 		"scripts",
 		"go.mod",
 	}

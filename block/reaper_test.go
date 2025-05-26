@@ -34,21 +34,21 @@ func TestReaper_SubmitTxs_Success(t *testing.T) {
 
 	// Mock interactions for the first SubmitTxs call
 	mockExec.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
-	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
-		return string(req.RollupId) == chainID && len(req.Batch.Transactions) == 1 && string(req.Batch.Transactions[0]) == string(tx)
+	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitBatchTxsRequest) bool {
+		return string(req.Id) == chainID && len(req.Batch.Transactions) == 1 && string(req.Batch.Transactions[0]) == string(tx)
 	})
-	mockSeq.On("SubmitRollupBatchTxs", mock.Anything, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil).Once()
+	mockSeq.On("SubmitBatchTxs", mock.Anything, submitReqMatcher).Return(&coresequencer.SubmitBatchTxsResponse{}, nil).Once()
 
 	// Run once and ensure transaction is submitted
 	reaper.SubmitTxs()
-	mockSeq.AssertCalled(t, "SubmitRollupBatchTxs", mock.Anything, submitReqMatcher)
+	mockSeq.AssertCalled(t, "SubmitBatchTxs", mock.Anything, submitReqMatcher)
 
 	mockExec.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
 
 	// Run again, should not resubmit
 	reaper.SubmitTxs()
 
-	// Verify the final state: GetTxs called twice, SubmitRollupBatchTxs called only once
+	// Verify the final state: GetTxs called twice, SubmitBatchTxs called only once
 	mockExec.AssertExpectations(t)
 	mockSeq.AssertExpectations(t)
 }
@@ -74,7 +74,7 @@ func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
 
 	// Verify GetTxs was called
 	mockExec.AssertExpectations(t)
-	mockSeq.AssertNotCalled(t, "SubmitRollupBatchTxs", mock.Anything, mock.Anything)
+	mockSeq.AssertNotCalled(t, "SubmitBatchTxs", mock.Anything, mock.Anything)
 }
 
 // TestReaper_TxPersistence_AcrossRestarts verifies that the Reaper persists seen transactions across restarts.
@@ -103,10 +103,10 @@ func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 
 	// Mock interactions for the first instance
 	mockExec1.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
-	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitRollupBatchTxsRequest) bool {
-		return string(req.RollupId) == chainID && len(req.Batch.Transactions) == 1 && string(req.Batch.Transactions[0]) == string(tx)
+	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitBatchTxsRequest) bool {
+		return string(req.Id) == chainID && len(req.Batch.Transactions) == 1 && string(req.Batch.Transactions[0]) == string(tx)
 	})
-	mockSeq1.On("SubmitRollupBatchTxs", mock.Anything, submitReqMatcher).Return(&coresequencer.SubmitRollupBatchTxsResponse{}, nil).Once()
+	mockSeq1.On("SubmitBatchTxs", mock.Anything, submitReqMatcher).Return(&coresequencer.SubmitBatchTxsResponse{}, nil).Once()
 
 	reaper1.SubmitTxs()
 
@@ -128,5 +128,5 @@ func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 	mockExec1.AssertExpectations(t)
 	mockSeq1.AssertExpectations(t)
 	mockExec2.AssertExpectations(t)
-	mockSeq2.AssertNotCalled(t, "SubmitRollupBatchTxs", mock.Anything, mock.Anything)
+	mockSeq2.AssertNotCalled(t, "SubmitBatchTxs", mock.Anything, mock.Anything)
 }

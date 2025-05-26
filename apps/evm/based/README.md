@@ -65,7 +65,7 @@ Note: Replace `<path_to>` with the actual path to your go-execution-evm reposito
 |------|-------------|
 | `--based.url` | URL for Celestia light node or other DA endpoint (default `http://localhost:26658`) |
 | `--based.auth` | Auth token for based DA layer |
-| `--based.namespace` | Hex-encoded namespace ID for submitting rollup transactions (e.g., `010203...`) |
+| `--based.namespace` | Hex-encoded namespace ID for submitting transactions (e.g., `010203...`) |
 | `--based.start-height` | Starting DA height for fetching transactions (default `0`) |
 | `--based.max-height-drift` | Max number of DA heights to look ahead during batching (default `1`) |
 | `--based.gas-multiplier` | Gas multiplier to apply on DA submission (default `1.0`) |

@@ -16,7 +16,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer"
 )
 
-// Node is the interface for a rollup node
+// Node is the interface for an application node
 type Node interface {
 	service.Service
 
@@ -25,7 +25,7 @@ type Node interface {
 
 // NewNode returns a new Full or Light Node based on the config
 // This is the entry point for composing a node, when compiling a node, you need to provide an executor
-// Example executors can be found in rollups/
+// Example executors can be found in apps/
 func NewNode(
 	ctx context.Context,
 	conf config.Config,
