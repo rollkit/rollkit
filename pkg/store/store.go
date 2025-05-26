@@ -22,7 +22,6 @@ var (
 	metaPrefix           = "m"
 	heightPrefix         = "t"
 	seqAttestationPrefix = "sa"
-	calcCommitHashPrefix = "ch"
 )
 
 // DefaultStore is a default store implmementation.
@@ -267,25 +266,6 @@ func (s *DefaultStore) GetSequencerAttestation(ctx context.Context, height uint6
 	return attestation, nil
 }
 
-// SaveCommitHash saves the commit hash calculated by the adapter for a given height.
-func (s *DefaultStore) SaveCommitHash(ctx context.Context, height uint64, hash []byte) error {
-	key := ds.NewKey(getCalcCommitHashKey(height))
-	return s.db.Put(ctx, key, hash)
-}
-
-// GetCommitHash retrieves the commit hash calculated by the adapter for a given height.
-func (s *DefaultStore) GetCommitHash(ctx context.Context, height uint64) ([]byte, error) {
-	key := ds.NewKey(getCalcCommitHashKey(height))
-	hash, err := s.db.Get(ctx, key)
-	if errors.Is(err, ds.ErrNotFound) {
-		return nil, err // Return ErrNotFound directly
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get calculated commit hash for height %d: %w", height, err)
-	}
-	return hash, nil
-}
-
 const heightLength = 8
 
 func encodeHeight(height uint64) []byte {
@@ -303,8 +283,4 @@ func decodeHeight(heightBytes []byte) (uint64, error) {
 
 func getSeqAttestationKey(height uint64) string {
 	return seqAttestationPrefix + string(encodeHeight(height))
-}
-
-func getCalcCommitHashKey(height uint64) string {
-	return calcCommitHashPrefix + string(encodeHeight(height))
 }

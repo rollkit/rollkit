@@ -105,6 +105,7 @@ type Manager struct {
 	headerHasher             types.HeaderHasher
 	validatorHasher          types.ValidatorHasher
 	signaturePayloadProvider types.SignaturePayloadProvider
+	commitHashProvider       types.CommitHashProvider
 
 	daHeight *atomic.Uint64
 
@@ -277,6 +278,7 @@ func NewManager(
 	gasMultiplier float64,
 	validatorHasher types.ValidatorHasher,
 	headerHasher types.HeaderHasher,
+	commitHashProvider types.CommitHashProvider,
 	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
@@ -368,6 +370,7 @@ func NewManager(
 		batchSubmissionChan:      make(chan coresequencer.Batch, eventInChLength),
 		signaturePayloadProvider: signaturePayloadProvider,
 		headerHasher:             headerHasher,
+		commitHashProvider:       commitHashProvider,
 	}
 
 	// initialize da included height
@@ -547,7 +550,7 @@ func (m *Manager) getBlockData(ctx context.Context, newHeight uint64, prevBlockD
 		m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
 	}
 
-	header, data, err := m.createBlock(ctx, newHeight, prevBlockData.signature, prevBlockData.headerHash, prevBlockData.commitHash, batchData)
+	header, data, err := m.createBlock(ctx, newHeight, prevBlockData.signature, prevBlockData.headerHash, batchData)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -691,7 +694,6 @@ type previousBlockData struct {
 	headerHash types.Hash
 	dataHash   types.Hash
 	headerTime time.Time
-	commitHash types.Hash
 }
 
 // checkContextAndPendingBlocks checks if the context is done or if the number of pending headers has reached the limit.
@@ -716,26 +718,6 @@ func (m *Manager) getPreviousBlockData(ctx context.Context, newHeight uint64) (*
 	var prevCtx previousBlockData
 	var err error
 	prevHeight := newHeight - 1
-
-	if newHeight > m.genesis.InitialHeight+1 {
-		commitHashBytes, errGetCommit := m.store.GetCommitHash(ctx, prevHeight)
-		if errGetCommit != nil {
-			if !errors.Is(errGetCommit, ds.ErrNotFound) {
-				m.logger.Error("failed to get previous calculated commit hash", "height", prevHeight, "error", errGetCommit)
-			}
-			return nil, fmt.Errorf("failed to get previous calculated commit hash for height %d: %w", prevHeight, errGetCommit)
-		}
-
-		const expectedHashLength = 32
-		if len(commitHashBytes) == expectedHashLength {
-			prevCtx.commitHash = make(types.Hash, expectedHashLength)
-			copy(prevCtx.commitHash, commitHashBytes)
-		} else if len(commitHashBytes) == 0 {
-			m.logger.Info("Empty commit hash retrieved", "height", prevHeight)
-		} else {
-			m.logger.Error("retrieved previous calculated commit hash has incorrect length", "height", prevHeight, "expectedLength", expectedHashLength, "actualLength", len(commitHashBytes))
-		}
-	}
 
 	// Logic to get lastSignature, lastHeaderHash, lastDataHash, lastHeaderTime
 	if newHeight <= m.genesis.InitialHeight {
@@ -786,10 +768,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, prevCalculatedCommitHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, prevCalculatedCommitHash, m.lastState, batchData)
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
@@ -843,14 +825,13 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 	return nil
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, prevCalculatedCommitHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	// Use when batchData is set to data IDs from the DA layer
 	// batchDataIDs := convertBatchDataToBytes(batchData.Data)
 
 	if m.signer == nil {
 		return nil, nil, fmt.Errorf("signer is nil; cannot create block in execCreateBlock")
 	}
-	m.logger.Info("execCreateBlock called", "height", height, "lastHeaderHash", hex.EncodeToString(lastHeaderHash[:]), "prevCalculatedCommitHash", hex.EncodeToString(prevCalculatedCommitHash[:]))
 
 	key, err := m.signer.GetPublic()
 	if err != nil {
@@ -894,7 +875,6 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
 			LastHeaderHash: lastHeaderHash,
-			LastCommitHash: prevCalculatedCommitHash,
 			// DataHash is set at the end of the function
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         m.lastState.AppHash,
@@ -923,6 +903,13 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	} else {
 		header.DataHash = dataHashForEmptyTxs
 	}
+
+	commitHash, err := m.commitHashProvider(lastSignature, &header.Header, m.genesis.ProposerAddress)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to calculate commit hash: %w", err)
+	}
+
+	header.LastCommitHash = commitHash
 
 	return header, blockData, nil
 }
@@ -1133,7 +1120,7 @@ func (m *Manager) createAndSignAttestation(ctx context.Context, header *types.Si
 	}
 	blockDataHash := data.Hash() // Assuming data.Hash() gives the correct DataHash for BlockID
 
-	signingBytes, err := m.getAttestationSigningBytes(header.Height(), round, blockHeaderHash, blockDataHash, header.Time())
+	signingBytes, err := m.signaturePayloadProvider(&header.Header, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get attestation signing bytes: %w", err)
 	}
@@ -1144,6 +1131,7 @@ func (m *Manager) createAndSignAttestation(ctx context.Context, header *types.Si
 	}
 
 	attestation := &types.RollkitSequencerAttestation{
+		Header:           header,
 		Height:           header.Height(),
 		Round:            round,
 		BlockHeaderHash:  blockHeaderHash,

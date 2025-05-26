@@ -84,6 +84,7 @@ func newFullNode(
 	logger log.Logger,
 	validatorHasher types.ValidatorHasher,
 	headerHasher types.HeaderHasher,
+	commitHashProvider types.CommitHashProvider,
 	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (fn *FullNode, err error) {
 	seqMetrics, _ := metricsProvider(genesis.ChainID)
@@ -119,6 +120,7 @@ func newFullNode(
 		validatorHasher,
 		signaturePayloadProvider,
 		headerHasher,
+		commitHashProvider,
 	)
 	if err != nil {
 		return nil, err
@@ -208,6 +210,7 @@ func initBlockManager(
 	validatorHasher types.ValidatorHasher,
 	signaturePayloadProvider types.SignaturePayloadProvider,
 	headerHasher types.HeaderHasher,
+	commitHashProvider types.CommitHashProvider,
 ) (*block.Manager, error) {
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
 
@@ -228,6 +231,7 @@ func initBlockManager(
 		gasMultiplier,
 		validatorHasher,
 		headerHasher,
+		commitHashProvider,
 		signaturePayloadProvider,
 	)
 	if err != nil {
