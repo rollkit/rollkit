@@ -21,12 +21,15 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 const (
@@ -1103,7 +1106,7 @@ func (m *Manager) getAttestationSigningBytes(height uint64, round int32, blockHe
 	return buf.Bytes(), nil
 }
 
-func (m *Manager) createAndSignAttestation(ctx context.Context, header *types.SignedHeader, data *types.Data) (*types.RollkitSequencerAttestation, error) {
+func (m *Manager) createAndSignAttestation(ctx context.Context, header *types.SignedHeader, data *types.Data) (*pb.RollkitSequencerAttestation, error) {
 	if m.signer == nil {
 		return nil, errors.New("signer is nil, cannot create attestation")
 	}
@@ -1130,14 +1133,19 @@ func (m *Manager) createAndSignAttestation(ctx context.Context, header *types.Si
 		return nil, fmt.Errorf("failed to sign attestation data: %w", err)
 	}
 
-	attestation := &types.RollkitSequencerAttestation{
-		Header:           header,
+	headerPb, err := header.ToProto()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert header to protobuf: %w", err)
+	}
+
+	attestation := &pb.RollkitSequencerAttestation{
+		Header:           headerPb,
 		Height:           header.Height(),
 		Round:            round,
 		BlockHeaderHash:  blockHeaderHash,
 		BlockDataHash:    blockDataHash,
 		SequencerAddress: sequencerAddress,
-		Timestamp:        header.Time(),
+		Timestamp:        timestamppb.New(header.Time()),
 		Signature:        signature,
 	}
 

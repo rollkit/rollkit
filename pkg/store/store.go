@@ -232,7 +232,7 @@ func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, err
 }
 
 // SaveSequencerAttestation saves the sequencer attestation for a given height.
-func (s *DefaultStore) SaveSequencerAttestation(ctx context.Context, height uint64, attestation *types.RollkitSequencerAttestation) error {
+func (s *DefaultStore) SaveSequencerAttestation(ctx context.Context, height uint64, attestation *pb.RollkitSequencerAttestation) error {
 	key := ds.NewKey(getSeqAttestationKey(height))
 	// TODO (gmm): consider using proto for marshalling if a proto definition exists or will be created.
 	// For now, using a simple binary marshaller if available, or json as a fallback.
@@ -241,7 +241,7 @@ func (s *DefaultStore) SaveSequencerAttestation(ctx context.Context, height uint
 	// As a placeholder, we'll use a direct proto marshal if the object were a proto message.
 	// If RollkitSequencerAttestation is not a proto message, this needs to be adapted (e.g. json.Marshal).
 	// For the ADR, it's defined as a simple Go struct. We'll use JSON for now.
-	attestationBytes, err := attestation.MarshalBinary() // Assuming MarshalBinary for now as per other types.
+	attestationBytes, err := proto.Marshal(attestation) // Assuming MarshalBinary for now as per other types.
 	if err != nil {
 		return fmt.Errorf("failed to marshal sequencer attestation: %w", err)
 	}
@@ -249,7 +249,7 @@ func (s *DefaultStore) SaveSequencerAttestation(ctx context.Context, height uint
 }
 
 // GetSequencerAttestation retrieves the sequencer attestation for a given height.
-func (s *DefaultStore) GetSequencerAttestation(ctx context.Context, height uint64) (*types.RollkitSequencerAttestation, error) {
+func (s *DefaultStore) GetSequencerAttestation(ctx context.Context, height uint64) (*pb.RollkitSequencerAttestation, error) {
 	key := ds.NewKey(getSeqAttestationKey(height))
 	attestationBytes, err := s.db.Get(ctx, key)
 	if errors.Is(err, ds.ErrNotFound) {
@@ -258,9 +258,9 @@ func (s *DefaultStore) GetSequencerAttestation(ctx context.Context, height uint6
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sequencer attestation for height %d: %w", height, err)
 	}
-	attestation := new(types.RollkitSequencerAttestation)
+	attestation := new(pb.RollkitSequencerAttestation)
 	// Assuming UnmarshalBinary for now.
-	if err := attestation.UnmarshalBinary(attestationBytes); err != nil {
+	if err := proto.Unmarshal(attestationBytes, attestation); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal sequencer attestation for height %d: %w", height, err)
 	}
 	return attestation, nil
