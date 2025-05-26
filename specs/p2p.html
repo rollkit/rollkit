@@ -138,12 +138,12 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="p2p"><a class="header" href="#p2p">P2P</a></h1>
-<p>Every rollup node (both full and light) runs a P2P client using <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a> P2P networking stack for gossiping transactions in the rollup's P2P network. The same P2P client is also used by the header and block sync services for gossiping headers and blocks.</p>
+<p>Every  node (both full and light) runs a P2P client using <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a> P2P networking stack for gossiping transactions in the chain's P2P network. The same P2P client is also used by the header and block sync services for gossiping headers and blocks.</p>
 <p>Following parameters are required for creating a new instance of a P2P client:</p>
 <ul>
 <li>P2PConfig (described below)</li>
 <li><a href="https://github.com/libp2p/go-libp2p">go-libp2p</a> private key used to create a libp2p connection and join the p2p network.</li>
-<li>chainID: rollup identifier used as namespace within the p2p network for peer discovery. The namespace acts as a sub network in the p2p network, where peer connections are limited to the same namespace.</li>
+<li>chainID: identifier used as namespace within the p2p network for peer discovery. The namespace acts as a sub network in the p2p network, where peer connections are limited to the same namespace.</li>
 <li>datastore: an instance of <a href="https://github.com/ipfs/go-datastore">go-datastore</a> used for creating a connection gator and stores blocked and allowed peers.</li>
 <li>logger</li>
 </ul>
