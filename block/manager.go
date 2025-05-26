@@ -505,7 +505,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 }
 
 func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) bool {
-	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
+	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic(m.signaturePayloadProvider) == nil
 }
 
 // getBlockData retrieves or creates the block data for the given height.
@@ -591,7 +591,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// set the signature to current block's signed header
 	header.Signature = signature
 
-	if err := header.ValidateBasic(); err != nil {
+	if err := header.ValidateBasic(m.signaturePayloadProvider); err != nil {
 		// If this ever happens, for recovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
 		return fmt.Errorf("header validation error: %w", err)
 	}
@@ -791,7 +791,7 @@ func (m *Manager) Validate(ctx context.Context, header *types.SignedHeader, data
 // execValidate validates a pair of header and data against the last state
 func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader, data *types.Data) error {
 	// Validate the basic structure of the header
-	if err := header.ValidateBasic(); err != nil {
+	if err := header.ValidateBasic(m.signaturePayloadProvider); err != nil {
 		return fmt.Errorf("invalid header: %w", err)
 	}
 

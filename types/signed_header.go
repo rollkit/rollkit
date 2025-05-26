@@ -92,7 +92,7 @@ var (
 )
 
 // ValidateBasic performs basic validation of a signed header.
-func (sh *SignedHeader) ValidateBasic() error {
+func (sh *SignedHeader) ValidateBasic(provider SignaturePayloadProvider) error {
 	if err := sh.Header.ValidateBasic(); err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return ErrProposerAddressMismatch
 	}
 
-	bz, err := sh.Header.MarshalBinary()
+	bz, err := provider(&sh.Header, nil)
 	if err != nil {
 		return err
 	}
@@ -119,11 +119,6 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return ErrSignatureVerificationFailed
 	}
 	return nil
-}
-
-// Validate performs basic validation of a signed header.
-func (sh *SignedHeader) Validate() error {
-	return sh.ValidateBasic()
 }
 
 var _ header.Header[*SignedHeader] = &SignedHeader{}
