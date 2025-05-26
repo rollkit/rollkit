@@ -101,8 +101,9 @@ type Manager struct {
 	genesis genesis.Genesis
 
 	signer signer.Signer
-	// Injected hasher for ValidatorHash calculation
-	validatorHasher types.ValidatorHasher
+
+	validatorHasher          types.ValidatorHasher
+	signaturePayloadProvider types.SignaturePayloadProvider
 
 	daHeight *atomic.Uint64
 
@@ -274,6 +275,7 @@ func NewManager(
 	gasPrice float64,
 	gasMultiplier float64,
 	validatorHasher types.ValidatorHasher,
+	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
 	if err != nil {
@@ -336,32 +338,33 @@ func NewManager(
 		store:     store,
 		daHeight:  &daH,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:            make(chan *types.SignedHeader, channelLength),
-		DataCh:              make(chan *types.Data, channelLength),
-		headerInCh:          make(chan NewHeaderEvent, eventInChLength),
-		dataInCh:            make(chan NewDataEvent, eventInChLength),
-		headerStoreCh:       make(chan struct{}, 1),
-		dataStoreCh:         make(chan struct{}, 1),
-		headerStore:         headerStore,
-		dataStore:           dataStore,
-		lastStateMtx:        new(sync.RWMutex),
-		lastBatchData:       lastBatchData,
-		headerCache:         cache.NewCache[types.SignedHeader](),
-		dataCache:           cache.NewCache[types.Data](),
-		retrieveCh:          make(chan struct{}, 1),
-		daIncluderCh:        make(chan struct{}, 1),
-		logger:              logger,
-		txsAvailable:        false,
-		pendingHeaders:      pendingHeaders,
-		metrics:             seqMetrics,
-		sequencer:           sequencer,
-		exec:                exec,
-		da:                  da,
-		gasPrice:            gasPrice,
-		gasMultiplier:       gasMultiplier,
-		txNotifyCh:          make(chan struct{}, 1),
-		validatorHasher:     validatorHasher,
-		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
+		HeaderCh:                 make(chan *types.SignedHeader, channelLength),
+		DataCh:                   make(chan *types.Data, channelLength),
+		headerInCh:               make(chan NewHeaderEvent, eventInChLength),
+		dataInCh:                 make(chan NewDataEvent, eventInChLength),
+		headerStoreCh:            make(chan struct{}, 1),
+		dataStoreCh:              make(chan struct{}, 1),
+		headerStore:              headerStore,
+		dataStore:                dataStore,
+		lastStateMtx:             new(sync.RWMutex),
+		lastBatchData:            lastBatchData,
+		headerCache:              cache.NewCache[types.SignedHeader](),
+		dataCache:                cache.NewCache[types.Data](),
+		retrieveCh:               make(chan struct{}, 1),
+		daIncluderCh:             make(chan struct{}, 1),
+		logger:                   logger,
+		txsAvailable:             false,
+		pendingHeaders:           pendingHeaders,
+		metrics:                  seqMetrics,
+		sequencer:                sequencer,
+		exec:                     exec,
+		da:                       da,
+		gasPrice:                 gasPrice,
+		gasMultiplier:            gasMultiplier,
+		txNotifyCh:               make(chan struct{}, 1),
+		validatorHasher:          validatorHasher,
+		batchSubmissionChan:      make(chan coresequencer.Batch, eventInChLength),
+		signaturePayloadProvider: signaturePayloadProvider,
 	}
 
 	// initialize da included height
@@ -997,7 +1000,7 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 }
 
 func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
-	b, err := header.MarshalBinary()
+	b, err := m.signaturePayloadProvider(&header, nil)
 	if err != nil {
 		return nil, err
 	}
