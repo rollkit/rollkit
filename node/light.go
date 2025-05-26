@@ -13,7 +13,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
 	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/store"
@@ -38,7 +37,6 @@ func newLightNode(
 	conf config.Config,
 	genesis genesis.Genesis,
 	p2pClient *p2p.Client,
-	nodeKey key.NodeKey,
 	database ds.Batching,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
