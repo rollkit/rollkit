@@ -316,7 +316,7 @@ func TestDummySequencer_BatchOverwrite(t *testing.T) {
 
 	// Get the second batch and verify it's batch2
 	getResp, err = seq.GetNextBatch(ctx, GetNextBatchRequest{
-		RollupId: rollupID,
+		Id: ID,
 	})
 
 	if err != nil {

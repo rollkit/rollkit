@@ -162,7 +162,7 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	height := d.currentHeight
+	height := d.currentHeight + 1
 	ids := make([]ID, 0, len(blobs))
 	var currentSize uint64
 
@@ -201,7 +201,12 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice 
 		ids = append(ids, id)
 	}
 
-	d.blobsByHeight[height] = ids
+	// Add the IDs to the blobsByHeight map if they don't already exist
+	if existingIDs, exists := d.blobsByHeight[height]; exists {
+		d.blobsByHeight[height] = append(existingIDs, ids...)
+	} else {
+		d.blobsByHeight[height] = ids
+	}
 	d.timestampsByHeight[height] = time.Now()
 
 	return ids, nil

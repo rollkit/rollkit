@@ -73,18 +73,16 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 
 			daHeight := dataEvent.DAHeight
 			dataHash := data.DACommitment().String()
+			dataHeight := uint64(0)
 			if data.Metadata != nil {
-				m.logger.Debug("data retrieved",
-					"daHeight", daHeight,
-					"hash", dataHash,
-					"height", data.Metadata.Height,
-				)
-			} else {
-				m.logger.Debug("data retrieved",
-					"daHeight", daHeight,
-					"hash", dataHash,
-				)
+				dataHeight = data.Metadata.Height
 			}
+			m.logger.Debug("data retrieved",
+				"daHeight", daHeight,
+				"hash", dataHash,
+				"height", dataHeight,
+			)
+
 			if m.dataCache.IsSeen(dataHash) {
 				m.logger.Debug("data already seen", "data hash", dataHash)
 				continue
@@ -96,7 +94,7 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 			}
 			if data.Metadata != nil {
 				// Data was sent via the P2P network
-				dataHeight := data.Metadata.Height
+				dataHeight = data.Metadata.Height
 				if dataHeight <= height {
 					m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 					continue

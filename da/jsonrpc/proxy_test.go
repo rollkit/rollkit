@@ -73,6 +73,7 @@ func TestProxy(t *testing.T) {
 	t.Run("Given height is from the future", func(t *testing.T) {
 		HeightFromFutureTest(t, &client.DA)
 	})
+	dummy.StopHeightTicker()
 }
 
 // BasicDATest tests round trip of messages to DA and back.
@@ -137,6 +138,7 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 
 	ctx := t.Context()
 	ids, err := d.Submit(ctx, msgs, 0, testNamespace)
+	time.Sleep(getTestDABlockTime())
 	assert.NoError(t, err)
 	assert.Len(t, ids, len(msgs))
 	found := false
@@ -145,7 +147,7 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 	// To Keep It Simple: we assume working with DA used exclusively for this test (mock, devnet, etc)
 	// As we're the only user, we don't need to handle external data (that could be submitted in real world).
 	// There is no notion of height, so we need to scan the DA to get test data back.
-	for i := uint64(0); !found && !time.Now().After(end); i++ {
+	for i := uint64(1); !found && !time.Now().After(end); i++ {
 		ret, err := d.GetIDs(ctx, i, []byte{})
 		if err != nil {
 			if strings.Contains(err.Error(), coreda.ErrHeightFromFuture.Error()) {
@@ -161,11 +163,19 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 
 			// Submit ensures atomicity of batch, so it makes sense to compare actual blobs (bodies) only when lengths
 			// of slices is the same.
-			if len(blobs) == len(msgs) {
+			if len(blobs) >= len(msgs) {
 				found = true
-				for b := 0; b < len(blobs); b++ {
-					if !bytes.Equal(blobs[b], msgs[b]) {
+				for _, msg := range msgs {
+					msgFound := false
+					for _, blob := range blobs {
+						if bytes.Equal(blob, msg) {
+							msgFound = true
+							break
+						}
+					}
+					if !msgFound {
 						found = false
+						break
 					}
 				}
 			}

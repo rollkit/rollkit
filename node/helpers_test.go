@@ -42,11 +42,15 @@ const (
 )
 
 // createTestComponents creates test components for node initialization
-func createTestComponents(t *testing.T, config rollkitconfig.Config) (coreexecutor.Executor, coresequencer.Sequencer, coreda.DA, *p2p.Client, datastore.Batching, *key.NodeKey) {
+func createTestComponents(t *testing.T, config rollkitconfig.Config) (coreexecutor.Executor, coresequencer.Sequencer, coreda.DA, *p2p.Client, datastore.Batching, *key.NodeKey, func()) {
 	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0, config.DA.BlockTime.Duration)
 	dummyDA.StartHeightTicker()
+
+	stopDAHeightTicker := func() {
+		dummyDA.StopHeightTicker()
+	}
 
 	// Create genesis and keys for P2P client
 	_, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
@@ -59,7 +63,7 @@ func createTestComponents(t *testing.T, config rollkitconfig.Config) (coreexecut
 	require.NotNil(t, p2pClient)
 	ds := dssync.MutexWrap(datastore.NewMapDatastore())
 
-	return executor, sequencer, dummyDA, p2pClient, ds, p2pKey
+	return executor, sequencer, dummyDA, p2pClient, ds, p2pKey, stopDAHeightTicker
 }
 
 func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
@@ -97,8 +101,7 @@ func createNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullNode
 	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
 	require.NoError(t, err)
 
-	executor, sequencer, dac, p2pClient, ds, _ := createTestComponents(t, config)
-
+	executor, sequencer, dac, p2pClient, ds, _, stopDAHeightTicker := createTestComponents(t, config)
 	require.NoError(t, err)
 
 	node, err := NewNode(
@@ -120,6 +123,7 @@ func createNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullNode
 	cleanup := func() {
 		// Cancel the context to stop the node
 		cancel()
+		stopDAHeightTicker()
 	}
 
 	return node.(*FullNode), cleanup
@@ -141,7 +145,8 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 	require.NoError(err)
 
 	aggListenAddress := config.P2P.ListenAddress
-	executor, sequencer, dac, p2pClient, ds, aggP2PKey := createTestComponents(t, config)
+	aggPeers := config.P2P.Peers
+	executor, sequencer, dac, p2pClient, ds, aggP2PKey, stopDAHeightTicker := createTestComponents(t, config)
 	aggPeerID, err := peer.IDFromPrivateKey(aggP2PKey.PrivKey)
 	require.NoError(err)
 
@@ -164,18 +169,24 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 	cleanup := func() {
 		// Cancel the context to stop the node
 		aggCancel()
+		stopDAHeightTicker()
 	}
 
 	nodes[0], cleanups[0] = aggNode.(*FullNode), cleanup
 	config.Node.Aggregator = false
-	aggPeerAddress := fmt.Sprintf("%s/p2p/%s", aggListenAddress, aggPeerID.Loggable()["peerID"].(string))
-	peersList := []string{aggPeerAddress}
+	peersList := []string{}
+	if aggPeers != "none" {
+		aggPeerAddress := fmt.Sprintf("%s/p2p/%s", aggListenAddress, aggPeerID.Loggable()["peerID"].(string))
+		peersList = append(peersList, aggPeerAddress)
+	}
 	for i := 1; i < num; i++ {
 		ctx, cancel := context.WithCancel(context.Background())
-		config.P2P.Peers = strings.Join(peersList, ",")
+		if aggPeers != "none" {
+			config.P2P.Peers = strings.Join(peersList, ",")
+		}
 		config.P2P.ListenAddress = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", 40001+i)
 		config.RPC.Address = fmt.Sprintf("127.0.0.1:%d", 8001+i)
-		executor, sequencer, _, p2pClient, _, nodeP2PKey := createTestComponents(t, config)
+		executor, sequencer, _, p2pClient, _, nodeP2PKey, stopDAHeightTicker := createTestComponents(t, config)
 		node, err := NewNode(
 			ctx,
 			config,
@@ -194,6 +205,7 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 		cleanup := func() {
 			// Cancel the context to stop the node
 			cancel()
+			stopDAHeightTicker()
 		}
 		nodes[i], cleanups[i] = node.(*FullNode), cleanup
 		nodePeerID, err := peer.IDFromPrivateKey(nodeP2PKey.PrivKey)

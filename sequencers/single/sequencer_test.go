@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -216,7 +215,6 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 		t.Fatalf("Expected timestamp day to be %d, got %d", time.Now().Day(), res.Timestamp.Day())
 	}
 
-	fmt.Println("res.Batch.Transactions", res.Batch)
 	// Ensure that the transactions are present
 	if len(res.Batch.Transactions) != 2 {
 		t.Fatalf("Expected 2 transactions, got %d", len(res.Batch.Transactions))

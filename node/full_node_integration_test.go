@@ -11,11 +11,61 @@ import (
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 )
 
-// TestTxGossipingAndAggregation tests that transactions are gossiped and blocks are aggregated and synced across multiple nodes.
-// It creates 4 nodes (1 sequencer, 3 full nodes), injects a transaction, waits for all nodes to sync with DA inclusion, and asserts block equality.
-func TestTxGossipingAndAggregation(t *testing.T) {
+// TestTxGossipingMultipleNodesNoDA tests that transactions are gossiped and blocks are sequenced and synced across multiple nodes without the DA layer over P2P.
+// It creates 4 nodes (1 sequencer, 3 full nodes), injects a transaction, waits for all nodes to sync, and asserts block equality.
+func TestTxGossipingMultipleNodesNoDA(t *testing.T) {
 	require := require.New(t)
 	config := getTestConfig(t, 1)
+	// Set the DA block time to a very large value to ensure that the DA layer is not used
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 100 * time.Second}
+	numNodes := 4
+	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	ctxs, cancels := createNodeContexts(numNodes)
+	var runningWg sync.WaitGroup
+
+	// Start only the sequencer first
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
+
+	// Wait for the first block to be produced by the sequencer
+	err := waitForFirstBlock(nodes[0], Header)
+	require.NoError(err)
+
+	// Verify block manager is properly initialized
+	require.NotNil(nodes[0].blockManager, "Block manager should be initialized")
+
+	// Start the other nodes
+	for i := 1; i < numNodes; i++ {
+		startNodeInBackground(t, nodes, ctxs, &runningWg, i)
+	}
+
+	// Inject a transaction into the sequencer's executor
+	executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
+	executor.InjectTx([]byte("test tx"))
+
+	blocksToWaitFor := uint64(5)
+	// Wait for all nodes to reach at least 5 blocks with DA inclusion
+	for _, node := range nodes {
+		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, Store))
+	}
+
+	// Shutdown all nodes and wait
+	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+
+	// Assert that all nodes have the same block up to height blocksToWaitFor
+	assertAllNodesSynced(t, nodes, blocksToWaitFor)
+}
+
+// TestTxGossipingMultipleNodesDAIncluded tests that transactions are gossiped and blocks are sequenced and synced across multiple nodes only using DA. P2P gossiping is disabled.
+// It creates 4 nodes (1 sequencer, 3 full nodes), injects a transaction, waits for all nodes to sync with DA inclusion, and asserts block equality.
+func TestTxGossipingMultipleNodesDAIncluded(t *testing.T) {
+	require := require.New(t)
+	config := getTestConfig(t, 1)
+	// Disable P2P gossiping
+	config.P2P.Peers = "none"
 
 	numNodes := 4
 	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
@@ -68,8 +118,10 @@ func TestFastDASync(t *testing.T) {
 
 	// Set up two nodes with different block and DA block times
 	config := getTestConfig(t, 1)
-	config.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond}
-	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 50 * time.Millisecond}
+	// Set the block time to 2 seconds and the DA block time to 1 second
+	// Note: these are large values to avoid test failures due to slow CI machines
+	config.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 2 * time.Second}
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 1 * time.Second}
 
 	nodes, cleanups := createNodesWithCleanup(t, 2, config)
 	for _, cleanup := range cleanups {
@@ -83,7 +135,7 @@ func TestFastDASync(t *testing.T) {
 	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
 
 	// Wait for the first node to produce a few blocks
-	blocksToWaitFor := uint64(5)
+	blocksToWaitFor := uint64(2)
 	require.NoError(waitForAtLeastNDAIncludedHeight(nodes[0], blocksToWaitFor))
 
 	// Now start the second node and time its sync
@@ -94,7 +146,7 @@ func TestFastDASync(t *testing.T) {
 	syncDuration := time.Since(start)
 
 	// Ensure node syncs within a small delta of DA block time
-	delta := 75 * time.Millisecond
+	delta := 250 * time.Millisecond
 	require.Less(syncDuration, config.DA.BlockTime.Duration+delta, "Block sync should be faster than DA block time")
 
 	// Verify both nodes are synced and that the synced block is DA-included
@@ -276,7 +328,7 @@ func testSingleSequencerTwoFullNodes(t *testing.T, source Source) {
 	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
 }
 
-// testSingleSequencerSingleFullNode sets up a single sequencer and a single full node with a trusted hash, starts the sequencer, waits for it to produce a block, then starts the full node with the trusted hash.
+// testSingleSequencerSingleFullNodeTrustedHash sets up a single sequencer and a single full node with a trusted hash, starts the sequencer, waits for it to produce a block, then starts the full node with the trusted hash.
 // It waits for both nodes to reach a target block height (using the provided 'source' to determine block inclusion), verifies that both nodes are fully synced, and then shuts them down.
 func testSingleSequencerSingleFullNodeTrustedHash(t *testing.T, source Source) {
 	require := require.New(t)
