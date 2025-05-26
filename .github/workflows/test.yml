@@ -39,36 +39,12 @@ jobs:
         with:
           go-version-file: ./go.mod
       - name: Run unit test
-        run: go test -race -covermode=atomic -coverprofile=coverage.txt ./...
+        run: make test-cover
       - name: upload coverage report
         uses: codecov/codecov-action@v5.4.3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
-
-  test_single_sequencer:
-    name: Run Single Sequencer Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: set up go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: ./go.mod
-      - name: Run unit test
-        run: cd sequencers/single && go test ./...
-
-  test_da:
-    name: Run DA Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: set up go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: ./go.mod
-      - name: Run unit test
-        run: cd da && go test ./...
 
   e2e-tests:
     name: Run E2E System Tests

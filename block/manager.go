@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/gob"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -138,7 +140,7 @@ type Manager struct {
 
 	exec coreexecutor.Executor
 
-	// daIncludedHeight is rollup height at which all blocks have been included
+	// daIncludedHeight is rollkit height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
 	da               coreda.DA
@@ -175,8 +177,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 		// TODO(tzdybal): handle max bytes
 		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
-			logger.Error("error while initializing chain", "error", err)
-			return types.State{}, err
+			return types.State{}, fmt.Errorf("failed to initialize chain: %w", err)
 		}
 
 		// Initialize genesis block explicitly
@@ -188,7 +189,8 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				ChainID: genesis.ChainID,
 				Height:  genesis.InitialHeight,
 				Time:    uint64(genesis.GenesisDAStartTime.UnixNano()),
-			}}
+			},
+		}
 
 		var signature types.Signature
 
@@ -272,12 +274,11 @@ func NewManager(
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
 	if err != nil {
-		logger.Error("error while getting initial state", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get initial state: %w", err)
 	}
-	//set block height in store
-	err = store.SetHeight(ctx, s.LastBlockHeight)
-	if err != nil {
+
+	// set block height in store
+	if err = store.SetHeight(ctx, s.LastBlockHeight); err != nil {
 		return nil, err
 	}
 
@@ -286,22 +287,22 @@ func NewManager(
 	}
 
 	if config.DA.BlockTime.Duration == 0 {
-		logger.Info("Using default DA block time", "DABlockTime", defaultDABlockTime)
+		logger.Info("using default DA block time", "DABlockTime", defaultDABlockTime)
 		config.DA.BlockTime.Duration = defaultDABlockTime
 	}
 
 	if config.Node.BlockTime.Duration == 0 {
-		logger.Info("Using default block time", "BlockTime", defaultBlockTime)
+		logger.Info("using default block time", "BlockTime", defaultBlockTime)
 		config.Node.BlockTime.Duration = defaultBlockTime
 	}
 
 	if config.Node.LazyBlockInterval.Duration == 0 {
-		logger.Info("Using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
+		logger.Info("using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
 		config.Node.LazyBlockInterval.Duration = defaultLazyBlockTime
 	}
 
 	if config.DA.MempoolTTL == 0 {
-		logger.Info("Using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
+		logger.Info("using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
 		config.DA.MempoolTTL = defaultMempoolTTL
 	}
 
@@ -312,7 +313,7 @@ func NewManager(
 
 	// If lastBatchHash is not set, retrieve the last batch hash from store
 	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
-	if err != nil {
+	if err != nil && s.LastBlockHeight > 0 {
 		logger.Error("error while retrieving last batch hash", "error", err)
 	}
 
@@ -324,7 +325,7 @@ func NewManager(
 	daH := atomic.Uint64{}
 	daH.Store(s.DAHeight)
 
-	agg := &Manager{
+	m := &Manager{
 		signer:    signer,
 		config:    config,
 		genesis:   genesis,
@@ -358,16 +359,26 @@ func NewManager(
 		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
 		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
 	}
-	agg.init(ctx)
-	// Set the default publishBlock implementation
-	agg.publishBlock = agg.publishBlockInternal
-	if s, ok := agg.sequencer.(interface {
-		SetBatchSubmissionChan(chan coresequencer.Batch)
-	}); ok {
-		s.SetBatchSubmissionChan(agg.batchSubmissionChan)
+
+	// initialize da included height
+	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
+		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
 	}
 
-	return agg, nil
+	// Set the default publishBlock implementation
+	m.publishBlock = m.publishBlockInternal
+	if s, ok := m.sequencer.(interface {
+		SetBatchSubmissionChan(chan coresequencer.Batch)
+	}); ok {
+		s.SetBatchSubmissionChan(m.batchSubmissionChan)
+	}
+
+	// fetch caches from disks
+	if err := m.LoadCache(); err != nil {
+		return nil, fmt.Errorf("failed to load cache: %w", err)
+	}
+
+	return m, nil
 }
 
 // PendingHeaders returns the pending headers.
@@ -387,14 +398,7 @@ func (m *Manager) GetLastState() types.State {
 	return m.lastState
 }
 
-func (m *Manager) init(ctx context.Context) {
-	// initialize da included height
-	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
-		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
-	}
-}
-
-// GetDAIncludedHeight returns the rollup height at which all blocks have been
+// GetDAIncludedHeight returns the height at which all blocks have been
 // included in the DA
 func (m *Manager) GetDAIncludedHeight() uint64 {
 	return m.daIncludedHeight.Load()
@@ -436,7 +440,7 @@ func (m *Manager) IsBlockHashSeen(blockHash string) bool {
 }
 
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
-// TODO(tac0turtle): should we use this for pending header system to verify how far ahead a rollup is?
+// TODO(tac0turtle): should we use this for pending header system to verify how far ahead a chain is?
 func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error) {
 	header, data, err := m.store.GetBlockData(ctx, height)
 	if err != nil {
@@ -462,7 +466,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		"lastBatchData", m.lastBatchData)
 
 	req := coresequencer.GetNextBatchRequest{
-		RollupId:      []byte(m.genesis.ChainID),
+		Id:            []byte(m.genesis.ChainID),
 		LastBatchData: m.lastBatchData,
 	}
 
@@ -499,6 +503,7 @@ func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) boo
 
 // publishBlockInternal is the internal implementation for publishing a block.
 // It's assigned to the publishBlock field by default.
+// Any error will be returned, unless the error is due to a publishing error.
 func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -507,8 +512,8 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	if m.config.Node.MaxPendingHeaders != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeaders {
-		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
-			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders)
+		m.logger.Warn(fmt.Sprintf("refusing to create block: pending blocks [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders))
+		return nil
 	}
 
 	var (
@@ -553,7 +558,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// If there is use that instead of creating a new block
 	pendingHeader, pendingData, err := m.store.GetBlockData(ctx, newHeight)
 	if err == nil {
-		m.logger.Info("Using pending block", "height", newHeight)
+		m.logger.Info("using pending block", "height", newHeight)
 		header = pendingHeader
 		data = pendingData
 	} else {
@@ -561,18 +566,19 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		if err != nil {
 			if errors.Is(err, ErrNoBatch) {
 				if batchData == nil {
-					m.logger.Info("No batch retrieved from sequencer, skipping block production")
+					m.logger.Info("no batch retrieved from sequencer, skipping block production")
 					return nil
 				}
-				m.logger.Info("Creating empty block", "height", newHeight)
+				m.logger.Info("creating empty block", "height", newHeight)
 			} else {
-				return fmt.Errorf("failed to get transactions from batch: %w", err)
+				m.logger.Warn("failed to get transactions from batch", "error", err)
+				return nil
 			}
 		} else {
 			if batchData.Before(lastHeaderTime) {
 				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 			}
-			m.logger.Info("Creating and publishing block", "height", newHeight)
+			m.logger.Info("creating and publishing block", "height", newHeight)
 			m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
 		}
 
@@ -582,7 +588,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 
 		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
-			return SaveBlockError{err}
+			return fmt.Errorf("failed to save block: %w", err)
 		}
 	}
 
@@ -596,16 +602,12 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	if err := header.ValidateBasic(); err != nil {
 		// If this ever happens, for recovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
-		panic(fmt.Errorf("critical: newly produced header failed validation: %w", err))
+		return fmt.Errorf("header validation error: %w", err)
 	}
 
 	newState, err := m.applyBlock(ctx, header, data)
 	if err != nil {
-		if ctx.Err() != nil {
-			return err
-		}
-		// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
-		panic(err)
+		return fmt.Errorf("error applying block: %w", err)
 	}
 
 	// append metadata to Data before validating and saving
@@ -628,23 +630,23 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlockData(ctx, header, data, &signature)
 	if err != nil {
-		return SaveBlockError{err}
+		return fmt.Errorf("failed to save block: %w", err)
 	}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
-	err = m.store.SetHeight(ctx, headerHeight)
-	if err != nil {
+	if err = m.store.SetHeight(ctx, headerHeight); err != nil {
 		return err
 	}
 
 	newState.DAHeight = m.daHeight.Load()
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
-	err = m.updateState(ctx, newState)
-	if err != nil {
-		return err
+	if err = m.updateState(ctx, newState); err != nil {
+		return fmt.Errorf("failed to update state: %w", err)
 	}
+
 	m.recordMetrics(data)
+
 	// Check for shut down event prior to sending the header and block to
 	// their respective channels. The reason for checking for the shutdown
 	// event separately is due to the inconsistent nature of the select
@@ -820,9 +822,10 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
+
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
-		return types.State{}, err
+		return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)
 	}
 
 	s, err := lastState.NextState(header, newStateRoot)
@@ -926,6 +929,12 @@ func (m *Manager) NotifyNewTransactions() {
 	}
 }
 
+var (
+	cacheDir       = "cache"
+	headerCacheDir = filepath.Join(cacheDir, "header")
+	dataCacheDir   = filepath.Join(cacheDir, "data")
+)
+
 // HeaderCache returns the headerCache used by the manager.
 func (m *Manager) HeaderCache() *cache.Cache[types.SignedHeader] {
 	return m.headerCache
@@ -934,4 +943,36 @@ func (m *Manager) HeaderCache() *cache.Cache[types.SignedHeader] {
 // DataCache returns the dataCache used by the manager.
 func (m *Manager) DataCache() *cache.Cache[types.Data] {
 	return m.dataCache
+}
+
+// LoadCache loads the header and data caches from disk.
+func (m *Manager) LoadCache() error {
+	gob.Register(&types.SignedHeader{})
+	gob.Register(&types.Data{})
+
+	cfgDir := filepath.Join(m.config.RootDir, "data")
+
+	if err := m.headerCache.LoadFromDisk(filepath.Join(cfgDir, headerCacheDir)); err != nil {
+		return fmt.Errorf("failed to load header cache from disk: %w", err)
+	}
+
+	if err := m.dataCache.LoadFromDisk(filepath.Join(cfgDir, dataCacheDir)); err != nil {
+		return fmt.Errorf("failed to load data cache from disk: %w", err)
+	}
+
+	return nil
+}
+
+// SaveCache saves the header and data caches to disk.
+func (m *Manager) SaveCache() error {
+	cfgDir := filepath.Join(m.config.RootDir, "data")
+
+	if err := m.headerCache.SaveToDisk(filepath.Join(cfgDir, headerCacheDir)); err != nil {
+		return fmt.Errorf("failed to save header cache to disk: %w", err)
+	}
+
+	if err := m.dataCache.SaveToDisk(filepath.Join(cfgDir, dataCacheDir)); err != nil {
+		return fmt.Errorf("failed to save data cache to disk: %w", err)
+	}
+	return nil
 }

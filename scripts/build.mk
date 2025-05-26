@@ -9,7 +9,7 @@ LDFLAGS := \
 ## install: Install rollkit CLI
 install:
 	@echo "--> Installing Testapp CLI"
-	@cd rollups/testapp && go install -ldflags "$(LDFLAGS)" .
+	@cd apps/testapp && go install -ldflags "$(LDFLAGS)" .
 	@echo "--> Testapp CLI Installed!"
 	@echo "    Check the version with: testapp version"
 	@echo "    Check the binary with: which testapp"
@@ -19,11 +19,11 @@ build-all:
 	@echo "--> Building all rollkit binaries"
 	@mkdir -p $(CURDIR)/build
 	@echo "--> Building testapp"
-	@cd rollups/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp .
+	@cd apps/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp .
 	@echo "--> Building evm-single"
-	@cd rollups/evm/single && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-single .
+	@cd apps/evm/single && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-single .
 	@echo "--> Building evm-based"
-	@cd rollups/evm/based && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-based .
+	@cd apps/evm/based && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-based .
 	@echo "--> Building local-da"
 	@cd da && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/local-da ./cmd/local-da
 	@echo "--> All rollkit binaries built!"
@@ -32,39 +32,39 @@ build-all:
 build:
 	@echo "--> Building Testapp CLI"
 	@mkdir -p $(CURDIR)/build
-	@cd rollups/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp .
+	@cd apps/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp .
 	@echo "--> Testapp CLI Built!"
-	@echo "    Check the version with: rollups/testapp version"
-	@echo "    Check the binary with: $(CURDIR)/rollups/testapp"
+	@echo "    Check the version with: apps/testapp version"
+        @echo "    Check the binary with: $(CURDIR)/build/testapp"
 .PHONY: build
 
 ## build-testapp-bench:
 build-testapp-bench:
 	@echo "--> Building Testapp Bench"
 	@mkdir -p $(CURDIR)/build
-	@cd rollups/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp-bench ./kv/bench
-	@echo "    Check the binary with: $(CURDIR)/rollups/testapp/bench"
+	@cd apps/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp-bench ./kv/bench
+	@echo "    Check the binary with: $(CURDIR)/apps/testapp/bench"
 .PHONY: build-testapp-bench
 
-## biuld-evm-single: build evm single
+## build-evm-single: build evm single
 build-evm-single:
 	@echo "--> Building EVM single"
 	@mkdir -p $(CURDIR)/build
-	@cd rollups/evm/single && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-single .
-	@echo "    Check the binary with: $(CURDIR)/rollups/evm-single"
+	@cd apps/evm/single && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-single .
+        @echo "    Check the binary with: $(CURDIR)/build/evm-single"
 
-## biuld-evm-based: build evm based
+## build-evm-based: build evm based
 build-evm-based:
 	@echo "--> Building EVM based"
 	@mkdir -p $(CURDIR)/build
-	@cd rollups/evm/based && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-based .
-	@echo "    Check the binary with: $(CURDIR)/rollups/evm-based"
+	@cd apps/evm/based && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-based .
+        @echo "    Check the binary with: $(CURDIR)/build/evm-based"
 
 build-da:
 	@echo "--> Building local-da"
 	@mkdir -p $(CURDIR)/build
 	@cd da && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/local-da ./cmd/local-da
-	@echo "    Check the binary with: $(CURDIR)/rollups/local-da"
+        @echo "    Check the binary with: $(CURDIR)/build/local-da"
 .PHONY: build-da
 
 ## clean: clean and build

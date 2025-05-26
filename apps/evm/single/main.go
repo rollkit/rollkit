@@ -4,22 +4,29 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	cmds "github.com/rollkit/rollkit/rollups/testapp/cmd"
+	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+
+	"github.com/rollkit/rollkit/apps/evm/single/cmd"
 )
 
 func main() {
 	// Initiate the root command
-	rootCmd := cmds.RootCmd
-	initCmd := cmds.InitCmd()
+	rootCmd := &cobra.Command{
+		Use:   "evm-single",
+		Short: "Rollkit with EVM; single sequencer",
+	}
 
-	// Add subcommands to the root command
+	rollkitconfig.AddGlobalFlags(rootCmd, "evm-single")
+
 	rootCmd.AddCommand(
-		cmds.RunCmd,
+		cmd.InitCmd(),
+		cmd.RunCmd,
 		rollcmd.VersionCmd,
 		rollcmd.NetInfoCmd,
 		rollcmd.StoreUnsafeCleanCmd,
-		initCmd,
 	)
 
 	if err := rootCmd.Execute(); err != nil {

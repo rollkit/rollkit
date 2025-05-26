@@ -78,7 +78,7 @@ daSubmitRetryLoop:
 			}
 		}
 
-		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
+		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) // TODO: make this configurable
 		res := types.SubmitWithHelpers(ctx, m.da, m.logger, headersBz, gasPrice, nil)
 		cancel()
 
@@ -139,7 +139,7 @@ func (m *Manager) BatchSubmissionLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			m.logger.Info("Batch submission loop stopped")
+			m.logger.Info("batch submission loop stopped")
 			return
 		case batch := <-m.batchSubmissionChan:
 			err := m.submitBatchToDA(ctx, batch)

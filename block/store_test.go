@@ -3,6 +3,7 @@ package block
 import (
 	// ... other necessary imports ...
 	"context"
+	"encoding/binary"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -13,6 +14,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+
 	// Use existing store mock if available, or define one
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	extmocks "github.com/rollkit/rollkit/test/mocks/external"
@@ -76,8 +78,11 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 		config:        nodeConf,
 		signer:        signer,
 	}
-	// Initialize daHeight atomic variable
-	m.init(ctx) // Call init to handle potential DAIncludedHeightKey loading
+
+	// initialize da included height
+	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
+		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
+	}
 
 	return m, mockStore, mockHeaderStore, mockDataStore, headerStoreCh, dataStoreCh, headerInCh, dataInCh, ctx, cancel
 }
@@ -218,7 +223,6 @@ func TestDataStoreRetrieveLoop_NoNewData(t *testing.T) {
 
 // TestDataStoreRetrieveLoop_HandlesFetchError verifies that the data store retrieve loop handles fetch errors gracefully.
 func TestDataStoreRetrieveLoop_HandlesFetchError(t *testing.T) {
-
 	m, mockStore, _, mockDataStore, _, dataStoreCh, _, dataInCh, ctx, cancel := setupManagerForStoreRetrieveTest(t)
 	defer cancel()
 

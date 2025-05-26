@@ -9,13 +9,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
+	kvexecutor "github.com/rollkit/rollkit/apps/testapp/kv"
 	"github.com/rollkit/rollkit/da/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/store"
-	kvexecutor "github.com/rollkit/rollkit/rollups/testapp/kv"
 	"github.com/rollkit/rollkit/sequencers/single"
 )
 
@@ -106,6 +106,6 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, nodeKey, p2pClient, datastore, nodeConfig)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig)
 	},
 }

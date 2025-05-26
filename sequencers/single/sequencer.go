@@ -14,9 +14,9 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 )
 
-// ErrInvalidRollupId is returned when the rollup id is invalid
+// ErrInvalidId is returned when the chain id is invalid
 var (
-	ErrInvalidRollupId = errors.New("invalid rollup id")
+	ErrInvalidId = errors.New("invalid chain id")
 
 	initialBackoff = 100 * time.Millisecond
 
@@ -26,14 +26,14 @@ var (
 
 var _ coresequencer.Sequencer = &Sequencer{}
 
-// Sequencer implements go-sequencing interface
+// Sequencer implements core sequencing interface
 type Sequencer struct {
 	logger log.Logger
 
 	proposer bool
 
-	rollupId []byte
-	da       coreda.DA
+	Id []byte
+	da coreda.DA
 
 	batchTime time.Duration
 
@@ -49,7 +49,7 @@ func NewSequencer(
 	logger log.Logger,
 	db ds.Batching,
 	da coreda.DA,
-	rollupId []byte,
+	id []byte,
 	batchTime time.Duration,
 	metrics *Metrics,
 	proposer bool,
@@ -58,7 +58,7 @@ func NewSequencer(
 		logger:    logger,
 		da:        da,
 		batchTime: batchTime,
-		rollupId:  rollupId,
+		Id:        id,
 		queue:     NewBatchQueue(db, "batches"),
 		metrics:   metrics,
 		proposer:  proposer,
@@ -74,15 +74,15 @@ func NewSequencer(
 	return s, nil
 }
 
-// SubmitRollupBatchTxs implements sequencing.Sequencer.
-func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.SubmitRollupBatchTxsRequest) (*coresequencer.SubmitRollupBatchTxsResponse, error) {
-	if !c.isValid(req.RollupId) {
-		return nil, ErrInvalidRollupId
+// SubmitBatchTxs implements sequencing.Sequencer.
+func (c *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.SubmitBatchTxsRequest) (*coresequencer.SubmitBatchTxsResponse, error) {
+	if !c.isValid(req.Id) {
+		return nil, ErrInvalidId
 	}
 
 	if req.Batch == nil || len(req.Batch.Transactions) == 0 {
-		c.logger.Info("Skipping submission of empty batch", "rollupId", string(req.RollupId))
-		return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
+		c.logger.Info("Skipping submission of empty batch", "Id", string(req.Id))
+		return &coresequencer.SubmitBatchTxsResponse{}, nil
 	}
 
 	batch := coresequencer.Batch{Transactions: req.Batch.Transactions}
@@ -102,13 +102,13 @@ func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 		return nil, fmt.Errorf("failed to add batch: %w", err)
 	}
 
-	return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
+	return &coresequencer.SubmitBatchTxsResponse{}, nil
 }
 
 // GetNextBatch implements sequencing.Sequencer.
 func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextBatchRequest) (*coresequencer.GetNextBatchResponse, error) {
-	if !c.isValid(req.RollupId) {
-		return nil, ErrInvalidRollupId
+	if !c.isValid(req.Id) {
+		return nil, ErrInvalidId
 	}
 
 	batch, err := c.queue.Next(ctx)
@@ -145,8 +145,8 @@ func (c *Sequencer) exponentialBackoff(backoff time.Duration) time.Duration {
 
 // VerifyBatch implements sequencing.Sequencer.
 func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBatchRequest) (*coresequencer.VerifyBatchResponse, error) {
-	if !c.isValid(req.RollupId) {
-		return nil, ErrInvalidRollupId
+	if !c.isValid(req.Id) {
+		return nil, ErrInvalidId
 	}
 
 	if !c.proposer {
@@ -171,8 +171,8 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 	return &coresequencer.VerifyBatchResponse{Status: true}, nil
 }
 
-func (c *Sequencer) isValid(rollupId []byte) bool {
-	return bytes.Equal(c.rollupId, rollupId)
+func (c *Sequencer) isValid(Id []byte) bool {
+	return bytes.Equal(c.Id, Id)
 }
 
 func (s *Sequencer) SetBatchSubmissionChan(batchSubmissionChan chan coresequencer.Batch) {

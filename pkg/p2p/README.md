@@ -1,10 +1,10 @@
 # P2P Package
 
-This document provides an overview of the P2P (peer-to-peer) networking system used in Rollkit. The P2P package leverages [go-libp2p](https://github.com/libp2p/go-libp2p) stack for establishing peer connections, gossiping transactions, and synchronizing headers and blocks across the rollup network.
+This document provides an overview of the P2P (peer-to-peer) networking system used in Rollkit. The P2P package leverages [go-libp2p](https://github.com/libp2p/go-libp2p) stack for establishing peer connections, gossiping transactions, and synchronizing headers and blocks across the network.
 
 ## Overview
 
-Every rollup node (both full and light) runs a P2P client for participating in the rollup's P2P network. The client handles the following key functions:
+Every node (both full and light) runs a P2P client for participating in the P2P network. The client handles the following key functions:
 
 - Establishing and managing peer connections
 - Gossiping transactions through the network
@@ -93,7 +93,7 @@ graph LR
    - Listens on specified multiaddresses
 
 2. **Kademlia DHT**: Distributed Hash Table for peer discovery and routing
-   - Used for finding other peers within the same rollup network
+   - Used for finding other peers within the same network
    - Bootstrapped with seed nodes defined in configuration
 
 3. **GossipSub**: Publish-subscribe protocol for message dissemination
@@ -169,10 +169,10 @@ Messages (transactions, blocks, etc.) are gossiped through the network using Gos
 
 Where:
 
-- `chainID` is the rollup's chain identifier
+- `chainID` is the chain identifier
 - `topicSuffix` is a suffix specific to the message type (e.g., "tx" for transactions)
 
-This namespace approach ensures that messages only propagate within the intended rollup network.
+This namespace approach ensures that messages only propagate within the intended network.
 
 ## Key Functions
 
