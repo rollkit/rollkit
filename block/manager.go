@@ -102,6 +102,7 @@ type Manager struct {
 
 	signer signer.Signer
 
+	headerHasher             types.HeaderHasher
 	validatorHasher          types.ValidatorHasher
 	signaturePayloadProvider types.SignaturePayloadProvider
 
@@ -275,6 +276,7 @@ func NewManager(
 	gasPrice float64,
 	gasMultiplier float64,
 	validatorHasher types.ValidatorHasher,
+	headerHasher types.HeaderHasher,
 	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
@@ -365,6 +367,7 @@ func NewManager(
 		validatorHasher:          validatorHasher,
 		batchSubmissionChan:      make(chan coresequencer.Batch, eventInChLength),
 		signaturePayloadProvider: signaturePayloadProvider,
+		headerHasher:             headerHasher,
 	}
 
 	// initialize da included height
@@ -453,7 +456,13 @@ func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error)
 	if err != nil {
 		return false, err
 	}
-	headerHash, dataHash := header.Hash(), data.DACommitment()
+
+	headerHash, err := m.headerHasher(&header.Header)
+	if err != nil {
+		return false, err
+	}
+
+	dataHash := data.DACommitment()
 	isIncluded := m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, dataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String()))
 	return isIncluded, nil
 }
@@ -630,8 +639,12 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	headerHeight := header.Height()
 
-	headerHash := header.Hash().String()
-	m.headerCache.SetSeen(headerHash)
+	headerHash, err := m.headerHasher(&header.Header)
+	if err != nil {
+		return fmt.Errorf("failed to hash header: %w", err)
+	}
+
+	m.headerCache.SetSeen(headerHash.String())
 
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlockData(ctx, header, data, &signature)
@@ -738,7 +751,10 @@ func (m *Manager) getPreviousBlockData(ctx context.Context, newHeight uint64) (*
 			return nil, fmt.Errorf("error while loading last block: %w, height: %d", errGetBlockData, prevHeight)
 		}
 
-		prevCtx.headerHash = lastHeader.Hash()
+		prevCtx.headerHash, err = m.headerHasher(&lastHeader.Header)
+		if err != nil {
+			return nil, fmt.Errorf("failed to hash header: %w", err)
+		}
 		prevCtx.dataHash = lastData.Hash()
 		prevCtx.headerTime = lastHeader.Time()
 	}
@@ -1111,7 +1127,10 @@ func (m *Manager) createAndSignAttestation(ctx context.Context, header *types.Si
 
 	// Use round 0 as per ADR suggestion for single sequencer
 	round := int32(0)
-	blockHeaderHash := header.Hash()
+	blockHeaderHash, err := m.headerHasher(&header.Header)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash header: %w", err)
+	}
 	blockDataHash := data.Hash() // Assuming data.Hash() gives the correct DataHash for BlockID
 
 	signingBytes, err := m.getAttestationSigningBytes(header.Height(), round, blockHeaderHash, blockDataHash, header.Time())
