@@ -262,8 +262,8 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		assert.NotNil(res)
 		assert.True(res.Status, "Expected status to be true in proposer mode")
 
-		mockDA.AssertNotCalled(t, "GetProofs", context.Background(), mock.Anything, mock.Anything)
-		mockDA.AssertNotCalled(t, "Validate", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		mockDA.AssertNotCalled(t, "GetProofs", context.Background(), mock.Anything)
+		mockDA.AssertNotCalled(t, "Validate", mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("Non-Proposer Mode", func(t *testing.T) {
@@ -278,8 +278,8 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				batchSubmissionChan: make(chan coresequencer.Batch, 1),
 			}
 
-			mockDA.On("GetProofs", context.Background(), batchData, namespace).Return(proofs, nil).Once()
-			mockDA.On("Validate", mock.Anything, batchData, proofs, namespace).Return([]bool{true, true}, nil).Once()
+			mockDA.On("GetProofs", context.Background(), batchData).Return(proofs, nil).Once()
+			mockDA.On("Validate", mock.Anything, batchData, proofs).Return([]bool{true, true}, nil).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
 			assert.NoError(err)
@@ -299,8 +299,8 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				batchSubmissionChan: make(chan coresequencer.Batch, 1),
 			}
 
-			mockDA.On("GetProofs", context.Background(), batchData, namespace).Return(proofs, nil).Once()
-			mockDA.On("Validate", mock.Anything, batchData, proofs, namespace).Return([]bool{true, false}, nil).Once()
+			mockDA.On("GetProofs", context.Background(), batchData).Return(proofs, nil).Once()
+			mockDA.On("Validate", mock.Anything, batchData, proofs).Return([]bool{true, false}, nil).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
 			assert.NoError(err)
@@ -321,14 +321,14 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			}
 			expectedErr := errors.New("get proofs failed")
 
-			mockDA.On("GetProofs", context.Background(), batchData, namespace).Return(nil, expectedErr).Once()
+			mockDA.On("GetProofs", context.Background(), batchData).Return(nil, expectedErr).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
 			assert.Error(err)
 			assert.Nil(res)
 			assert.Contains(err.Error(), expectedErr.Error())
 			mockDA.AssertExpectations(t)
-			mockDA.AssertNotCalled(t, "Validate", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			mockDA.AssertNotCalled(t, "Validate", mock.Anything, mock.Anything, mock.Anything)
 		})
 
 		t.Run("Validate Error", func(t *testing.T) {
@@ -343,8 +343,8 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			}
 			expectedErr := errors.New("validate failed")
 
-			mockDA.On("GetProofs", context.Background(), batchData, namespace).Return(proofs, nil).Once()
-			mockDA.On("Validate", mock.Anything, batchData, proofs, namespace).Return(nil, expectedErr).Once()
+			mockDA.On("GetProofs", context.Background(), batchData).Return(proofs, nil).Once()
+			mockDA.On("Validate", mock.Anything, batchData, proofs).Return(nil, expectedErr).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
 			assert.Error(err)
@@ -371,8 +371,8 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			assert.Nil(res)
 			assert.ErrorIs(err, ErrInvalidId)
 
-			mockDA.AssertNotCalled(t, "GetProofs", context.Background(), mock.Anything, mock.Anything)
-			mockDA.AssertNotCalled(t, "Validate", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			mockDA.AssertNotCalled(t, "GetProofs", context.Background(), mock.Anything)
+			mockDA.AssertNotCalled(t, "Validate", mock.Anything, mock.Anything, mock.Anything)
 		})
 	})
 }
@@ -400,7 +400,7 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	// Set up mock expectations
 	mockDA.On("GasPrice", mock.Anything).Return(float64(0), nil)
 	mockDA.On("GasMultiplier", mock.Anything).Return(float64(0), nil)
-	mockDA.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("mock DA always rejects submissions"))
 
 	// Submit a batch

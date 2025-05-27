@@ -19,6 +19,7 @@ type DummyDA struct {
 	maxBlobSize        uint64
 	gasPrice           float64
 	gasMultiplier      float64
+	height             uint64
 }
 
 // NewDummyDA creates a new instance of DummyDA with the specified maximum blob size.
@@ -32,6 +33,7 @@ func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64) *Du
 		maxBlobSize:        maxBlobSize,
 		gasPrice:           gasPrice,
 		gasMultiplier:      gasMultiplier,
+		height:             1,
 	}
 }
 
@@ -51,7 +53,7 @@ func (d *DummyDA) GasMultiplier(ctx context.Context) (float64, error) {
 }
 
 // Get returns blobs for the given IDs.
-func (d *DummyDA) Get(ctx context.Context, ids []ID, namespace []byte) ([]Blob, error) {
+func (d *DummyDA) Get(ctx context.Context, ids []ID) ([]Blob, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -67,7 +69,7 @@ func (d *DummyDA) Get(ctx context.Context, ids []ID, namespace []byte) ([]Blob, 
 }
 
 // GetIDs returns IDs of all blobs at the given height.
-func (d *DummyDA) GetIDs(ctx context.Context, height uint64, namespace []byte) (*GetIDsResult, error) {
+func (d *DummyDA) GetIDs(ctx context.Context, height uint64) (*GetIDsResult, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -86,7 +88,7 @@ func (d *DummyDA) GetIDs(ctx context.Context, height uint64, namespace []byte) (
 }
 
 // GetProofs returns proofs for the given IDs.
-func (d *DummyDA) GetProofs(ctx context.Context, ids []ID, namespace []byte) ([]Proof, error) {
+func (d *DummyDA) GetProofs(ctx context.Context, ids []ID) ([]Proof, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -102,7 +104,7 @@ func (d *DummyDA) GetProofs(ctx context.Context, ids []ID, namespace []byte) ([]
 }
 
 // Commit creates commitments for the given blobs.
-func (d *DummyDA) Commit(ctx context.Context, blobs []Blob, namespace []byte) ([]Commitment, error) {
+func (d *DummyDA) Commit(ctx context.Context, blobs []Blob) ([]Commitment, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -115,17 +117,14 @@ func (d *DummyDA) Commit(ctx context.Context, blobs []Blob, namespace []byte) ([
 	return commitments, nil
 }
 
-// Submit submits blobs to the DA layer.
-func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte) ([]ID, error) {
-	return d.SubmitWithOptions(ctx, blobs, gasPrice, namespace, nil)
-}
-
 // SubmitWithOptions submits blobs to the DA layer with additional options.
-func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, error) {
+func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, options []byte) ([]ID, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	height := uint64(len(d.blobsByHeight))
+	batchHeight := d.height
+	d.height++
+
 	ids := make([]ID, 0, len(blobs))
 	var currentSize uint64
 
@@ -154,7 +153,7 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice 
 		commitment := bz[:]
 
 		// Create ID from height and commitment
-		id := makeID(height, commitment)
+		id := makeID(batchHeight, commitment)
 		idStr := string(id)
 
 		d.blobs[idStr] = blob
@@ -164,14 +163,14 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice 
 		ids = append(ids, id)
 	}
 
-	d.blobsByHeight[height] = ids
-	d.timestampsByHeight[height] = time.Now()
+	d.blobsByHeight[batchHeight] = ids
+	d.timestampsByHeight[batchHeight] = time.Now()
 
 	return ids, nil
 }
 
 // Validate validates commitments against proofs.
-func (d *DummyDA) Validate(ctx context.Context, ids []ID, proofs []Proof, namespace []byte) ([]bool, error) {
+func (d *DummyDA) Validate(ctx context.Context, ids []ID, proofs []Proof) ([]bool, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
