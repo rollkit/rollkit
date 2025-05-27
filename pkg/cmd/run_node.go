@@ -22,7 +22,6 @@ import (
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
@@ -95,7 +94,6 @@ func StartNode(
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
-	nodeKey *key.NodeKey,
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
 	nodeConfig rollconf.Config,
@@ -137,7 +135,6 @@ func StartNode(
 		sequencer,
 		da,
 		signer,
-		*nodeKey,
 		p2pClient,
 		genesis,
 		datastore,

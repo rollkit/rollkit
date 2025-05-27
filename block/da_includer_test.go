@@ -24,6 +24,8 @@ func newTestManager(t *testing.T) (*Manager, *mocks.Store, *mocks.Executor, *Moc
 	logger.On("Info", mock.Anything, mock.Anything).Maybe()
 	logger.On("Warn", mock.Anything, mock.Anything).Maybe()
 	logger.On("Error", mock.Anything, mock.Anything).Maybe()
+	// Mock Height to always return a high value so IsDAIncluded works
+	store.On("Height", mock.Anything).Return(uint64(100), nil).Maybe()
 	m := &Manager{
 		store:        store,
 		headerCache:  cache.NewCache[types.SignedHeader](),

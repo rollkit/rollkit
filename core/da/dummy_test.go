@@ -3,11 +3,16 @@ package da
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func TestDummyDA(t *testing.T) {
+	testDABlockTime := 100 * time.Millisecond
 	// Create a new DummyDA instance with a max blob size of 1024 bytes
-	dummyDA := NewDummyDA(1024, 0, 0)
+	dummyDA := NewDummyDA(1024, 0, 0, testDABlockTime)
+	dummyDA.StartHeightTicker()
+	defer dummyDA.StopHeightTicker()
+	// Height is always 0
 	ctx := context.Background()
 
 	// Test MaxBlobSize
@@ -25,6 +30,7 @@ func TestDummyDA(t *testing.T) {
 		[]byte("test blob 2"),
 	}
 	ids, err := dummyDA.Submit(ctx, blobs, 0, nil)
+	time.Sleep(testDABlockTime)
 	if err != nil {
 		t.Fatalf("Submit failed: %v", err)
 	}
@@ -47,7 +53,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test GetIDs
-	result, err := dummyDA.GetIDs(ctx, 0, nil)
+	result, err := dummyDA.GetIDs(ctx, 1, nil)
 	if err != nil {
 		t.Fatalf("GetIDs failed: %v", err)
 	}
