@@ -78,3 +78,55 @@ func TestSubmitBatchToDA_Failure(t *testing.T) {
 		})
 	}
 }
+
+func TestSubmitHeadersToDA_Success(t *testing.T) {
+	da := &mocks.DA{}
+	m := newTestManagerWithDA(t, da)
+	// Prepare a mock PendingHeaders with test data
+	m.pendingHeaders = newPendingBlocks(t)
+
+	// Fill the pending headers with mock block data
+	fillWithBlockData(context.Background(), t, m.pendingHeaders, "Test Submitting Headers")
+
+	// Simulate DA layer successfully accepting the header submission
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return([]coreda.ID{[]byte("id")}, nil)
+
+	// Call submitHeadersToDA and expect no error
+	err := m.submitHeadersToDA(context.Background())
+	assert.NoError(t, err)
+}
+
+// TestSubmitHeadersToDA_Failure verifies that submitHeadersToDA returns an error for various DA failures.
+func TestSubmitHeadersToDA_Failure(t *testing.T) {
+	da := &mocks.DA{}
+	m := newTestManagerWithDA(t, da)
+	// Prepare a mock PendingHeaders with test data
+	m.pendingHeaders = newPendingBlocks(t)
+
+	// Table-driven test for different DA error scenarios
+	testCases := []struct {
+		name    string
+		daError error
+	}{
+		{"AlreadyInMempool", coreda.ErrTxAlreadyInMempool},
+		{"TimedOut", coreda.ErrTxTimedOut},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Fill the pending headers with mock block data for each subtest
+			fillWithBlockData(context.Background(), t, m.pendingHeaders, "Test Submitting Headers")
+			// Reset mock expectations for each error scenario
+			da.ExpectedCalls = nil
+			// Simulate DA layer returning a specific error
+			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Return(nil, tc.daError)
+
+			// Call submitHeadersToDA and expect an error
+			err := m.submitHeadersToDA(context.Background())
+			assert.Error(t, err, "expected error for DA error: %v", tc.daError)
+			assert.Contains(t, err.Error(), "failed to submit all headers to DA layer")
+		})
+	}
+}
