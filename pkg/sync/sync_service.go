@@ -44,12 +44,13 @@ type SyncService[H header.Header[H]] struct {
 
 	p2p *p2p.Client
 
-	ex           *goheaderp2p.Exchange[H]
-	sub          *goheaderp2p.Subscriber[H]
-	p2pServer    *goheaderp2p.ExchangeServer[H]
-	store        *goheaderstore.Store[H]
-	syncer       *goheadersync.Syncer[H]
-	syncerStatus *SyncerStatus
+	ex                *goheaderp2p.Exchange[H]
+	sub               *goheaderp2p.Subscriber[H]
+	p2pServer         *goheaderp2p.ExchangeServer[H]
+	store             *goheaderstore.Store[H]
+	syncer            *goheadersync.Syncer[H]
+	syncerStatus      *SyncerStatus
+	topicSubscription header.Subscription[H]
 }
 
 // DataSyncService is the P2P Sync Service for blocks.
@@ -204,7 +205,7 @@ func (syncService *SyncService[H]) setupP2P(ctx context.Context) ([]peer.ID, err
 	if err := syncService.sub.Start(ctx); err != nil {
 		return nil, fmt.Errorf("error while starting subscriber: %w", err)
 	}
-	if _, err := syncService.sub.Subscribe(); err != nil {
+	if syncService.topicSubscription, err = syncService.sub.Subscribe(); err != nil {
 		return nil, fmt.Errorf("error while subscribing: %w", err)
 	}
 	if err := syncService.store.Start(ctx); err != nil {
@@ -294,6 +295,7 @@ func (syncService *SyncService[H]) setFirstAndStart(ctx context.Context, peerIDs
 //
 // `store` is closed last because it's used by other services.
 func (syncService *SyncService[H]) Stop(ctx context.Context) error {
+	syncService.topicSubscription.Cancel()
 	err := errors.Join(
 		syncService.p2pServer.Stop(ctx),
 		syncService.ex.Stop(ctx),

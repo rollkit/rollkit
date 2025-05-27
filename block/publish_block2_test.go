@@ -34,13 +34,13 @@ import (
 
 func TestSlowConsumers(t *testing.T) {
 	logging.SetDebugLogging()
-	blockTime := 100 * time.Millisecond
+	blockTime := 10 * time.Millisecond
 	specs := map[string]struct {
 		headerConsumerDelay time.Duration
 		dataConsumerDelay   time.Duration
 	}{
 		"slow header consumer": {
-			headerConsumerDelay: blockTime * 2,
+			headerConsumerDelay: blockTime * 3,
 			dataConsumerDelay:   0,
 		},
 		"slow data consumer": {
@@ -78,8 +78,8 @@ func TestSlowConsumers(t *testing.T) {
 			case <-time.After(spec.dataConsumerDelay + spec.headerConsumerDelay + 3*blockTime):
 			}
 			t.Log("shutting down block manager")
-			_ = headerSync.Stop(ctx)
-			_ = dataSync.Stop(ctx)
+			require.NoError(t, dataSync.Stop(ctx))
+			require.NoError(t, headerSync.Stop(ctx))
 			cancel()
 			require.NotNil(t, lastCapturedHeaderPayload)
 			require.NotNil(t, lastCapturedDataPayload)
@@ -113,13 +113,15 @@ func capturingTailBroadcaster[T interface{ Height() uint64 }](waitDuration time.
 		if payload.Height() <= lastHeight {
 			panic(fmt.Sprintf("got height %d, want %d", payload.Height(), lastHeight+1))
 		}
-		lastHeight = payload.Height()
+
 		time.Sleep(waitDuration)
+		lastHeight = payload.Height()
 		*target = payload
 		var err error
 		for _, n := range next {
 			err = errors.Join(n.WriteToStoreAndBroadcast(ctx, payload))
 		}
+
 		return err
 	})
 }
@@ -130,11 +132,11 @@ func capturingHeadBroadcaster[T interface{ Height() uint64 }](waitDuration time.
 		once.Do(func() {
 			*target = payload
 		})
-		time.Sleep(waitDuration)
 		var err error
 		for _, n := range next {
 			err = errors.Join(n.WriteToStoreAndBroadcast(ctx, payload))
 		}
+		time.Sleep(waitDuration)
 		return err
 	})
 }
