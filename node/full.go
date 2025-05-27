@@ -93,7 +93,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	store := store.New(mainKV)
+	rktStore := store.New(mainKV)
 
 	blockManager, err := initBlockManager(
 		ctx,
@@ -101,7 +101,7 @@ func newFullNode(
 		exec,
 		nodeConfig,
 		genesis,
-		store,
+		rktStore,
 		sequencer,
 		da,
 		logger,
@@ -135,7 +135,7 @@ func newFullNode(
 		blockManager: blockManager,
 		reaper:       reaper,
 		da:           da,
-		Store:        store,
+		Store:        rktStore,
 		hSyncService: headerSyncService,
 		dSyncService: dataSyncService,
 	}
@@ -211,6 +211,8 @@ func initBlockManager(
 		logger.With("module", "BlockManager"),
 		headerSyncService.Store(),
 		dataSyncService.Store(),
+		headerSyncService,
+		dataSyncService,
 		seqMetrics,
 		gasPrice,
 		gasMultiplier,
@@ -240,38 +242,6 @@ func (n *FullNode) initGenesisChunks() error {
 	}
 
 	return nil
-}
-
-func (n *FullNode) headerPublishLoop(ctx context.Context) {
-	for {
-		select {
-		case signedHeader := <-n.blockManager.HeaderCh:
-			err := n.hSyncService.WriteToStoreAndBroadcast(ctx, signedHeader)
-			if err != nil {
-				// failed to init or start headerstore
-				n.Logger.Error(err.Error())
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (n *FullNode) dataPublishLoop(ctx context.Context) {
-	for {
-		select {
-		case data := <-n.blockManager.DataCh:
-			err := n.dSyncService.WriteToStoreAndBroadcast(ctx, data)
-			if err != nil {
-				// failed to init or start blockstore
-				n.Logger.Error(err.Error())
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
 }
 
 // startInstrumentationServer starts HTTP servers for instrumentation (Prometheus metrics and pprof).
@@ -406,8 +376,6 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		go n.reaper.Start(ctx)
 		go n.blockManager.HeaderSubmissionLoop(ctx)
 		go n.blockManager.BatchSubmissionLoop(ctx)
-		go n.headerPublishLoop(ctx)
-		go n.dataPublishLoop(ctx)
 		go n.blockManager.DAIncluderLoop(ctx, errCh)
 	} else {
 		go n.blockManager.RetrieveLoop(ctx)
@@ -433,7 +401,7 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	n.Logger.Info("halting full node and its sub services...")
 
 	// Use a timeout context to ensure shutdown doesn't hang
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	var multiErr error // Use a multierror variable

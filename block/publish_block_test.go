@@ -33,16 +33,7 @@ func setupManagerForPublishBlockTest(
 	initialHeight uint64,
 	lastSubmittedHeight uint64,
 	logBuffer *bytes.Buffer,
-) (
-	*Manager,
-	*mocks.Store,
-	*mocks.Executor,
-	*mocks.Sequencer,
-	signer.Signer,
-	chan *types.SignedHeader,
-	chan *types.Data,
-	context.CancelFunc,
-) {
+) (*Manager, *mocks.Store, *mocks.Executor, *mocks.Sequencer, signer.Signer, context.CancelFunc) {
 	require := require.New(t)
 
 	mockStore := mocks.NewStore(t)
@@ -60,8 +51,6 @@ func setupManagerForPublishBlockTest(
 	cfg.Node.BlockTime.Duration = 1 * time.Second
 	genesis := genesispkg.NewGenesis("testchain", initialHeight, time.Now(), proposerAddr)
 
-	headerCh := make(chan *types.SignedHeader, 1)
-	dataCh := make(chan *types.Data, 1)
 	_, cancel := context.WithCancel(context.Background())
 	logger := log.NewLogger(
 		logBuffer,
@@ -74,18 +63,21 @@ func setupManagerForPublishBlockTest(
 
 	var headerStore *goheaderstore.Store[*types.SignedHeader]
 	var dataStore *goheaderstore.Store[*types.Data]
-
 	// Manager initialization (simplified, add fields as needed by tests)
 	manager := &Manager{
-		store:          mockStore,
-		exec:           mockExec,
-		sequencer:      mockSeq,
-		signer:         testSigner,
-		config:         cfg,
-		genesis:        genesis,
-		logger:         logger,
-		HeaderCh:       headerCh,
-		DataCh:         dataCh,
+		store:     mockStore,
+		exec:      mockExec,
+		sequencer: mockSeq,
+		signer:    testSigner,
+		config:    cfg,
+		genesis:   genesis,
+		logger:    logger,
+		headerBroadcaster: broadcasterFn[*types.SignedHeader](func(ctx context.Context, payload *types.SignedHeader) error {
+			return nil
+		}),
+		dataBroadcaster: broadcasterFn[*types.Data](func(ctx context.Context, payload *types.Data) error {
+			return nil
+		}),
 		headerStore:    headerStore,
 		daHeight:       &atomic.Uint64{},
 		dataStore:      dataStore,
@@ -112,7 +104,7 @@ func setupManagerForPublishBlockTest(
 		manager.lastState.LastBlockHeight = 0
 	}
 
-	return manager, mockStore, mockExec, mockSeq, testSigner, headerCh, dataCh, cancel
+	return manager, mockStore, mockExec, mockSeq, testSigner, cancel
 }
 
 // TestPublishBlockInternal_MaxPendingHeadersReached verifies that publishBlockInternal returns an error if the maximum number of pending headers is reached.
@@ -125,7 +117,7 @@ func TestPublishBlockInternal_MaxPendingHeadersReached(t *testing.T) {
 	maxPending := uint64(5)
 	logBuffer := new(bytes.Buffer)
 
-	manager, mockStore, mockExec, mockSeq, _, _, _, cancel := setupManagerForPublishBlockTest(t, currentHeight+1, lastSubmitted, logBuffer)
+	manager, mockStore, mockExec, mockSeq, _, cancel := setupManagerForPublishBlockTest(t, currentHeight+1, lastSubmitted, logBuffer)
 	defer cancel()
 
 	manager.config.Node.MaxPendingHeaders = maxPending
@@ -269,9 +261,13 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		},
 		headerCache: cache.NewCache[types.SignedHeader](),
 		dataCache:   cache.NewCache[types.Data](),
-		HeaderCh:    make(chan *types.SignedHeader, 1),
-		DataCh:      make(chan *types.Data, 1),
-		daHeight:    &daH,
+		headerBroadcaster: broadcasterFn[*types.SignedHeader](func(ctx context.Context, payload *types.SignedHeader) error {
+			return nil
+		}),
+		dataBroadcaster: broadcasterFn[*types.Data](func(ctx context.Context, payload *types.Data) error {
+			return nil
+		}),
+		daHeight: &daH,
 	}
 
 	m.publishBlock = m.publishBlockInternal
@@ -345,7 +341,7 @@ func Test_publishBlock_Success(t *testing.T) {
 	newHeight := initialHeight + 1
 	chainID := "testchain"
 
-	manager, mockStore, mockExec, mockSeq, _, headerCh, dataCh, _ := setupManagerForPublishBlockTest(t, initialHeight, 0, new(bytes.Buffer))
+	manager, mockStore, mockExec, mockSeq, _, _ := setupManagerForPublishBlockTest(t, initialHeight, 0, new(bytes.Buffer))
 	manager.lastState.LastBlockHeight = initialHeight
 
 	mockStore.On("Height", t.Context()).Return(initialHeight, nil).Once()
@@ -360,6 +356,25 @@ func Test_publishBlock_Success(t *testing.T) {
 	mockStore.On("SetHeight", t.Context(), newHeight).Return(nil).Once()
 	mockStore.On("UpdateState", t.Context(), mock.AnythingOfType("types.State")).Return(nil).Once()
 	mockStore.On("SetMetadata", t.Context(), LastBatchDataKey, mock.AnythingOfType("[]uint8")).Return(nil).Once()
+
+	headerCh := make(chan *types.SignedHeader, 1)
+	manager.headerBroadcaster = broadcasterFn[*types.SignedHeader](func(ctx context.Context, payload *types.SignedHeader) error {
+		select {
+		case headerCh <- payload:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	})
+	dataCh := make(chan *types.Data, 1)
+	manager.dataBroadcaster = broadcasterFn[*types.Data](func(ctx context.Context, payload *types.Data) error {
+		select {
+		case dataCh <- payload:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	})
 
 	// --- Mock Executor ---
 	sampleTxs := [][]byte{[]byte("tx1"), []byte("tx2")}
@@ -383,7 +398,6 @@ func Test_publishBlock_Success(t *testing.T) {
 	mockSeq.On("GetNextBatch", t.Context(), batchReqMatcher).Return(batchResponse, nil).Once()
 	err := manager.publishBlock(t.Context())
 	require.NoError(err, "publishBlock should succeed")
-
 	select {
 	case publishedHeader := <-headerCh:
 		assert.Equal(t, newHeight, publishedHeader.Height(), "Published header height mismatch")

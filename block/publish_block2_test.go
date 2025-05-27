@@ -2,57 +2,73 @@ package block
 
 import (
 	"context"
-	"cosmossdk.io/log"
 	cryptoRand "crypto/rand"
+	"errors"
 	"fmt"
+	"math/rand"
+	"path/filepath"
+	"sync"
+	"testing"
+	"time"
+
+	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	syncdb "github.com/ipfs/go-datastore/sync"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
+	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/pkg/store"
-	"github.com/rollkit/rollkit/pkg/sync"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"math/rand"
-	"path/filepath"
-	"testing"
-	"time"
+	rollkitSync "github.com/rollkit/rollkit/pkg/sync"
+	"github.com/rollkit/rollkit/types"
 )
 
 func TestSlowConsumers(t *testing.T) {
+	logging.SetDebugLogging()
 	blockTime := 100 * time.Millisecond
 	specs := map[string]struct {
 		headerConsumerDelay time.Duration
 		dataConsumerDelay   time.Duration
 	}{
 		"slow header consumer": {
-			headerConsumerDelay: blockTime,
+			headerConsumerDelay: blockTime * 2,
 			dataConsumerDelay:   0,
 		},
 		"slow data consumer": {
 			headerConsumerDelay: 0,
-			dataConsumerDelay:   blockTime,
+			dataConsumerDelay:   blockTime * 2,
 		},
 	}
 	for name, spec := range specs {
 		t.Run(name, func(t *testing.T) {
-			var lastCapturedHeaderHeight uint64
-			var lastCapturedDataHeight uint64
-
+			workDir := t.TempDir()
 			dbm := syncdb.MutexWrap(datastore.NewMapDatastore())
 			ctx, cancel := context.WithCancel(t.Context())
 
-			manager, headerSync, dataSync := setupBlockManager(t, ctx, dbm, blockTime)
-			go seqConsumer(ctx, manager.DataCh, spec.dataConsumerDelay, &lastCapturedDataHeight)
+			pk, _, err := crypto.GenerateEd25519Key(cryptoRand.Reader)
+			require.NoError(t, err)
+			noopSigner, err := noop.NewNoopSigner(pk)
+			require.NoError(t, err)
+
+			manager, headerSync, dataSync := setupBlockManager(t, ctx, workDir, dbm, blockTime, noopSigner)
+			var lastCapturedDataPayload *types.Data
+			var lastCapturedHeaderPayload *types.SignedHeader
+			manager.dataBroadcaster = capturingTailBroadcaster[*types.Data](spec.dataConsumerDelay, &lastCapturedDataPayload, dataSync)
+			manager.headerBroadcaster = capturingTailBroadcaster[*types.SignedHeader](spec.headerConsumerDelay, &lastCapturedHeaderPayload, headerSync)
+
+			//go seqConsumer(ctx, manager.DataCh, spec.dataConsumerDelay, &lastCapturedDataHeight)
 			blockTime := manager.config.Node.BlockTime.Duration
-			go seqConsumer(ctx, manager.HeaderCh, spec.headerConsumerDelay, &lastCapturedHeaderHeight)
+			//go seqConsumer(ctx, manager.HeaderCh, spec.headerConsumerDelay, &lastCapturedHeaderHeight)
 			errChan := make(chan error, 1)
 			go manager.AggregationLoop(ctx, errChan)
 
@@ -60,40 +76,85 @@ func TestSlowConsumers(t *testing.T) {
 			select {
 			case err := <-errChan:
 				require.NoError(t, err)
-			case <-time.After(3 * blockTime):
+			case <-time.After(spec.dataConsumerDelay + spec.headerConsumerDelay + 3*blockTime):
 			}
 			t.Log("shutting down block manager")
-			headerSync.Stop(ctx)
-			dataSync.Stop(ctx)
+			_ = headerSync.Stop(ctx)
+			_ = dataSync.Stop(ctx)
 			cancel()
+			require.NotNil(t, lastCapturedHeaderPayload)
+			require.NotNil(t, lastCapturedDataPayload)
 
 			t.Log("restart with new block manager")
 			ctx, cancel = context.WithCancel(t.Context())
-			manager, headerSync, dataSync = setupBlockManager(t, ctx, dbm, blockTime)
-			go manager.AggregationLoop(ctx, errChan)
+			manager, headerSync, dataSync = setupBlockManager(t, ctx, workDir, dbm, blockTime, noopSigner)
 
-			// expect to continue from last state
-			gotHeader := <-manager.HeaderCh
-			assert.Equal(t, lastCapturedHeaderHeight+1, gotHeader.Height())
-			gotData := <-manager.DataCh
-			assert.Equal(t, lastCapturedDataHeight+1, gotData.Height())
+			var firstCapturedDataPayload *types.Data
+			var firstCapturedHeaderPayload *types.SignedHeader
+			manager.dataBroadcaster = capturingHeadBroadcaster[*types.Data](0, &firstCapturedDataPayload, dataSync)
+			manager.headerBroadcaster = capturingHeadBroadcaster[*types.SignedHeader](0, &firstCapturedHeaderPayload, headerSync)
+			go manager.AggregationLoop(ctx, errChan)
+			select {
+			case err := <-errChan:
+				require.NoError(t, err)
+			case <-time.After(spec.dataConsumerDelay + spec.headerConsumerDelay + 3*blockTime):
+			}
+			cancel()
+			require.NotNil(t, firstCapturedHeaderPayload)
+			assert.InDelta(t, lastCapturedDataPayload.Height(), firstCapturedDataPayload.Height(), 1)
+			require.NotNil(t, firstCapturedDataPayload)
+			assert.InDelta(t, lastCapturedHeaderPayload.Height(), firstCapturedHeaderPayload.Height(), 1)
 		})
 	}
 }
 
-func setupBlockManager(t *testing.T, ctx context.Context, mainKV ds.Batching, blockTime time.Duration) (*Manager, *sync.HeaderSyncService, *sync.DataSyncService) {
+func capturingTailBroadcaster[T interface{ Height() uint64 }](waitDuration time.Duration, target *T, next ...broadcaster[T]) broadcaster[T] {
+	var lastHeight uint64
+	return broadcasterFn[T](func(ctx context.Context, payload T) error {
+		if payload.Height() <= lastHeight {
+			panic(fmt.Sprintf("got height %d, want %d", payload.Height(), lastHeight+1))
+		}
+		lastHeight = payload.Height()
+		time.Sleep(waitDuration)
+		*target = payload
+		var err error
+		for _, n := range next {
+			err = errors.Join(n.WriteToStoreAndBroadcast(ctx, payload))
+		}
+		return err
+	})
+}
+
+func capturingHeadBroadcaster[T interface{ Height() uint64 }](waitDuration time.Duration, target *T, next ...broadcaster[T]) broadcaster[T] {
+	var once sync.Once
+	return broadcasterFn[T](func(ctx context.Context, payload T) error {
+		once.Do(func() {
+			*target = payload
+		})
+		time.Sleep(waitDuration)
+		var err error
+		for _, n := range next {
+			err = errors.Join(n.WriteToStoreAndBroadcast(ctx, payload))
+		}
+		return err
+	})
+}
+
+type broadcasterFn[T any] func(ctx context.Context, payload T) error
+
+func (b broadcasterFn[T]) WriteToStoreAndBroadcast(ctx context.Context, payload T) error {
+	return b(ctx, payload)
+}
+
+func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV ds.Batching, blockTime time.Duration, signer signer.Signer) (*Manager, *rollkitSync.HeaderSyncService, *rollkitSync.DataSyncService) {
 	t.Helper()
 	nodeConfig := config.DefaultConfig
 	nodeConfig.Node.BlockTime = config.DurationWrapper{Duration: blockTime}
-	nodeConfig.RootDir = t.TempDir()
+	nodeConfig.RootDir = workDir
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Dir(nodeConfig.ConfigPath()))
 	require.NoError(t, err)
 
-	pk, _, err := crypto.GenerateEd25519Key(cryptoRand.Reader)
-	require.NoError(t, err)
-	noopSigner, err := noop.NewNoopSigner(pk)
-	require.NoError(t, err)
-	proposerAddr, err := noopSigner.GetAddress()
+	proposerAddr, err := signer.GetAddress()
 	require.NoError(t, err)
 	genesisDoc := genesispkg.Genesis{
 		ChainID:            "test-chain-id",
@@ -111,16 +172,16 @@ func setupBlockManager(t *testing.T, ctx context.Context, mainKV ds.Batching, bl
 
 	const RollkitPrefix = "0"
 	ktds.Wrap(mainKV, ktds.PrefixTransform{Prefix: ds.NewKey(RollkitPrefix)})
-	headerSyncService, err := sync.NewHeaderSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := rollkitSync.NewHeaderSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, logger.With("module", "HeaderSyncService"))
 	require.NoError(t, err)
 	require.NoError(t, headerSyncService.Start(ctx))
-	dataSyncService, err := sync.NewDataSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, logger.With("module", "DataSyncService"))
+	dataSyncService, err := rollkitSync.NewDataSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, logger.With("module", "DataSyncService"))
 	require.NoError(t, err)
 	require.NoError(t, dataSyncService.Start(ctx))
 
 	result, err := NewManager(
 		ctx,
-		noopSigner,
+		signer,
 		nodeConfig,
 		genesisDoc,
 		store.New(mainKV),
@@ -130,6 +191,8 @@ func setupBlockManager(t *testing.T, ctx context.Context, mainKV ds.Batching, bl
 		logger.With("module", "BlockManager"),
 		headerSyncService.Store(),
 		dataSyncService.Store(),
+		nil,
+		nil,
 		NopMetrics(),
 		1.,
 		1.,
