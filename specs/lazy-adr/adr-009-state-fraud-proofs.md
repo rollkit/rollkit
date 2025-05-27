@@ -11,8 +11,8 @@ Manav Aggarwal (@Manav-Aggarwal)
 
 ## Context
 
-This ADR introduces a design for state fraud proofs in optimistic cosmos-sdk rollups using Rollkit.
-It implements parts of Section 4 (Fraud Proofs) of Al-Bassam et al’s paper [“Fraud and Data Availability Proofs: Detecting Invalid Blocks in Light Clients”](http://www0.cs.ucl.ac.uk/staff/M.AlBassam/publications/fraudproofs.pdf).
+This ADR introduces a design for state fraud proofs in optimistic cosmos-sdk using Rollkit.
+It implements parts of Section 4 (Fraud Proofs) of Al-Bassam et al’s paper “Fraud and Data Availability Proofs: Detecting Invalid Blocks in Light Clients”.
 Some previous notes regarding this topic in the context of cosmos-sdk are described in Matthew Di Ferrante's [notes](https://github.com/rollkit/rollkit/issues/132).
 
 Rollkit's design consists of a single sequencer that posts blocks to the DA layer, and multiple (optional) full nodes. Sequencers gossip block headers to full nodes and full nodes fetch posted blocks from the DA layer. Full nodes then execute transactions in these blocks to update their state, and gossip block headers over P2P to Rollkit light nodes. Once State Fraud Proofs are enabled, when a block contains a fraudulent state transition, Rollkit full nodes can detect it by comparing intermediate state roots (ISRs) between transactions, and generate a state fraud proof that can be gossiped over P2P to Rollkit light nodes. These Rollkit light nodes can then use this state fraud proof to verify whether a fraudulent state transition occurred or not by themselves.
@@ -24,8 +24,8 @@ Note that Rollkit State Fraud Proofs are still a work in progress and will requi
 List of caveats and required modifications to push State Fraud Proofs towards completion:
 
 - Add ability for light nodes to receive and verify state fraud proofs.
-- Add inclusion proofs over transactions so fraud proof verifiers have knowledge over which rollup transaction is being fraud proven.
-- Check for badly formatted underlying rollup data before verifying state transition inside the State Machine.
+- Add inclusion proofs over transactions so fraud proof verifiers have knowledge over which transaction is being fraud proven.
+- Check for badly formatted underlying data before verifying state transition inside the State Machine.
 - Limit number of state witnesses permissible in a state fraud proof since state keys accessed by a transaction can be limited by the state machine.
 - Write end to end network tests covering different scenarios that can occur in case of state fraud proof submission by a full node.
 - Support for multiple sequencers, in which case, fraud proof detection works the same as described above.
@@ -279,6 +279,5 @@ A prototype implementation of the above design is available in the following wor
 
 > Are there any relevant PR comments, issues that led up to this, or articles referenced for why we made the given design choice? If so link them here!
 
-- <http://www0.cs.ucl.ac.uk/staff/M.AlBassam/publications/fraudproofs.pdf>
 - <https://github.com/rollkit/rollkit/issues/132>
 - <https://github.com/rollkit/rollkit/issues/514>

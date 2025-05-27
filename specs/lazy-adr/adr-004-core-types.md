@@ -20,7 +20,7 @@ Alternatives for ChainID:
 ## Decision
 
 We design the core data types as minimalistic as possible, i.e. they only contain the absolute necessary
-data for an optimistic rollup to function properly.
+data for an optimistic applications to function properly.
 If there are any additional fields that conflict with above's claimed minimalism, then they are necessarily inherited
 by the ABCI imposed separation between application state machine and consensus/networking (often also referred to as ABCI-server and -client).
 Where such tradeoffs are made, we explicitly comment on them.
@@ -46,7 +46,7 @@ type NamespaceID [8]byte
 type Header struct {
     // Block and App version
     Version Version
-    // NamespaceID identifies this chain e.g. when connected to other rollups via IBC.
+    // NamespaceID identifies this chain e.g. when connected to other chains via IBC.
     NamespaceID NamespaceID
 
     Height  uint64
@@ -130,7 +130,7 @@ type Commit struct {
 This could be seen as a state transition and the ConsensusHash in the header would then require a dedicated state fraud proof.
 That said, none of the existing default Cosmos-SDK modules actually make use of this functionality though.
 Hence, we can treat the ConsensusParams as constants (for the same app version).
-We clearly need to communicate this to optimistic rollup chain developers.
+We clearly need to communicate this to optimistic application chain developers.
 Ideally, we should ensure this programmatically to guarantee that this assumption always holds inside Rollkit.
 
 The ConsensusParams have the exact same structure as in Tendermint. For the sake of self-containedness we still list them here:

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// AggregationLoop is responsible for aggregating transactions into rollup-blocks.
+// AggregationLoop is responsible for aggregating transactions into blocks.
 func (m *Manager) AggregationLoop(ctx context.Context, errCh chan<- error) {
 	initialHeight := m.genesis.InitialHeight //nolint:gosec
 	height, err := m.store.Height(ctx)
@@ -29,13 +29,13 @@ func (m *Manager) AggregationLoop(ctx context.Context, errCh chan<- error) {
 	}
 
 	// blockTimer is used to signal when to build a block based on the
-	// rollup block time. A timer is used so that the time to build a block
+	// chain block time. A timer is used so that the time to build a block
 	// can be taken into account.
 	blockTimer := time.NewTimer(0)
 	defer blockTimer.Stop()
 
-	// Lazy Aggregator mode.
-	// In Lazy Aggregator mode, blocks are built only when there are
+	// Lazy Sequencer mode.
+	// In Lazy Sequencer mode, blocks are built only when there are
 	// transactions or every LazyBlockTime.
 	if m.config.Node.LazyMode {
 		if err := m.lazyAggregationLoop(ctx, blockTimer); err != nil {

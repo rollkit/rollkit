@@ -13,11 +13,6 @@ body:
       description: Please provide versions of all relevant components
       placeholder: |
         Rollkit:
-        Go-DA:
-        DA Implementation:
-        Go-Sequencing:
-        Sequencing Implementation:
-        Go-Execution:
         Execution Implementation:
     validations:
       required: true

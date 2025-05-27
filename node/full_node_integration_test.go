@@ -1,262 +1,479 @@
 package node
 
 import (
-	"context"
-	"errors"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
 
-	testutils "github.com/celestiaorg/utils/test"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 )
 
-// FullNodeTestSuite is a test suite for full node integration tests
-type FullNodeTestSuite struct {
-	suite.Suite
-	ctx       context.Context
-	cancel    context.CancelFunc
-	node      *FullNode
-	executor  *coreexecutor.DummyExecutor
-	errCh     chan error
-	runningWg sync.WaitGroup
-}
+// TestTxGossipingMultipleNodesNoDA tests that transactions are gossiped and blocks are sequenced and synced across multiple nodes without the DA layer over P2P.
+// It creates 4 nodes (1 sequencer, 3 full nodes), injects a transaction, waits for all nodes to sync, and asserts block equality.
+func TestTxGossipingMultipleNodesNoDA(t *testing.T) {
+	require := require.New(t)
+	config := getTestConfig(t, 1)
+	// Set the DA block time to a very large value to ensure that the DA layer is not used
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 100 * time.Second}
+	numNodes := 4
+	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
 
-// startNodeInBackground starts the given node in a background goroutine
-// and adds to the wait group for proper cleanup
-func (s *FullNodeTestSuite) startNodeInBackground(node *FullNode) {
-	s.runningWg.Add(1)
-	go func() {
-		defer s.runningWg.Done()
-		err := node.Run(s.ctx)
-		select {
-		case s.errCh <- err:
-		default:
-			s.T().Logf("Error channel full, discarding error: %v", err)
-		}
-	}()
-}
+	ctxs, cancels := createNodeContexts(numNodes)
+	var runningWg sync.WaitGroup
 
-func (s *FullNodeTestSuite) SetupTest() {
-	require := require.New(s.T())
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.errCh = make(chan error, 1)
+	// Start only the sequencer first
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
 
-	// Setup a test node
-	config := getTestConfig(s.T(), 1)
-
-	// Add debug logging for configuration
-	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingHeaders=%d",
-		config.Node.BlockTime.Duration, config.DA.BlockTime.Duration, config.Node.MaxPendingHeaders)
-
-	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
-	s.T().Cleanup(func() {
-		cleanup()
-	})
-
-	s.node = node
-
-	s.executor = node.blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
-
-	// Start the node in a goroutine using Run instead of Start
-	s.startNodeInBackground(s.node)
-
-	// Verify that the node is running and producing blocks
-	err := waitForFirstBlock(s.node, Header)
-	require.NoError(err, "Failed to get node height")
-
-	// Wait for the first block to be DA included
-	err = waitForFirstBlockToBeDAIncludedHeight(s.node)
-	require.NoError(err, "Failed to get DA inclusion")
-
-	// Verify sequencer client is working
-	err = testutils.Retry(30, 100*time.Millisecond, func() error {
-		if s.node.blockManager.SeqClient() == nil {
-			return fmt.Errorf("sequencer client not initialized")
-		}
-		return nil
-	})
-	require.NoError(err, "Sequencer client initialization failed")
+	// Wait for the first block to be produced by the sequencer
+	err := waitForFirstBlock(nodes[0], Header)
+	require.NoError(err)
 
 	// Verify block manager is properly initialized
-	require.NotNil(s.node.blockManager, "Block manager should be initialized")
+	require.NotNil(nodes[0].blockManager, "Block manager should be initialized")
+
+	// Start the other nodes
+	for i := 1; i < numNodes; i++ {
+		startNodeInBackground(t, nodes, ctxs, &runningWg, i)
+	}
+
+	// Inject a transaction into the sequencer's executor
+	executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
+	executor.InjectTx([]byte("test tx"))
+
+	blocksToWaitFor := uint64(5)
+	// Wait for all nodes to reach at least 5 blocks with DA inclusion
+	for _, node := range nodes {
+		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, Store))
+	}
+
+	// Shutdown all nodes and wait
+	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+
+	// Assert that all nodes have the same block up to height blocksToWaitFor
+	assertAllNodesSynced(t, nodes, blocksToWaitFor)
 }
 
-func (s *FullNodeTestSuite) TearDownTest() {
-	if s.cancel != nil {
-		s.cancel() // Cancel context to stop the node
+// TestTxGossipingMultipleNodesDAIncluded tests that transactions are gossiped and blocks are sequenced and synced across multiple nodes only using DA. P2P gossiping is disabled.
+// It creates 4 nodes (1 sequencer, 3 full nodes), injects a transaction, waits for all nodes to sync with DA inclusion, and asserts block equality.
+func TestTxGossipingMultipleNodesDAIncluded(t *testing.T) {
+	require := require.New(t)
+	config := getTestConfig(t, 1)
+	// Disable P2P gossiping
+	config.P2P.Peers = "none"
 
-		// Wait for the node to stop with a timeout
-		waitCh := make(chan struct{})
-		go func() {
-			s.runningWg.Wait()
-			close(waitCh)
-		}()
+	numNodes := 4
+	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
 
-		select {
-		case <-waitCh:
-			// Node stopped successfully
-		case <-time.After(5 * time.Second):
-			s.T().Log("Warning: Node did not stop gracefully within timeout")
-		}
+	ctxs, cancels := createNodeContexts(numNodes)
+	var runningWg sync.WaitGroup
 
-		// Check for any errors
-		select {
-		case err := <-s.errCh:
-			if err != nil && !errors.Is(err, context.Canceled) {
-				s.T().Logf("Error stopping node in teardown: %v", err)
-			}
-		default:
-			// No error
-		}
+	// Start only the sequencer first
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
+
+	// Wait for the first block to be produced by the sequencer
+	err := waitForFirstBlock(nodes[0], Header)
+	require.NoError(err)
+
+	// Verify block manager is properly initialized
+	require.NotNil(nodes[0].blockManager, "Block manager should be initialized")
+
+	// Start the other nodes
+	for i := 1; i < numNodes; i++ {
+		startNodeInBackground(t, nodes, ctxs, &runningWg, i)
+	}
+
+	// Inject a transaction into the sequencer's executor
+	executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
+	executor.InjectTx([]byte("test tx"))
+
+	blocksToWaitFor := uint64(5)
+	// Wait for all nodes to reach at least 5 blocks with DA inclusion
+	for _, node := range nodes {
+		require.NoError(waitForAtLeastNDAIncludedHeight(node, blocksToWaitFor))
+	}
+
+	// Shutdown all nodes and wait
+	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+
+	// Assert that all nodes have the same block up to height blocksToWaitFor
+	assertAllNodesSynced(t, nodes, blocksToWaitFor)
+}
+
+// TestFastDASync verifies that a new node can quickly synchronize with the DA layer using fast sync.
+//
+// This test sets up two nodes with different block and DA block times. It starts the sequencer node, waits for it to produce and DA-include several blocks,
+// then starts the syncing full node and measures how quickly it can catch up to the sequencer node's height. The test asserts that the syncing full node syncs within
+// a small delta of the DA block time, and verifies that both nodes have identical block hashes and that all blocks are DA-included.
+func TestFastDASync(t *testing.T) {
+	require := require.New(t)
+
+	// Set up two nodes with different block and DA block times
+	config := getTestConfig(t, 1)
+	// Set the block time to 2 seconds and the DA block time to 1 second
+	// Note: these are large values to avoid test failures due to slow CI machines
+	config.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 2 * time.Second}
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 1 * time.Second}
+
+	nodes, cleanups := createNodesWithCleanup(t, 2, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	ctxs, cancels := createNodeContexts(len(nodes))
+	var runningWg sync.WaitGroup
+
+	// Start only the first node
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
+
+	// Wait for the first node to produce a few blocks
+	blocksToWaitFor := uint64(2)
+	require.NoError(waitForAtLeastNDAIncludedHeight(nodes[0], blocksToWaitFor))
+
+	// Now start the second node and time its sync
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 1)
+	start := time.Now()
+	// Wait for the second node to catch up to the first node
+	require.NoError(waitForAtLeastNBlocks(nodes[1], blocksToWaitFor, Store))
+	syncDuration := time.Since(start)
+
+	// Ensure node syncs within a small delta of DA block time
+	delta := 250 * time.Millisecond
+	require.Less(syncDuration, config.DA.BlockTime.Duration+delta, "Block sync should be faster than DA block time")
+
+	// Verify both nodes are synced and that the synced block is DA-included
+	assertAllNodesSynced(t, nodes, blocksToWaitFor)
+
+	// Cancel all node contexts to signal shutdown and wait
+	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+}
+
+// TestSingleSequencerTwoFullNodesBlockSyncSpeed tests that block synchronization is not bottlenecked by DA block time.
+//
+// This test sets up three nodes (one sequencer and two full nodes) with a fast block time and a slow DA block time. It starts the sequencer first, waits for it to produce a block, then starts the full nodes. The test waits for all nodes to sync a set number of blocks, measures the total sync duration, and asserts that block sync completes within a reasonable multiple of the block time (not the DA block time). It also verifies that all nodes have identical block hashes up to the target height.
+func TestSingleSequencerTwoFullNodesBlockSyncSpeed(t *testing.T) {
+	require := require.New(t)
+
+	// Set up three nodes: 1 sequencer, 2 full nodes
+	config := getTestConfig(t, 1)
+	config.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 100 * time.Millisecond} // fast block time
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 10 * time.Second}         // slow DA block time
+
+	numNodes := 3
+	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	ctxs, cancels := createNodeContexts(numNodes)
+	var runningWg sync.WaitGroup
+
+	// Start only the sequencer first
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
+
+	// Wait for the sequencer to produce at least one block
+	require.NoError(waitForAtLeastNBlocks(nodes[0], 1, Store))
+
+	// Now start the other nodes
+	for i := 1; i < numNodes; i++ {
+		startNodeInBackground(t, nodes, ctxs, &runningWg, i)
+	}
+
+	blocksToWaitFor := uint64(10)
+	start := time.Now()
+
+	// Wait for all nodes to reach the target block height
+	for _, node := range nodes {
+		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, Store))
+	}
+	totalDuration := time.Since(start)
+
+	// The test should complete within a reasonable multiple of block time, not DA block time
+	maxExpected := config.Node.BlockTime.Duration*time.Duration(blocksToWaitFor) + 200*time.Millisecond
+	require.Less(totalDuration, maxExpected, "Block sync should not be bottlenecked by DA block time")
+
+	for i := 1; i < numNodes; i++ {
+		require.NoError(verifyNodesSynced(nodes[0], nodes[i], Store))
+	}
+
+	// Cancel all node contexts to signal shutdown and wait
+	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+}
+
+// TestDataExchange verifies data exchange and synchronization between nodes in various network topologies.
+//
+// This test runs three sub-tests:
+//  1. Single sequencer and single full node.
+//  2. Single sequencer and two full nodes.
+//  3. Single sequencer and single full node with trusted hash.
+//
+// Each sub-test checks data exchange and synchronization to ensure correct data propagation and consistency across nodes.
+func TestDataExchange(t *testing.T) {
+	t.Run("SingleSequencerSingleFullNode", func(t *testing.T) {
+		testSingleSequencerSingleFullNode(t, Data)
+	})
+	t.Run("SingleSequencerTwoFullNodes", func(t *testing.T) {
+		testSingleSequencerTwoFullNodes(t, Data)
+	})
+	t.Run("SingleSequencerSingleFullNodeTrustedHash", func(t *testing.T) {
+		testSingleSequencerSingleFullNodeTrustedHash(t, Data)
+	})
+}
+
+// TestHeaderExchange verifies header exchange and synchronization between nodes in various network topologies.
+//
+// This test runs three sub-tests:
+//  1. Single sequencer and single full node.
+//  2. Single sequencer and two full nodes.
+//  3. Single sequencer and single full node with trusted hash.
+//
+// Each sub-test checks header exchange and synchronization to ensure correct header propagation and consistency across nodes.
+func TestHeaderExchange(t *testing.T) {
+	t.Run("SingleSequencerSingleFullNode", func(t *testing.T) {
+		testSingleSequencerSingleFullNode(t, Header)
+	})
+	t.Run("SingleSequencerTwoFullNodes", func(t *testing.T) {
+		testSingleSequencerTwoFullNodes(t, Header)
+	})
+	t.Run("SingleSequencerSingleFullNodeTrustedHash", func(t *testing.T) {
+		testSingleSequencerSingleFullNodeTrustedHash(t, Header)
+	})
+}
+
+// testSingleSequencerSingleFullNode sets up a single sequencer and a single full node, starts the sequencer, waits for it to produce a block, then starts the full node.
+// It waits for both nodes to reach a target block height (using the provided 'source' to determine block inclusion), verifies that both nodes are fully synced, and then shuts them down.
+func testSingleSequencerSingleFullNode(t *testing.T, source Source) {
+	require := require.New(t)
+
+	// Set up one sequencer and one full node
+	config := getTestConfig(t, 1)
+	numNodes := 2
+	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	ctxs, cancels := createNodeContexts(numNodes)
+	var runningWg sync.WaitGroup
+
+	// Start the sequencer first
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
+
+	// Wait for the sequencer to produce at least one block with DA inclusion
+	require.NoError(waitForAtLeastNBlocks(nodes[0], 1, source))
+
+	// Start the full node
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 1)
+
+	blocksToWaitFor := uint64(3)
+	// Wait for both nodes to reach at least 3 blocks with DA inclusion
+	for _, node := range nodes {
+		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, source))
+	}
+
+	// Verify both nodes are synced using the helper
+	require.NoError(verifyNodesSynced(nodes[0], nodes[1], source))
+
+	// Cancel all node contexts to signal shutdown and wait
+	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+}
+
+// testSingleSequencerTwoFullNodes sets up a single sequencer and two full nodes, starts the sequencer, waits for it to produce a block, then starts the full nodes.
+// It waits for all nodes to reach a target block height (using the provided 'source' to determine block inclusion), verifies that all nodes are fully synced, and then shuts them down.
+func testSingleSequencerTwoFullNodes(t *testing.T, source Source) {
+	require := require.New(t)
+
+	// Set up one sequencer and two full nodes
+	config := getTestConfig(t, 1)
+	numNodes := 3
+	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	ctxs, cancels := createNodeContexts(numNodes)
+	var runningWg sync.WaitGroup
+
+	// Start the sequencer first
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
+
+	// Wait for the sequencer to produce at least one block with DA inclusion
+	require.NoError(waitForAtLeastNBlocks(nodes[0], 1, source))
+
+	// Start the full nodes
+	for i := 1; i < numNodes; i++ {
+		startNodeInBackground(t, nodes, ctxs, &runningWg, i)
+	}
+
+	blocksToWaitFor := uint64(3)
+	// Wait for all nodes to reach at least 3 blocks with DA inclusion
+	for _, node := range nodes {
+		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, source))
+	}
+
+	// Verify all nodes are synced using the helper
+	for i := 1; i < numNodes; i++ {
+		require.NoError(verifyNodesSynced(nodes[0], nodes[i], source))
+	}
+
+	// Cancel all node contexts to signal shutdown and wait
+	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+}
+
+// testSingleSequencerSingleFullNodeTrustedHash sets up a single sequencer and a single full node with a trusted hash, starts the sequencer, waits for it to produce a block, then starts the full node with the trusted hash.
+// It waits for both nodes to reach a target block height (using the provided 'source' to determine block inclusion), verifies that both nodes are fully synced, and then shuts them down.
+func testSingleSequencerSingleFullNodeTrustedHash(t *testing.T, source Source) {
+	require := require.New(t)
+
+	// Set up one sequencer and one full node
+	config := getTestConfig(t, 1)
+	numNodes := 2
+	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
+
+	ctxs, cancels := createNodeContexts(numNodes)
+	var runningWg sync.WaitGroup
+
+	// Start the sequencer first
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
+
+	// Wait for the sequencer to produce at least one block with DA inclusion
+	require.NoError(waitForAtLeastNBlocks(nodes[0], 1, source))
+
+	// Get the hash of the first block (using the correct source)
+	var trustedHash string
+	switch source {
+	case Data:
+		trustedHashValue, err := nodes[0].dSyncService.Store().GetByHeight(ctxs[0], 1)
+		require.NoError(err)
+		trustedHash = trustedHashValue.Hash().String()
+	case Header:
+		trustedHashValue, err := nodes[0].hSyncService.Store().GetByHeight(ctxs[0], 1)
+		require.NoError(err)
+		trustedHash = trustedHashValue.Hash().String()
+	default:
+		t.Fatalf("unsupported source for trusted hash test: %v", source)
+	}
+
+	// Set the trusted hash in the full node
+	nodes[1].nodeConfig.Node.TrustedHash = trustedHash
+
+	// Start the full node
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 1)
+
+	blocksToWaitFor := uint64(3)
+	// Wait for both nodes to reach at least 3 blocks with DA inclusion
+	for _, node := range nodes {
+		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, source))
+	}
+
+	// Verify both nodes are synced using the helper
+	require.NoError(verifyNodesSynced(nodes[0], nodes[1], source))
+
+	// Cancel all node contexts to signal shutdown and wait
+	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+}
+
+// TestTwoChainsInOneNamespace verifies that two chains in the same namespace can coexist without any issues.
+func TestTwoChainsInOneNamespace(t *testing.T) {
+	cases := []struct {
+		name     string
+		chainID1 string
+		chainID2 string
+	}{
+		{
+			name:     "same chain ID",
+			chainID1: "test-1",
+			chainID2: "test-1",
+		},
+		{
+			name:     "different chain IDs",
+			chainID1: "foo-1",
+			chainID2: "bar-2",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			testTwoChainsInOneNamespace(t, c.chainID1, c.chainID2)
+		})
 	}
 }
 
-// TestFullNodeTestSuite runs the test suite
-func TestFullNodeTestSuite(t *testing.T) {
-	suite.Run(t, new(FullNodeTestSuite))
-}
+// testTwoChainsInOneNamespace sets up two chains in the same namespace, starts the sequencers, waits for blocks, then starts the full nodes.
+// It waits for all nodes to reach a target block height, and verifies that all nodes are fully synced, and then shuts them down.
+func testTwoChainsInOneNamespace(t *testing.T, chainID1 string, chainID2 string) {
+	require := require.New(t)
 
-func (s *FullNodeTestSuite) TestBlockProduction() {
-	s.executor.InjectTx([]byte("test transaction"))
-	err := waitForAtLeastNBlocks(s.node, 5, Store)
-	s.NoError(err, "Failed to produce second block")
+	// Set up nodes for the first chain
+	configChain1 := getTestConfig(t, 1)
+	configChain1.ChainID = chainID1
 
-	// Get the current height
-	height, err := s.node.Store.Height(s.ctx)
-	require.NoError(s.T(), err)
-	s.GreaterOrEqual(height, uint64(5), "Expected block height >= 5")
-
-	// Get the latest block
-	header, data, err := s.node.Store.GetBlockData(s.ctx, height)
-	s.NoError(err)
-	s.NotNil(header)
-	s.NotNil(data)
-
-	// Log block details
-	s.T().Logf("Latest block height: %d, Time: %s, Number of transactions: %d", height, header.Time(), len(data.Txs))
-
-	// Verify chain state
-	state, err := s.node.Store.GetState(s.ctx)
-	s.NoError(err)
-	s.GreaterOrEqual(height, state.LastBlockHeight)
-
-	// Verify block content
-	s.NotEmpty(data.Txs, "Expected block to contain transactions")
-}
-
-// TestSubmitBlocksToDA tests the submission of blocks to the DA
-func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
-	s.executor.InjectTx([]byte("test transaction"))
-	n := uint64(5)
-	err := waitForAtLeastNBlocks(s.node, n, Store)
-	s.NoError(err, "Failed to produce second block")
-	err = waitForAtLeastNDAIncludedHeight(s.node, n)
-	s.NoError(err, "Failed to get DA inclusion")
-	// Verify that all blocks are DA included
-	for height := uint64(1); height <= n; height++ {
-		ok, err := s.node.blockManager.IsDAIncluded(s.ctx, height)
-		require.NoError(s.T(), err)
-		require.True(s.T(), ok, "Block at height %d is not DA included", height)
-	}
-}
-
-// TestMaxPendingHeaders tests that the node will stop producing blocks when the limit is reached
-func (s *FullNodeTestSuite) TestMaxPendingHeaders() {
-	require := require.New(s.T())
-
-	// First, stop the current node by cancelling its context
-	s.cancel()
-
-	// Create a new context for the new node
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-
-	// Reset error channel
-	s.errCh = make(chan error, 1)
-
-	// Reconfigure node with low max pending
-	config := getTestConfig(s.T(), 1)
-	config.Node.MaxPendingHeaders = 2
-
-	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
-	defer cleanup()
-
-	s.node = node
-
-	// Start the node using Run in a goroutine
-	s.startNodeInBackground(s.node)
-
-	// Wait blocks to be produced up to max pending
-	time.Sleep(time.Duration(config.Node.MaxPendingHeaders+1) * config.Node.BlockTime.Duration)
-
-	// Verify that number of pending blocks doesn't exceed max
-	height, err := getNodeHeight(s.node, Header)
-	require.NoError(err)
-	require.LessOrEqual(height, config.Node.MaxPendingHeaders)
-}
-
-func (s *FullNodeTestSuite) TestGenesisInitialization() {
-	require := require.New(s.T())
-
-	// Verify genesis state
-	state := s.node.blockManager.GetLastState()
-	require.Equal(s.node.genesis.InitialHeight, state.InitialHeight)
-	require.Equal(s.node.genesis.ChainID, state.ChainID)
-}
-
-func (s *FullNodeTestSuite) TestStateRecovery() {
-	s.T().Skip("skipping state recovery test, we need to reuse the same database, when we use in memory it starts fresh each time")
-	require := require.New(s.T())
-
-	// Get current state
-	originalHeight, err := getNodeHeight(s.node, Store)
-	require.NoError(err)
-
-	// Wait for some blocks
-	err = waitForAtLeastNBlocks(s.node, 5, Store)
-	require.NoError(err)
-
-	// Stop the current node
-	s.cancel()
-
-	// Wait for the node to stop
-	waitCh := make(chan struct{})
-	go func() {
-		s.runningWg.Wait()
-		close(waitCh)
-	}()
-
-	select {
-	case <-waitCh:
-		// Node stopped successfully
-	case <-time.After(2 * time.Second):
-		s.T().Fatalf("Node did not stop gracefully within timeout")
+	numNodes := 2
+	nodes1, cleanups := createNodesWithCleanup(t, numNodes, configChain1)
+	for _, cleanup := range cleanups {
+		defer cleanup()
 	}
 
-	// Create a new context
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.errCh = make(chan error, 1)
+	// Set up nodes for the second chain
+	configChain2 := getTestConfig(t, 1000)
+	configChain2.ChainID = chainID2
 
-	config := getTestConfig(s.T(), 1)
-	// Create a new node instance instead of reusing the old one
-	node, cleanup := setupTestNodeWithCleanup(s.T(), config)
-	defer cleanup()
+	numNodes = 2
+	nodes2, cleanups := createNodesWithCleanup(t, numNodes, configChain2)
+	for _, cleanup := range cleanups {
+		defer cleanup()
+	}
 
-	// Replace the old node with the new one
-	s.node = node
+	// Set up context and wait group for the sequencer of chain 1
+	ctxs1, cancels1 := createNodeContexts(numNodes)
+	var runningWg1 sync.WaitGroup
 
-	// Start the new node
-	s.startNodeInBackground(s.node)
+	// Start the sequencer of chain 1
+	startNodeInBackground(t, nodes1, ctxs1, &runningWg1, 0)
 
-	// Wait a bit after restart
-	time.Sleep(s.node.nodeConfig.Node.BlockTime.Duration)
+	// Wait for the sequencer to produce at least one block
+	require.NoError(waitForAtLeastNBlocks(nodes1[0], 1, Store))
 
-	// Verify state persistence
-	recoveredHeight, err := getNodeHeight(s.node, Store)
-	require.NoError(err)
-	require.GreaterOrEqual(recoveredHeight, originalHeight)
+	// Set up context and wait group for the sequencer of chain 2
+	ctxs2, cancels2 := createNodeContexts(numNodes)
+	var runningWg2 sync.WaitGroup
+
+	// Start the sequencer of chain 2
+	startNodeInBackground(t, nodes2, ctxs2, &runningWg2, 0)
+
+	// Wait for the sequencer to produce at least one block
+	require.NoError(waitForAtLeastNBlocks(nodes2[0], 1, Store))
+
+	// Start the full node of chain 1
+	startNodeInBackground(t, nodes1, ctxs1, &runningWg1, 1)
+
+	// Start the full node of chain 2
+	startNodeInBackground(t, nodes2, ctxs2, &runningWg2, 1)
+
+	blocksToWaitFor := uint64(3)
+
+	// Wait for the full node of chain 1 to reach at least 3 blocks
+	require.NoError(waitForAtLeastNBlocks(nodes1[1], blocksToWaitFor, Store))
+
+	// Wait for the full node of chain 2 to reach at least 3 blocks
+	require.NoError(waitForAtLeastNBlocks(nodes2[1], blocksToWaitFor, Store))
+
+	// Verify both full nodes are synced using the helper
+	require.NoError(verifyNodesSynced(nodes1[0], nodes1[1], Store))
+	require.NoError(verifyNodesSynced(nodes2[0], nodes2[1], Store))
+
+	// Cancel all node contexts to signal shutdown and wait for both chains
+	shutdownAndWait(t, cancels1, &runningWg1, 5*time.Second)
+	shutdownAndWait(t, cancels2, &runningWg2, 5*time.Second)
 }
