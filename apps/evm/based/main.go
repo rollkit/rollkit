@@ -1,0 +1,36 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/rollkit/rollkit/apps/evm/based/cmd"
+	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
+	"github.com/spf13/cobra"
+)
+
+const (
+	AppName = "evm-based"
+)
+
+var RootCmd = &cobra.Command{
+	Use:   AppName,
+	Short: "evm-based is a based evm execution environment for rollkit, out of the box it works with reth",
+}
+
+func main() {
+	rootCmd := RootCmd
+	ctx := context.Background()
+	rootCmd.AddCommand(
+		cmd.NewExtendedRunNodeCmd(ctx),
+		rollcmd.VersionCmd,
+		cmd.InitCmd(),
+		rollcmd.NetInfoCmd,
+	)
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}

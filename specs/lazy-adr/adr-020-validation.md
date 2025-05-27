@@ -1,4 +1,4 @@
-# ADR 020: Validation Flow for Single Sequencer Rollups
+# ADR 020: Validation Flow for Single Sequencer
 
 ## Changelog
 
@@ -7,13 +7,13 @@
 
 ## Context
 
-In the single sequencer rollup model, a single designated sequencer proposes rollup blocks. To ensure correctness and prevent censorship or fraud, full nodes independently verify proposed headers and associated batches. This ADR describes the validation process involved, both in terms of header/batch verification and forkchoice-safe propagation over the p2p network.
+In the single sequencer model, a single designated sequencer proposes blocks. To ensure correctness and prevent censorship or fraud, full nodes independently verify proposed headers and associated batches. This ADR describes the validation process involved, both in terms of header/batch verification and forkchoice-safe propagation over the p2p network.
 
 This model enables fast confirmation by gossiping proposed headers and batches, while allowing full nodes to maintain the security guarantees by performing their own validation and verification of data availability.
 
 ## Alternative Approaches
 
-Other rollup models, such as based sequencing or leaderless batching, avoid reliance on a single sequencer but introduce potential latency and sometimes complexity. This ADR focuses on a performant solution for a single sequencer setup.
+Other models, such as based sequencing or leaderless batching, avoid reliance on a single sequencer but introduce potential latency and sometimes complexity. This ADR focuses on a performant solution for a single sequencer setup.
 
 ## Decision
 
@@ -81,7 +81,7 @@ sequenceDiagram
     participant P as Proposer
     participant FN as Full Node
 
-    U->>P: Submit Rollup Tx
+    U->>P: Submit Tx
     P->>DA: Publish Batch to DA
     P->>P: Compute BatchData (DAHeight || Commitment)
     P->>P: Execute batch and compute new state root
@@ -108,7 +108,7 @@ Proposed
 
 ### Positive
 
-- Ensures full nodes validate every rollup state transition
+- Ensures full nodes validate every state transition
 - Forkchoice check ensures linear chain progression and safe gossip
 - Protects against malicious proposers submitting invalid batches or headers
 
@@ -119,6 +119,6 @@ Proposed
 
 ### Neutral
 
-- This ADR aligns with current implementation direction for single-sequencer-based rollups
+- This ADR aligns with current implementation direction for single-sequencer-based applications
 
 ## References

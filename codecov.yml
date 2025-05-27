@@ -11,3 +11,4 @@ ignore:
   - "types/pb"
   - "scripts/"
   - "pkg/rpc/example/"
+  - "da/internal/mocks"

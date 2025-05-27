@@ -6,7 +6,7 @@
 
 ## Context
 
-Rollkit supports modular sequencer implementations and a single sequencer is a simple and efficient solution that can serve as a starting point for rollup developers who don't need the complexity of a decentralized sequencing solution.
+Rollkit supports modular sequencer implementations and a single sequencer is a simple and efficient solution that can serve as a starting point for developers who don't need the complexity of a decentralized sequencing solution.
 
 The single sequencer needs to implement the Generic Sequencer interface defined in the `core/sequencer` package, provide transaction batching capabilities, and reliably submit these batches to a DA layer. It should also maintain state to track submitted batches and provide verification capabilities.
 
@@ -20,15 +20,15 @@ This approach was not chosen for the initial implementation because:
 
 1. It adds unnecessary complexity for many use cases
 2. It requires more development time and resources
-3. Many rollup projects start with a single sequencer and gradually move towards decentralization
+3. Many projects start with a single sequencer and gradually move towards decentralization
 
-### Embedded Sequencer in Rollup Nodes
+### Embedded Sequencer in Nodes
 
-Another approach would be to embed sequencing functionality directly into rollup nodes. This would simplify the architecture by eliminating a separate sequencer component.
+Another approach would be to embed sequencing functionality directly into nodes. This would simplify the architecture by eliminating a separate sequencer component.
 
 This approach was not chosen because:
 
-1. It couples sequencing logic with rollup node logic, reducing modularity
+1. It couples sequencing logic with node logic, reducing modularity
 2. It makes it harder to upgrade or replace the sequencing component independently
 3. It doesn't allow for a dedicated sequencing service that can be optimized separately
 
@@ -46,14 +46,14 @@ The single sequencer is a separate repository and can be deployed as a standalon
 
 ### User Requirements
 
-- Rollup developers need a simple, reliable sequencer that can order transactions and submit them to a DA layer
+- Developers need a simple, reliable sequencer that can order transactions and submit them to a DA layer
 - The sequencer should be easy to deploy and configure
 - The sequencer should provide metrics for monitoring
 - The sequencer should be able to recover from crashes and maintain state
 
 ### Systems Affected
 
-- Rollup nodes that interact with the sequencer
+- Nodes that interact with the sequencer
 - DA layer where batches are submitted
 
 ### Data Structures
@@ -78,7 +78,7 @@ The single sequencer uses the following key data structures:
        ctx       context.Context    // Context for controlling the sequencer's lifecycle
        maxSize   uint64             // Maximum size of a batch in bytes
 
-       rollupId sequencing.RollupId // Identifier for the rollup this sequencer serves
+       chainId sequencing.ChainId // Identifier for the chain this sequencer serves
 
        tq                 *TransactionQueue  // Queue for storing pending transactions
        lastBatchHash      []byte             // Hash of the last processed batch
@@ -113,37 +113,37 @@ The single sequencer implements the Generic Sequencer interface from the `core/s
 
 ```go
 type Sequencer interface {
-    SubmitRollupBatchTxs(ctx context.Context, req SubmitRollupBatchTxsRequest) (*SubmitRollupBatchTxsResponse, error)
+    SubmitBatchTxs(ctx context.Context, req SubmitBatchTxsRequest) (*SubmitBatchTxsResponse, error)
     GetNextBatch(ctx context.Context, req GetNextBatchRequest) (*GetNextBatchResponse, error)
     VerifyBatch(ctx context.Context, req VerifyBatchRequest) (*VerifyBatchResponse, error)
 }
 ```
 
-1. **SubmitRollupBatchTxs**:
-   - This method is responsible for accepting a batch of transactions from a rollup client. It takes a context and a request containing the rollup ID and the batch of transactions to be submitted.
-   - The method first validates the rollup ID to ensure it matches the expected ID for the sequencer. If the ID is invalid, it returns an error.
+1. **SubmitBatchTxs**:
+   - This method is responsible for accepting a batch of transactions from a client. It takes a context and a request containing the chain ID and the batch of transactions to be submitted.
+   - The method first validates the chain ID to ensure it matches the expected ID for the sequencer. If the ID is invalid, it returns an error.
    - Upon successful validation, the method adds the transactions to the internal transaction queue (`TransactionQueue`) for processing.
    - It then triggers the batch submission process, which involves retrieving the next batch of transactions and submitting them to the designated Data Availability (DA) layer.
    - Finally, it returns a response indicating the success or failure of the submission.
 
 2. **GetNextBatch**:
-   - This method retrieves the next batch of transactions that are ready to be processed by the rollup. It takes a context and a request containing the rollup ID and the last batch hash.
-   - The method first checks if the rollup ID is valid. If not, it returns an error.
-   - It then verifies the last batch hash to ensure that the rollup client is requesting the correct next batch.
+   - This method retrieves the next batch of transactions that are ready to be processed by the application. It takes a context and a request containing the chain ID and the last batch hash.
+   - The method first checks if the chain ID is valid. If not, it returns an error.
+   - It then verifies the last batch hash to ensure that the client is requesting the correct next batch.
    - If a valid batch is found, it prepares the batch response, which includes the batch of transactions and a timestamp.
-   - If no transactions are available, it returns an empty batch response.
+   -   If no transactions are available, it returns an empty batch response.
 
-   Note that this method is used by the rollup node to get a sequencer soft-confirmed batch that the sequencer promises to publish to the DA layer.
+   Note that this method is used by the node to get a sequencer soft-confirmed batch that the sequencer promises to publish to the DA layer.
 
 3. **VerifyBatch**:
-   - This method is used to verify the that a batch received (soft-confirmed) from the sequencer was actually published on the DA layer. It takes a context and a request containing the rollup ID and the batch hash.
-   - Similar to the other methods, it first validates the rollup ID.
+   - This method is used to verify the that a batch received (soft-confirmed) from the sequencer was actually published on the DA layer. It takes a context and a request containing the chain ID and the batch hash.
+   - Similar to the other methods, it first validates the chain ID.
    - It then checks if the provided batch hash exists in the internal data structure that tracks seen batches.
    - If the batch hash is found, it returns a response indicating that the batch is valid. If not, it returns a response indicating that the batch is invalid.
 
-   Once this method returns true for batch, a rollup node can mark the rollup block associated to this batch as `DA included` and mark it as fully confirmed from its view.
+   Once this method returns true for batch, a node can mark the block associated to this batch as `DA included` and mark it as fully confirmed from its view.
 
-These methods work together to ensure that the single sequencer can effectively manage transaction submissions, retrievals, and verifications, providing a reliable interface for rollup clients to interact with the sequencer.
+These methods work together to ensure that the single sequencer can effectively manage transaction submissions, retrievals, and verifications, providing a reliable interface for clients to interact with the sequencer.
 
 ### Efficiency Considerations
 
@@ -154,9 +154,9 @@ These methods work together to ensure that the single sequencer can effectively 
 
 ### Access Patterns
 
-- Rollup clients will submit transactions to the sequencer at varying rates
+- Clients will submit transactions to the sequencer at varying rates
 - The sequencer will batch transactions and submit them to the DA layer at regular intervals
-- Rollup nodes will request the next batch from the sequencer to process transactions
+- Nodes will request the next batch from the sequencer to process transactions
 
 ### Logging, Monitoring, and Observability
 
@@ -174,7 +174,7 @@ These metrics can be exposed via Prometheus for monitoring.
 
 - The single sequencer is a single point of failure and control
 - Access control is not implemented in the initial version, but can be added in future versions
-- The sequencer validates rollup IDs to ensure transactions are submitted to the correct rollup
+- The sequencer validates chain IDs to ensure transactions are submitted to the correct application
 
 ### Privacy Considerations
 
@@ -201,7 +201,7 @@ Proposed
 
 ### Positive
 
-- Provides a simple, production-ready sequencer for rollup developers
+- Provides a simple, production-ready sequencer for developers
 - Implements the Generic Sequencer interface, making it compatible with existing Rollkit components
 - Includes metrics for monitoring and observability
 - Maintains state to track submitted batches and provide verification
@@ -220,6 +220,6 @@ Proposed
 
 ## References
 
-- [Generic Sequencer Interface](https://github.com/rollkit/go-sequencing)
+- [Generic Sequencer Interface](https://github.com/rollkit/rollkit/blob/main/core/sequencer/sequencing.go)
 - [Rollkit Repository](https://github.com/rollkit/rollkit)
 - [Single Sequencer Repository](https://github.com/rollkit/centralized-sequencer)
