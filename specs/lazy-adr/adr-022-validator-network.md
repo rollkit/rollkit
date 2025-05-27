@@ -5,11 +5,18 @@ Status: Draft
 
 ## Context
 
+When a single sequencer is used there is a limited design space for the token and a limited set of security guarantees. The validator network offers an alternative to using a full consensus protocol, but offers security guarantees with more than one participant verifying the execution and ordering.
+
 The validator network acts as an extra security layer and soft confirmation enabling the rollup to move faster than the underlying DA layer. Secondly a validator network introduces the opportunity to do more with the token of the chain.
 
 The original design and implementation was centered around IBC and adding a extra layer of security for counter party chains, so that the user is not solely trusting the sequencer to act correctly
 
 ## Decision
+
+Rollkit will introduce a validator network in which there will be a set of validators verifying execution and construction. There are two options for how this can be done, blocking and non-blocking.
+
+- Blocking: The blocking design is centered around the propser waiting for signatures to return to it in order to consider the block having a soft confirmation.
+- Non-blocking: The non-blocking design is centered around the proposer producing blocks as fast as possible but asking for signatures after fact. This design is optimized for block production performance. The validators will need to submit there attestations as a transaction to the state machine before the end of the epoch. If a validator does not submit their attesttation within the epoch, they will not be slashed but instead they will not get a reward.
 
 ### High-level workflow
 
@@ -32,18 +39,24 @@ Some potential future additions could be BLS12-381 aggregate and/or a BLS thresh
 
 The attester layer can plug into different validator‑set providers. Below we outline the existing Cosmos‑SDK flow and an alternative Reth / EVM flow patterned after UniChain’s staking design. Both share the same quorum rule (≥ ⅔ voting power) and slashing philosophy.
 
-#### Option A – Cosmos‑SDK (current main‑net)
+#### Cosmos‑SDK
+
+For the Cosmos SDK the attester system will be located in the ABCI execution environment.
+
+OPEN QUESTIONS:
+
+- grpc based or libp2p based
 
 - The staking module is the single source of truth for membership and voting power.
 - Create / Edit / Unbond msgs emit ValidatorSetUpdate events every block; sequencer & attesters rebuild the bitmap each height.
-- Joining — once bonded, a validator runs the attester daemon; missed signatures trigger normal jailing & slashing.
+- Joining — once bonded, a validator runs the attester daemon.
 - Leaving — when voting power reaches 0 the sequencer drops the validator from the next bitmap, ignoring late sigs.
 
-#### Option B - Reth/EVM Rollup
+#### Reth/EVM Rollup
 
 - Stake manager contract holds the validator stake/weight and maps an address to a key. It will emit `StakeSnapshot(epoch)` events that will be consumed by the consensus client.
 - Stake mirror listens for staking snapshot events in order to re build the validtor set. The proposer will always be the same, we do not support rotation at this time. Once the validator set is rebuilt any changes that are witnessed will be applied to the validator network.
--
+- The EVM will work in the non blocking way. The validators will be able to join and leave as they please with the requirement that they submit attestestions of execution in order to provide a soft confiramation at with in an epoch if they would like a reward for their work.
 
 Solidity Contract
 
@@ -57,15 +70,6 @@ contract StakeManager {
     function slash(address val, uint96 amt) external /* onlyEvidence */;
     function snapshot() external returns (bytes32 root); // called by sequencer each epoch
 }
-```
-
-In rollkit we will introduce a new state entry for epochs, active set, stake and a registry of all participants in the validator network.
-
-```text
-validators/stake/{addr}         → power | edKey | blsKey | missedCtr
-validators/epochRoot/{epoch}    → bytes32
-validators/activeSet/{epoch}    → addr[]
-validators/registry             → addr[]          (permissioned only)
 ```
 
 ### Quorum and liveness
@@ -123,31 +127,3 @@ graph TD
 - Multi-sequencer fail-over — once fast-leader-election is required we can revisit consensus (e.g., HotStuff) purely for sequencer rotation.
 - Light-client proofs — expose AttestationProof object so external bridges can verify signedVotingPower without full header.
 - Bundle attestation & DA availability proof to offer optimistic fast-finality bridges.
-
-## Appendix A — gRPC proto (excerpt)
-
-```proto
-service AttesterService {
-  rpc BroadcastBlock(stream BlockBundle) returns (stream Empty) {}
-  rpc SubmitSignature(SignatureMsg) returns (SubmitSignatureResponse) {}
-}
-
-message BlockBundle {
-  uint64  height      = 1;
-  bytes   block_hash  = 2;
-  bytes   state_root  = 3;
-  bytes   header      = 4; // protobuf-encoded header
-  bytes   txs         = 5; // amino bz2 concatenated
-}
-
-message SignatureMsg {
-  uint64  height     = 1;
-  bytes   block_hash = 2;
-  bytes   pub_key    = 3;
-  bytes   signature  = 4; // ed25519 or bls
-}
-
-message SubmitSignatureResponse {
-  bool ack = 1;
-}
-```
