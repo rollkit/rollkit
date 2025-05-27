@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -36,8 +37,14 @@ var emptyOptions = []byte{}
 // TestProxy runs the go-da DA test suite against the JSONRPC service
 // NOTE: This test requires a test JSONRPC service to run on the port
 // 3450 which is chosen to be sufficiently distinct from the default port
+
+func getTestDABlockTime() time.Duration {
+	return 100 * time.Millisecond
+}
+
 func TestProxy(t *testing.T) {
-	dummy := coreda.NewDummyDA(100_000, 0, 0)
+	dummy := coreda.NewDummyDA(100_000, 0, 0, getTestDABlockTime())
+	dummy.StartHeightTicker()
 	logger := log.NewTestLogger(t)
 	server := proxy.NewServer(logger, ServerHost, ServerPort, dummy)
 	err := server.Start(context.Background())
@@ -50,26 +57,23 @@ func TestProxy(t *testing.T) {
 
 	client, err := proxy.NewClient(context.Background(), logger, ClientURL, "", "74657374")
 	require.NoError(t, err)
-	RunDATestSuite(t, &client.DA)
-}
 
-// RunDATestSuite runs all tests against given DA
-func RunDATestSuite(t *testing.T, d coreda.DA) {
 	t.Run("Basic DA test", func(t *testing.T) {
-		BasicDATest(t, d)
+		BasicDATest(t, &client.DA)
 	})
 	t.Run("Get IDs and all data", func(t *testing.T) {
-		GetIDsTest(t, d)
+		GetIDsTest(t, &client.DA)
 	})
 	t.Run("Check Errors", func(t *testing.T) {
-		CheckErrors(t, d)
+		CheckErrors(t, &client.DA)
 	})
 	t.Run("Concurrent read/write test", func(t *testing.T) {
-		ConcurrentReadWriteTest(t, d)
+		ConcurrentReadWriteTest(t, &client.DA)
 	})
 	t.Run("Given height is from the future", func(t *testing.T) {
-		HeightFromFutureTest(t, d)
+		HeightFromFutureTest(t, &client.DA)
 	})
+	dummy.StopHeightTicker()
 }
 
 // BasicDATest tests round trip of messages to DA and back.
@@ -77,7 +81,7 @@ func BasicDATest(t *testing.T, d coreda.DA) {
 	msg1 := []byte("message 1")
 	msg2 := []byte("message 2")
 
-	ctx := context.TODO()
+	ctx := t.Context()
 	id1, err := d.Submit(ctx, []coreda.Blob{msg1}, 0, testNamespace)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, id1)
@@ -85,6 +89,8 @@ func BasicDATest(t *testing.T, d coreda.DA) {
 	id2, err := d.Submit(ctx, []coreda.Blob{msg2}, 0, testNamespace)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, id2)
+
+	time.Sleep(getTestDABlockTime())
 
 	id3, err := d.SubmitWithOptions(ctx, []coreda.Blob{msg1}, 0, testNamespace, []byte("random options"))
 	assert.NoError(t, err)
@@ -119,7 +125,7 @@ func BasicDATest(t *testing.T, d coreda.DA) {
 
 // CheckErrors ensures that errors are handled properly by DA.
 func CheckErrors(t *testing.T, d coreda.DA) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	blob, err := d.Get(ctx, []coreda.ID{[]byte("invalid blob id")}, testNamespace)
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, coreda.ErrBlobNotFound.Error())
@@ -130,8 +136,9 @@ func CheckErrors(t *testing.T, d coreda.DA) {
 func GetIDsTest(t *testing.T, d coreda.DA) {
 	msgs := []coreda.Blob{[]byte("msg1"), []byte("msg2"), []byte("msg3")}
 
-	ctx := context.TODO()
+	ctx := t.Context()
 	ids, err := d.Submit(ctx, msgs, 0, testNamespace)
+	time.Sleep(getTestDABlockTime())
 	assert.NoError(t, err)
 	assert.Len(t, ids, len(msgs))
 	found := false
@@ -143,6 +150,9 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 	for i := uint64(1); !found && !time.Now().After(end); i++ {
 		ret, err := d.GetIDs(ctx, i, []byte{})
 		if err != nil {
+			if strings.Contains(err.Error(), coreda.ErrHeightFromFuture.Error()) {
+				break
+			}
 			t.Error("failed to get IDs:", err)
 		}
 		assert.NotNil(t, ret)
@@ -153,11 +163,19 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 
 			// Submit ensures atomicity of batch, so it makes sense to compare actual blobs (bodies) only when lengths
 			// of slices is the same.
-			if len(blobs) == len(msgs) {
+			if len(blobs) >= len(msgs) {
 				found = true
-				for b := 0; b < len(blobs); b++ {
-					if !bytes.Equal(blobs[b], msgs[b]) {
+				for _, msg := range msgs {
+					msgFound := false
+					for _, blob := range blobs {
+						if bytes.Equal(blob, msg) {
+							msgFound = true
+							break
+						}
+					}
+					if !msgFound {
 						found = false
+						break
 					}
 				}
 			}
@@ -170,7 +188,7 @@ func GetIDsTest(t *testing.T, d coreda.DA) {
 // ConcurrentReadWriteTest tests the use of mutex lock in DummyDA by calling separate methods that use `d.data` and making sure there's no race conditions
 func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 	var wg sync.WaitGroup
-	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	writeDone := make(chan struct{})
@@ -179,7 +197,7 @@ func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 	go func() {
 		defer wg.Done()
 		for i := uint64(1); i <= 50; i++ {
-			_, err := d.Submit(ctx, []coreda.Blob{[]byte(fmt.Sprintf("test-%d", i))}, 0, []byte{})
+			_, err := d.Submit(ctx, []coreda.Blob{[]byte(fmt.Sprintf("test-%d", i))}, 0, []byte("test"))
 			assert.NoError(t, err)
 		}
 		close(writeDone)
@@ -193,10 +211,7 @@ func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 			case <-writeDone:
 				return
 			default:
-				ret, err := d.GetIDs(ctx, 1, []byte("test"))
-				if err != nil {
-					assert.Empty(t, ret.IDs)
-				}
+				d.GetIDs(ctx, 0, []byte("test"))
 			}
 		}
 	}()
@@ -206,11 +221,11 @@ func ConcurrentReadWriteTest(t *testing.T, d coreda.DA) {
 
 // HeightFromFutureTest tests the case when the given height is from the future
 func HeightFromFutureTest(t *testing.T, d coreda.DA) {
-	ctx := context.TODO()
+	ctx := t.Context()
 	_, err := d.GetIDs(ctx, 999999999, []byte("test"))
 	assert.Error(t, err)
-	// Specifically check if the error is ErrBlobNotFound (or contains its message)
-	assert.ErrorContains(t, err, coreda.ErrBlobNotFound.Error())
+	// Specifically check if the error contains the error message ErrHeightFromFuture
+	assert.ErrorContains(t, err, coreda.ErrHeightFromFuture.Error())
 }
 
 // TestSubmitWithOptions tests the SubmitWithOptions method with various scenarios

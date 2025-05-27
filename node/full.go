@@ -474,6 +474,8 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		// http.ErrServerClosed is expected on graceful shutdown
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down Prometheus server: %w", err))
+		} else {
+			n.Logger.Debug("Prometheus server shutdown context ended", "reason", err)
 		}
 	}
 
@@ -482,6 +484,8 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		err = n.pprofSrv.Shutdown(shutdownCtx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down pprof server: %w", err))
+		} else {
+			n.Logger.Debug("pprof server shutdown context ended", "reason", err)
 		}
 	}
 
@@ -490,17 +494,23 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		err = n.rpcServer.Shutdown(shutdownCtx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down RPC server: %w", err))
+		} else {
+			n.Logger.Debug("RPC server shutdown context ended", "reason", err)
 		}
 	}
 
 	// Ensure Store.Close is called last to maximize chance of data flushing
 	if err = n.Store.Close(); err != nil {
 		multiErr = errors.Join(multiErr, fmt.Errorf("closing store: %w", err))
+	} else {
+		n.Logger.Debug("store closed")
 	}
 
 	// Save caches if needed
 	if err := n.blockManager.SaveCache(); err != nil {
 		multiErr = errors.Join(multiErr, fmt.Errorf("saving caches: %w", err))
+	} else {
+		n.Logger.Debug("caches saved")
 	}
 
 	// Log final status
