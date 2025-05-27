@@ -13,10 +13,9 @@ The original design and implementation was centered around IBC and adding a extr
 
 ## Decision
 
-Rollkit will introduce a validator network in which there will be a set of validators verifying execution and construction. There are two options for how this can be done, blocking and non-blocking.
+Rollkit will introduce a validator network in which there will be a set of validators verifying execution and construction.
 
-- Blocking: The blocking design is centered around the propser waiting for signatures to return to it in order to consider the block having a soft confirmation.
-- Non-blocking: The non-blocking design is centered around the proposer producing blocks as fast as possible but asking for signatures after fact. This design is optimized for block production performance. The validators will need to submit there attestations as a transaction to the state machine before the end of the epoch. If a validator does not submit their attesttation within the epoch, they will not be slashed but instead they will not get a reward.
+- The design is centered around the proposer producing blocks as fast as possible but asking for signatures after fact. This design is optimized for block production performance. The validators will need to submit there attestations as a transaction to the state machine before the end of the epoch. If a validator does not submit their attesttation within the epoch, they will not be slashed but instead they will not get a reward.
 
 ### High-level workflow
 
@@ -43,14 +42,12 @@ The attester layer can plug into different validator‑set providers. Below we o
 
 For the Cosmos SDK the attester system will be located in the ABCI execution environment.
 
-OPEN QUESTIONS:
-
-- grpc based or libp2p based
-
 - The staking module is the single source of truth for membership and voting power.
 - Create / Edit / Unbond msgs emit ValidatorSetUpdate events every block; sequencer & attesters rebuild the bitmap each height.
 - Joining — once bonded, a validator runs the attester daemon.
 - Leaving — when voting power reaches 0 the sequencer drops the validator from the next bitmap, ignoring late sigs.
+
+The design adds a dedicated x/attestation Cosmos-SDK module that intercepts every IBC message in the AnteHandler, parks it in a state-kept queue, and releases it only after ≥ ⅔ validator voting-power has submitted attestations. Validators sign a hash of the queued tx; the module tracks signatures with a compact bitmap, finalises transactions in EndBlock (executing them through the normal IBC router), rewards timely signers, and optionally jails low-participation validators. Parameters cover quorum fraction, attestation window, pruning window, and queue size, keeping the solution pluggable and light-touch on existing IBC code.
 
 #### Reth/EVM Rollup
 
