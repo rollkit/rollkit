@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
-	ds "github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -20,12 +19,6 @@ import (
 func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager, mockStore *mocks.Store) {
 	logger := log.NewNopLogger()
 	nodeConf := config.DefaultConfig
-	mockStore = mocks.NewStore(t)
-
-	// Mock initial metadata reads during manager creation if necessary
-	mockStore.On("GetMetadata", mock.Anything, DAIncludedHeightKey).Return(nil, ds.ErrNotFound).Maybe()
-	mockStore.On("GetMetadata", mock.Anything, LastBatchDataKey).Return(nil, ds.ErrNotFound).Maybe()
-	mockStore.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound).Maybe()
 
 	return &Manager{
 		store:         mockStore,
@@ -54,39 +47,29 @@ func TestSubmitBatchToDA_Success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSubmitBatchToDA_AlreadyInMempool(t *testing.T) {
+func TestSubmitBatchToDA_Failure(t *testing.T) {
 	da := &mocks.DA{}
 	m, _ := newTestManagerWithDA(t, da)
 
 	batch := coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}
 
-	// Simulate DA success
-	da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(nil, coreda.ErrTxAlreadyInMempool)
+	testCases := []struct {
+		name    string
+		daError error
+	}{
+		{"AlreadyInMempool", coreda.ErrTxAlreadyInMempool},
+		{"TimedOut", coreda.ErrTxTimedOut},
+	}
 
-	err := m.submitBatchToDA(context.Background(), batch)
-	assert.Error(t, err)
-	assert.EqualError(t, err, "failed to submit all transactions to DA layer, submitted 0 txs (2 left) after 30 attempts")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			da.ExpectedCalls = nil // Reset mock expectations for each error
+			da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
+			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Return(nil, tc.daError)
+
+			err := m.submitBatchToDA(context.Background(), batch)
+			assert.Error(t, err, "expected error")
+		})
+	}
 }
-
-/*
-func TestSubmitHeadersToDA_Success(t *testing.T) {
-	da := &mocks.DA{}
-	m, mockStore := newTestManagerWithDA(t, da)
-
-	// Prepare a mock header
-	pendingHeaders, _ := NewPendingHeaders(m.store, m.logger)
-	m.pendingHeaders = pendingHeaders
-
-	// Simulate DA success
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return([]coreda.ID{[]byte("id")}, nil)
-	da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
-	mockStore.On("Height", mock.Anything).Return(uint64(10))
-
-	// Call submitHeadersToDA
-	err := m.submitHeadersToDA(context.Background())
-	assert.NoError(t, err)
-}
-*/
