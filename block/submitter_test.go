@@ -16,6 +16,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+// newTestManagerWithDA creates a Manager instance with a mocked DA layer for testing.
 func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager, mockStore *mocks.Store) {
 	logger := log.NewNopLogger()
 	nodeConf := config.DefaultConfig
@@ -32,6 +33,7 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager, mockStore *mo
 	}, mockStore
 }
 
+// TestSubmitBatchToDA_Success verifies that submitBatchToDA succeeds when the DA layer accepts the batch.
 func TestSubmitBatchToDA_Success(t *testing.T) {
 	da := &mocks.DA{}
 	m, _ := newTestManagerWithDA(t, da)
@@ -47,12 +49,14 @@ func TestSubmitBatchToDA_Success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// TestSubmitBatchToDA_Failure verifies that submitBatchToDA returns an error for various DA failures.
 func TestSubmitBatchToDA_Failure(t *testing.T) {
 	da := &mocks.DA{}
 	m, _ := newTestManagerWithDA(t, da)
 
 	batch := coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}
 
+	// Table-driven test for different DA error scenarios
 	testCases := []struct {
 		name    string
 		daError error
@@ -63,11 +67,13 @@ func TestSubmitBatchToDA_Failure(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			da.ExpectedCalls = nil // Reset mock expectations for each error
+			// Reset mock expectations for each error scenario
+			da.ExpectedCalls = nil
 			da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
 			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(nil, tc.daError)
 
+			// Expect an error from submitBatchToDA
 			err := m.submitBatchToDA(context.Background(), batch)
 			assert.Error(t, err, "expected error")
 		})
