@@ -15,18 +15,10 @@ import (
 // TestNewCache verifies that NewCache initializes correctly
 func TestNewCache(t *testing.T) {
 	cache := NewCache[string]()
-	if cache == nil {
-		t.Fatal("NewCache returned nil")
-	}
-	if cache.items == nil {
-		t.Error("items map not initialized")
-	}
-	if cache.hashes == nil {
-		t.Error("hashes map not initialized")
-	}
-	if cache.daIncluded == nil {
-		t.Error("daIncluded map not initialized")
-	}
+	require.NotNil(t, cache, "NewCache returned nil")
+	assert.NotNil(t, cache.items, "items map not initialized")
+	assert.NotNil(t, cache.hashes, "hashes map not initialized")
+	assert.NotNil(t, cache.daIncluded, "daIncluded map not initialized")
 }
 
 // TestCacheItemOperations tests the item-related operations (Get, Set, Delete)
