@@ -21,7 +21,6 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
@@ -611,8 +610,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return fmt.Errorf("header validation error: %w", err)
 	}
 
-	// Create and save RollkitSequencerAttestation for the current block H (header, data)
-	currentBlockAttestation, err := m.createAndSignAttestation(ctx, header, data)
+	currentBlockAttestation, err := m.createAttestation(ctx, header)
 	if err != nil {
 		// Log the error but don't let it stop the node.
 		// The adapter might not be able to form the LastCommit for the *next* block,
@@ -623,7 +621,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		if err != nil {
 			m.logger.Error("failed to save sequencer attestation for current block", "height", header.Height(), "error", err)
 		}
-		m.logger.Info("saved sequencer attestation for current block", "height", header.Height(), "attestation", currentBlockAttestation)
+		m.logger.Info("saved sequencer attestation for current block", "height", header.Height())
 	}
 
 	newState, err := m.applyBlock(ctx, header, data)
@@ -1077,76 +1075,17 @@ func (m *Manager) SaveCache() error {
 	return nil
 }
 
-// getAttestationSigningBytes constructs the canonical byte representation of attestation data for signing.
-// The order and format must be strictly defined and adhered to by any verifier.
-func (m *Manager) getAttestationSigningBytes(height uint64, round int32, blockHeaderHash []byte, blockDataHash []byte, timestamp time.Time) ([]byte, error) {
-	// Simple concatenation for this example. A more robust solution might use a specific
-	// protobuf definition or a library like go-amino or a custom binary marshaller.
-	// The exact serialization format must match what the adapter expects for constructing cmttypes.CommitSig.
-	// For cmttypes.Vote.SignBytes, it signs: VoteType, Height, Round, BlockID (hash & parts), Timestamp, ChainID
-	// We are simplifying here as Rollkit's attestation is sequencer-specific.
-
-	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, height)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write height to buffer: %w", err)
-	}
-	err = binary.Write(buf, binary.LittleEndian, round)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write round to buffer: %w", err)
-	}
-	buf.Write(blockHeaderHash)
-	buf.Write(blockDataHash)
-
-	// Convert time.Time to UnixNano for consistent representation
-	tsBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(tsBytes, uint64(timestamp.UnixNano()))
-	buf.Write(tsBytes)
-
-	return buf.Bytes(), nil
-}
-
-func (m *Manager) createAndSignAttestation(ctx context.Context, header *types.SignedHeader, data *types.Data) (*pb.RollkitSequencerAttestation, error) {
+func (m *Manager) createAttestation(ctx context.Context, header *types.SignedHeader) (*pb.RollkitSequencerAttestation, error) {
 	if m.signer == nil {
 		return nil, errors.New("signer is nil, cannot create attestation")
 	}
-	sequencerAddress, err := m.signer.GetAddress()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get sequencer address for attestation: %w", err)
-	}
-
-	// Use round 0 as per ADR suggestion for single sequencer
-	round := int32(0)
 	blockHeaderHash, err := m.headerHasher(&header.Header)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash header: %w", err)
 	}
-	blockDataHash := data.Hash() // Assuming data.Hash() gives the correct DataHash for BlockID
-
-	signingBytes, err := m.signaturePayloadProvider(&header.Header, data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get attestation signing bytes: %w", err)
-	}
-
-	signature, err := m.signer.Sign(signingBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign attestation data: %w", err)
-	}
-
-	headerPb, err := header.ToProto()
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert header to protobuf: %w", err)
-	}
 
 	attestation := &pb.RollkitSequencerAttestation{
-		Header:           headerPb,
-		Height:           header.Height(),
-		Round:            round,
-		BlockHeaderHash:  blockHeaderHash,
-		BlockDataHash:    blockDataHash,
-		SequencerAddress: sequencerAddress,
-		Timestamp:        timestamppb.New(header.Time()),
-		Signature:        signature,
+		BlockHeaderHash: blockHeaderHash,
 	}
 
 	return attestation, nil
