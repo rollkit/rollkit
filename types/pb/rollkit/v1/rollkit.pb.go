@@ -555,17 +555,10 @@ func (x *Vote) GetValidatorAddress() []byte {
 
 // RollkitSequencerAttestation holds the essential data signed by the sequencer for a given block.
 type RollkitSequencerAttestation struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Header           *SignedHeader          `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
-	Height           uint64                 `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
-	Round            int32                  `protobuf:"varint,3,opt,name=round,proto3" json:"round,omitempty"`
-	BlockHeaderHash  []byte                 `protobuf:"bytes,4,opt,name=block_header_hash,json=blockHeaderHash,proto3" json:"block_header_hash,omitempty"`
-	BlockDataHash    []byte                 `protobuf:"bytes,5,opt,name=block_data_hash,json=blockDataHash,proto3" json:"block_data_hash,omitempty"`
-	SequencerAddress []byte                 `protobuf:"bytes,6,opt,name=sequencer_address,json=sequencerAddress,proto3" json:"sequencer_address,omitempty"`
-	Timestamp        *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	Signature        []byte                 `protobuf:"bytes,8,opt,name=signature,proto3" json:"signature,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	BlockHeaderHash []byte                 `protobuf:"bytes,4,opt,name=block_header_hash,json=blockHeaderHash,proto3" json:"block_header_hash,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RollkitSequencerAttestation) Reset() {
@@ -598,58 +591,9 @@ func (*RollkitSequencerAttestation) Descriptor() ([]byte, []int) {
 	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *RollkitSequencerAttestation) GetHeader() *SignedHeader {
-	if x != nil {
-		return x.Header
-	}
-	return nil
-}
-
-func (x *RollkitSequencerAttestation) GetHeight() uint64 {
-	if x != nil {
-		return x.Height
-	}
-	return 0
-}
-
-func (x *RollkitSequencerAttestation) GetRound() int32 {
-	if x != nil {
-		return x.Round
-	}
-	return 0
-}
-
 func (x *RollkitSequencerAttestation) GetBlockHeaderHash() []byte {
 	if x != nil {
 		return x.BlockHeaderHash
-	}
-	return nil
-}
-
-func (x *RollkitSequencerAttestation) GetBlockDataHash() []byte {
-	if x != nil {
-		return x.BlockDataHash
-	}
-	return nil
-}
-
-func (x *RollkitSequencerAttestation) GetSequencerAddress() []byte {
-	if x != nil {
-		return x.SequencerAddress
-	}
-	return nil
-}
-
-func (x *RollkitSequencerAttestation) GetTimestamp() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Timestamp
-	}
-	return nil
-}
-
-func (x *RollkitSequencerAttestation) GetSignature() []byte {
-	if x != nil {
-		return x.Signature
 	}
 	return nil
 }
@@ -697,16 +641,9 @@ const file_rollkit_v1_rollkit_proto_rawDesc = "" +
 	"\x06height\x18\x02 \x01(\x04R\x06height\x128\n" +
 	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\"\n" +
 	"\rblock_id_hash\x18\x04 \x01(\fR\vblockIdHash\x12+\n" +
-	"\x11validator_address\x18\x05 \x01(\fR\x10validatorAddress\"\xd6\x02\n" +
-	"\x1bRollkitSequencerAttestation\x120\n" +
-	"\x06header\x18\x01 \x01(\v2\x18.rollkit.v1.SignedHeaderR\x06header\x12\x16\n" +
-	"\x06height\x18\x02 \x01(\x04R\x06height\x12\x14\n" +
-	"\x05round\x18\x03 \x01(\x05R\x05round\x12*\n" +
-	"\x11block_header_hash\x18\x04 \x01(\fR\x0fblockHeaderHash\x12&\n" +
-	"\x0fblock_data_hash\x18\x05 \x01(\fR\rblockDataHash\x12+\n" +
-	"\x11sequencer_address\x18\x06 \x01(\fR\x10sequencerAddress\x128\n" +
-	"\ttimestamp\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1c\n" +
-	"\tsignature\x18\b \x01(\fR\tsignatureB0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
+	"\x11validator_address\x18\x05 \x01(\fR\x10validatorAddress\"I\n" +
+	"\x1bRollkitSequencerAttestation\x12*\n" +
+	"\x11block_header_hash\x18\x04 \x01(\fR\x0fblockHeaderHashB0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
 
 var (
 	file_rollkit_v1_rollkit_proto_rawDescOnce sync.Once
@@ -738,13 +675,11 @@ var file_rollkit_v1_rollkit_proto_depIdxs = []int32{
 	3, // 2: rollkit.v1.SignedHeader.signer:type_name -> rollkit.v1.Signer
 	4, // 3: rollkit.v1.Data.metadata:type_name -> rollkit.v1.Metadata
 	8, // 4: rollkit.v1.Vote.timestamp:type_name -> google.protobuf.Timestamp
-	2, // 5: rollkit.v1.RollkitSequencerAttestation.header:type_name -> rollkit.v1.SignedHeader
-	8, // 6: rollkit.v1.RollkitSequencerAttestation.timestamp:type_name -> google.protobuf.Timestamp
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_rollkit_v1_rollkit_proto_init() }

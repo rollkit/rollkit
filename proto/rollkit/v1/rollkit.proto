@@ -112,12 +112,5 @@ message Vote {
 
 // RollkitSequencerAttestation holds the essential data signed by the sequencer for a given block.
 message RollkitSequencerAttestation {
-  SignedHeader header = 1;
-  uint64 height = 2;
-  int32 round = 3;
   bytes block_header_hash = 4;
-  bytes block_data_hash = 5;
-  bytes sequencer_address = 6;
-  google.protobuf.Timestamp timestamp = 7;
-  bytes signature = 8;
 }

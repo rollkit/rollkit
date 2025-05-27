@@ -234,14 +234,7 @@ func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, err
 // SaveSequencerAttestation saves the sequencer attestation for a given height.
 func (s *DefaultStore) SaveSequencerAttestation(ctx context.Context, height uint64, attestation *pb.RollkitSequencerAttestation) error {
 	key := ds.NewKey(getSeqAttestationKey(height))
-	// TODO (gmm): consider using proto for marshalling if a proto definition exists or will be created.
-	// For now, using a simple binary marshaller if available, or json as a fallback.
-	// This will require RollkitSequencerAttestation to implement MarshalBinary and UnmarshalBinary.
-	// For simplicity in this example, let's assume it will be marshalled to protobuf if available, or JSON.
-	// As a placeholder, we'll use a direct proto marshal if the object were a proto message.
-	// If RollkitSequencerAttestation is not a proto message, this needs to be adapted (e.g. json.Marshal).
-	// For the ADR, it's defined as a simple Go struct. We'll use JSON for now.
-	attestationBytes, err := proto.Marshal(attestation) // Assuming MarshalBinary for now as per other types.
+	attestationBytes, err := proto.Marshal(attestation)
 	if err != nil {
 		return fmt.Errorf("failed to marshal sequencer attestation: %w", err)
 	}
