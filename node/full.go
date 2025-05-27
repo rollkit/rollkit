@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"sync"
 	"time"
 
 	"cosmossdk.io/log"
@@ -27,7 +28,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
-	"github.com/rollkit/rollkit/pkg/sync"
+	rollkitSync "github.com/rollkit/rollkit/pkg/sync"
 )
 
 // prefixes used in KV store to separate rollkit data from execution environment data (if the same data base is reused)
@@ -55,8 +56,8 @@ type FullNode struct {
 	da coreda.DA
 
 	p2pClient    *p2p.Client
-	hSyncService *sync.HeaderSyncService
-	dSyncService *sync.DataSyncService
+	hSyncService *rollkitSync.HeaderSyncService
+	dSyncService *rollkitSync.DataSyncService
 	Store        store.Store
 	blockManager *block.Manager
 	reaper       *block.Reaper
@@ -151,8 +152,8 @@ func initHeaderSyncService(
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
-) (*sync.HeaderSyncService, error) {
-	headerSyncService, err := sync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+) (*rollkitSync.HeaderSyncService, error) {
+	headerSyncService, err := rollkitSync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -165,8 +166,8 @@ func initDataSyncService(
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
-) (*sync.DataSyncService, error) {
-	dataSyncService, err := sync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
+) (*rollkitSync.DataSyncService, error) {
+	dataSyncService, err := rollkitSync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing DataSyncService: %w", err)
 	}
@@ -191,8 +192,8 @@ func initBlockManager(
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
 	logger log.Logger,
-	headerSyncService *sync.HeaderSyncService,
-	dataSyncService *sync.DataSyncService,
+	headerSyncService *rollkitSync.HeaderSyncService,
+	dataSyncService *rollkitSync.DataSyncService,
 	seqMetrics *block.Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
@@ -369,20 +370,28 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	// only the first error is propagated
 	// any error is an issue, so blocking is not a problem
 	errCh := make(chan error, 1)
-
+	// prepare to join the go routines later
+	var wg sync.WaitGroup
+	spawnWorker := func(f func()) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			f()
+		}()
+	}
 	if n.nodeConfig.Node.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
-		go n.blockManager.AggregationLoop(ctx, errCh)
-		go n.reaper.Start(ctx)
-		go n.blockManager.HeaderSubmissionLoop(ctx)
-		go n.blockManager.BatchSubmissionLoop(ctx)
-		go n.blockManager.DAIncluderLoop(ctx, errCh)
+		spawnWorker(func() { n.blockManager.AggregationLoop(ctx, errCh) })
+		spawnWorker(func() { n.reaper.Start(ctx) })
+		spawnWorker(func() { n.blockManager.HeaderSubmissionLoop(ctx) })
+		spawnWorker(func() { n.blockManager.BatchSubmissionLoop(ctx) })
+		spawnWorker(func() { n.blockManager.DAIncluderLoop(ctx, errCh) })
 	} else {
-		go n.blockManager.RetrieveLoop(ctx)
-		go n.blockManager.HeaderStoreRetrieveLoop(ctx)
-		go n.blockManager.DataStoreRetrieveLoop(ctx)
-		go n.blockManager.SyncLoop(ctx, errCh)
-		go n.blockManager.DAIncluderLoop(ctx, errCh)
+		spawnWorker(func() { n.blockManager.RetrieveLoop(ctx) })
+		spawnWorker(func() { n.blockManager.HeaderStoreRetrieveLoop(ctx) })
+		spawnWorker(func() { n.blockManager.DataStoreRetrieveLoop(ctx) })
+		spawnWorker(func() { n.blockManager.SyncLoop(ctx, errCh) })
+		spawnWorker(func() { n.blockManager.DAIncluderLoop(ctx, errCh) })
 	}
 
 	select {
@@ -399,6 +408,9 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 
 	// Perform cleanup
 	n.Logger.Info("halting full node and its sub services...")
+	// wait for all worker Go routines to finish so that we have
+	// no in-flight tasks while shutting down
+	wg.Wait()
 
 	// Use a timeout context to ensure shutdown doesn't hang
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)

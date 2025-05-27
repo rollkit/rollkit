@@ -34,18 +34,26 @@ import (
 
 func TestSlowConsumers(t *testing.T) {
 	logging.SetDebugLogging()
-	blockTime := 10 * time.Millisecond
+	blockTime := 100 * time.Millisecond
 	specs := map[string]struct {
 		headerConsumerDelay time.Duration
 		dataConsumerDelay   time.Duration
 	}{
 		"slow header consumer": {
-			headerConsumerDelay: blockTime * 3,
+			headerConsumerDelay: blockTime * 2,
 			dataConsumerDelay:   0,
 		},
 		"slow data consumer": {
 			headerConsumerDelay: 0,
 			dataConsumerDelay:   blockTime * 2,
+		},
+		"both slow": {
+			headerConsumerDelay: blockTime,
+			dataConsumerDelay:   blockTime,
+		},
+		"both fast": {
+			headerConsumerDelay: 0,
+			dataConsumerDelay:   0,
 		},
 	}
 	for name, spec := range specs {
@@ -65,11 +73,15 @@ func TestSlowConsumers(t *testing.T) {
 			manager.dataBroadcaster = capturingTailBroadcaster[*types.Data](spec.dataConsumerDelay, &lastCapturedDataPayload, dataSync)
 			manager.headerBroadcaster = capturingTailBroadcaster[*types.SignedHeader](spec.headerConsumerDelay, &lastCapturedHeaderPayload, headerSync)
 
-			//go seqConsumer(ctx, manager.DataCh, spec.dataConsumerDelay, &lastCapturedDataHeight)
 			blockTime := manager.config.Node.BlockTime.Duration
-			//go seqConsumer(ctx, manager.HeaderCh, spec.headerConsumerDelay, &lastCapturedHeaderHeight)
+			aggCtx, aggCancel := context.WithCancel(ctx)
 			errChan := make(chan error, 1)
-			go manager.AggregationLoop(ctx, errChan)
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				manager.AggregationLoop(aggCtx, errChan)
+				wg.Done()
+			}()
 
 			// wait for messages to pile up
 			select {
@@ -77,6 +89,8 @@ func TestSlowConsumers(t *testing.T) {
 				require.NoError(t, err)
 			case <-time.After(spec.dataConsumerDelay + spec.headerConsumerDelay + 3*blockTime):
 			}
+			aggCancel()
+			wg.Wait() // await aggregation loop to finish
 			t.Log("shutting down block manager")
 			require.NoError(t, dataSync.Stop(ctx))
 			require.NoError(t, headerSync.Stop(ctx))
