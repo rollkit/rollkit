@@ -17,12 +17,11 @@ import (
 )
 
 // newTestManagerWithDA creates a Manager instance with a mocked DA layer for testing.
-func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager, mockStore *mocks.Store) {
+func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 	logger := log.NewNopLogger()
 	nodeConf := config.DefaultConfig
 
 	return &Manager{
-		store:         mockStore,
 		da:            da,
 		logger:        logger,
 		config:        nodeConf,
@@ -30,13 +29,13 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager, mockStore *mo
 		gasMultiplier: 2.0,
 		headerCache:   cache.NewCache[types.SignedHeader](),
 		dataCache:     cache.NewCache[types.Data](),
-	}, mockStore
+	}
 }
 
 // TestSubmitBatchToDA_Success verifies that submitBatchToDA succeeds when the DA layer accepts the batch.
 func TestSubmitBatchToDA_Success(t *testing.T) {
 	da := &mocks.DA{}
-	m, _ := newTestManagerWithDA(t, da)
+	m := newTestManagerWithDA(t, da)
 
 	batch := coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}
 
@@ -52,7 +51,7 @@ func TestSubmitBatchToDA_Success(t *testing.T) {
 // TestSubmitBatchToDA_Failure verifies that submitBatchToDA returns an error for various DA failures.
 func TestSubmitBatchToDA_Failure(t *testing.T) {
 	da := &mocks.DA{}
-	m, _ := newTestManagerWithDA(t, da)
+	m := newTestManagerWithDA(t, da)
 
 	batch := coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}
 
