@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/ipfs/go-datastore"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	syncdb "github.com/ipfs/go-datastore/sync"
@@ -52,7 +51,7 @@ func TestSlowConsumers(t *testing.T) {
 	for name, spec := range specs {
 		t.Run(name, func(t *testing.T) {
 			workDir := t.TempDir()
-			dbm := syncdb.MutexWrap(datastore.NewMapDatastore())
+			dbm := syncdb.MutexWrap(ds.NewMapDatastore())
 			ctx, cancel := context.WithCancel(t.Context())
 
 			pk, _, err := crypto.GenerateEd25519Key(cryptoRand.Reader)
@@ -169,6 +168,7 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 
 	// Start p2p client before creating sync service
 	err = p2pClient.Start(ctx)
+	require.NoError(t, err)
 
 	const RollkitPrefix = "0"
 	ktds.Wrap(mainKV, ktds.PrefixTransform{Prefix: ds.NewKey(RollkitPrefix)})
@@ -201,19 +201,6 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 	return result, headerSyncService, dataSyncService
 }
 
-func seqConsumer[T interface{ Height() uint64 }](ctx context.Context, chn <-chan T, sleepTime time.Duration, lastCapturedHeaderHeight *uint64) {
-	select {
-	case <-ctx.Done():
-	case h := <-chn:
-		time.Sleep(sleepTime)
-		gotHeight := h.Height()
-		if gotHeight != *lastCapturedHeaderHeight+1 {
-			panic(fmt.Sprintf("got height %d, want %d", gotHeight, *lastCapturedHeaderHeight+1))
-		}
-		*lastCapturedHeaderHeight = gotHeight
-	}
-}
-
 type mockExecutor struct{}
 
 func (m mockExecutor) InitChain(ctx context.Context, genesisTime time.Time, initialHeight uint64, chainID string) (stateRoot []byte, maxBytes uint64, err error) {
@@ -233,7 +220,7 @@ func (m mockExecutor) SetFinal(ctx context.Context, blockHeight uint64) error {
 	return nil
 }
 
-var rnd = rand.New(rand.NewSource(1))
+var rnd = rand.New(rand.NewSource(1)) //nolint:gosec // test code only
 
 func bytesN(n int) []byte {
 	data := make([]byte, n)

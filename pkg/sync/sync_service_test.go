@@ -29,7 +29,7 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	require.NoError(t, err)
 	noopSigner, err := noop.NewNoopSigner(pk)
 	require.NoError(t, err)
-	rnd := rand.New(rand.NewSource(1))
+	rnd := rand.New(rand.NewSource(1)) // nolint:gosec // test code only
 
 	proposerAddr := []byte("test")
 	genesisDoc := genesispkg.Genesis{
@@ -93,10 +93,11 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	svc, err = NewHeaderSyncService(mainKV, conf, genesisDoc, p2pClient, logger)
 	require.NoError(t, err)
 	err = svc.Start(ctx)
+	require.NoError(t, err)
 	// done with stop and restart service
 
 	// broadcast another 10 example blocks
-	for i := signedHeader.Header.Height() + 1; i < 10; i++ {
+	for i := signedHeader.Height() + 1; i < 10; i++ {
 		signedHeader = nextHeader(t, signedHeader, genesisDoc.ChainID, noopSigner)
 		t.Logf("signed header: %d", i)
 		require.NoError(t, svc.WriteToStoreAndBroadcast(ctx, signedHeader))
