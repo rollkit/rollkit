@@ -295,6 +295,7 @@ func (syncService *SyncService[H]) setFirstAndStart(ctx context.Context, peerIDs
 //
 // `store` is closed last because it's used by other services.
 func (syncService *SyncService[H]) Stop(ctx context.Context) error {
+	// unsubscribe from topic first so that sub.Stop() does not fail
 	syncService.topicSubscription.Cancel()
 	err := errors.Join(
 		syncService.p2pServer.Stop(ctx),

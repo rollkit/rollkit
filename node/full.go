@@ -410,7 +410,7 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	wg.Wait()
 
 	// Use a timeout context to ensure shutdown doesn't hang
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 9*time.Second)
 	defer cancel()
 
 	var multiErr error // Use a multierror variable
