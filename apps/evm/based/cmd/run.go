@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rollkit/go-execution-evm"
+	execution "github.com/rollkit/go-execution-evm"
 	coreda "github.com/rollkit/rollkit/core/da"
 
 	"github.com/rollkit/rollkit/da/jsonrpc"
@@ -100,7 +100,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to parse config: %w", err)
 			}
 
-			executor, err := execution.NewEngineExecutionClient(
+			executor, err := execution.NewPureEngineExecutionClient(
 				ethURL, engineURL, jwtSecret, common.HexToHash(genesisHash), common.HexToAddress(feeRecipient),
 			)
 			if err != nil {
