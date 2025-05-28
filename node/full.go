@@ -28,7 +28,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
-	rollkitSync "github.com/rollkit/rollkit/pkg/sync"
+	rollkitsync "github.com/rollkit/rollkit/pkg/sync"
 )
 
 // prefixes used in KV store to separate rollkit data from execution environment data (if the same data base is reused)
@@ -56,8 +56,8 @@ type FullNode struct {
 	da coreda.DA
 
 	p2pClient    *p2p.Client
-	hSyncService *rollkitSync.HeaderSyncService
-	dSyncService *rollkitSync.DataSyncService
+	hSyncService *rollkitsync.HeaderSyncService
+	dSyncService *rollkitsync.DataSyncService
 	Store        store.Store
 	blockManager *block.Manager
 	reaper       *block.Reaper
@@ -152,8 +152,8 @@ func initHeaderSyncService(
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
-) (*rollkitSync.HeaderSyncService, error) {
-	headerSyncService, err := rollkitSync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+) (*rollkitsync.HeaderSyncService, error) {
+	headerSyncService, err := rollkitsync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -166,8 +166,8 @@ func initDataSyncService(
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
-) (*rollkitSync.DataSyncService, error) {
-	dataSyncService, err := rollkitSync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
+) (*rollkitsync.DataSyncService, error) {
+	dataSyncService, err := rollkitsync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing DataSyncService: %w", err)
 	}
@@ -192,8 +192,8 @@ func initBlockManager(
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
 	logger log.Logger,
-	headerSyncService *rollkitSync.HeaderSyncService,
-	dataSyncService *rollkitSync.DataSyncService,
+	headerSyncService *rollkitsync.HeaderSyncService,
+	dataSyncService *rollkitsync.DataSyncService,
 	seqMetrics *block.Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
