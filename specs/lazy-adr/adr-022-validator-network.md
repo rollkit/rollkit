@@ -9,7 +9,7 @@ When a single sequencer is used there is a limited design space for the token an
 
 The validator network acts as an extra security layer and soft confirmation enabling the rollup to move faster than the underlying DA layer. Secondly a validator network introduces the opportunity to do more with the token of the chain.
 
-The original design and implementation was centered around IBC and adding a extra layer of security for counter party chains, so that the user is not solely trusting the sequencer to act correctly
+The original design and implementation was centered around IBC and adding an extra layer of security for counter party chains, so that the user is not solely trusting the sequencer to act correctly
 
 ## Decision
 
