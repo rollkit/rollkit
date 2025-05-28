@@ -93,7 +93,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	store := store.NewDefaultPruningStore(mainKV, nodeConfig.Node.Pruning)
+	store := store.NewAsyncPruningStore(mainKV, nodeConfig.Node.Pruning)
 
 	blockManager, err := initBlockManager(
 		ctx,
