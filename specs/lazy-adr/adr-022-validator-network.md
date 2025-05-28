@@ -15,7 +15,7 @@ The original design and implementation was centered around IBC and adding an ext
 
 Rollkit will introduce a validator network in which there will be a set of validators verifying execution and construction.
 
-- The design is centered around the proposer producing blocks as fast as possible but asking for signatures after fact. This design is optimized for block production performance. The validators will need to submit there attestations as a transaction to the state machine before the end of the epoch. If a validator does not submit their attesttation within the epoch, they will not be slashed but instead they will not get a reward.
+- The design is centered around the proposer producing blocks as fast as possible but asking for signatures after fact. This design is optimized for block production performance. The validators will need to submit there attestations as a transaction to the state machine before the end of the epoch. If a validator does not submit their attestation within the epoch, they will not be slashed but instead they will not get a reward.
 
 ### High-level workflow
 
