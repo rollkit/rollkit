@@ -212,6 +212,10 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("could not create directory %q: %w", fullDir, err)
 	}
 
+	if err := c.Node.Pruning.Validate(); err != nil {
+		return fmt.Errorf("invalid pruning configuration: %w", err)
+	}
+
 	return nil
 }
 
