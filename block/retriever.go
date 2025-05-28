@@ -76,7 +76,7 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 				m.logger.Debug("no blob data found", "daHeight", daHeight, "reason", blobsResp.Message)
 				return nil
 			}
-			m.logger.Debug("retrieved potential data", "n", len(blobsResp.Data), "daHeight", daHeight)
+			m.logger.Debug("retrieved potential blob data", "n", len(blobsResp.Data), "daHeight", daHeight)
 			for _, bz := range blobsResp.Data {
 				if len(bz) == 0 {
 					m.logger.Debug("ignoring nil or empty blob", "daHeight", daHeight)

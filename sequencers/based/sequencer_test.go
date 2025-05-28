@@ -14,8 +14,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func getTestDABlockTime() time.Duration {
+	return 100 * time.Millisecond
+}
+
 func newTestSequencer(t *testing.T) *based.Sequencer {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
+	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5, getTestDABlockTime())
+	dummyDA.StartHeightTicker()
 	store := ds.NewMapDatastore()
 	seq, err := based.NewSequencer(log.NewNopLogger(), dummyDA, []byte("test1"), 0, 2, store)
 	assert.NoError(t, err)
@@ -66,6 +71,7 @@ func TestSequencer_GetNextBatch_FromDALayer(t *testing.T) {
 	blobs := []coreda.Blob{[]byte("tx2"), []byte("tx3")}
 	_, err := sequencer.DA.Submit(ctx, blobs, 1.0, []byte("ns"))
 	assert.NoError(t, err)
+	time.Sleep(getTestDABlockTime())
 
 	resp, err := sequencer.GetNextBatch(ctx, coresequencer.GetNextBatchRequest{
 		Id: []byte("test1"),
@@ -86,7 +92,7 @@ func TestSequencer_GetNextBatch_Invalid(t *testing.T) {
 }
 
 func TestSequencer_GetNextBatch_ExceedsMaxDrift(t *testing.T) {
-	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5)
+	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5, 10*time.Second)
 	store := ds.NewMapDatastore()
 	sequencer, err := based.NewSequencer(log.NewNopLogger(), dummyDA, []byte("test1"), 0, 0, store)
 	assert.NoError(t, err)
@@ -94,6 +100,7 @@ func TestSequencer_GetNextBatch_ExceedsMaxDrift(t *testing.T) {
 	ctx := context.Background()
 	_, err = dummyDA.Submit(ctx, []coreda.Blob{[]byte("tx4")}, 1.0, []byte("ns"))
 	assert.NoError(t, err)
+	time.Sleep(getTestDABlockTime())
 
 	resp, err := sequencer.GetNextBatch(ctx, coresequencer.GetNextBatchRequest{
 		Id: []byte("test1"),
@@ -110,6 +117,7 @@ func TestSequencer_VerifyBatch_Success(t *testing.T) {
 	ctx := context.Background()
 	ids, err := sequencer.DA.Submit(ctx, []coreda.Blob{[]byte("tx1")}, 1.0, []byte("ns"))
 	assert.NoError(t, err)
+	time.Sleep(getTestDABlockTime())
 
 	resp, err := sequencer.VerifyBatch(ctx, coresequencer.VerifyBatchRequest{
 		Id:        []byte("test1"),

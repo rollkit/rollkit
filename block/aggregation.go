@@ -34,8 +34,8 @@ func (m *Manager) AggregationLoop(ctx context.Context, errCh chan<- error) {
 	blockTimer := time.NewTimer(0)
 	defer blockTimer.Stop()
 
-	// Lazy Aggregator mode.
-	// In Lazy Aggregator mode, blocks are built only when there are
+	// Lazy Sequencer mode.
+	// In Lazy Sequencer mode, blocks are built only when there are
 	// transactions or every LazyBlockTime.
 	if m.config.Node.LazyMode {
 		if err := m.lazyAggregationLoop(ctx, blockTimer); err != nil {
