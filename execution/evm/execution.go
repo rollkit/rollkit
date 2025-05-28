@@ -161,7 +161,13 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 			return nil, 0, fmt.Errorf("failed to unmarshal transaction: %w", err)
 		}
 		txHash := ethTxs[i].Hash()
-		_, isPending, err := c.ethClient.TransactionByHash(context.Background(), txHash)
+		// … earlier in this loop/function …
+		_, isPending, err := c.ethClient.TransactionByHash(ctx, txHash)
+		if err == nil && isPending {
+			continue // skip SendTransaction
+		}
+		err = c.ethClient.SendTransaction(ctx, ethTxs[i])
+		// … rest of function …
 		if err == nil && isPending {
 			continue // skip SendTransaction
 		}
