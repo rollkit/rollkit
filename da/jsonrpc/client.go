@@ -60,6 +60,10 @@ func (api *API) GetIDs(ctx context.Context, height uint64, _ []byte) (*da.GetIDs
 			api.Logger.Debug("RPC call indicates blobs not found", "method", "GetIDs", "height", height)
 			return nil, err // Return the specific ErrBlobNotFound
 		}
+		if errors.Is(err, da.ErrHeightFromFuture) {
+			api.Logger.Debug("RPC call indicates height from future", "method", "GetIDs", "height", height)
+			return nil, err // Return the specific ErrHeightFromFuture
+		}
 		api.Logger.Error("RPC call failed", "method", "GetIDs", "error", err)
 		return nil, err
 	}

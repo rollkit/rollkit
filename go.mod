@@ -23,7 +23,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/multiformats/go-multiaddr v0.15.0
 	github.com/prometheus/client_golang v1.21.1
-	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
+	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6

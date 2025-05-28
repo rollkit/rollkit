@@ -11,7 +11,7 @@ import (
 // Test that node can start and be shutdown properly using context cancellation
 func TestStartup(t *testing.T) {
 	// Get the node and cleanup function
-	node, cleanup := setupTestNodeWithCleanup(t, getTestConfig(t, 1))
+	node, cleanup := createNodeWithCleanup(t, getTestConfig(t, 1))
 	require.IsType(t, new(FullNode), node)
 
 	// Create a context with cancel function for node operation
