@@ -53,7 +53,7 @@ The design adds a dedicated x/attestation Cosmos-SDK module that intercepts ever
 
 - Stake manager contract holds the validator stake/weight and maps an address to a key. It will emit `StakeSnapshot(epoch)` events that will be consumed by the consensus client.
 - Stake mirror listens for staking snapshot events in order to re build the validtor set. The proposer will always be the same, we do not support rotation at this time. Once the validator set is rebuilt any changes that are witnessed will be applied to the validator network.
-- The EVM will work in the non blocking way. The validators will be able to join and leave as they please with the requirement that they submit attestestions of execution in order to provide a soft confiramation at with in an epoch if they would like a reward for their work.
+- The EVM will work in the non blocking way. The validators will be able to join and leave as they please with the requirement that they submit attestations of execution in order to provide a soft confirmation within an epoch if they would like a reward for their work.
 
 Solidity Contract
 
