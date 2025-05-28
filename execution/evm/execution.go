@@ -1,6 +1,7 @@
 package evm
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -161,13 +162,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 			return nil, 0, fmt.Errorf("failed to unmarshal transaction: %w", err)
 		}
 		txHash := ethTxs[i].Hash()
-		// … earlier in this loop/function …
-		_, isPending, err := c.ethClient.TransactionByHash(ctx, txHash)
-		if err == nil && isPending {
-			continue // skip SendTransaction
-		}
-		err = c.ethClient.SendTransaction(ctx, ethTxs[i])
-		// … rest of function …
+		_, isPending, err := c.ethClient.TransactionByHash(context.Background(), txHash)
 		if err == nil && isPending {
 			continue // skip SendTransaction
 		}
@@ -175,6 +170,17 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to send transaction: %w", err)
 		}
+	}
+
+	// encode
+	txsPayload := make([][]byte, len(txs))
+	for i, tx := range ethTxs {
+		buf := bytes.Buffer{}
+		err := tx.EncodeRLP(&buf)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to RLP encode tx: %w", err)
+		}
+		txsPayload[i] = buf.Bytes()
 	}
 
 	var (
@@ -212,7 +218,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 			SuggestedFeeRecipient: c.feeRecipient,
 			Withdrawals:           []*types.Withdrawal{},
 			BeaconRoot:            &c.genesisHash,
-			Transactions:          txs,
+			Transactions:          txsPayload,
 			NoTxPool:              true,
 		},
 	)
