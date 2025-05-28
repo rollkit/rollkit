@@ -26,7 +26,7 @@ const (
 	TEST_ENGINE_URL = "http://localhost:8551"
 
 	CHAIN_ID          = "1234"
-	GENESIS_HASH      = "0x568201e3a763b59f7c646d72bf75a25aafff57f98a82dbd7b50542382c55f372"
+	GENESIS_HASH      = "0x0a962a0d163416829894c89cb604ae422323bcdf02d7ea08b94d68d3e026a380"
 	GENESIS_STATEROOT = "0x362b7d8a31e7671b0f357756221ac385790c25a27ab222dc8cbdd08944f5aea4"
 	TEST_PRIVATE_KEY  = "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e"
 	TEST_TO_ADDRESS   = "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E"
@@ -76,14 +76,14 @@ func TestEngineExecution(t *testing.T) {
 			genesisHash,
 			common.Address{},
 		)
-		require.NoError(tt, err)
+		require.NoError(t, err)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 		defer cancel()
 		stateRoot, gasLimit, err := executionClient.InitChain(ctx, genesisTime, initialHeight, CHAIN_ID)
-		require.NoError(tt, err)
-		require.Equal(tt, rollkitGenesisStateRoot, stateRoot)
-		require.NotZero(tt, gasLimit)
+		require.NoError(t, err)
+		require.Equal(t, rollkitGenesisStateRoot, stateRoot)
+		require.NotZero(t, gasLimit)
 
 		prevStateRoot := rollkitGenesisStateRoot
 		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
@@ -96,16 +96,16 @@ func TestEngineExecution(t *testing.T) {
 			}
 			txs := make([]*ethTypes.Transaction, nTxs)
 			for i := range txs {
-				txs[i] = getRandomTransaction(tt, 22000)
+				txs[i] = getRandomTransaction(t, 22000)
 			}
 			for i := range txs {
-				submitTransaction(tt, txs[i])
+				submitTransaction(t, txs[i])
 			}
 			time.Sleep(1000 * time.Millisecond)
 
 			payload, err := executionClient.GetTxs(ctx)
 			require.NoError(tt, err)
-			require.Len(tt, payload, nTxs)
+			require.Lenf(tt, payload, nTxs, "expected %d transactions, got %d", nTxs, len(payload))
 
 			allPayloads = append(allPayloads, payload)
 
@@ -138,6 +138,10 @@ func TestEngineExecution(t *testing.T) {
 			prevStateRoot = newStateRoot
 		}
 	})
+
+	if t.Failed() {
+		return
+	}
 
 	// start new container and try to sync
 	t.Run("Sync chain", func(tt *testing.T) {
@@ -176,7 +180,11 @@ func TestEngineExecution(t *testing.T) {
 			if len(payload) > 0 {
 				require.NotZero(tt, maxBytes)
 			}
-			require.NotEqual(tt, prevStateRoot, newStateRoot)
+			if len(payload) == 0 {
+				require.Equal(tt, prevStateRoot, newStateRoot)
+			} else {
+				require.NotEqual(tt, prevStateRoot, newStateRoot)
+			}
 
 			err = executionClient.SetFinal(ctx, blockHeight)
 			require.NoError(tt, err)
@@ -384,9 +392,16 @@ func TestSubmitTransaction(t *testing.T) {
 	lastNonce, err = rpcClient.NonceAt(ctx, address, new(big.Int).SetUint64(height))
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
-		tx := getRandomTransaction(t, 22000)
-		submitTransaction(t, tx)
+	for s := 0; s < 30; s++ {
+		startTime := time.Now()
+		for i := 0; i < 100; i++ {
+			tx := getRandomTransaction(t, 22000)
+			submitTransaction(t, tx)
+		}
+		elapsed := time.Since(startTime)
+		if elapsed < time.Second {
+			time.Sleep(time.Second - elapsed)
+		}
 	}
 }
 

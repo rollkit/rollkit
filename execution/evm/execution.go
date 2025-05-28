@@ -41,7 +41,7 @@ type EngineClient struct {
 	feeRecipient  common.Address // Address to receive transaction fees
 }
 
-// NewEngineExecutionClient creates a new instance of EngineAPIExecutionClient
+// NewPureEngineExecutionClient creates a new instance of EngineAPIExecutionClient
 func NewEngineExecutionClient(
 	ethURL,
 	engineURL string,
@@ -152,6 +152,25 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 
 // ExecuteTxs executes the given transactions at the specified block height and timestamp
 func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (updatedStateRoot []byte, maxBytes uint64, err error) {
+	// convert rollkit tx to eth tx
+	ethTxs := make([]*types.Transaction, len(txs))
+	for i, tx := range txs {
+		ethTxs[i] = new(types.Transaction)
+		err := ethTxs[i].UnmarshalBinary(tx)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to unmarshal transaction: %w", err)
+		}
+		txHash := ethTxs[i].Hash()
+		_, isPending, err := c.ethClient.TransactionByHash(context.Background(), txHash)
+		if err == nil && isPending {
+			continue // skip SendTransaction
+		}
+		err = c.ethClient.SendTransaction(context.Background(), ethTxs[i])
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to send transaction: %w", err)
+		}
+	}
+
 	var (
 		prevBlockHash common.Hash
 		prevTimestamp uint64
@@ -249,9 +268,9 @@ func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFi
 		return fmt.Errorf("forkchoice update failed with error: %w", err)
 	}
 
-	// if forkchoiceResult.PayloadStatus.Status != engine.VALID {
-	// 	return ErrInvalidPayloadStatus
-	// }
+	if forkchoiceResult.PayloadStatus.Status != engine.VALID {
+		return ErrInvalidPayloadStatus
+	}
 
 	return nil
 }
