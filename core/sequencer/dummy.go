@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -11,36 +10,42 @@ import (
 // DummySequencer
 //---------------------
 
-// dummySequencer is a dummy implementation of the Sequencer interface for testing
-type dummySequencer struct {
-	mu      sync.RWMutex
-	batches map[string]*Batch
+var _ Sequencer = (*DummySequencer)(nil)
+
+// DummySequencer is a dummy implementation of the Sequencer interface for testing
+type DummySequencer struct {
+	mu                  sync.RWMutex
+	batches             map[string]*Batch
+	batchSubmissionChan chan Batch
 }
 
 // NewDummySequencer creates a new dummy Sequencer instance
-func NewDummySequencer() Sequencer {
-	return &dummySequencer{
+func NewDummySequencer() *DummySequencer {
+	return &DummySequencer{
 		batches: make(map[string]*Batch),
 	}
 }
 
-// SubmitRollupBatchTxs submits a batch of transactions to the sequencer
-func (s *dummySequencer) SubmitRollupBatchTxs(ctx context.Context, req SubmitRollupBatchTxsRequest) (*SubmitRollupBatchTxsResponse, error) {
+// SubmitBatchTxs submits a batch of transactions to the sequencer
+func (s *DummySequencer) SubmitBatchTxs(ctx context.Context, req SubmitBatchTxsRequest) (*SubmitBatchTxsResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.batches[string(req.RollupId)] = req.Batch
-	return &SubmitRollupBatchTxsResponse{}, nil
+	s.batches[string(req.Id)] = req.Batch
+	if req.Batch != nil && len(req.Batch.Transactions) > 0 {
+		s.batchSubmissionChan <- *req.Batch
+	}
+	return &SubmitBatchTxsResponse{}, nil
 }
 
 // GetNextBatch gets the next batch from the sequencer
-func (s *dummySequencer) GetNextBatch(ctx context.Context, req GetNextBatchRequest) (*GetNextBatchResponse, error) {
+func (s *DummySequencer) GetNextBatch(ctx context.Context, req GetNextBatchRequest) (*GetNextBatchResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	batch, ok := s.batches[string(req.RollupId)]
+	batch, ok := s.batches[string(req.Id)]
 	if !ok {
-		return nil, fmt.Errorf("no batch found for rollup ID: %s", string(req.RollupId))
+		batch = &Batch{Transactions: nil}
 	}
 
 	return &GetNextBatchResponse{
@@ -50,8 +55,12 @@ func (s *dummySequencer) GetNextBatch(ctx context.Context, req GetNextBatchReque
 }
 
 // VerifyBatch verifies a batch of transactions received from the sequencer
-func (s *dummySequencer) VerifyBatch(ctx context.Context, req VerifyBatchRequest) (*VerifyBatchResponse, error) {
+func (s *DummySequencer) VerifyBatch(ctx context.Context, req VerifyBatchRequest) (*VerifyBatchResponse, error) {
 	return &VerifyBatchResponse{
 		Status: true,
 	}, nil
+}
+
+func (s *DummySequencer) SetBatchSubmissionChan(batchSubmissionChan chan Batch) {
+	s.batchSubmissionChan = batchSubmissionChan
 }

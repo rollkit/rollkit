@@ -1,0 +1,132 @@
+name: Bug Report
+description: File a bug report to inform the community on your awesome finding!
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for filling out this bug report! Please provide as much detail as possible to help us investigate.
+  - type: textarea
+    id: version
+    attributes:
+      label: Version Information
+      description: Please provide versions of all relevant components
+      placeholder: |
+        Rollkit:
+        Execution Implementation:
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        Environment Details
+  - type: textarea
+    id: os
+    attributes:
+      label: System Information
+      description: Provide detailed system information
+      placeholder: |
+        OS Type & Version:
+        Architecture (arm64/amd64):
+        Kernel Version (for Linux):
+        Memory Size:
+        Available Disk Space:
+    validations:
+      required: true
+  - type: textarea
+    id: network
+    attributes:
+      label: Network Configuration
+      description: Network details if applicable
+      placeholder: |
+        Network Type (Testnet/Mainnet):
+        Network ID:
+        Chain ID:
+        Connected Peers:
+        P2P Port:
+        RPC Port:
+  - type: textarea
+    id: tools
+    attributes:
+      label: Development Environment
+      description: List all relevant tools and their versions
+      placeholder: |
+        Docker Version:
+        Docker Compose Version:
+        Make Version:
+        NodeJS Version (if applicable):
+        Go Version:
+        Protobuf Verion:
+        Rust Version (if applicable):
+        Other Build Tools:
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration Details
+      description: Any modifications to default configurations
+      placeholder: |
+        DA Implementation Config:
+        Sequencer Implementation Config:
+        Execution Implementation Config:
+        Resource Limitations:
+        Environment Variables:
+        Command Line Flags:
+        Custom Parameters:
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide detailed steps to reproduce the issue
+      placeholder: |
+        1. Initial setup steps
+        2. Commands executed
+        3. API calls made
+        4. Expected trigger points
+        5. Error occurrence timing
+    validations:
+      required: true
+  - type: textarea
+    id: expectation
+    attributes:
+      label: Expected Result
+      description: What should happen when following these steps?
+      placeholder: Include expected logs, outputs, or behaviors
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Result
+      description: What actually happened?
+      placeholder: |
+        - Describe the error/unexpected behavior
+        - Include error messages
+        - Note any error codes
+        - Mention any side effects
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: |
+        Please provide relevant logs from different components:
+        - Node logs
+        - Rollkit logs
+        - DA logs
+        - Sequencer logs
+        - Execution logs
+        - System logs
+        Max 20 lines per component or provide gist/pastebin links
+      render: Shell
+  - type: textarea
+    id: misc
+    attributes:
+      label: Additional Information
+      description: Any other relevant details
+      placeholder: |
+        - Alternative reproduction methods
+        - Related issues
+        - Recent system changes
+        - Workarounds attempted
+        - Impact severity

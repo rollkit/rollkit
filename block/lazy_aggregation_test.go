@@ -71,6 +71,7 @@ func setupTestManager(t *testing.T, blockTime, lazyTime time.Duration) (*Manager
 
 // TestLazyAggregationLoop_BlockTimerTrigger tests that a block is published when the blockTimer fires first.
 func TestLazyAggregationLoop_BlockTimerTrigger(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	// Create a mock for the publishBlock function that counts calls
@@ -98,7 +99,7 @@ func TestLazyAggregationLoop_BlockTimerTrigger(t *testing.T) {
 		defer wg.Done()
 		blockTimer := time.NewTimer(0) // Fire immediately first time
 		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		require.NoError(m.lazyAggregationLoop(ctx, blockTimer))
 	}()
 
 	// Wait for at least one block to be published
@@ -114,6 +115,7 @@ func TestLazyAggregationLoop_BlockTimerTrigger(t *testing.T) {
 
 // TestLazyAggregationLoop_LazyTimerTrigger tests that a block is published when the lazyTimer fires first.
 func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -135,7 +137,7 @@ func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
 		// Use real timers for this test
 		blockTimer := time.NewTimer(0) // Fire immediately first time
 		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		require.NoError(m.lazyAggregationLoop(ctx, blockTimer))
 	}()
 
 	// Wait for the first publish call triggered by the initial immediate lazyTimer fire
@@ -161,8 +163,9 @@ func TestLazyAggregationLoop_LazyTimerTrigger(t *testing.T) {
 	wg.Wait()
 }
 
-// TestLazyAggregationLoop_PublishError tests that the loop continues after a publish error.
+// TestLazyAggregationLoop_PublishError tests that the loop exits.
 func TestLazyAggregationLoop_PublishError(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	blockTime := 50 * time.Millisecond
@@ -173,7 +176,7 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 	pubMock.err = errors.New("publish failed")
 	pubMock.mu.Unlock()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	var wg sync.WaitGroup
@@ -183,7 +186,7 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 		// Use real timers
 		blockTimer := time.NewTimer(0)
 		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		require.Error(m.lazyAggregationLoop(ctx, blockTimer))
 	}()
 
 	// Wait for the first publish attempt (which will fail)
@@ -193,25 +196,14 @@ func TestLazyAggregationLoop_PublishError(t *testing.T) {
 		require.Fail("timed out waiting for first block publication attempt")
 	}
 
-	// Remove the error for subsequent calls
-	pubMock.mu.Lock()
-	pubMock.err = nil
-	pubMock.mu.Unlock()
+	// loop exited, nothing to do.
 
-	// Wait for the second publish attempt (should succeed)
-	// Use a longer timeout since we need to wait for either the lazy timer or block timer to fire
-	select {
-	case <-pubMock.calls:
-	case <-time.After(2 * lazyTime): // Use the longer of the two timers with some buffer
-		require.Fail("timed out waiting for second block publication attempt after error")
-	}
-
-	cancel()
 	wg.Wait()
 }
 
 // TestGetRemainingSleep tests the calculation of sleep duration.
 func TestGetRemainingSleep(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	interval := 100 * time.Millisecond
@@ -242,6 +234,7 @@ func TestGetRemainingSleep(t *testing.T) {
 
 // TestLazyAggregationLoop_TxNotification tests that transaction notifications trigger block production in lazy mode
 func TestLazyAggregationLoop_TxNotification(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	blockTime := 200 * time.Millisecond
@@ -262,7 +255,7 @@ func TestLazyAggregationLoop_TxNotification(t *testing.T) {
 		// Start with a timer that won't fire immediately
 		blockTimer := time.NewTimer(blockTime)
 		defer blockTimer.Stop()
-		m.lazyAggregationLoop(ctx, blockTimer)
+		require.NoError(m.lazyAggregationLoop(ctx, blockTimer))
 	}()
 
 	// Wait for the initial lazy timer to fire and publish a block
@@ -310,6 +303,7 @@ func TestLazyAggregationLoop_TxNotification(t *testing.T) {
 
 // TestEmptyBlockCreation tests that empty blocks are created with the correct dataHash
 func TestEmptyBlockCreation(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	// Create a mock for the publishBlock function that captures the context
@@ -326,8 +320,7 @@ func TestEmptyBlockCreation(t *testing.T) {
 	m.publishBlock = mockPublishFn
 
 	// Create a context we can cancel
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Create timers for the test
 	lazyTimer := time.NewTimer(lazyTime)
@@ -336,7 +329,7 @@ func TestEmptyBlockCreation(t *testing.T) {
 	defer blockTimer.Stop()
 
 	// Call produceBlock directly to test empty block creation
-	m.produceBlock(ctx, "test_trigger", lazyTimer, blockTimer)
+	require.NoError(m.produceBlock(ctx, "test_trigger", lazyTimer, blockTimer))
 
 	// Verify that the context was passed correctly
 	require.NotNil(capturedCtx, "Context should have been captured by mock publish function")
@@ -345,6 +338,7 @@ func TestEmptyBlockCreation(t *testing.T) {
 
 // TestNormalAggregationLoop_TxNotification tests that transaction notifications are handled in normal mode
 func TestNormalAggregationLoop_TxNotification(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	blockTime := 100 * time.Millisecond
@@ -363,7 +357,7 @@ func TestNormalAggregationLoop_TxNotification(t *testing.T) {
 		defer wg.Done()
 		blockTimer := time.NewTimer(blockTime)
 		defer blockTimer.Stop()
-		m.normalAggregationLoop(ctx, blockTimer)
+		require.NoError(m.normalAggregationLoop(ctx, blockTimer))
 	}()
 
 	// Wait for the first block to be published by the timer

@@ -16,7 +16,7 @@ The Full Node mainly encapsulates and initializes/manages the following componen
 
 ### genesisDoc
 
-The [genesis] document contains information about the initial state of the rollup chain, in particular its validator set.
+The [genesis] document contains information about the initial state of the chain, in particular its validator set.
 
 ### conf
 
@@ -87,6 +87,6 @@ See [full node]
 [Store]: https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go
 [store interface]: https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go
 [Block Manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
-[dalc]: https://github.com/rollkit/rollkit/blob/main/da/da.go
+[dalc]: https://github.com/rollkit/rollkit/blob/main/core/da/da.go
 [Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go
 [Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go

@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"errors"
-	"net"
 	"sync"
 	"testing"
 	"time"
@@ -13,10 +12,6 @@ import (
 	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
-	seqTest "github.com/rollkit/go-sequencing/test"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -63,20 +58,6 @@ func createTestComponents(t *testing.T) (coreexecutor.Executor, coresequencer.Se
 	ds := dssync.MutexWrap(datastore.NewMapDatastore())
 
 	return executor, sequencer, dummyDA, p2pClient, ds
-}
-
-// startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
-func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
-	dummySeq := seqTest.NewMultiRollupSequencer()
-	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		panic(err)
-	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	return server
 }
 
 type NodeType int
@@ -190,10 +171,6 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 
 	executor, sequencer, dac, p2pClient, ds := createTestComponents(t)
 
-	err = InitFiles(config.RootDir)
-	require.NoError(t, err)
-
-	nodeKey, err := key.GenerateNodeKey()
 	require.NoError(t, err)
 
 	logger := log.NewTestLogger(t)
@@ -205,7 +182,6 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		sequencer,
 		dac,
 		remoteSigner,
-		*nodeKey,
 		p2pClient,
 		genesis,
 		ds,
@@ -219,8 +195,6 @@ func TestNewNode(t *testing.T) {
 	ctx := context.Background()
 	chainID := "TestNewNode"
 
-	// ln := initAndStartNodeWithCleanup(ctx, t, Light, chainID)
-	// require.IsType(t, new(LightNode), ln)
 	node, _, err := newTestNode(ctx, t, Full, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, node)

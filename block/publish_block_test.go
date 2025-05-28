@@ -1,6 +1,7 @@
 package block
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -27,7 +28,12 @@ import (
 )
 
 // setupManagerForPublishBlockTest creates a Manager instance with mocks for testing publishBlockInternal.
-func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeight uint64, lastSubmittedHeight uint64) (
+func setupManagerForPublishBlockTest(
+	t *testing.T,
+	initialHeight uint64,
+	lastSubmittedHeight uint64,
+	logBuffer *bytes.Buffer,
+) (
 	*Manager,
 	*mocks.Store,
 	*mocks.Executor,
@@ -57,7 +63,10 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 	headerCh := make(chan *types.SignedHeader, 1)
 	dataCh := make(chan *types.Data, 1)
 	_, cancel := context.WithCancel(context.Background())
-	logger := log.NewTestLogger(t)
+	logger := log.NewLogger(
+		logBuffer,
+		log.ColorOption(false),
+	)
 
 	lastSubmittedBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(lastSubmittedBytes, lastSubmittedHeight)
@@ -106,28 +115,28 @@ func setupManagerForPublishBlockTest(t *testing.T, isProposer bool, initialHeigh
 	return manager, mockStore, mockExec, mockSeq, testSigner, headerCh, dataCh, cancel
 }
 
-// TestPublishBlockInternal_MaxPendingBlocksReached verifies that publishBlockInternal
-// returns an error if the maximum number of pending blocks is reached.
-func TestPublishBlockInternal_MaxPendingBlocksReached(t *testing.T) {
-	assert := assert.New(t)
+// TestPublishBlockInternal_MaxPendingHeadersReached verifies that publishBlockInternal returns an error if the maximum number of pending headers is reached.
+func TestPublishBlockInternal_MaxPendingHeadersReached(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	currentHeight := uint64(10)
 	lastSubmitted := uint64(5)
 	maxPending := uint64(5)
+	logBuffer := new(bytes.Buffer)
 
-	manager, mockStore, mockExec, mockSeq, _, _, _, cancel := setupManagerForPublishBlockTest(t, true, currentHeight+1, lastSubmitted)
+	manager, mockStore, mockExec, mockSeq, _, _, _, cancel := setupManagerForPublishBlockTest(t, currentHeight+1, lastSubmitted, logBuffer)
 	defer cancel()
 
-	manager.config.Node.MaxPendingBlocks = maxPending
+	manager.config.Node.MaxPendingHeaders = maxPending
 	ctx := context.Background()
 
 	mockStore.On("Height", ctx).Return(currentHeight, nil)
 
 	err := manager.publishBlock(ctx)
 
-	require.Error(err, "publishBlockInternal should return an error")
-	assert.Contains(err.Error(), "pending blocks [5] reached limit [5]", "error message mismatch")
+	require.Nil(err, "publishBlockInternal should not return an error (otherwise the chain would halt)")
+	require.Contains(logBuffer.String(), "pending blocks [5] reached limit [5]", "log message mismatch")
 
 	mockStore.AssertExpectations(t)
 	mockExec.AssertNotCalled(t, "GetTxs", mock.Anything)
@@ -135,8 +144,9 @@ func TestPublishBlockInternal_MaxPendingBlocksReached(t *testing.T) {
 	mockStore.AssertNotCalled(t, "GetSignature", mock.Anything, mock.Anything)
 }
 
-// Test_publishBlock_NoBatch tests that publishBlock returns nil when no batch is available.
+// Test_publishBlock_NoBatch verifies that publishBlock returns nil when no batch is available from the sequencer.
 func Test_publishBlock_NoBatch(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 	ctx := context.Background()
 
@@ -159,7 +169,7 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 		genesis:   genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
-				MaxPendingBlocks: 0,
+				MaxPendingHeaders: 0,
 			},
 		},
 		pendingHeaders: &PendingHeaders{
@@ -187,11 +197,11 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	mockStore.On("GetBlockData", ctx, currentHeight).Return(lastHeader, lastData, nil)
 	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found"))
 
-	// No longer testing GetTxs and SubmitRollupBatchTxs since they're handled by reaper.go
+	// No longer testing GetTxs and SubmitBatchTxs since they're handled by reaper.go
 
 	// *** Crucial Mock: Sequencer returns ErrNoBatch ***
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
-		return string(req.RollupId) == chainID
+		return string(req.Id) == chainID
 	})
 	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(nil, ErrNoBatch).Once()
 
@@ -213,7 +223,9 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	mockExec.AssertExpectations(t)
 }
 
+// Test_publishBlock_EmptyBatch verifies that publishBlock returns nil and does not publish a block when the batch is empty.
 func Test_publishBlock_EmptyBatch(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 	ctx := context.Background()
 
@@ -239,7 +251,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		genesis:   genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
-				MaxPendingBlocks: 0,
+				MaxPendingHeaders: 0,
 			},
 		},
 		pendingHeaders: &PendingHeaders{
@@ -279,7 +291,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	mockStore.On("GetBlockData", ctx, currentHeight).Return(lastHeader, lastData, nil)
 	mockStore.On("GetBlockData", ctx, currentHeight+1).Return(nil, nil, errors.New("not found"))
 
-	// No longer testing GetTxs and SubmitRollupBatchTxs since they're handled by reaper.go
+	// No longer testing GetTxs and SubmitBatchTxs since they're handled by reaper.go
 
 	// *** Crucial Mock: Sequencer returns an empty batch ***
 	emptyBatchResponse := &coresequencer.GetNextBatchResponse{
@@ -290,7 +302,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		BatchData: [][]byte{[]byte("some_batch_data")},
 	}
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
-		return string(req.RollupId) == chainID
+		return string(req.Id) == chainID
 	})
 	mockSeq.On("GetNextBatch", ctx, batchReqMatcher).Return(emptyBatchResponse, nil).Once()
 
@@ -303,9 +315,6 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	// We should also expect ExecuteTxs to be called with an empty transaction list
 	newAppHash := []byte("newAppHash")
 	mockExec.On("ExecuteTxs", ctx, mock.Anything, currentHeight+1, mock.AnythingOfType("time.Time"), m.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
-
-	// SetFinal should be called
-	mockExec.On("SetFinal", ctx, currentHeight+1).Return(nil).Once()
 
 	// SetHeight should be called
 	mockStore.On("SetHeight", ctx, currentHeight+1).Return(nil).Once()
@@ -327,16 +336,16 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	mockExec.AssertExpectations(t)
 }
 
-// Test_publishBlock_Success tests the happy path where a block with transactions
-// is successfully created, applied, and published.
+// Test_publishBlock_Success verifies the happy path where a block with transactions is successfully created, applied, and published.
 func Test_publishBlock_Success(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 
 	initialHeight := uint64(5)
 	newHeight := initialHeight + 1
 	chainID := "testchain"
 
-	manager, mockStore, mockExec, mockSeq, _, headerCh, dataCh, _ := setupManagerForPublishBlockTest(t, true, initialHeight, 0)
+	manager, mockStore, mockExec, mockSeq, _, headerCh, dataCh, _ := setupManagerForPublishBlockTest(t, initialHeight, 0, new(bytes.Buffer))
 	manager.lastState.LastBlockHeight = initialHeight
 
 	mockStore.On("Height", t.Context()).Return(initialHeight, nil).Once()
@@ -357,9 +366,8 @@ func Test_publishBlock_Success(t *testing.T) {
 	// No longer mocking GetTxs since it's handled by reaper.go
 	newAppHash := []byte("newAppHash")
 	mockExec.On("ExecuteTxs", t.Context(), mock.Anything, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
-	mockExec.On("SetFinal", t.Context(), newHeight).Return(nil).Once()
 
-	// No longer mocking SubmitRollupBatchTxs since it's handled by reaper.go
+	// No longer mocking SubmitBatchTxs since it's handled by reaper.go
 	batchTimestamp := lastHeader.Time().Add(1 * time.Second)
 	batchDataBytes := [][]byte{[]byte("batch_data_1")}
 	batchResponse := &coresequencer.GetNextBatchResponse{
@@ -370,7 +378,7 @@ func Test_publishBlock_Success(t *testing.T) {
 		BatchData: batchDataBytes,
 	}
 	batchReqMatcher := mock.MatchedBy(func(req coresequencer.GetNextBatchRequest) bool {
-		return string(req.RollupId) == chainID
+		return string(req.Id) == chainID
 	})
 	mockSeq.On("GetNextBatch", t.Context(), batchReqMatcher).Return(batchResponse, nil).Once()
 	err := manager.publishBlock(t.Context())

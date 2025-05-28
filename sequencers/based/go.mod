@@ -8,7 +8,7 @@ replace (
 )
 
 require (
-	cosmossdk.io/log v1.5.1
+	cosmossdk.io/log v1.6.0
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
@@ -18,7 +18,7 @@ require (
 require (
 	github.com/bytedance/sonic v1.13.2 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
-	github.com/celestiaorg/go-header v0.6.5 // indirect
+	github.com/celestiaorg/go-header v0.6.6 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect

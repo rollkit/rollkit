@@ -9,9 +9,6 @@ import (
 
 // DA defines very generic interface for interaction with Data Availability layers.
 type DA interface {
-	// MaxBlobSize returns the max blob size
-	MaxBlobSize(ctx context.Context) (uint64, error)
-
 	// Get returns Blob for each given ID, or an error.
 	//
 	// Error should be returned if ID is not formatted properly, there is no Blob for given ID or any other client-level

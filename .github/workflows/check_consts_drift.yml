@@ -1,0 +1,90 @@
+name: Check Celestia App Consts Drift
+permissions:
+  contents: read
+  issues: write
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  check_drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Celestia App Consts
+        id: fetch_celestia_consts
+        run: |
+          curl -sSL https://raw.githubusercontent.com/celestiaorg/celestia-app/main/pkg/appconsts/initial_consts.go -o /tmp/celestia_initial_consts.go
+          if [ $? -ne 0 ]; then
+            echo "Failed to download Celestia app consts file."
+            exit 1
+          fi
+          echo "celestia_file_path=/tmp/celestia_initial_consts.go" >> $GITHUB_OUTPUT
+
+      - name: Compare Files
+        id: diff_files
+        run: |
+          LOCAL_FILE="da/jsonrpc/internal/consts.go" # Relative path from repo root
+          CELESTIA_FILE="${{ steps.fetch_celestia_consts.outputs.celestia_file_path }}"
+
+          if [ ! -f "$LOCAL_FILE" ]; then
+            echo "Local consts.go file not found at $LOCAL_FILE"
+            exit 1
+          fi
+          if [ ! -f "$CELESTIA_FILE" ]; then
+            echo "Fetched Celestia consts file not found at $CELESTIA_FILE"
+            # This should ideally be caught by the previous step's check
+            exit 1
+          fi
+
+          echo "Comparing $LOCAL_FILE (excluding last line) with $CELESTIA_FILE (excluding last line)"
+
+          LOCAL_FILE_TMP=$(mktemp)
+          CELESTIA_FILE_TMP=$(mktemp)
+          # Ensure temporary files are removed on exit
+          trap 'rm -f "$LOCAL_FILE_TMP" "$CELESTIA_FILE_TMP"' EXIT
+
+          head -n -1 "$LOCAL_FILE" > "$LOCAL_FILE_TMP"
+          if [ $? -ne 0 ]; then
+            echo "Error processing local file '$LOCAL_FILE' with head."
+            exit 1
+          fi
+          head -n -1 "$CELESTIA_FILE" > "$CELESTIA_FILE_TMP"
+          if [ $? -ne 0 ]; then
+            echo "Error processing fetched Celestia file '$CELESTIA_FILE' with head."
+            exit 1
+          fi
+
+          # Perform the diff and handle its exit code robustly
+          diff_command_output=""
+          if ! diff_command_output=$(diff -u "$LOCAL_FILE_TMP" "$CELESTIA_FILE_TMP"); then
+            # diff exited with non-zero status
+            diff_exit_code=$?
+            if [ $diff_exit_code -eq 1 ]; then
+              # Exit code 1 means files are different
+              echo "Files are different (excluding last line)."
+              echo "diff_output<<EOF" >> $GITHUB_OUTPUT
+              echo "$diff_command_output" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+              echo "files_differ=true" >> $GITHUB_OUTPUT
+              exit 1 # Fail the step
+            else
+              # Exit code > 1 means diff encountered an error
+              echo "Error: diff command failed with exit code $diff_exit_code."
+              echo "Diff command output/error: $diff_command_output"
+              # Output error information for the issue
+              echo "diff_output<<EOF" >> $GITHUB_OUTPUT
+              echo "Diff command error (exit code $diff_exit_code):" >> $GITHUB_OUTPUT
+              echo "$diff_command_output" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+              echo "files_differ=true" >> $GITHUB_OUTPUT # Treat as a difference to create an issue
+              exit $diff_exit_code
+            fi
+          else
+            # diff exited with 0, files are identical
+            echo "Files are identical (excluding last line)."
+            echo "files_differ=false" >> $GITHUB_OUTPUT
+          fi

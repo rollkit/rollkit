@@ -38,8 +38,8 @@ const (
 	FlagTrustedHash = "rollkit.node.trusted_hash"
 	// FlagLazyAggregator is a flag for enabling lazy aggregation mode that only produces blocks when transactions are available
 	FlagLazyAggregator = "rollkit.node.lazy_mode"
-	// FlagMaxPendingBlocks is a flag to limit and pause block production when too many blocks are waiting for DA confirmation
-	FlagMaxPendingBlocks = "rollkit.node.max_pending_blocks"
+	// FlagMaxPendingHeaders is a flag to limit and pause block production when too many headers are waiting for DA confirmation
+	FlagMaxPendingHeaders = "rollkit.node.max_pending_headers"
 	// FlagLazyBlockTime is a flag for specifying the maximum interval between blocks in lazy aggregation mode
 	FlagLazyBlockTime = "rollkit.node.lazy_block_interval"
 
@@ -119,7 +119,7 @@ type Config struct {
 	// Base configuration
 	RootDir string `mapstructure:"-" yaml:"-" comment:"Root directory where rollkit files are located"`
 	DBPath  string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
-	ChainID string `mapstructure:"chain_id" yaml:"chain_id" comment:"Chain ID for the rollup"`
+	ChainID string `mapstructure:"chain_id" yaml:"chain_id" comment:"Chain ID for your chain"`
 	// P2P configuration
 	P2P P2PConfig `mapstructure:"p2p" yaml:"p2p"`
 
@@ -151,7 +151,7 @@ type DAConfig struct {
 	SubmitOptions string          `mapstructure:"submit_options" yaml:"submit_options" comment:"Additional options passed to the DA layer when submitting data. Format depends on the specific DA implementation being used."`
 	Namespace     string          `mapstructure:"namespace" yaml:"namespace" comment:"Namespace ID used when submitting blobs to the DA layer."`
 	BlockTime     DurationWrapper `mapstructure:"block_time" yaml:"block_time" comment:"Average block time of the DA chain (duration). Determines frequency of DA layer syncing, maximum backoff time for retries, and is multiplied by MempoolTTL to calculate transaction expiration. Examples: \"15s\", \"30s\", \"1m\", \"2m30s\", \"10m\"."`
-	StartHeight   uint64          `mapstructure:"start_height" yaml:"start_height" comment:"Starting block height on the DA layer from which to begin syncing. Useful when deploying a new rollup on an existing DA chain."`
+	StartHeight   uint64          `mapstructure:"start_height" yaml:"start_height" comment:"Starting block height on the DA layer from which to begin syncing. Useful when deploying a new chain on an existing DA chain."`
 	MempoolTTL    uint64          `mapstructure:"mempool_ttl" yaml:"mempool_ttl" comment:"Number of DA blocks after which a transaction is considered expired and dropped from the mempool. Controls retry backoff timing."`
 }
 
@@ -163,7 +163,7 @@ type NodeConfig struct {
 
 	// Block management configuration
 	BlockTime         DurationWrapper `mapstructure:"block_time" yaml:"block_time" comment:"Block time (duration). Examples: \"500ms\", \"1s\", \"5s\", \"1m\", \"2m30s\", \"10m\"."`
-	MaxPendingBlocks  uint64          `mapstructure:"max_pending_blocks" yaml:"max_pending_blocks" comment:"Maximum number of blocks pending DA submission. When this limit is reached, the aggregator pauses block production until some blocks are confirmed. Use 0 for no limit."`
+	MaxPendingHeaders uint64          `mapstructure:"max_pending_headers" yaml:"max_pending_headers" comment:"Maximum number of headers pending DA submission. When this limit is reached, the aggregator pauses block production until some headers are confirmed. Use 0 for no limit."`
 	LazyMode          bool            `mapstructure:"lazy_mode" yaml:"lazy_mode" comment:"Enables lazy aggregation mode, where blocks are only produced when transactions are available or after LazyBlockTime. Optimizes resources by avoiding empty block creation during periods of inactivity."`
 	LazyBlockInterval DurationWrapper `mapstructure:"lazy_block_interval" yaml:"lazy_block_interval" comment:"Maximum interval between blocks in lazy aggregation mode (LazyAggregator). Ensures blocks are produced periodically even without transactions to keep the chain active. Generally larger than BlockTime."`
 
@@ -241,7 +241,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime.Duration, "block time (for aggregator mode)")
 	cmd.Flags().String(FlagTrustedHash, def.Node.TrustedHash, "initial trusted hash to start the header exchange service")
 	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyMode, "produce blocks only when transactions are available or after lazy block time")
-	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "maximum blocks pending DA confirmation before pausing block production (0 for no limit)")
+	cmd.Flags().Uint64(FlagMaxPendingHeaders, def.Node.MaxPendingHeaders, "maximum headers pending DA confirmation before pausing block production (0 for no limit)")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockInterval.Duration, "maximum interval between blocks in lazy aggregation mode")
 
 	// Data Availability configuration flags
@@ -352,9 +352,9 @@ func LoadFromViper(inputViper *viper.Viper) (Config, error) {
 	// then override with settings from input viper (higher precedence)
 	for _, key := range inputViper.AllKeys() {
 		// Handle special case for prefixed keys
-		if strings.HasPrefix(key, "rollkit.") {
+		if after, ok := strings.CutPrefix(key, "rollkit."); ok {
 			// Strip the prefix for the merged viper
-			strippedKey := strings.TrimPrefix(key, "rollkit.")
+			strippedKey := after
 			mergedViper.Set(strippedKey, inputViper.Get(key))
 		} else {
 			mergedViper.Set(key, inputViper.Get(key))
