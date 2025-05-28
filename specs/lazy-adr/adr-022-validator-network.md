@@ -24,9 +24,10 @@ Rollkit will introduce a validator network in which there will be a set of valid
  • validates header → parent → state transition;
  • (optionally) re-executes the block using a connected full node;
  • signs bytesToSign = SHA-256(height || blockHash || stateRoot) with its private key.
- 3. Signature return — The attester sends SubmitSignature{height, blockHash, pubKey, signature} back to the sequencer (one-way unary gRPC).
- 4. Aggregation & quorum — The sequencer collects signatures until ≥ ⅔ of current bonded voting power have signed. (Optionally this step can be done async)
- 5. Final block commit — Sequencer writes the quorum attestation into BlockHeader.ValidatorHash and gossips the block via IBC.
+ 3. Signature transaction submission — The attester sends vote as a transaction to the state machine. It will be included in subsequent blocks
+ 4. Aggregation & quorum — The attester module or contract collects signatures until ≥ ⅔ of current bonded voting power have signed providing a soft confirmation of the block
+    - If qurorom is not met at the epoch boundry, the network will halt waiting for the signatures.
+ 5. Final block commit — After the block is included in the DA layer it will be considered to have a hard confirmation.
 
 ### Signing schemes
 
