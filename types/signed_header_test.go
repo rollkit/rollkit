@@ -227,7 +227,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 				preparedHeader.Signature = signature
 			}
 
-			err = preparedHeader.ValidateBasic()
+			err = preparedHeader.ValidateBasic(nil)
 
 			if test.err == nil {
 				assert.NoError(t, err)

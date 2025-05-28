@@ -63,7 +63,7 @@ func (e *DummyExecutor) InjectTx(tx []byte) {
 }
 
 // ExecuteTxs simulate execution of transactions.
-func (e *DummyExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) ([]byte, uint64, error) {
+func (e *DummyExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte, metadata map[string]interface{}) ([]byte, uint64, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 

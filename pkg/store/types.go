@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // Store is minimal interface for storing and retrieving blocks, commits and state.
@@ -41,11 +40,6 @@ type Store interface {
 
 	// GetMetadata returns values stored for given key with SetMetadata.
 	GetMetadata(ctx context.Context, key string) ([]byte, error)
-
-	// SaveSequencerAttestation saves the sequencer attestation for a given height.
-	SaveSequencerAttestation(ctx context.Context, height uint64, attestation *pb.RollkitSequencerAttestation) error
-	// GetSequencerAttestation retrieves the sequencer attestation for a given height.
-	GetSequencerAttestation(ctx context.Context, height uint64) (*pb.RollkitSequencerAttestation, error)
 
 	// Close safely closes underlying data storage, to ensure that data is actually saved.
 	Close() error

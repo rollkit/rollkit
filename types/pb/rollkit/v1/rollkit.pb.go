@@ -553,51 +553,6 @@ func (x *Vote) GetValidatorAddress() []byte {
 	return nil
 }
 
-// RollkitSequencerAttestation holds the essential data signed by the sequencer for a given block.
-type RollkitSequencerAttestation struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	BlockHeaderHash []byte                 `protobuf:"bytes,4,opt,name=block_header_hash,json=blockHeaderHash,proto3" json:"block_header_hash,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *RollkitSequencerAttestation) Reset() {
-	*x = RollkitSequencerAttestation{}
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RollkitSequencerAttestation) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RollkitSequencerAttestation) ProtoMessage() {}
-
-func (x *RollkitSequencerAttestation) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RollkitSequencerAttestation.ProtoReflect.Descriptor instead.
-func (*RollkitSequencerAttestation) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *RollkitSequencerAttestation) GetBlockHeaderHash() []byte {
-	if x != nil {
-		return x.BlockHeaderHash
-	}
-	return nil
-}
-
 var File_rollkit_v1_rollkit_proto protoreflect.FileDescriptor
 
 const file_rollkit_v1_rollkit_proto_rawDesc = "" +
@@ -641,9 +596,7 @@ const file_rollkit_v1_rollkit_proto_rawDesc = "" +
 	"\x06height\x18\x02 \x01(\x04R\x06height\x128\n" +
 	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\"\n" +
 	"\rblock_id_hash\x18\x04 \x01(\fR\vblockIdHash\x12+\n" +
-	"\x11validator_address\x18\x05 \x01(\fR\x10validatorAddress\"I\n" +
-	"\x1bRollkitSequencerAttestation\x12*\n" +
-	"\x11block_header_hash\x18\x04 \x01(\fR\x0fblockHeaderHashB0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
+	"\x11validator_address\x18\x05 \x01(\fR\x10validatorAddressB0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
 
 var (
 	file_rollkit_v1_rollkit_proto_rawDescOnce sync.Once
@@ -657,24 +610,23 @@ func file_rollkit_v1_rollkit_proto_rawDescGZIP() []byte {
 	return file_rollkit_v1_rollkit_proto_rawDescData
 }
 
-var file_rollkit_v1_rollkit_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_rollkit_v1_rollkit_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_rollkit_v1_rollkit_proto_goTypes = []any{
-	(*Version)(nil),                     // 0: rollkit.v1.Version
-	(*Header)(nil),                      // 1: rollkit.v1.Header
-	(*SignedHeader)(nil),                // 2: rollkit.v1.SignedHeader
-	(*Signer)(nil),                      // 3: rollkit.v1.Signer
-	(*Metadata)(nil),                    // 4: rollkit.v1.Metadata
-	(*Data)(nil),                        // 5: rollkit.v1.Data
-	(*Vote)(nil),                        // 6: rollkit.v1.Vote
-	(*RollkitSequencerAttestation)(nil), // 7: rollkit.v1.RollkitSequencerAttestation
-	(*timestamppb.Timestamp)(nil),       // 8: google.protobuf.Timestamp
+	(*Version)(nil),               // 0: rollkit.v1.Version
+	(*Header)(nil),                // 1: rollkit.v1.Header
+	(*SignedHeader)(nil),          // 2: rollkit.v1.SignedHeader
+	(*Signer)(nil),                // 3: rollkit.v1.Signer
+	(*Metadata)(nil),              // 4: rollkit.v1.Metadata
+	(*Data)(nil),                  // 5: rollkit.v1.Data
+	(*Vote)(nil),                  // 6: rollkit.v1.Vote
+	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
 }
 var file_rollkit_v1_rollkit_proto_depIdxs = []int32{
 	0, // 0: rollkit.v1.Header.version:type_name -> rollkit.v1.Version
 	1, // 1: rollkit.v1.SignedHeader.header:type_name -> rollkit.v1.Header
 	3, // 2: rollkit.v1.SignedHeader.signer:type_name -> rollkit.v1.Signer
 	4, // 3: rollkit.v1.Data.metadata:type_name -> rollkit.v1.Metadata
-	8, // 4: rollkit.v1.Vote.timestamp:type_name -> google.protobuf.Timestamp
+	7, // 4: rollkit.v1.Vote.timestamp:type_name -> google.protobuf.Timestamp
 	5, // [5:5] is the sub-list for method output_type
 	5, // [5:5] is the sub-list for method input_type
 	5, // [5:5] is the sub-list for extension type_name
@@ -693,7 +645,7 @@ func file_rollkit_v1_rollkit_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rollkit_v1_rollkit_proto_rawDesc), len(file_rollkit_v1_rollkit_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

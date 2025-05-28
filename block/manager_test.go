@@ -4,23 +4,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
+	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
+	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/pkg/cache"
+	da "github.com/rollkit/rollkit/core/da"
+	executor "github.com/rollkit/rollkit/core/execution"
+	sequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer"
 	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
-	"github.com/rollkit/rollkit/pkg/store"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -39,22 +42,58 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 
 // Returns a minimalistic block manager using a mock DA Client
 func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) (*Manager, *mocks.Store) {
-	logger := log.NewTestLogger(t)
-	mockStore := mocks.NewStore(t)
-	m := &Manager{
-		da:            da,
-		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
-		logger:        logger,
-		gasPrice:      gasPrice,
-		gasMultiplier: gasMultiplier,
-		lastStateMtx:  &sync.RWMutex{},
-		metrics:       NopMetrics(),
-		store:         mockStore,
+	t.Helper()
+	ctx := context.Background()
+	// create a minimalistic block manager
+	cfg := config.Config{
+		DA: config.DAConfig{
+			BlockTime: config.DurationWrapper{Duration: 100 * time.Millisecond},
+		},
+		Node: config.NodeConfig{
+			BlockTime: config.DurationWrapper{Duration: 100 * time.Millisecond},
+		},
 	}
+	metrics := NopMetrics()
+	genesis, gPrivKey, _ := types.GetGenesisWithPrivkey("getManager")
+	mockStore := mocks.NewStore(t)
+	mockStore.On("GetState", mock.Anything).Return(types.State{}, ds.ErrNotFound)
 
-	m.publishBlock = m.publishBlockInternal
+	// Create an in-memory datastore for header/data stores
+	memDs := dssync.MutexWrap(ds.NewMapDatastore())
+	headerStore, err := goheaderstore.NewStore[*types.SignedHeader](memDs, goheaderstore.WithStorePrefix("header"))
+	require.NoError(t, err)
+	dataStore, err := goheaderstore.NewStore[*types.Data](memDs, goheaderstore.WithStorePrefix("data"))
+	require.NoError(t, err)
 
+	privKeySigner, _ := noopsigner.NewNoopSigner(gPrivKey)
+	logger := log.NewNopLogger()
+	m, err := NewManager(
+		ctx,
+		privKeySigner,
+		cfg,
+		genesis,
+		mockStore, // This is the mock store for general state, not for headers/data
+		executor.NewDummyExecutor(),
+		sequencer.NewDummySequencer(),
+		da,
+		logger,
+		headerStore, // Real header store
+		dataStore,   // Real data store
+		metrics,
+		gasPrice,
+		gasMultiplier,
+		func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
+		func(header *types.Header) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
+		func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
+		nil, // SignaturePayloadProvider
+	)
+	require.NoError(t, err)
 	return m, mockStore
 }
 
@@ -66,8 +105,8 @@ func TestInitialStateClean(t *testing.T) {
 	// Create genesis document
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateClean")
 	logger := log.NewTestLogger(t)
-	es, _ := store.NewDefaultInMemoryKVStore()
-	emptyStore := store.New(es)
+	es, _ := storepkg.NewDefaultInMemoryKVStore()
+	emptyStore := storepkg.New(es)
 	mockExecutor := mocks.NewExecutor(t)
 
 	// Set expectation for InitChain call within getInitialState
@@ -97,8 +136,8 @@ func TestInitialStateStored(t *testing.T) {
 		LastBlockHeight: 100,
 	}
 
-	es, _ := store.NewDefaultInMemoryKVStore()
-	store := store.New(es)
+	es, _ := storepkg.NewDefaultInMemoryKVStore()
+	store := storepkg.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	logger := log.NewTestLogger(t)
@@ -134,8 +173,8 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 		InitialHeight:   1,
 		LastBlockHeight: 0,
 	}
-	es, _ := store.NewDefaultInMemoryKVStore()
-	store := store.New(es)
+	es, _ := storepkg.NewDefaultInMemoryKVStore()
+	store := storepkg.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	mockExecutor := mocks.NewExecutor(t)

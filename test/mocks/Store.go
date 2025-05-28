@@ -322,65 +322,6 @@ func (_c *Store_GetMetadata_Call) RunAndReturn(run func(context.Context, string)
 	return _c
 }
 
-// GetSequencerAttestation provides a mock function with given fields: ctx, height
-func (_m *Store) GetSequencerAttestation(ctx context.Context, height uint64) (*types.RollkitSequencerAttestation, error) {
-	ret := _m.Called(ctx, height)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetSequencerAttestation")
-	}
-
-	var r0 *types.RollkitSequencerAttestation
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*types.RollkitSequencerAttestation, error)); ok {
-		return rf(ctx, height)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) *types.RollkitSequencerAttestation); ok {
-		r0 = rf(ctx, height)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.RollkitSequencerAttestation)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
-		r1 = rf(ctx, height)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Store_GetSequencerAttestation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSequencerAttestation'
-type Store_GetSequencerAttestation_Call struct {
-	*mock.Call
-}
-
-// GetSequencerAttestation is a helper method to define mock.On call
-//   - ctx context.Context
-//   - height uint64
-func (_e *Store_Expecter) GetSequencerAttestation(ctx interface{}, height interface{}) *Store_GetSequencerAttestation_Call {
-	return &Store_GetSequencerAttestation_Call{Call: _e.mock.On("GetSequencerAttestation", ctx, height)}
-}
-
-func (_c *Store_GetSequencerAttestation_Call) Run(run func(ctx context.Context, height uint64)) *Store_GetSequencerAttestation_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint64))
-	})
-	return _c
-}
-
-func (_c *Store_GetSequencerAttestation_Call) Return(_a0 *types.RollkitSequencerAttestation, _a1 error) *Store_GetSequencerAttestation_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *Store_GetSequencerAttestation_Call) RunAndReturn(run func(context.Context, uint64) (*types.RollkitSequencerAttestation, error)) *Store_GetSequencerAttestation_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetSignature provides a mock function with given fields: ctx, height
 func (_m *Store) GetSignature(ctx context.Context, height uint64) (*types.Signature, error) {
 	ret := _m.Called(ctx, height)
@@ -709,6 +650,7 @@ func (_c *Store_SaveCommitHash_Call) RunAndReturn(run func(context.Context, uint
 }
 
 // SaveSequencerAttestation provides a mock function with given fields: ctx, height, attestation
+/*
 func (_m *Store) SaveSequencerAttestation(ctx context.Context, height uint64, attestation *types.RollkitSequencerAttestation) error {
 	ret := _m.Called(ctx, height, attestation)
 
@@ -755,6 +697,7 @@ func (_c *Store_SaveSequencerAttestation_Call) RunAndReturn(run func(context.Con
 	_c.Call.Return(run)
 	return _c
 }
+*/
 
 // SetHeight provides a mock function with given fields: ctx, height
 func (_m *Store) SetHeight(ctx context.Context, height uint64) error {

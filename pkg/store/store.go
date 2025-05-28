@@ -14,14 +14,13 @@ import (
 )
 
 var (
-	headerPrefix         = "h"
-	dataPrefix           = "d"
-	indexPrefix          = "i"
-	signaturePrefix      = "c"
-	statePrefix          = "s"
-	metaPrefix           = "m"
-	heightPrefix         = "t"
-	seqAttestationPrefix = "sa"
+	headerPrefix    = "h"
+	dataPrefix      = "d"
+	indexPrefix     = "i"
+	signaturePrefix = "c"
+	statePrefix     = "s"
+	metaPrefix      = "m"
+	heightPrefix    = "t"
 )
 
 // DefaultStore is a default store implmementation.
@@ -231,34 +230,6 @@ func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, err
 	return data, nil
 }
 
-// SaveSequencerAttestation saves the sequencer attestation for a given height.
-func (s *DefaultStore) SaveSequencerAttestation(ctx context.Context, height uint64, attestation *pb.RollkitSequencerAttestation) error {
-	key := ds.NewKey(getSeqAttestationKey(height))
-	attestationBytes, err := proto.Marshal(attestation)
-	if err != nil {
-		return fmt.Errorf("failed to marshal sequencer attestation: %w", err)
-	}
-	return s.db.Put(ctx, key, attestationBytes)
-}
-
-// GetSequencerAttestation retrieves the sequencer attestation for a given height.
-func (s *DefaultStore) GetSequencerAttestation(ctx context.Context, height uint64) (*pb.RollkitSequencerAttestation, error) {
-	key := ds.NewKey(getSeqAttestationKey(height))
-	attestationBytes, err := s.db.Get(ctx, key)
-	if errors.Is(err, ds.ErrNotFound) {
-		return nil, err // Return ErrNotFound directly
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get sequencer attestation for height %d: %w", height, err)
-	}
-	attestation := new(pb.RollkitSequencerAttestation)
-	// Assuming UnmarshalBinary for now.
-	if err := proto.Unmarshal(attestationBytes, attestation); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal sequencer attestation for height %d: %w", height, err)
-	}
-	return attestation, nil
-}
-
 const heightLength = 8
 
 func encodeHeight(height uint64) []byte {
@@ -272,8 +243,4 @@ func decodeHeight(heightBytes []byte) (uint64, error) {
 		return 0, fmt.Errorf("invalid height length: %d (expected %d)", len(heightBytes), heightLength)
 	}
 	return binary.LittleEndian.Uint64(heightBytes), nil
-}
-
-func getSeqAttestationKey(height uint64) string {
-	return seqAttestationPrefix + string(encodeHeight(height))
 }

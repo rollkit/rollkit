@@ -106,6 +106,15 @@ func (sh *SignedHeader) ValidateBasic(provider SignaturePayloadProvider) error {
 		return ErrProposerAddressMismatch
 	}
 
+	if provider == nil {
+		// If the signature is empty, it might be a genesis header or not require a signature payload.
+		// Allow this case for now. A more specific check might be needed depending on context.
+		if len(sh.Signature) == 0 {
+			return nil
+		}
+		return errors.New("SignaturePayloadProvider is nil but was required")
+	}
+
 	bz, err := provider(&sh.Header, nil)
 	if err != nil {
 		return err

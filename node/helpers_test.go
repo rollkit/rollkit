@@ -117,6 +117,9 @@ func createNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullNode
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
 		types.ValidatorHasher(nil),
+		types.SignaturePayloadProvider(nil),
+		types.HeaderHasher(nil),
+		types.CommitHashProvider(nil),
 	)
 	require.NoError(t, err)
 
@@ -163,6 +166,10 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
+		types.ValidatorHasher(nil),
+		types.SignaturePayloadProvider(nil),
+		types.HeaderHasher(nil),
+		types.CommitHashProvider(nil),
 	)
 	require.NoError(err)
 
@@ -200,6 +207,10 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 			dssync.MutexWrap(datastore.NewMapDatastore()),
 			DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 			log.NewTestLogger(t),
+			types.ValidatorHasher(nil),
+			types.SignaturePayloadProvider(nil),
+			types.HeaderHasher(nil),
+			types.CommitHashProvider(nil),
 		)
 		require.NoError(err)
 		// Update cleanup to cancel the context instead of calling Stop

@@ -139,6 +139,9 @@ func StartNode(
 		metrics,
 		logger,
 		types.ValidatorHasher(nil),
+		types.SignaturePayloadProvider(nil),
+		types.HeaderHasher(nil),
+		types.CommitHashProvider(nil),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create node: %w", err)

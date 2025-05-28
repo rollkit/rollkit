@@ -15,9 +15,9 @@ type Executor struct {
 	mock.Mock
 }
 
-// ExecuteTxs provides a mock function with given fields: ctx, txs, blockHeight, timestamp, prevStateRoot
-func (_m *Executor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) ([]byte, uint64, error) {
-	ret := _m.Called(ctx, txs, blockHeight, timestamp, prevStateRoot)
+// ExecuteTxs provides a mock function with given fields: ctx, txs, blockHeight, timestamp, prevStateRoot, metadata
+func (_m *Executor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte, metadata map[string]interface{}) ([]byte, uint64, error) {
+	ret := _m.Called(ctx, txs, blockHeight, timestamp, prevStateRoot, metadata)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ExecuteTxs")
@@ -26,25 +26,25 @@ func (_m *Executor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight ui
 	var r0 []byte
 	var r1 uint64
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, uint64, time.Time, []byte) ([]byte, uint64, error)); ok {
-		return rf(ctx, txs, blockHeight, timestamp, prevStateRoot)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, uint64, time.Time, []byte, map[string]interface{}) ([]byte, uint64, error)); ok {
+		return rf(ctx, txs, blockHeight, timestamp, prevStateRoot, metadata)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, uint64, time.Time, []byte) []byte); ok {
-		r0 = rf(ctx, txs, blockHeight, timestamp, prevStateRoot)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, uint64, time.Time, []byte, map[string]interface{}) []byte); ok {
+		r0 = rf(ctx, txs, blockHeight, timestamp, prevStateRoot, metadata)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, uint64, time.Time, []byte) uint64); ok {
-		r1 = rf(ctx, txs, blockHeight, timestamp, prevStateRoot)
+	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, uint64, time.Time, []byte, map[string]interface{}) uint64); ok {
+		r1 = rf(ctx, txs, blockHeight, timestamp, prevStateRoot, metadata)
 	} else {
 		r1 = ret.Get(1).(uint64)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, [][]byte, uint64, time.Time, []byte) error); ok {
-		r2 = rf(ctx, txs, blockHeight, timestamp, prevStateRoot)
+	if rf, ok := ret.Get(2).(func(context.Context, [][]byte, uint64, time.Time, []byte, map[string]interface{}) error); ok {
+		r2 = rf(ctx, txs, blockHeight, timestamp, prevStateRoot, metadata)
 	} else {
 		r2 = ret.Error(2)
 	}

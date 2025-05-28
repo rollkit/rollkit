@@ -28,7 +28,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 const (
@@ -468,6 +467,17 @@ func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error)
 	if err != nil {
 		return false, err
 	}
+	// #### DEBUGGING ####
+	if header == nil {
+		return false, errors.New("DEBUG: header is nil after m.store.GetBlockData")
+	}
+	if data == nil {
+		return false, errors.New("DEBUG: data is nil after m.store.GetBlockData")
+	}
+	if m.headerHasher == nil {
+		return false, errors.New("DEBUG: m.headerHasher is nil")
+	}
+	// #### END DEBUGGING ####
 
 	headerHash, err := m.headerHasher(&header.Header)
 	if err != nil {
@@ -615,20 +625,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	if err := header.ValidateBasic(m.signaturePayloadProvider); err != nil {
 		// If this ever happens, for recovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
 		return fmt.Errorf("header validation error: %w", err)
-	}
-
-	currentBlockAttestation, err := m.createAttestation(ctx, header)
-	if err != nil {
-		// Log the error but don't let it stop the node.
-		// The adapter might not be able to form the LastCommit for the *next* block,
-		// but this block (H) is already processed and published.
-		m.logger.Error("failed to create and sign attestation for current block", "height", header.Height(), "error", err)
-	} else {
-		err = m.store.SaveSequencerAttestation(ctx, header.Height(), currentBlockAttestation)
-		if err != nil {
-			m.logger.Error("failed to save sequencer attestation for current block", "height", header.Height(), "error", err)
-		}
-		m.logger.Info("saved sequencer attestation for current block", "height", header.Height())
 	}
 
 	newState, err := m.applyBlock(ctx, header, data)
@@ -928,7 +924,23 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 		rawTxs[i] = data.Txs[i]
 	}
 
-	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
+	// Prepare metadata
+	metadata := make(map[string]interface{})
+
+	// Calculate and add the header hash to metadata
+	if m.headerHasher != nil {
+		currentHeaderHash, err := m.headerHasher(&header.Header)
+		if err != nil {
+			m.logger.Error("failed to calculate header hash in execApplyBlock for metadata", "error", err)
+		} else if currentHeaderHash != nil {
+			metadata[types.HeaderHashKey] = currentHeaderHash
+			m.logger.Debug("Added header hash to metadata for ExecuteTxs", "headerHash", hex.EncodeToString(currentHeaderHash))
+		}
+	} else {
+		m.logger.Warn("headerHasher is nil, cannot add currentHeaderHash to metadata")
+	}
+
+	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash, metadata)
 	if err != nil {
 		return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)
 	}
@@ -1011,6 +1023,12 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 }
 
 func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
+	if m.signaturePayloadProvider == nil {
+		// If no provider is set, we can't generate the payload to sign.
+		// This might be acceptable in some contexts (e.g., genesis where signature might be optional or different),
+		// but generally, if a signature is expected, a provider should be present.
+		return nil, errors.New("signaturePayloadProvider is not set in Manager")
+	}
 	b, err := m.signaturePayloadProvider(&header, nil)
 	if err != nil {
 		return nil, err
@@ -1080,20 +1098,4 @@ func (m *Manager) SaveCache() error {
 		return fmt.Errorf("failed to save data cache to disk: %w", err)
 	}
 	return nil
-}
-
-func (m *Manager) createAttestation(ctx context.Context, header *types.SignedHeader) (*pb.RollkitSequencerAttestation, error) {
-	if m.signer == nil {
-		return nil, errors.New("signer is nil, cannot create attestation")
-	}
-	blockHeaderHash, err := m.headerHasher(&header.Header)
-	if err != nil {
-		return nil, fmt.Errorf("failed to hash header: %w", err)
-	}
-
-	attestation := &pb.RollkitSequencerAttestation{
-		BlockHeaderHash: blockHeaderHash,
-	}
-
-	return attestation, nil
 }
