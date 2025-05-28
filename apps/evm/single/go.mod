@@ -6,6 +6,7 @@ toolchain go1.24.2
 
 replace (
 	github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101503.0
+	github.com/rollkit/go-execution-evm => ../../../../go-execution-evm
 	github.com/rollkit/rollkit => ../../../
 	github.com/rollkit/rollkit/core => ../../../core
 	github.com/rollkit/rollkit/da => ../../../da
