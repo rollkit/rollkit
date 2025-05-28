@@ -120,13 +120,23 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 			// Reset mock expectations for each error scenario
 			da.ExpectedCalls = nil
 			// Simulate DA layer returning a specific error
+			var gasPriceHistory []float64
 			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Run(func(args mock.Arguments) { gasPriceHistory = append(gasPriceHistory, args.Get(2).(float64)) }). //save the gas price to verify it later
 				Return(nil, tc.daError)
 
 			// Call submitHeadersToDA and expect an error
 			err := m.submitHeadersToDA(context.Background())
 			assert.Error(t, err, "expected error for DA error: %v", tc.daError)
 			assert.Contains(t, err.Error(), "failed to submit all headers to DA layer")
+
+			// Validate that gas price increased according to gas multiplier
+			previousGasPrice := m.gasPrice
+			assert.Equal(t, gasPriceHistory[0], m.gasPrice) // verify that the first call is done with the right price
+			for _, gasPrice := range gasPriceHistory[1:] {
+				assert.Equal(t, gasPrice, previousGasPrice*m.gasMultiplier)
+				previousGasPrice = gasPrice
+			}
 		})
 	}
 }
