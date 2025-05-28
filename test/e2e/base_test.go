@@ -41,7 +41,7 @@ func TestBasic(t *testing.T) {
 
 	// start local da
 	localDABinary := filepath.Join(filepath.Dir(binaryPath), "local-da")
-	sut.StartNode(localDABinary)
+	sut.ExecCmd(localDABinary)
 	// Wait a moment for the local DA to initialize
 	time.Sleep(500 * time.Millisecond)
 
@@ -57,7 +57,7 @@ func TestBasic(t *testing.T) {
 	require.NoError(t, err, "failed to init aggregator", output)
 
 	// start aggregator
-	sut.StartNode(binaryPath,
+	sut.ExecCmd(binaryPath,
 		"start",
 		"--home="+node1Home,
 		"--chain_id=testing",
@@ -86,7 +86,7 @@ func TestBasic(t *testing.T) {
 	// Start the full node
 	node2RPC := "127.0.0.1:7332"
 	node2P2P := "/ip4/0.0.0.0/tcp/7676"
-	sut.StartNode(
+	sut.ExecCmd(
 		binaryPath,
 		"start",
 		"--home="+node2Home,
@@ -124,14 +124,7 @@ func TestBasic(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// verify a block has been produced
-	c := nodeclient.NewClient("http://127.0.0.1:7331")
-	require.NoError(t, err)
-
-	ctx, done = context.WithTimeout(context.Background(), time.Second)
-	defer done()
-	state, err := c.GetState(ctx)
-	require.NoError(t, err)
-	require.Greater(t, state.LastBlockHeight, uint64(1))
+	sut.AwaitNBlocks(t, 1, "http://127.0.0.1:7331", 1*time.Second)
 }
 
 func TestNodeRestartPersistence(t *testing.T) {
@@ -145,7 +138,7 @@ func TestNodeRestartPersistence(t *testing.T) {
 
 	// Start local DA if needed
 	localDABinary := filepath.Join(filepath.Dir(binaryPath), "local-da")
-	sut.StartNode(localDABinary)
+	sut.ExecCmd(localDABinary)
 	time.Sleep(500 * time.Millisecond)
 
 	// Init node
@@ -159,7 +152,7 @@ func TestNodeRestartPersistence(t *testing.T) {
 	require.NoError(t, err, "failed to init node", output)
 
 	// Start node
-	sut.StartNode(binaryPath,
+	sut.ExecCmd(binaryPath,
 		"start",
 		"--home="+nodeHome,
 		"--chain_id=testing",
@@ -173,24 +166,27 @@ func TestNodeRestartPersistence(t *testing.T) {
 	t.Log("Node started and is up.")
 
 	c := nodeclient.NewClient("http://127.0.0.1:7331")
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	t.Cleanup(cancel)
+
 	state, err := c.GetState(ctx)
 	require.NoError(t, err)
 	require.Greater(t, state.LastBlockHeight, uint64(1))
 
-	// Wait for a block to be produced
-	time.Sleep(1 * time.Second)
+	// Wait for some blocks to be produced
+	sut.AwaitNBlocks(t, 2, "http://127.0.0.1:7331", 2*time.Second)
 
-	// Shutdown node
-	sut.Shutdown()
+	// Shutdown all nodes but keep local da running
+	sut.ShutdownByCmd(binaryPath)
 	t.Log("Node stopped.")
 
 	// Wait a moment to ensure shutdown
-	time.Sleep(500 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return sut.HasProcess(binaryPath)
+	}, 500*time.Millisecond, 10*time.Millisecond)
 
 	// Restart node
-	sut.StartNode(binaryPath,
+	sut.ExecCmd(binaryPath,
 		"start",
 		"--home="+nodeHome,
 		"--chain_id=testing",
@@ -202,13 +198,6 @@ func TestNodeRestartPersistence(t *testing.T) {
 	)
 	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 2*time.Second)
 	t.Log("Node restarted and is up.")
-
-	// Wait for a block to be produced after restart
-	time.Sleep(1 * time.Second)
-
-	ctx2, cancel2 := context.WithTimeout(context.Background(), time.Second)
-	defer cancel2()
-	state2, err := c.GetState(ctx2)
-	require.NoError(t, err)
-	require.Greater(t, state2.LastBlockHeight, state.LastBlockHeight)
+	// Wait for some blocks to be produced after restart
+	sut.AwaitNBlocks(t, 2, "http://127.0.0.1:7331", 2*time.Second)
 }
