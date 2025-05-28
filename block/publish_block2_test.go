@@ -207,11 +207,21 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		logger.With("module", "BlockManager"),
 		headerSyncService.Store(),
 		dataSyncService.Store(),
-		nil,
-		nil,
+		headerSyncService,
+		dataSyncService,
 		NopMetrics(),
 		1.,
 		1.,
+		func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
+		func(header *types.Header) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
+		func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
+		nil,
 	)
 	require.NoError(t, err)
 	return result, headerSyncService, dataSyncService
@@ -227,9 +237,8 @@ func (m mockExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
 	panic("implement me")
 }
 
-func (m mockExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (updatedStateRoot []byte, maxBytes uint64, err error) {
+func (m mockExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte, blockMetaData map[string]interface{}) (updatedStateRoot []byte, maxBytes uint64, err error) {
 	return bytesN(32), 10_000, nil
-
 }
 
 func (m mockExecutor) SetFinal(ctx context.Context, blockHeight uint64) error {

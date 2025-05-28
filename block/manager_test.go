@@ -79,6 +79,8 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 		logger,
 		headerStore, // Real header store
 		dataStore,   // Real data store
+		nil,         // headerBroadcaster
+		nil,         // dataBroadcaster
 		metrics,
 		gasPrice,
 		gasMultiplier,
