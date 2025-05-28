@@ -89,11 +89,13 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	defer cancel()
 	err = p2pClient.Start(ctx)
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = p2pClient.Close() })
 
 	svc, err = NewHeaderSyncService(mainKV, conf, genesisDoc, p2pClient, logger)
 	require.NoError(t, err)
 	err = svc.Start(ctx)
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = svc.Stop(context.Background()) })
 	// done with stop and restart service
 
 	// broadcast another 10 example blocks
@@ -102,6 +104,7 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 		t.Logf("signed header: %d", i)
 		require.NoError(t, svc.WriteToStoreAndBroadcast(ctx, signedHeader))
 	}
+	cancel()
 }
 
 func nextHeader(t *testing.T, previousHeader *types.SignedHeader, chainID string, noopSigner signer.Signer) *types.SignedHeader {
