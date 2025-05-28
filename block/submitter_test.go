@@ -67,14 +67,24 @@ func TestSubmitBatchToDA_Failure(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Reset mock expectations for each error scenario
+			var gasPriceHistory []float64
 			da.ExpectedCalls = nil
 			da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
 			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Run(func(args mock.Arguments) { gasPriceHistory = append(gasPriceHistory, args.Get(2).(float64)) }). //save the gas price to verify it later
 				Return(nil, tc.daError)
 
 			// Expect an error from submitBatchToDA
 			err := m.submitBatchToDA(context.Background(), batch)
 			assert.Error(t, err, "expected error")
+
+			// Validate that gas price increased according to gas multiplier
+			previousGasPrice := m.gasPrice
+			assert.Equal(t, gasPriceHistory[0], m.gasPrice) // verify that the first call is done with the right price
+			for _, gasPrice := range gasPriceHistory[1:] {
+				assert.Equal(t, gasPrice, previousGasPrice*m.gasMultiplier)
+				previousGasPrice = gasPrice
+			}
 		})
 	}
 }
