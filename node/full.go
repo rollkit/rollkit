@@ -269,8 +269,7 @@ func (n *FullNode) startInstrumentationServer() (*http.Server, *http.Server) {
 		}
 
 		go func() {
-			if err := prometheusServer.ListenAndServe(); err != http.ErrServerClosed {
-				// Error starting or closing listener:
+			if err := prometheusServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				n.Logger.Error("Prometheus HTTP server ListenAndServe", "err", err)
 			}
 		}()
@@ -303,8 +302,7 @@ func (n *FullNode) startInstrumentationServer() (*http.Server, *http.Server) {
 		}
 
 		go func() {
-			if err := pprofServer.ListenAndServe(); err != http.ErrServerClosed {
-				// Error starting or closing listener:
+			if err := pprofServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				n.Logger.Error("pprof HTTP server ListenAndServe", "err", err)
 			}
 		}()
@@ -346,11 +344,10 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	}
 
 	go func() {
-		err := n.rpcServer.ListenAndServe()
-		if err != nil && err != http.ErrServerClosed {
+		n.Logger.Info("started RPC server", "addr", n.nodeConfig.RPC.Address)
+		if err := n.rpcServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			n.Logger.Error("RPC server error", "err", err)
 		}
-		n.Logger.Info("started RPC server", "addr", n.nodeConfig.RPC.Address)
 	}()
 
 	n.Logger.Info("starting P2P client")
