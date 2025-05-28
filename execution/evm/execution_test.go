@@ -179,11 +179,9 @@ func TestEngineExecution(t *testing.T) {
 			require.NoError(tt, err)
 			if len(payload) > 0 {
 				require.NotZero(tt, maxBytes)
-			}
-			if len(payload) == 0 {
-				require.Equal(tt, prevStateRoot, newStateRoot)
-			} else {
 				require.NotEqual(tt, prevStateRoot, newStateRoot)
+			} else {
+				require.Equal(tt, prevStateRoot, newStateRoot)
 			}
 
 			err = executionClient.SetFinal(ctx, blockHeight)
