@@ -6,7 +6,6 @@ toolchain go1.24.2
 
 replace (
 	github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101503.0
-	github.com/rollkit/go-execution-evm => ../../../../go-execution-evm
 	github.com/rollkit/rollkit => ../../../
 	github.com/rollkit/rollkit/core => ../../../core
 	github.com/rollkit/rollkit/da => ../../../da
@@ -16,7 +15,7 @@ replace (
 require (
 	cosmossdk.io/log v1.6.0
 	github.com/ethereum/go-ethereum v1.15.0
-	github.com/rollkit/go-execution-evm v0.1.1-0.20250328070936-d9a866002f5f
+	github.com/rollkit/go-execution-evm v0.1.2-0.20250528212210-4c86f35a8c4b
 	github.com/rollkit/rollkit v0.14.2-0.20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/core v0.0.0-20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/da v0.0.0-20250317130407-e9e0a1b0485e
