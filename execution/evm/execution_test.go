@@ -144,59 +144,58 @@ func TestEngineExecution(t *testing.T) {
 	}
 
 	// start new container and try to sync
-	t.Run("Sync chain", func(tt *testing.T) {
-		jwtSecret := setupTestRethEngine(tt)
 
-		executionClient, err := NewEngineExecutionClient(
-			TEST_ETH_URL,
-			TEST_ENGINE_URL,
-			jwtSecret,
-			genesisHash,
-			common.Address{},
-		)
-		require.NoError(tt, err)
+	jwtSecret := setupTestRethEngine(t)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-		defer cancel()
-		stateRoot, gasLimit, err := executionClient.InitChain(ctx, genesisTime, initialHeight, CHAIN_ID)
-		require.NoError(tt, err)
-		require.Equal(tt, rollkitGenesisStateRoot, stateRoot)
-		require.NotZero(tt, gasLimit)
+	executionClient, err := NewEngineExecutionClient(
+		TEST_ETH_URL,
+		TEST_ENGINE_URL,
+		jwtSecret,
+		genesisHash,
+		common.Address{},
+	)
+	require.NoError(t, err)
 
-		prevStateRoot := rollkitGenesisStateRoot
-		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
+	stateRoot, gasLimit, err := executionClient.InitChain(ctx, genesisTime, initialHeight, CHAIN_ID)
+	require.NoError(t, err)
+	require.Equal(t, rollkitGenesisStateRoot, stateRoot)
+	require.NotZero(t, gasLimit)
 
-		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
-			payload := allPayloads[blockHeight-1]
+	prevStateRoot := rollkitGenesisStateRoot
+	lastHeight, lastHash, lastTxs := checkLatestBlock(t, ctx)
 
-			// Check latest block before execution
-			beforeHeight, beforeHash, beforeTxs := checkLatestBlock(tt, ctx)
-			require.Equal(tt, lastHeight, beforeHeight, "Latest block height should match")
-			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
-			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
+	for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
+		payload := allPayloads[blockHeight-1]
 
-			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
-			require.NoError(tt, err)
-			if len(payload) > 0 {
-				require.NotZero(tt, maxBytes)
-				require.NotEqual(tt, prevStateRoot, newStateRoot)
-			} else {
-				require.Equal(tt, prevStateRoot, newStateRoot)
-			}
+		// Check latest block before execution
+		beforeHeight, beforeHash, beforeTxs := checkLatestBlock(t, ctx)
+		require.Equal(t, lastHeight, beforeHeight, "Latest block height should match")
+		require.Equal(t, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
+		require.Equal(t, lastTxs, beforeTxs, "Number of transactions should match")
 
-			err = executionClient.SetFinal(ctx, blockHeight)
-			require.NoError(tt, err)
-
-			// Check latest block after execution
-			lastHeight, lastHash, lastTxs = checkLatestBlock(tt, ctx)
-			require.Equal(tt, blockHeight, lastHeight, "Latest block height should match")
-			require.NotEmpty(tt, lastHash.Hex(), "Latest block hash should not be empty")
-			require.GreaterOrEqual(tt, lastTxs, 0, "Number of transactions should be non-negative")
-
-			prevStateRoot = newStateRoot
-			fmt.Println("all good blockheight", blockHeight)
+		newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
+		require.NoError(t, err)
+		if len(payload) > 0 {
+			require.NotZero(t, maxBytes)
+			require.NotEqual(t, prevStateRoot, newStateRoot)
+		} else {
+			require.Equal(t, prevStateRoot, newStateRoot)
 		}
-	})
+
+		err = executionClient.SetFinal(ctx, blockHeight)
+		require.NoError(t, err)
+
+		// Check latest block after execution
+		lastHeight, lastHash, lastTxs = checkLatestBlock(t, ctx)
+		require.Equal(t, blockHeight, lastHeight, "Latest block height should match")
+		require.NotEmpty(t, lastHash.Hex(), "Latest block hash should not be empty")
+		require.GreaterOrEqual(t, lastTxs, 0, "Number of transactions should be non-negative")
+
+		prevStateRoot = newStateRoot
+		fmt.Println("all good blockheight", blockHeight)
+	}
 }
 
 // createEthClient creates an Ethereum client for checking block information
