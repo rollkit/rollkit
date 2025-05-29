@@ -87,6 +87,15 @@ func setupManagerForPublishBlockTest(
 		metrics:                  NopMetrics(),
 		pendingHeaders:           nil,
 		signaturePayloadProvider: createDefaultSignaturePayloadProvider(),
+		headerHasher: func(header *types.Header) (types.Hash, error) {
+			return header.Hash(), nil
+		},
+		validatorHasher: func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
+		commitHashProvider: func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
 	}
 	manager.publishBlock = manager.publishBlockInternal
 
@@ -171,6 +180,15 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		signaturePayloadProvider: createDefaultSignaturePayloadProvider(),
+		headerHasher: func(header *types.Header) (types.Hash, error) {
+			return header.Hash(), nil
+		},
+		validatorHasher: func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
+		commitHashProvider: func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
 	}
 
 	m.publishBlock = m.publishBlockInternal
@@ -256,6 +274,15 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		signaturePayloadProvider: createDefaultSignaturePayloadProvider(),
+		headerHasher: func(header *types.Header) (types.Hash, error) {
+			return header.Hash(), nil
+		},
+		validatorHasher: func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
+		commitHashProvider: func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
+			return make(types.Hash, 32), nil
+		},
 		lastState: types.State{
 			ChainID:         chainID,
 			InitialHeight:   1,
@@ -313,7 +340,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 
 	// We should expect ExecuteTxs to be called with an empty transaction list
 	newAppHash := []byte("newAppHash")
-	mockExec.On("ExecuteTxs", ctx, mock.Anything, currentHeight+1, mock.AnythingOfType("time.Time"), m.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
+	mockExec.On("ExecuteTxs", ctx, [][]byte{}, currentHeight+1, mock.AnythingOfType("time.Time"), m.lastState.AppHash, mock.AnythingOfType("map[string]interface {}")).Return(newAppHash, uint64(100), nil).Once()
 
 	// SetHeight should be called
 	mockStore.On("SetHeight", ctx, currentHeight+1).Return(nil).Once()
@@ -323,9 +350,6 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 
 	// SaveBlockData should be called after validation
 	mockStore.On("SaveBlockData", ctx, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
-
-	// SaveSequencerAttestation should be called
-	mockStore.On("SaveSequencerAttestation", ctx, currentHeight+1, mock.AnythingOfType("*types.RollkitSequencerAttestation")).Return(nil).Once()
 
 	// Call publishBlock
 	err = m.publishBlock(ctx)
@@ -384,14 +408,11 @@ func Test_publishBlock_Success(t *testing.T) {
 		}
 	})
 
-	// SaveSequencerAttestation should be called
-	mockStore.On("SaveSequencerAttestation", t.Context(), newHeight, mock.AnythingOfType("*types.RollkitSequencerAttestation")).Return(nil).Once()
-
 	// --- Mock Executor ---
 	sampleTxs := [][]byte{[]byte("tx1"), []byte("tx2")}
 	// No longer mocking GetTxs since it's handled by reaper.go
 	newAppHash := []byte("newAppHash")
-	mockExec.On("ExecuteTxs", t.Context(), mock.Anything, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
+	mockExec.On("ExecuteTxs", t.Context(), sampleTxs, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash, mock.AnythingOfType("map[string]interface {}")).Return(newAppHash, uint64(100), nil).Once()
 
 	// No longer mocking SubmitBatchTxs since it's handled by reaper.go
 	batchTimestamp := lastHeader.Time().Add(1 * time.Second)
