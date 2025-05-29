@@ -45,7 +45,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
-  
 
   e2e-tests:
     name: Run E2E System Tests
