@@ -58,6 +58,18 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 	mockStore := mocks.NewStore(t)
 	mockStore.On("GetState", mock.Anything).Return(types.State{}, ds.ErrNotFound)
 
+	// Add mocks for SaveBlockData (called during getInitialState when no state exists)
+	mockStore.On("SaveBlockData", mock.Anything, mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil)
+
+	// Add mock for SetHeight (called in NewManager)
+	mockStore.On("SetHeight", mock.Anything, mock.AnythingOfType("uint64")).Return(nil)
+
+	// Add mock for GetMetadata calls in NewManager - correct order: (ctx, key)
+	mockStore.On("GetMetadata", mock.Anything, LastBatchDataKey).Return(nil, ds.ErrNotFound)
+	mockStore.On("GetMetadata", mock.Anything, DAIncludedHeightKey).Return(nil, ds.ErrNotFound)
+	// Add mock for LastSubmittedHeightKey (called by NewPendingHeaders)
+	mockStore.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
+
 	// Create an in-memory datastore for header/data stores
 	memDs := dssync.MutexWrap(ds.NewMapDatastore())
 	headerStore, err := goheaderstore.NewStore[*types.SignedHeader](memDs, goheaderstore.WithStorePrefix("header"))
@@ -232,8 +244,12 @@ func TestIsDAIncluded(t *testing.T) {
 	// IsDAIncluded should return false for unseen hash
 	require.False(m.IsDAIncluded(ctx, height))
 
+	// Get the header hash using the same headerHasher that IsDAIncluded uses
+	headerHash, err := m.headerHasher(&header.Header)
+	require.NoError(err)
+
 	// Set the hash as DAIncluded and verify IsDAIncluded returns true
-	m.headerCache.SetDAIncluded(header.Hash().String())
+	m.headerCache.SetDAIncluded(headerHash.String())
 	require.False(m.IsDAIncluded(ctx, height))
 
 	// Set the data as DAIncluded and verify IsDAIncluded returns true
