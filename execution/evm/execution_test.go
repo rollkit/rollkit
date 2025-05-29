@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -253,9 +254,16 @@ func generateJWTSecret() (string, error) {
 	return hex.EncodeToString(jwtSecret), nil
 }
 
+// Global mutex to serialize Docker Compose operations
+var dockerMutex sync.Mutex
+
 // setupTestRethEngine starts a reth container using docker-compose and returns the JWT secret
 func setupTestRethEngine(t *testing.T) string {
 	t.Helper()
+
+	// Serialize Docker Compose operations
+	dockerMutex.Lock()
+	defer dockerMutex.Unlock()
 
 	// Get absolute path to docker directory
 	dockerPath, err := filepath.Abs(DOCKER_PATH)
