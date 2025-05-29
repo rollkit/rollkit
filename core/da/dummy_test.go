@@ -30,13 +30,16 @@ func TestDummyDA(t *testing.T) {
 		[]byte("test blob 2"),
 	}
 	ids, err := dummyDA.Submit(ctx, blobs, 0, nil)
-	time.Sleep(testDABlockTime)
 	if err != nil {
 		t.Fatalf("Submit failed: %v", err)
 	}
 	if len(ids) != len(blobs) {
 		t.Errorf("Expected %d IDs, got %d", len(blobs), len(ids))
 	}
+
+	// Wait for the height ticker to advance past the submitted height
+	// We need to wait for at least one tick to ensure currentHeight >= 1
+	time.Sleep(testDABlockTime + 50*time.Millisecond)
 
 	// Test Get
 	retrievedBlobs, err := dummyDA.Get(ctx, ids, nil)
