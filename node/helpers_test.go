@@ -117,7 +117,7 @@ func createNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullNode
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
 		types.ValidatorHasher(nil),
-		types.SignaturePayloadProvider(nil),
+		createDefaultSignaturePayloadProvider(),
 		types.HeaderHasher(nil),
 		types.CommitHashProvider(nil),
 	)
@@ -167,7 +167,7 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
 		types.ValidatorHasher(nil),
-		types.SignaturePayloadProvider(nil),
+		createDefaultSignaturePayloadProvider(),
 		types.HeaderHasher(nil),
 		types.CommitHashProvider(nil),
 	)
@@ -208,7 +208,7 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 			DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 			log.NewTestLogger(t),
 			types.ValidatorHasher(nil),
-			types.SignaturePayloadProvider(nil),
+			createDefaultSignaturePayloadProvider(),
 			types.HeaderHasher(nil),
 			types.CommitHashProvider(nil),
 		)
@@ -303,4 +303,18 @@ func verifyNodesSynced(node1, syncingNode Node, source Source) error {
 		}
 		return fmt.Errorf("nodes not synced: sequencer at height %v, syncing node at height %v", sequencerHeight, syncingHeight)
 	})
+}
+
+// createDefaultSignaturePayloadProvider creates a basic signature payload provider for tests
+// that matches the behavior used in GetSignature function in utils.go
+func createDefaultSignaturePayloadProvider() types.SignaturePayloadProvider {
+	return func(header *types.Header, data *types.Data) ([]byte, error) {
+		if header == nil {
+			return nil, errors.New("header cannot be nil")
+		}
+
+		// Use the same approach as GetSignature: just return the marshaled header bytes
+		// This matches the behavior in utils.go GetSignature function
+		return header.MarshalBinary()
+	}
 }

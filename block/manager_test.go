@@ -105,7 +105,7 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 		func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
 			return make(types.Hash, 32), nil
 		},
-		nil, // SignaturePayloadProvider
+		createDefaultSignaturePayloadProvider(), // SignaturePayloadProvider
 	)
 	require.NoError(t, err)
 	return m, mockStore
@@ -421,4 +421,18 @@ func TestBytesToBatchData(t *testing.T) {
 	_, err = bytesToBatchData(bad)
 	assert.Error(err)
 	assert.Contains(err.Error(), "corrupted data")
+}
+
+// createDefaultSignaturePayloadProvider creates a basic signature payload provider for tests
+// that matches the behavior used in GetSignature function in utils.go
+func createDefaultSignaturePayloadProvider() types.SignaturePayloadProvider {
+	return func(header *types.Header, data *types.Data) ([]byte, error) {
+		if header == nil {
+			return nil, errors.New("header cannot be nil")
+		}
+
+		// Use the same approach as GetSignature: just return the marshaled header bytes
+		// This matches the behavior in utils.go GetSignature function
+		return header.MarshalBinary()
+	}
 }
