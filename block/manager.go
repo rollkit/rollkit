@@ -472,17 +472,6 @@ func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error)
 	if err != nil {
 		return false, err
 	}
-	// #### DEBUGGING ####
-	if header == nil {
-		return false, errors.New("DEBUG: header is nil after m.store.GetBlockData")
-	}
-	if data == nil {
-		return false, errors.New("DEBUG: data is nil after m.store.GetBlockData")
-	}
-	if m.headerHasher == nil {
-		return false, errors.New("DEBUG: m.headerHasher is nil")
-	}
-	// #### END DEBUGGING ####
 
 	headerHash, err := m.headerHasher(&header.Header)
 	if err != nil {
