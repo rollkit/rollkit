@@ -47,7 +47,7 @@ func TestTxGossipingMultipleNodesNoDA(t *testing.T) {
 	executor.InjectTx([]byte("test tx"))
 
 	blocksToWaitFor := uint64(5)
-	// Wait for all nodes to reach at least 5 blocks with DA inclusion
+	// Wait for all nodes to reach at least blocksToWaitFor blocks
 	for _, node := range nodes {
 		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, Store))
 	}
@@ -96,7 +96,7 @@ func TestTxGossipingMultipleNodesDAIncluded(t *testing.T) {
 	executor.InjectTx([]byte("test tx"))
 
 	blocksToWaitFor := uint64(5)
-	// Wait for all nodes to reach at least 5 blocks with DA inclusion
+	// Wait for all nodes to reach at least blocksToWaitFor blocks with DA inclusion
 	for _, node := range nodes {
 		require.NoError(waitForAtLeastNDAIncludedHeight(node, blocksToWaitFor))
 	}
@@ -179,8 +179,8 @@ func TestSingleSequencerTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	// Start only the sequencer first
 	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
 
-	// Wait for the sequencer to produce at least one block
-	require.NoError(waitForAtLeastNBlocks(nodes[0], 1, Store))
+	// Wait for the sequencer to produce at first block
+	require.NoError(waitForFirstBlock(nodes[0], Store))
 
 	// Now start the other nodes
 	for i := 1; i < numNodes; i++ {
@@ -267,14 +267,14 @@ func testSingleSequencerSingleFullNode(t *testing.T, source Source) {
 	// Start the sequencer first
 	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
 
-	// Wait for the sequencer to produce at least one block with DA inclusion
-	require.NoError(waitForAtLeastNBlocks(nodes[0], 1, source))
+	// Wait for the sequencer to produce at first block
+	require.NoError(waitForFirstBlock(nodes[0], source))
 
 	// Start the full node
 	startNodeInBackground(t, nodes, ctxs, &runningWg, 1)
 
 	blocksToWaitFor := uint64(3)
-	// Wait for both nodes to reach at least 3 blocks with DA inclusion
+	// Wait for both nodes to reach at least blocksToWaitFor blocks
 	for _, node := range nodes {
 		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, source))
 	}
@@ -305,8 +305,8 @@ func testSingleSequencerTwoFullNodes(t *testing.T, source Source) {
 	// Start the sequencer first
 	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
 
-	// Wait for the sequencer to produce at least one block with DA inclusion
-	require.NoError(waitForAtLeastNBlocks(nodes[0], 1, source))
+	// Wait for the sequencer to produce at first block
+	require.NoError(waitForFirstBlock(nodes[0], source))
 
 	// Start the full nodes
 	for i := 1; i < numNodes; i++ {
@@ -314,7 +314,7 @@ func testSingleSequencerTwoFullNodes(t *testing.T, source Source) {
 	}
 
 	blocksToWaitFor := uint64(3)
-	// Wait for all nodes to reach at least 3 blocks with DA inclusion
+	// Wait for all nodes to reach at least blocksToWaitFor blocks
 	for _, node := range nodes {
 		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, source))
 	}
@@ -347,8 +347,8 @@ func testSingleSequencerSingleFullNodeTrustedHash(t *testing.T, source Source) {
 	// Start the sequencer first
 	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
 
-	// Wait for the sequencer to produce at least one block with DA inclusion
-	require.NoError(waitForAtLeastNBlocks(nodes[0], 1, source))
+	// Wait for the sequencer to produce at first block
+	require.NoError(waitForFirstBlock(nodes[0], source))
 
 	// Get the hash of the first block (using the correct source)
 	var trustedHash string
@@ -372,7 +372,7 @@ func testSingleSequencerSingleFullNodeTrustedHash(t *testing.T, source Source) {
 	startNodeInBackground(t, nodes, ctxs, &runningWg, 1)
 
 	blocksToWaitFor := uint64(3)
-	// Wait for both nodes to reach at least 3 blocks with DA inclusion
+	// Wait for both nodes to reach at least blocksToWaitFor blocks
 	for _, node := range nodes {
 		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, source))
 	}
@@ -442,8 +442,8 @@ func testTwoChainsInOneNamespace(t *testing.T, chainID1 string, chainID2 string)
 	// Start the sequencer of chain 1
 	startNodeInBackground(t, nodes1, ctxs1, &runningWg1, 0)
 
-	// Wait for the sequencer to produce at least one block
-	require.NoError(waitForAtLeastNBlocks(nodes1[0], 1, Store))
+	// Wait for the sequencer to produce at first block
+	require.NoError(waitForFirstBlock(nodes1[0], Store))
 
 	// Set up context and wait group for the sequencer of chain 2
 	ctxs2, cancels2 := createNodeContexts(numNodes)
@@ -452,8 +452,8 @@ func testTwoChainsInOneNamespace(t *testing.T, chainID1 string, chainID2 string)
 	// Start the sequencer of chain 2
 	startNodeInBackground(t, nodes2, ctxs2, &runningWg2, 0)
 
-	// Wait for the sequencer to produce at least one block
-	require.NoError(waitForAtLeastNBlocks(nodes2[0], 1, Store))
+	// Wait for the sequencer to produce at first block
+	require.NoError(waitForFirstBlock(nodes2[0], Store))
 
 	// Start the full node of chain 1
 	startNodeInBackground(t, nodes1, ctxs1, &runningWg1, 1)
@@ -463,10 +463,10 @@ func testTwoChainsInOneNamespace(t *testing.T, chainID1 string, chainID2 string)
 
 	blocksToWaitFor := uint64(3)
 
-	// Wait for the full node of chain 1 to reach at least 3 blocks
+	// Wait for the full node of chain 1 to reach at least blocksToWaitFor blocks
 	require.NoError(waitForAtLeastNBlocks(nodes1[1], blocksToWaitFor, Store))
 
-	// Wait for the full node of chain 2 to reach at least 3 blocks
+	// Wait for the full node of chain 2 to reach at least blocksToWaitFor blocks
 	require.NoError(waitForAtLeastNBlocks(nodes2[1], blocksToWaitFor, Store))
 
 	// Verify both full nodes are synced using the helper

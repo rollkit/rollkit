@@ -198,27 +198,42 @@ func (s *FullNodeTestSuite) TestGenesisInitialization() {
 	require.Equal(s.node.genesis.ChainID, state.ChainID)
 }
 
-// TestStateRecovery (skipped) is intended to verify that the node can recover its state after a restart.
-// It would check that the block height after restart is at least as high as before, but is skipped due to in-memory DB.
-func (s *FullNodeTestSuite) TestStateRecovery() {
-	s.T().Skip("skipping state recovery test, we need to reuse the same database, when we use in memory it starts fresh each time")
-	require := require.New(s.T())
+// TestStateRecovery verifies that the node can recover its state after a restart.
+// It would check that the block height after restart is at least as high as before.
+func TestStateRecovery(t *testing.T) {
+
+	require := require.New(t)
+
+	// Set up one sequencer
+	config := getTestConfig(t, 1)
+	executor, sequencer, dac, p2pClient, ds, _, stopDAHeightTicker := createTestComponents(t, config)
+	node, cleanup := createNodeWithCustomComponents(t, config, executor, sequencer, dac, p2pClient, ds, stopDAHeightTicker)
+	defer cleanup()
+
+	var runningWg sync.WaitGroup
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start the sequencer first
+	startNodeInBackground(t, []*FullNode{node}, []context.Context{ctx}, &runningWg, 0)
+
+	blocksToWaitFor := uint64(20)
+	// Wait for the sequencer to produce at first block
+	require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, Store))
 
 	// Get current state
-	originalHeight, err := getNodeHeight(s.node, Store)
+	originalHeight, err := getNodeHeight(node, Store)
 	require.NoError(err)
-
-	// Wait for some blocks
-	err = waitForAtLeastNBlocks(s.node, 5, Store)
-	require.NoError(err)
+	require.GreaterOrEqual(originalHeight, blocksToWaitFor)
 
 	// Stop the current node
-	s.cancel()
+	cancel()
 
 	// Wait for the node to stop
 	waitCh := make(chan struct{})
 	go func() {
-		s.runningWg.Wait()
+		runningWg.Wait()
 		close(waitCh)
 	}()
 
@@ -226,29 +241,16 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	case <-waitCh:
 		// Node stopped successfully
 	case <-time.After(2 * time.Second):
-		s.T().Fatalf("Node did not stop gracefully within timeout")
+		t.Fatalf("Node did not stop gracefully within timeout")
 	}
 
-	// Create a new context
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.errCh = make(chan error, 1)
-
-	config := getTestConfig(s.T(), 1)
-	// Create a new node instance instead of reusing the old one
-	node, cleanup := createNodeWithCleanup(s.T(), config)
+	// Create a new node instance using the same components
+	executor, sequencer, dac, p2pClient, _, _, stopDAHeightTicker = createTestComponents(t, config)
+	node, cleanup = createNodeWithCustomComponents(t, config, executor, sequencer, dac, p2pClient, ds, stopDAHeightTicker)
 	defer cleanup()
 
-	// Replace the old node with the new one
-	s.node = node
-
-	// Start the new node
-	s.startNodeInBackground(s.node)
-
-	// Wait a bit after restart
-	time.Sleep(s.node.nodeConfig.Node.BlockTime.Duration)
-
 	// Verify state persistence
-	recoveredHeight, err := getNodeHeight(s.node, Store)
+	recoveredHeight, err := getNodeHeight(node, Store)
 	require.NoError(err)
 	require.GreaterOrEqual(recoveredHeight, originalHeight)
 }

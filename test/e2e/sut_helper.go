@@ -6,10 +6,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"iter"
 	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -22,6 +24,7 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/rpc/client"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // WorkDir defines the default working directory for spawned processes.
@@ -34,19 +37,22 @@ type SystemUnderTest struct {
 	outBuff *ring.Ring
 	errBuff *ring.Ring
 
-	pidsLock sync.RWMutex
-	pids     map[int]struct{}
+	pidsLock  sync.RWMutex
+	pids      map[int]struct{}
+	cmdToPids map[string][]int
+	debug     bool
 }
 
 // NewSystemUnderTest constructor
 func NewSystemUnderTest(t *testing.T) *SystemUnderTest {
 	r := &SystemUnderTest{
-		t:       t,
-		pids:    make(map[int]struct{}),
-		outBuff: ring.New(100),
-		errBuff: ring.New(100),
+		t:         t,
+		pids:      make(map[int]struct{}),
+		cmdToPids: make(map[string][]int),
+		outBuff:   ring.New(100),
+		errBuff:   ring.New(100),
 	}
-	t.Cleanup(r.Shutdown)
+	t.Cleanup(r.ShutdownAll)
 	return r
 }
 
@@ -62,10 +68,11 @@ func (s *SystemUnderTest) RunCmd(cmd string, args ...string) (string, error) {
 	return string(combinedOutput), err
 }
 
-// StartNode starts a process for the given command and manages it cleanup on test end.
-func (s *SystemUnderTest) StartNode(cmd string, args ...string) {
+// ExecCmd starts a process for the given command and manages it cleanup on test end.
+func (s *SystemUnderTest) ExecCmd(cmd string, args ...string) {
+	executable := locateExecutable(cmd)
 	c := exec.Command( //nolint:gosec // used by tests only
-		locateExecutable(cmd),
+		executable,
 		args...,
 	)
 	c.Dir = WorkDir
@@ -73,7 +80,9 @@ func (s *SystemUnderTest) StartNode(cmd string, args ...string) {
 
 	err := c.Start()
 	require.NoError(s.t, err)
-
+	if s.debug {
+		s.logf("Exec cmd (pid: %d): %s %s", c.Process.Pid, executable, strings.Join(c.Args, " "))
+	}
 	// cleanup when stopped
 	s.awaitProcessCleanup(c)
 }
@@ -84,49 +93,54 @@ func (s *SystemUnderTest) AwaitNodeUp(t *testing.T, rpcAddr string, timeout time
 	t.Logf("Await node is up: %s", rpcAddr)
 	ctx, done := context.WithTimeout(context.Background(), timeout)
 	defer done()
-
-	started := make(chan struct{}, 1)
-	go func() { // query for a non empty block on status page
-		t.Logf("Checking node state: %s\n", rpcAddr)
-		for {
-			con := client.NewClient(rpcAddr)
-			if con == nil {
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-			_, err := con.GetHealth(ctx)
-			if err != nil {
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-			started <- struct{}{}
-			return
-		}
-	}()
-	select {
-	case <-started:
-	case <-ctx.Done():
-		if !assert.NoError(t, ctx.Err()) {
-			s.PrintBuffer()
-			s.t.FailNow()
-		}
-	case <-time.NewTimer(timeout).C:
-		s.PrintBuffer()
-		t.Fatalf("timeout waiting for node start: %s", timeout)
-	}
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		c := client.NewClient(rpcAddr)
+		require.NotNil(t, c)
+		_, err := c.GetHealth(ctx)
+		require.NoError(t, err)
+	}, timeout, timeout/10, "node is not up")
+}
+func (s *SystemUnderTest) AwaitNBlocks(t *testing.T, n uint64, rpcAddr string, timeout time.Duration) {
+	t.Helper()
+	ctx, done := context.WithTimeout(context.Background(), timeout)
+	defer done()
+	var c *client.Client
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		c = client.NewClient(rpcAddr)
+		require.NotNil(t, c)
+	}, timeout, 50*time.Millisecond, "client is not setup")
+	var baseState *pb.State
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		s, err := c.GetState(ctx)
+		require.NoError(t, err)
+		baseState = s
+	}, timeout, 50*time.Millisecond, "client is not setup")
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		s, err := c.GetState(ctx)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, s.LastBlockHeight, baseState.LastBlockHeight+n)
+	}, timeout, 50*time.Millisecond, "client is not setup")
 }
 
 func (s *SystemUnderTest) awaitProcessCleanup(cmd *exec.Cmd) {
 	pid := cmd.Process.Pid
 	s.pidsLock.Lock()
 	s.pids[pid] = struct{}{}
+	cmdKey := filepath.Base(cmd.Path)
+	s.cmdToPids[cmdKey] = append(s.cmdToPids[cmdKey], pid)
 	s.pidsLock.Unlock()
 	go func() {
 		_ = cmd.Wait() // blocks until shutdown
-		s.logf("Node stopped: %d\n", pid)
+		s.logf("Process stopped, pid: %d\n", pid)
 		s.pidsLock.Lock()
+		defer s.pidsLock.Unlock()
 		delete(s.pids, pid)
-		s.pidsLock.Unlock()
+		remainingPids := slices.DeleteFunc(s.cmdToPids[cmdKey], func(p int) bool { return p == pid })
+		if len(remainingPids) == 0 {
+			delete(s.cmdToPids, cmdKey)
+		} else {
+			s.cmdToPids[cmdKey] = remainingPids
+		}
 	}()
 }
 
@@ -186,48 +200,92 @@ func (s *SystemUnderTest) logf(msg string, args ...any) {
 	s.log(fmt.Sprintf(msg, args...))
 }
 
-func (s *SystemUnderTest) hashPids() bool {
+func (s *SystemUnderTest) HasProcess(cmds ...string) bool {
 	s.pidsLock.RLock()
 	defer s.pidsLock.RUnlock()
-	return len(s.pids) != 0
-}
-
-func (s *SystemUnderTest) withEachPid(cb func(p *os.Process)) {
-	s.pidsLock.RLock()
-	pids := maps.Keys(s.pids)
-	s.pidsLock.RUnlock()
-
-	for pid := range pids {
-		p, err := os.FindProcess(pid)
-		if err != nil {
-			continue
-		}
-		cb(p)
+	if len(cmds) == 0 {
+		return len(s.pids) != 0
 	}
+	for _, cmd := range cmds {
+		if len(s.cmdToPids[filepath.Base(cmd)]) != 0 {
+			return true
+		}
+	}
+	return false
 }
 
-// Shutdown stops all processes managed by the SystemUnderTest by sending SIGTERM and SIGKILL signals if necessary.
-func (s *SystemUnderTest) Shutdown() {
-	s.withEachPid(func(p *os.Process) {
-		go func() {
+// ShutdownAll stops all processes managed by the SystemUnderTest by sending SIGTERM and SIGKILL signals if necessary.
+func (s *SystemUnderTest) ShutdownAll() {
+	s.gracefulStopProcesses(s.iterAllProcesses)
+}
+
+// ShutdownByCmd stops all processes associated with the specified command by sending SIGTERM and SIGKILL if needed.
+func (s *SystemUnderTest) ShutdownByCmd(cmd string) {
+	s.gracefulStopProcesses(func() iter.Seq[*os.Process] { return s.iterProcessesByCmd(cmd) })
+}
+
+func (s *SystemUnderTest) gracefulStopProcesses(iterFn func() iter.Seq[*os.Process]) {
+	for p := range iterFn() {
+		go func(p *os.Process) {
 			if err := p.Signal(syscall.SIGTERM); err != nil {
 				s.logf("failed to stop node with pid %d: %s\n", p.Pid, err)
 			}
-		}()
-	})
+		}(p)
+	}
+
+	// await graceful shutdown
 	for range 5 {
-		if !s.hashPids() {
+		if !s.HasProcess() {
 			break
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-
-	s.withEachPid(func(p *os.Process) {
+	// kill remaining processes if necessary
+	for p := range iterFn() {
 		s.logf("killing node %d\n", p.Pid)
 		if err := p.Kill(); err != nil {
 			s.logf("failed to kill node with pid %d: %s\n", p.Pid, err)
 		}
-	})
+	}
+}
+
+// iterAllProcesses returns an iterator over all processes currently managed by the SystemUnderTest instance.
+func (s *SystemUnderTest) iterAllProcesses() iter.Seq[*os.Process] {
+	return func(yield func(*os.Process) bool) {
+		s.pidsLock.RLock()
+		pids := maps.Keys(s.pids)
+		s.pidsLock.RUnlock()
+
+		for pid := range pids {
+			p, err := os.FindProcess(pid)
+			if err != nil {
+				continue
+			}
+			if !yield(p) {
+				break
+			}
+		}
+	}
+}
+
+// iterProcessesByCmd returns an iterator over processes associated with the specified command.
+func (s *SystemUnderTest) iterProcessesByCmd(cmd string) iter.Seq[*os.Process] {
+	cmdKey := filepath.Base(cmd)
+	return func(yield func(*os.Process) bool) {
+		s.pidsLock.RLock()
+		pids := slices.Clone(s.cmdToPids[cmdKey])
+		s.pidsLock.RUnlock()
+
+		for pid := range pids {
+			p, err := os.FindProcess(pid)
+			if err != nil {
+				continue
+			}
+			if !yield(p) {
+				break
+			}
+		}
+	}
 }
 
 // locateExecutable looks up the binary on the OS path.
