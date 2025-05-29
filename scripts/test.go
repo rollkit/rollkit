@@ -24,6 +24,13 @@ func main() {
 			modDir := filepath.Dir(path)
 			fmt.Printf("--> Found go.mod in: %s\n", modDir)
 
+			// Skip the execution/evm directory
+			if modDir == filepath.Join("execution", "evm") {
+				fmt.Printf("--> Skipping tests in: %s\n", modDir)
+				fmt.Println(strings.Repeat("-", 40)) // Separator
+				return nil                           // Continue walking
+			}
+
 			// Skip the root go.mod if it exists and we only want submodules,
 			// or adjust logic if root tests are also desired.
 			// For this example, we'll run tests in all directories with go.mod.

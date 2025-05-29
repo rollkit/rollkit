@@ -45,6 +45,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
+  
 
   e2e-tests:
     name: Run E2E System Tests
@@ -57,3 +58,15 @@ jobs:
           go-version-file: ./go.mod
       - name: E2E Tests
         run: make test-e2e
+
+  evm-tests:
+    name: Run EVM Execution Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+      - name: EVM Tests
+        run: make test-evm

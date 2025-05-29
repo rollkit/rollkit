@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -67,8 +66,8 @@ func TestEngineExecution(t *testing.T) {
 	genesisStateRoot := common.HexToHash(GENESIS_STATEROOT)
 	rollkitGenesisStateRoot := genesisStateRoot[:]
 
-	t.Run("build phase", func(t *testing.T) {
-		jwtSecret := setupTestRethEngine(t, "jwttoken")
+	t.Run("Build chain", func(tt *testing.T) {
+		jwtSecret := setupTestRethEngine(tt)
 
 		executionClient, err := NewEngineExecutionClient(
 			TEST_ETH_URL,
@@ -87,7 +86,7 @@ func TestEngineExecution(t *testing.T) {
 		require.NotZero(t, gasLimit)
 
 		prevStateRoot := rollkitGenesisStateRoot
-		lastHeight, lastHash, lastTxs := checkLatestBlock(t, ctx)
+		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
 
 		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
 			nTxs := int(blockHeight) + 10
@@ -105,47 +104,48 @@ func TestEngineExecution(t *testing.T) {
 			time.Sleep(1000 * time.Millisecond)
 
 			payload, err := executionClient.GetTxs(ctx)
-			require.NoError(t, err)
-			require.Lenf(t, payload, nTxs, "expected %d transactions, got %d", nTxs, len(payload))
+			require.NoError(tt, err)
+			require.Lenf(tt, payload, nTxs, "expected %d transactions, got %d", nTxs, len(payload))
 
 			allPayloads = append(allPayloads, payload)
 
 			// Check latest block before execution
-			beforeHeight, beforeHash, beforeTxs := checkLatestBlock(t, ctx)
-			require.Equal(t, lastHeight, beforeHeight, "Latest block height should match")
-			require.Equal(t, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
-			require.Equal(t, lastTxs, beforeTxs, "Number of transactions should match")
+			beforeHeight, beforeHash, beforeTxs := checkLatestBlock(tt, ctx)
+			require.Equal(tt, lastHeight, beforeHeight, "Latest block height should match")
+			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
+			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
 
 			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
-			require.NoError(t, err)
+			require.NoError(tt, err)
 			if nTxs > 0 {
-				require.NotZero(t, maxBytes)
+				require.NotZero(tt, maxBytes)
 			}
 
 			err = executionClient.SetFinal(ctx, blockHeight)
-			require.NoError(t, err)
+			require.NoError(tt, err)
 
 			// Check latest block after execution
-			lastHeight, lastHash, lastTxs = checkLatestBlock(t, ctx)
-			require.Equal(t, blockHeight, lastHeight, "Latest block height should match")
-			require.NotEmpty(t, lastHash.Hex(), "Latest block hash should not be empty")
-			require.GreaterOrEqual(t, lastTxs, 0, "Number of transactions should be non-negative")
+			lastHeight, lastHash, lastTxs = checkLatestBlock(tt, ctx)
+			require.Equal(tt, blockHeight, lastHeight, "Latest block height should match")
+			require.NotEmpty(tt, lastHash.Hex(), "Latest block hash should not be empty")
+			require.GreaterOrEqual(tt, lastTxs, 0, "Number of transactions should be non-negative")
 
 			if nTxs == 0 {
-				require.Equal(t, prevStateRoot, newStateRoot)
+				require.Equal(tt, prevStateRoot, newStateRoot)
 			} else {
-				require.NotEqual(t, prevStateRoot, newStateRoot)
+				require.NotEqual(tt, prevStateRoot, newStateRoot)
 			}
 			prevStateRoot = newStateRoot
 		}
 	})
+
 	if t.Failed() {
 		return
 	}
 
 	// start new container and try to sync
-	t.Run("sync phase", func(t *testing.T) {
-		jwtSecret := setupTestRethEngine(t, "jwttoken2")
+	t.Run("Sync chain", func(tt *testing.T) {
+		jwtSecret := setupTestRethEngine(t)
 
 		executionClient, err := NewEngineExecutionClient(
 			TEST_ETH_URL,
@@ -164,34 +164,36 @@ func TestEngineExecution(t *testing.T) {
 		require.NotZero(t, gasLimit)
 
 		prevStateRoot := rollkitGenesisStateRoot
-		lastHeight, lastHash, lastTxs := checkLatestBlock(t, ctx)
+		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
 
 		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
 			payload := allPayloads[blockHeight-1]
 
 			// Check latest block before execution
-			beforeHeight, beforeHash, beforeTxs := checkLatestBlock(t, ctx)
-			require.Equal(t, lastHeight, beforeHeight, "Latest block height should match")
-			require.Equal(t, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
-			require.Equal(t, lastTxs, beforeTxs, "Number of transactions should match")
+			beforeHeight, beforeHash, beforeTxs := checkLatestBlock(tt, ctx)
+			require.Equal(tt, lastHeight, beforeHeight, "Latest block height should match")
+			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
+			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
 
 			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
 			require.NoError(t, err)
 			if len(payload) > 0 {
-				require.NotZero(t, maxBytes)
-				require.NotEqual(t, prevStateRoot, newStateRoot)
+				require.NotZero(tt, maxBytes)
+			}
+			if len(payload) == 0 {
+				require.Equal(tt, prevStateRoot, newStateRoot)
 			} else {
-				require.Equal(t, prevStateRoot, newStateRoot)
+				require.NotEqual(tt, prevStateRoot, newStateRoot)
 			}
 
 			err = executionClient.SetFinal(ctx, blockHeight)
-			require.NoError(t, err)
+			require.NoError(tt, err)
 
 			// Check latest block after execution
-			lastHeight, lastHash, lastTxs = checkLatestBlock(t, ctx)
-			require.Equal(t, blockHeight, lastHeight, "Latest block height should match")
-			require.NotEmpty(t, lastHash.Hex(), "Latest block hash should not be empty")
-			require.GreaterOrEqual(t, lastTxs, 0, "Number of transactions should be non-negative")
+			lastHeight, lastHash, lastTxs = checkLatestBlock(tt, ctx)
+			require.Equal(tt, blockHeight, lastHeight, "Latest block height should match")
+			require.NotEmpty(tt, lastHash.Hex(), "Latest block hash should not be empty")
+			require.GreaterOrEqual(tt, lastTxs, 0, "Number of transactions should be non-negative")
 
 			prevStateRoot = newStateRoot
 			fmt.Println("all good blockheight", blockHeight)
@@ -253,23 +255,16 @@ func generateJWTSecret() (string, error) {
 	return hex.EncodeToString(jwtSecret), nil
 }
 
-// Global mutex to serialize Docker Compose operations
-var dockerMutex sync.Mutex
-
 // setupTestRethEngine starts a reth container using docker-compose and returns the JWT secret
-func setupTestRethEngine(t *testing.T, jp string) string {
+func setupTestRethEngine(t *testing.T) string {
 	t.Helper()
-
-	// Serialize Docker Compose operations
-	dockerMutex.Lock()
-	defer dockerMutex.Unlock()
 
 	// Get absolute path to docker directory
 	dockerPath, err := filepath.Abs(DOCKER_PATH)
 	require.NoError(t, err)
 
 	// Create JWT directory if it doesn't exist
-	jwtPath := filepath.Join(dockerPath, jp)
+	jwtPath := filepath.Join(dockerPath, "jwttoken")
 	err = os.MkdirAll(jwtPath, 0750) // More permissive directory permissions
 	require.NoError(t, err)
 
@@ -397,9 +392,9 @@ func TestSubmitTransaction(t *testing.T) {
 	lastNonce, err = rpcClient.NonceAt(ctx, address, new(big.Int).SetUint64(height))
 	require.NoError(t, err)
 
-	for s := 0; s < 15; s++ {
+	for s := 0; s < 30; s++ {
 		startTime := time.Now()
-		for i := 0; i < 50; i++ {
+		for i := 0; i < 5000; i++ {
 			tx := getRandomTransaction(t, 22000)
 			submitTransaction(t, tx)
 		}
