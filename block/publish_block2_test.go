@@ -213,40 +213,13 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		1.,
 		1.,
 		func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
-			// Generate a real hash instead of zeros
-			hash := make([]byte, 32)
-			copy(hash, proposerAddress)
-			if pubKey != nil {
-				pubKeyBytes, _ := pubKey.Raw()
-				for i, b := range pubKeyBytes {
-					if i < 32 {
-						hash[i] ^= b
-					}
-				}
-			}
-			return hash, nil
+			return make(types.Hash, 32), nil
 		},
 		func(header *types.Header) (types.Hash, error) {
-			// Use the native Hash() method to ensure consistency with P2P sync validation
-			return header.Hash(), nil
+			return make(types.Hash, 32), nil
 		},
 		func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
-			// Generate a real commit hash
-			hash := make([]byte, 32)
-			if signature != nil {
-				for i, b := range *signature {
-					if i < 32 {
-						hash[i] ^= b
-					}
-				}
-			}
-			if header != nil {
-				headerBytes, _ := header.MarshalBinary()
-				for i, b := range headerBytes {
-					hash[i%32] ^= b
-				}
-			}
-			return hash, nil
+			return make(types.Hash, 32), nil
 		},
 		createDefaultSignaturePayloadProvider(),
 	)

@@ -422,17 +422,3 @@ func TestBytesToBatchData(t *testing.T) {
 	assert.Error(err)
 	assert.Contains(err.Error(), "corrupted data")
 }
-
-// createDefaultSignaturePayloadProvider creates a basic signature payload provider for tests
-// that matches the behavior used in GetSignature function in utils.go
-func createDefaultSignaturePayloadProvider() types.SignaturePayloadProvider {
-	return func(header *types.Header, data *types.Data) ([]byte, error) {
-		if header == nil {
-			return nil, errors.New("header cannot be nil")
-		}
-
-		// Use the same approach as GetSignature: just return the marshaled header bytes
-		// This matches the behavior in utils.go GetSignature function
-		return header.MarshalBinary()
-	}
-}

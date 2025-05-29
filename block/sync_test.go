@@ -51,25 +51,26 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 
 	// Manager setup
 	m := &Manager{
-		store:          mockStore,
-		exec:           mockExec,
-		config:         cfg,
-		genesis:        *genesisDoc,
-		lastState:      initialState,
-		lastStateMtx:   new(sync.RWMutex),
-		logger:         log.NewTestLogger(t),
-		headerCache:    cache.NewCache[types.SignedHeader](),
-		dataCache:      cache.NewCache[types.Data](),
-		headerInCh:     headerInCh,
-		dataInCh:       dataInCh,
-		headerStoreCh:  headerStoreCh,
-		dataStoreCh:    dataStoreCh,
-		retrieveCh:     retrieveCh,
-		daHeight:       &atomic.Uint64{},
-		metrics:        NopMetrics(),
-		headerStore:    &goheaderstore.Store[*types.SignedHeader]{},
-		dataStore:      &goheaderstore.Store[*types.Data]{},
-		pendingHeaders: &PendingHeaders{logger: log.NewNopLogger()},
+		store:                    mockStore,
+		exec:                     mockExec,
+		config:                   cfg,
+		genesis:                  *genesisDoc,
+		lastState:                initialState,
+		lastStateMtx:             new(sync.RWMutex),
+		logger:                   log.NewTestLogger(t),
+		headerCache:              cache.NewCache[types.SignedHeader](),
+		dataCache:                cache.NewCache[types.Data](),
+		headerInCh:               headerInCh,
+		dataInCh:                 dataInCh,
+		headerStoreCh:            headerStoreCh,
+		dataStoreCh:              dataStoreCh,
+		retrieveCh:               retrieveCh,
+		daHeight:                 &atomic.Uint64{},
+		metrics:                  NopMetrics(),
+		headerStore:              &goheaderstore.Store[*types.SignedHeader]{},
+		dataStore:                &goheaderstore.Store[*types.Data]{},
+		pendingHeaders:           &PendingHeaders{logger: log.NewNopLogger()},
+		signaturePayloadProvider: createDefaultSignaturePayloadProvider(),
 	}
 	m.daHeight.Store(initialState.DAHeight)
 
@@ -123,7 +124,7 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	for _, tx := range data.Txs {
 		txs = append(txs, tx)
 	}
-	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash).
+	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash, mock.Anything).
 		Return(expectedNewAppHash, uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, header, data, &header.Signature).Return(nil).Once()
 
@@ -212,7 +213,7 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 		txs = append(txs, tx)
 	}
 
-	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash).
+	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash, mock.Anything).
 		Return(expectedNewAppHash, uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, header, data, &header.Signature).Return(nil).Once()
 	mockStore.On("UpdateState", mock.Anything, expectedNewState).Return(nil).Run(func(args mock.Arguments) { close(syncChan) }).Once()
@@ -318,7 +319,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 
 	// --- Mock Expectations for H+1 ---
 
-	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash).
+	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash, mock.Anything).
 		Return(expectedNewAppHashH1, uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH1, dataH1, &headerH1.Signature).Return(nil).Once()
 	mockStore.On("UpdateState", mock.Anything, expectedNewStateH1).Return(nil).Run(func(args mock.Arguments) { close(syncChanH1) }).Once()
@@ -331,7 +332,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 		Once()
 
 	// --- Mock Expectations for H+2 ---
-	mockExec.On("ExecuteTxs", mock.Anything, txsH2, heightH2, headerH2.Time(), expectedNewAppHashH1).
+	mockExec.On("ExecuteTxs", mock.Anything, txsH2, heightH2, headerH2.Time(), expectedNewAppHashH1, mock.Anything).
 		Return(expectedNewAppHashH2, uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH2, dataH2, &headerH2.Signature).Return(nil).Once()
 	mockStore.On("UpdateState", mock.Anything, expectedNewStateH2).Return(nil).Run(func(args mock.Arguments) { close(syncChanH2) }).Once()
@@ -459,7 +460,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	// --- Mock Expectations for H+1 (will be called first despite arrival order) ---
 	mockStore.On("Height", mock.Anything).Return(initialHeight, nil).Maybe()
 	mockExec.On("Validate", mock.Anything, &headerH1.Header, dataH1).Return(nil).Maybe()
-	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash).
+	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash, mock.Anything).
 		Return(appHashH1, uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH1, dataH1, &headerH1.Signature).Return(nil).Once()
 	mockStore.On("UpdateState", mock.Anything, expectedNewStateH1).Return(nil).
@@ -476,7 +477,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	// --- Mock Expectations for H+2 (will be called second) ---
 	mockStore.On("Height", mock.Anything).Return(heightH1, nil).Maybe()
 	mockExec.On("Validate", mock.Anything, &headerH2.Header, dataH2).Return(nil).Maybe()
-	mockExec.On("ExecuteTxs", mock.Anything, txsH2, heightH2, headerH2.Time(), expectedNewStateH1.AppHash).
+	mockExec.On("ExecuteTxs", mock.Anything, txsH2, heightH2, headerH2.Time(), expectedNewStateH1.AppHash, mock.Anything).
 		Return(appHashH2, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH2, dataH2, &headerH2.Signature).Return(nil).Once()
 	mockStore.On("SetHeight", mock.Anything, heightH2).Return(nil).
@@ -589,7 +590,7 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	syncChanH1 := make(chan struct{})
 
 	// --- Mock Expectations (Expect processing exactly ONCE) ---
-	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash).
+	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash, mock.Anything).
 		Return(appHashH1, uint64(1), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, headerH1, dataH1, &headerH1.Signature).Return(nil).Once()
 	mockStore.On("SetHeight", mock.Anything, heightH1).Return(nil).Once()
@@ -680,7 +681,7 @@ func TestSyncLoop_ErrorOnApplyError(t *testing.T) {
 	applyError := errors.New("apply failed")
 
 	// --- Mock Expectations ---
-	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash).
+	mockExec.On("ExecuteTxs", mock.Anything, txsH1, heightH1, headerH1.Time(), initialState.AppHash, mock.Anything).
 		Return(nil, uint64(100), applyError).                       // Return the error that should cause panic
 		Run(func(args mock.Arguments) { close(applyErrorSignal) }). // Signal *before* returning error
 		Once()
@@ -795,7 +796,8 @@ func TestDataCommitmentToHeight_HeaderThenData(t *testing.T) {
 	for _, tx := range data.Txs {
 		txs = append(txs, tx)
 	}
-	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash).Return([]byte("new_app_hash"), uint64(100), nil).Once()
+	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash, mock.Anything).
+		Return([]byte("new_app_hash"), uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, header, data, &header.Signature).Return(nil).Once()
 	mockStore.On("UpdateState", mock.Anything, mock.Anything).Return(nil).Once()
 	mockStore.On("SetHeight", mock.Anything, newHeight).Return(nil).Once()
@@ -842,7 +844,8 @@ func TestDataCommitmentToHeight_HeaderWithExistingData(t *testing.T) {
 	for _, tx := range data.Txs {
 		txs = append(txs, tx)
 	}
-	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash).Return([]byte("new_app_hash2"), uint64(100), nil).Once()
+	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash, mock.Anything).
+		Return([]byte("new_app_hash2"), uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, header, data, &header.Signature).Return(nil).Once()
 	mockStore.On("UpdateState", mock.Anything, mock.Anything).Return(nil).Once()
 	mockStore.On("SetHeight", mock.Anything, newHeight).Return(nil).Once()
@@ -885,7 +888,8 @@ func TestDataCommitmentToHeight_DataBeforeHeader(t *testing.T) {
 	for _, tx := range data.Txs {
 		txs = append(txs, tx)
 	}
-	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash).Return([]byte("new_app_hash3"), uint64(100), nil).Once()
+	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash, mock.Anything).
+		Return([]byte("new_app_hash3"), uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, header, data, &header.Signature).Return(nil).Once()
 	mockStore.On("UpdateState", mock.Anything, mock.Anything).Return(nil).Once()
 	mockStore.On("SetHeight", mock.Anything, newHeight).Return(nil).Once()
@@ -981,7 +985,8 @@ func TestDataCommitmentToHeight_EmptyDataHash(t *testing.T) {
 	// Mock GetBlockData for previous height
 	mockStore.On("GetBlockData", mock.Anything, newHeight-1).Return(nil, &types.Data{}, nil).Once()
 	// Mock ExecuteTxs, SaveBlockData, UpdateState, SetHeight for empty block
-	mockExec.On("ExecuteTxs", mock.Anything, [][]byte{}, newHeight, header.Time(), initialState.AppHash).Return([]byte("new_app_hash5"), uint64(100), nil).Once()
+	mockExec.On("ExecuteTxs", mock.Anything, [][]byte{}, newHeight, header.Time(), initialState.AppHash, mock.Anything).
+		Return([]byte("new_app_hash5"), uint64(100), nil).Once()
 	mockStore.On("SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 	mockStore.On("UpdateState", mock.Anything, mock.Anything).Return(nil).Once()
 	mockStore.On("SetHeight", mock.Anything, newHeight).Return(nil).Once()

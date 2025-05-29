@@ -18,6 +18,7 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+
 	// Use existing store mock if available, or define one
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	extmocks "github.com/rollkit/rollkit/test/mocks/external"
@@ -64,19 +65,20 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	require.NoError(t, err)
 	// Create Manager instance with mocks and necessary fields
 	m = &Manager{
-		store:         mockStore,
-		headerStore:   mockHeaderStore,
-		dataStore:     mockDataStore,
-		headerStoreCh: headerStoreCh,
-		dataStoreCh:   dataStoreCh,
-		headerInCh:    headerInCh,
-		dataInCh:      dataInCh,
-		logger:        logger,
-		genesis:       genDoc,
-		daHeight:      &atomic.Uint64{},
-		lastStateMtx:  new(sync.RWMutex),
-		config:        nodeConf,
-		signer:        signer,
+		store:                    mockStore,
+		headerStore:              mockHeaderStore,
+		dataStore:                mockDataStore,
+		headerStoreCh:            headerStoreCh,
+		dataStoreCh:              dataStoreCh,
+		headerInCh:               headerInCh,
+		dataInCh:                 dataInCh,
+		logger:                   logger,
+		genesis:                  genDoc,
+		daHeight:                 &atomic.Uint64{},
+		lastStateMtx:             new(sync.RWMutex),
+		config:                   nodeConf,
+		signer:                   signer,
+		signaturePayloadProvider: createDefaultSignaturePayloadProvider(),
 	}
 
 	// initialize da included height
@@ -419,4 +421,18 @@ func TestHeaderStoreRetrieveLoop_NoNewHeaders(t *testing.T) {
 
 	// Verify mock expectations
 	mockHeaderStore.AssertExpectations(t)
+}
+
+// createDefaultSignaturePayloadProvider creates a basic signature payload provider for tests
+// that matches the behavior used in GetSignature function in utils.go
+func createDefaultSignaturePayloadProvider() types.SignaturePayloadProvider {
+	return func(header *types.Header, data *types.Data) ([]byte, error) {
+		if header == nil {
+			return nil, errors.New("header cannot be nil")
+		}
+
+		// Use the same approach as GetSignature: just return the marshaled header bytes
+		// This matches the behavior in utils.go GetSignature function
+		return header.MarshalBinary()
+	}
 }
