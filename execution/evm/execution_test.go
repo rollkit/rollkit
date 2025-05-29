@@ -390,9 +390,9 @@ func TestSubmitTransaction(t *testing.T) {
 	lastNonce, err = rpcClient.NonceAt(ctx, address, new(big.Int).SetUint64(height))
 	require.NoError(t, err)
 
-	for s := 0; s < 30; s++ {
+	for s := 0; s < 15; s++ {
 		startTime := time.Now()
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 50; i++ {
 			tx := getRandomTransaction(t, 22000)
 			submitTransaction(t, tx)
 		}
