@@ -14,7 +14,7 @@ replace (
 
 require (
 	github.com/ethereum/go-ethereum v1.15.0
-	github.com/rollkit/go-execution-evm v0.1.1-0.20250328070936-d9a866002f5f
+	github.com/rollkit/go-execution-evm v0.1.2-0.20250528212210-4c86f35a8c4b
 	github.com/rollkit/rollkit v0.14.2-0.20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/core v0.0.0-20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/da v0.0.0-20250317130407-e9e0a1b0485e
