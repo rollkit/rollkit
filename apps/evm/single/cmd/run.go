@@ -125,7 +125,7 @@ func createExecutionClient(cmd *cobra.Command) (execution.Executor, error) {
 	genesisHash := common.HexToHash(genesisHashStr)
 	feeRecipient := common.HexToAddress(feeRecipientStr)
 
-	return evm.NewEngineExecutionClient(ethURL, engineURL, jwtSecret, genesisHash, feeRecipient)
+	return evm.NewPureEngineExecutionClient(ethURL, engineURL, jwtSecret, genesisHash, feeRecipient)
 }
 
 // addFlags adds flags related to the EVM execution client

@@ -29,6 +29,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	rollkitsync "github.com/rollkit/rollkit/pkg/sync"
+	"github.com/rollkit/rollkit/types"
 )
 
 // prefixes used in KV store to separate rollkit data from execution environment data (if the same data base is reused)
@@ -80,6 +81,10 @@ func newFullNode(
 	da coreda.DA,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
+	validatorHasher types.ValidatorHasher,
+	headerHasher types.HeaderHasher,
+	commitHashProvider types.CommitHashProvider,
+	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (fn *FullNode, err error) {
 	seqMetrics, _ := metricsProvider(genesis.ChainID)
 
@@ -111,6 +116,10 @@ func newFullNode(
 		seqMetrics,
 		nodeConfig.DA.GasPrice,
 		nodeConfig.DA.GasMultiplier,
+		validatorHasher,
+		signaturePayloadProvider,
+		headerHasher,
+		commitHashProvider,
 	)
 	if err != nil {
 		return nil, err
@@ -197,6 +206,10 @@ func initBlockManager(
 	seqMetrics *block.Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
+	validatorHasher types.ValidatorHasher,
+	signaturePayloadProvider types.SignaturePayloadProvider,
+	headerHasher types.HeaderHasher,
+	commitHashProvider types.CommitHashProvider,
 ) (*block.Manager, error) {
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
 
@@ -217,6 +230,10 @@ func initBlockManager(
 		seqMetrics,
 		gasPrice,
 		gasMultiplier,
+		validatorHasher,
+		headerHasher,
+		commitHashProvider,
+		signaturePayloadProvider,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)

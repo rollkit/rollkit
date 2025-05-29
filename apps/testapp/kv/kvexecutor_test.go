@@ -120,7 +120,7 @@ func TestExecuteTxs_Valid(t *testing.T) {
 		[]byte("key2=value2"),
 	}
 
-	stateRoot, maxBytes, err := exec.ExecuteTxs(ctx, txs, 1, time.Now(), []byte(""))
+	stateRoot, maxBytes, err := exec.ExecuteTxs(ctx, txs, 1, time.Now(), []byte(""), nil)
 	if err != nil {
 		t.Fatalf("ExecuteTxs failed: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestExecuteTxs_Invalid(t *testing.T) {
 		[]byte("invalidformat"),
 	}
 
-	_, _, err = exec.ExecuteTxs(ctx, txs, 1, time.Now(), []byte(""))
+	_, _, err = exec.ExecuteTxs(ctx, txs, 1, time.Now(), []byte(""), nil)
 	if err == nil {
 		t.Fatal("Expected error for malformed transaction, got nil")
 	}

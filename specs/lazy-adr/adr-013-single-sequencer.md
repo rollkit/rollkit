@@ -131,7 +131,7 @@ type Sequencer interface {
    - The method first checks if the chain ID is valid. If not, it returns an error.
    - It then verifies the last batch hash to ensure that the client is requesting the correct next batch.
    - If a valid batch is found, it prepares the batch response, which includes the batch of transactions and a timestamp.
-   -   If no transactions are available, it returns an empty batch response.
+   - If no transactions are available, it returns an empty batch response.
 
    Note that this method is used by the node to get a sequencer soft-confirmed batch that the sequencer promises to publish to the DA layer.
 

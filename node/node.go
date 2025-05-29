@@ -14,6 +14,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/signer"
+	"github.com/rollkit/rollkit/types"
 )
 
 // Node is the interface for an application node
@@ -38,6 +39,10 @@ func NewNode(
 	database ds.Batching,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
+	validatorHasher types.ValidatorHasher,
+	signaturePayloadProvider types.SignaturePayloadProvider,
+	headerHasher types.HeaderHasher,
+	commitHashProvider types.CommitHashProvider,
 ) (Node, error) {
 	if conf.Node.Light {
 		return newLightNode(conf, genesis, p2pClient, database, logger)
@@ -55,5 +60,9 @@ func NewNode(
 		da,
 		metricsProvider,
 		logger,
+		validatorHasher,
+		headerHasher,
+		commitHashProvider,
+		signaturePayloadProvider,
 	)
 }

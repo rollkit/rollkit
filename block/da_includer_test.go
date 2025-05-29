@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -26,15 +27,34 @@ func newTestManager(t *testing.T) (*Manager, *mocks.Store, *mocks.Executor, *Moc
 	logger.On("Error", mock.Anything, mock.Anything).Maybe()
 	// Mock Height to always return a high value so IsDAIncluded works
 	store.On("Height", mock.Anything).Return(uint64(100), nil).Maybe()
+
+	// Create default hasher functions for testing
+	headerHasher := func(header *types.Header) (types.Hash, error) {
+		return header.Hash(), nil
+	}
+	validatorHasher := func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
+		return make(types.Hash, 32), nil
+	}
+	commitHashProvider := func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
+		return make(types.Hash, 32), nil
+	}
+	signaturePayloadProvider := func(header *types.Header, data *types.Data) ([]byte, error) {
+		return header.MarshalBinary()
+	}
+
 	m := &Manager{
-		store:        store,
-		headerCache:  cache.NewCache[types.SignedHeader](),
-		dataCache:    cache.NewCache[types.Data](),
-		daIncluderCh: make(chan struct{}, 1),
-		logger:       logger,
-		exec:         exec,
-		lastStateMtx: &sync.RWMutex{},
-		metrics:      NopMetrics(),
+		store:                    store,
+		headerCache:              cache.NewCache[types.SignedHeader](),
+		dataCache:                cache.NewCache[types.Data](),
+		daIncluderCh:             make(chan struct{}, 1),
+		logger:                   logger,
+		exec:                     exec,
+		lastStateMtx:             &sync.RWMutex{},
+		metrics:                  NopMetrics(),
+		headerHasher:             headerHasher,
+		validatorHasher:          validatorHasher,
+		commitHashProvider:       commitHashProvider,
+		signaturePayloadProvider: signaturePayloadProvider,
 	}
 	return m, store, exec, logger
 }
@@ -59,7 +79,7 @@ func TestDAIncluderLoop_AdvancesHeightWhenBothDAIncluded(t *testing.T) {
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
 	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(nil).Once()
-	exec.On("SetFinal", mock.Anything, uint64(5)).Return(nil).Once()
+	exec.On("SetFinal", mock.MatchedBy(func(ctx context.Context) bool { return true }), uint64(5)).Return(nil).Once()
 
 	ctx, loopCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer loopCancel()
@@ -188,7 +208,7 @@ func TestIncrementDAIncludedHeight_Success(t *testing.T) {
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
 	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(nil).Once()
-	exec.On("SetFinal", mock.Anything, expectedDAIncludedHeight).Return(nil).Once()
+	exec.On("SetFinal", mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedDAIncludedHeight).Return(nil).Once()
 
 	err := m.incrementDAIncludedHeight(context.Background())
 	assert.NoError(t, err)
@@ -208,7 +228,7 @@ func TestIncrementDAIncludedHeight_SetMetadataError(t *testing.T) {
 
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
-	exec.On("SetFinal", mock.Anything, expectedDAIncludedHeight).Return(nil).Once()
+	exec.On("SetFinal", mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedDAIncludedHeight).Return(nil).Once()
 	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(assert.AnError).Once()
 
 	// Expect the error log for failed to set DA included height
@@ -236,7 +256,7 @@ func TestIncrementDAIncludedHeight_SetFinalError(t *testing.T) {
 	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
 
 	setFinalErr := assert.AnError
-	exec.On("SetFinal", mock.Anything, expectedDAIncludedHeight).Return(setFinalErr).Once()
+	exec.On("SetFinal", mock.MatchedBy(func(ctx context.Context) bool { return true }), expectedDAIncludedHeight).Return(setFinalErr).Once()
 	// SetMetadata should NOT be called if SetFinal fails
 
 	mockLogger.ExpectedCalls = nil // Clear any previous expectations
@@ -277,7 +297,7 @@ func TestDAIncluderLoop_MultipleConsecutiveHeightsDAIncluded(t *testing.T) {
 	// Next height returns error
 	store.On("GetBlockData", mock.Anything, startDAIncludedHeight+uint64(numConsecutive+1)).Return(nil, nil, assert.AnError).Once()
 	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, mock.Anything).Return(nil).Times(numConsecutive)
-	exec.On("SetFinal", mock.Anything, mock.Anything).Return(nil).Times(numConsecutive)
+	exec.On("SetFinal", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.Anything).Return(nil).Times(numConsecutive)
 
 	expectedDAIncludedHeight := startDAIncludedHeight + uint64(numConsecutive)
 
@@ -318,7 +338,7 @@ func TestDAIncluderLoop_AdvancesHeightWhenDataHashIsEmptyAndHeaderDAIncluded(t *
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
 	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(nil).Once()
-	exec.On("SetFinal", mock.Anything, uint64(5)).Return(nil).Once()
+	exec.On("SetFinal", mock.MatchedBy(func(ctx context.Context) bool { return true }), uint64(5)).Return(nil).Once()
 
 	ctx, loopCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer loopCancel()

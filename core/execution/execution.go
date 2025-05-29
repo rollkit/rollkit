@@ -60,12 +60,13 @@ type Executor interface {
 	// - blockHeight: Height of block being created (must be > 0)
 	// - timestamp: Block creation time in UTC
 	// - prevStateRoot: Previous block's state root hash
+	// - metadata: Arbitrary data passed from the block manager (e.g., current header hash)
 	//
 	// Returns:
 	// - updatedStateRoot: New state root after executing transactions
 	// - maxBytes: Maximum allowed transaction size (may change with protocol updates)
 	// - err: Any execution errors
-	ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (updatedStateRoot []byte, maxBytes uint64, err error)
+	ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte, metadata map[string]interface{}) (updatedStateRoot []byte, maxBytes uint64, err error)
 
 	// SetFinal marks a block as finalized at the specified height.
 	// Requirements:

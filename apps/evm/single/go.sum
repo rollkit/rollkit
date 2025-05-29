@@ -687,8 +687,8 @@ github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJ
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
-github.com/rollkit/go-execution-evm v0.1.1-0.20250328070936-d9a866002f5f h1:FkmfAl4DPvTAWn70IGKWQUznIvv0tZ8Ou+F3CbJWCMw=
-github.com/rollkit/go-execution-evm v0.1.1-0.20250328070936-d9a866002f5f/go.mod h1:qSQTrbuEBwDdiVLPTbJGxqS0KwGYHqqfmCr9VxNv4Tc=
+github.com/rollkit/go-execution-evm v0.1.2-0.20250528212210-4c86f35a8c4b h1:L2xnHV+1p6mOyfpwb4sTb0V5NBE0TYNVs0OzKVa1ip0=
+github.com/rollkit/go-execution-evm v0.1.2-0.20250528212210-4c86f35a8c4b/go.mod h1:YMz4ACyGvQTPPrRoZUVMrWm5yQusuGh8MNtD+BRxhPo=
 github.com/rs/cors v1.11.1 h1:eU3gRzXLRK57F5rKMGMZURNdIG4EoAmX8k94r9wXWHA=
 github.com/rs/cors v1.11.1/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
 github.com/rs/xid v1.6.0/go.mod h1:7XoLgs4eV+QndskICGsho+ADou8ySMSjJKDIan90Nz0=
