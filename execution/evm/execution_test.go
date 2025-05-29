@@ -66,8 +66,8 @@ func TestEngineExecution(t *testing.T) {
 	genesisStateRoot := common.HexToHash(GENESIS_STATEROOT)
 	rollkitGenesisStateRoot := genesisStateRoot[:]
 
-	t.Run("Build chain", func(tt *testing.T) {
-		jwtSecret := setupTestRethEngine(tt)
+	{
+		jwtSecret := setupTestRethEngine(t)
 
 		executionClient, err := NewEngineExecutionClient(
 			TEST_ETH_URL,
@@ -86,7 +86,7 @@ func TestEngineExecution(t *testing.T) {
 		require.NotZero(t, gasLimit)
 
 		prevStateRoot := rollkitGenesisStateRoot
-		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
+		lastHeight, lastHash, lastTxs := checkLatestBlock(t, ctx)
 
 		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
 			nTxs := int(blockHeight) + 10
@@ -104,97 +104,98 @@ func TestEngineExecution(t *testing.T) {
 			time.Sleep(1000 * time.Millisecond)
 
 			payload, err := executionClient.GetTxs(ctx)
-			require.NoError(tt, err)
-			require.Lenf(tt, payload, nTxs, "expected %d transactions, got %d", nTxs, len(payload))
+			require.NoError(t, err)
+			require.Lenf(t, payload, nTxs, "expected %d transactions, got %d", nTxs, len(payload))
 
 			allPayloads = append(allPayloads, payload)
 
 			// Check latest block before execution
-			beforeHeight, beforeHash, beforeTxs := checkLatestBlock(tt, ctx)
-			require.Equal(tt, lastHeight, beforeHeight, "Latest block height should match")
-			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
-			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
+			beforeHeight, beforeHash, beforeTxs := checkLatestBlock(t, ctx)
+			require.Equal(t, lastHeight, beforeHeight, "Latest block height should match")
+			require.Equal(t, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
+			require.Equal(t, lastTxs, beforeTxs, "Number of transactions should match")
 
 			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
-			require.NoError(tt, err)
+			require.NoError(t, err)
 			if nTxs > 0 {
-				require.NotZero(tt, maxBytes)
+				require.NotZero(t, maxBytes)
 			}
 
 			err = executionClient.SetFinal(ctx, blockHeight)
-			require.NoError(tt, err)
+			require.NoError(t, err)
 
 			// Check latest block after execution
-			lastHeight, lastHash, lastTxs = checkLatestBlock(tt, ctx)
-			require.Equal(tt, blockHeight, lastHeight, "Latest block height should match")
-			require.NotEmpty(tt, lastHash.Hex(), "Latest block hash should not be empty")
-			require.GreaterOrEqual(tt, lastTxs, 0, "Number of transactions should be non-negative")
+			lastHeight, lastHash, lastTxs = checkLatestBlock(t, ctx)
+			require.Equal(t, blockHeight, lastHeight, "Latest block height should match")
+			require.NotEmpty(t, lastHash.Hex(), "Latest block hash should not be empty")
+			require.GreaterOrEqual(t, lastTxs, 0, "Number of transactions should be non-negative")
 
 			if nTxs == 0 {
-				require.Equal(tt, prevStateRoot, newStateRoot)
+				require.Equal(t, prevStateRoot, newStateRoot)
 			} else {
-				require.NotEqual(tt, prevStateRoot, newStateRoot)
+				require.NotEqual(t, prevStateRoot, newStateRoot)
 			}
 			prevStateRoot = newStateRoot
 		}
-	})
 
-	if t.Failed() {
-		return
+		if t.Failed() {
+			return
+		}
 	}
 
 	// start new container and try to sync
+	{
+		jwtSecret := setupTestRethEngine(t)
 
-	jwtSecret := setupTestRethEngine(t)
-
-	executionClient, err := NewEngineExecutionClient(
-		TEST_ETH_URL,
-		TEST_ENGINE_URL,
-		jwtSecret,
-		genesisHash,
-		common.Address{},
-	)
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
-	stateRoot, gasLimit, err := executionClient.InitChain(ctx, genesisTime, initialHeight, CHAIN_ID)
-	require.NoError(t, err)
-	require.Equal(t, rollkitGenesisStateRoot, stateRoot)
-	require.NotZero(t, gasLimit)
-
-	prevStateRoot := rollkitGenesisStateRoot
-	lastHeight, lastHash, lastTxs := checkLatestBlock(t, ctx)
-
-	for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
-		payload := allPayloads[blockHeight-1]
-
-		// Check latest block before execution
-		beforeHeight, beforeHash, beforeTxs := checkLatestBlock(t, ctx)
-		require.Equal(t, lastHeight, beforeHeight, "Latest block height should match")
-		require.Equal(t, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
-		require.Equal(t, lastTxs, beforeTxs, "Number of transactions should match")
-
-		newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
+		executionClient, err := NewEngineExecutionClient(
+			TEST_ETH_URL,
+			TEST_ENGINE_URL,
+			jwtSecret,
+			genesisHash,
+			common.Address{},
+		)
 		require.NoError(t, err)
-		if len(payload) > 0 {
-			require.NotZero(t, maxBytes)
-			require.NotEqual(t, prevStateRoot, newStateRoot)
-		} else {
-			require.Equal(t, prevStateRoot, newStateRoot)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+		defer cancel()
+		stateRoot, gasLimit, err := executionClient.InitChain(ctx, genesisTime, initialHeight, CHAIN_ID)
+		require.NoError(t, err)
+		require.Equal(t, rollkitGenesisStateRoot, stateRoot)
+		require.NotZero(t, gasLimit)
+
+		prevStateRoot := rollkitGenesisStateRoot
+		lastHeight, lastHash, lastTxs := checkLatestBlock(t, ctx)
+
+		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
+			payload := allPayloads[blockHeight-1]
+
+			// Check latest block before execution
+			beforeHeight, beforeHash, beforeTxs := checkLatestBlock(t, ctx)
+			require.Equal(t, lastHeight, beforeHeight, "Latest block height should match")
+			require.Equal(t, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
+			require.Equal(t, lastTxs, beforeTxs, "Number of transactions should match")
+
+			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
+			require.NoError(t, err)
+			if len(payload) > 0 {
+				require.NotZero(t, maxBytes)
+				require.NotEqual(t, prevStateRoot, newStateRoot)
+			} else {
+				require.Equal(t, prevStateRoot, newStateRoot)
+			}
+
+			err = executionClient.SetFinal(ctx, blockHeight)
+			require.NoError(t, err)
+
+			// Check latest block after execution
+			lastHeight, lastHash, lastTxs = checkLatestBlock(t, ctx)
+			require.Equal(t, blockHeight, lastHeight, "Latest block height should match")
+			require.NotEmpty(t, lastHash.Hex(), "Latest block hash should not be empty")
+			require.GreaterOrEqual(t, lastTxs, 0, "Number of transactions should be non-negative")
+
+			prevStateRoot = newStateRoot
+			fmt.Println("all good blockheight", blockHeight)
 		}
-
-		err = executionClient.SetFinal(ctx, blockHeight)
-		require.NoError(t, err)
-
-		// Check latest block after execution
-		lastHeight, lastHash, lastTxs = checkLatestBlock(t, ctx)
-		require.Equal(t, blockHeight, lastHeight, "Latest block height should match")
-		require.NotEmpty(t, lastHash.Hex(), "Latest block hash should not be empty")
-		require.GreaterOrEqual(t, lastTxs, 0, "Number of transactions should be non-negative")
-
-		prevStateRoot = newStateRoot
-		fmt.Println("all good blockheight", blockHeight)
 	}
 }
 
