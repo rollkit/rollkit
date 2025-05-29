@@ -67,8 +67,8 @@ func TestEngineExecution(t *testing.T) {
 	genesisStateRoot := common.HexToHash(GENESIS_STATEROOT)
 	rollkitGenesisStateRoot := genesisStateRoot[:]
 
-	{
-		jwtSecret := setupTestRethEngine(t)
+	t.Run("build phase", func(t *testing.T) {
+		jwtSecret := setupTestRethEngine(t, "jwttoken")
 
 		executionClient, err := NewEngineExecutionClient(
 			TEST_ETH_URL,
@@ -138,15 +138,14 @@ func TestEngineExecution(t *testing.T) {
 			}
 			prevStateRoot = newStateRoot
 		}
-
-		if t.Failed() {
-			return
-		}
+	})
+	if t.Failed() {
+		return
 	}
 
 	// start new container and try to sync
-	{
-		jwtSecret := setupTestRethEngine(t)
+	t.Run("sync phase", func(t *testing.T) {
+		jwtSecret := setupTestRethEngine(t, "jwttoken2")
 
 		executionClient, err := NewEngineExecutionClient(
 			TEST_ETH_URL,
@@ -197,7 +196,7 @@ func TestEngineExecution(t *testing.T) {
 			prevStateRoot = newStateRoot
 			fmt.Println("all good blockheight", blockHeight)
 		}
-	}
+	})
 }
 
 // createEthClient creates an Ethereum client for checking block information
@@ -258,7 +257,7 @@ func generateJWTSecret() (string, error) {
 var dockerMutex sync.Mutex
 
 // setupTestRethEngine starts a reth container using docker-compose and returns the JWT secret
-func setupTestRethEngine(t *testing.T) string {
+func setupTestRethEngine(t *testing.T, jp string) string {
 	t.Helper()
 
 	// Serialize Docker Compose operations
@@ -270,7 +269,7 @@ func setupTestRethEngine(t *testing.T) string {
 	require.NoError(t, err)
 
 	// Create JWT directory if it doesn't exist
-	jwtPath := filepath.Join(dockerPath, "jwttoken")
+	jwtPath := filepath.Join(dockerPath, jp)
 	err = os.MkdirAll(jwtPath, 0750) // More permissive directory permissions
 	require.NoError(t, err)
 
