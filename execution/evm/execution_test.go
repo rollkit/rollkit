@@ -1,3 +1,6 @@
+//go:build evm
+// +build evm
+
 package evm
 
 import (
