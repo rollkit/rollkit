@@ -40,9 +40,9 @@ func TestBasicExecutionFlow(t *testing.T) {
 	chainID := "test-chain"
 
 	// Set expectations on the mock executor
-	mockExec.On("InitChain", mock.Anything, mock.AnythingOfType("time.Time"), blockHeight, chainID).
+	mockExec.On("InitChain", mock.Anything, mock.Anything, blockHeight, chainID).
 		Return(expectedInitialStateRoot, expectedMaxBytes, nil).Once()
-	mockExec.On("ExecuteTxs", mock.Anything, txs, blockHeight, mock.AnythingOfType("time.Time"), expectedInitialStateRoot, mock.AnythingOfType("map[string]interface{}")).
+	mockExec.On("ExecuteTxs", mock.Anything, txs, blockHeight, mock.Anything, expectedInitialStateRoot, mock.Anything).
 		Return(expectedNewStateRoot, expectedMaxBytes, nil).Once()
 	mockExec.On("SetFinal", mock.Anything, blockHeight).
 		Return(nil).Once()
@@ -105,7 +105,7 @@ func initializeChain(t *testing.T, executor coreexecutor.Executor, ctx context.C
 func executeTransactions(t *testing.T, executor coreexecutor.Executor, ctx context.Context, txs [][]byte, stateRoot types.Hash, maxBytes uint64) ([]byte, uint64) {
 	blockHeight := uint64(1)
 	timestamp := time.Now()
-	newStateRoot, newMaxBytes, err := executor.ExecuteTxs(ctx, txs, blockHeight, timestamp, stateRoot, nil)
+	newStateRoot, newMaxBytes, err := executor.ExecuteTxs(ctx, txs, blockHeight, timestamp, stateRoot, map[string]interface{}{})
 	require.NoError(t, err)
 	require.Greater(t, newMaxBytes, uint64(0))
 	return newStateRoot, newMaxBytes
