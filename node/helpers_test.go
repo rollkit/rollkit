@@ -18,7 +18,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/types"
 
@@ -45,7 +44,7 @@ const (
 )
 
 // createTestComponents creates test components for node initialization
-func createTestComponents(t *testing.T, config config.Config) (coreexecutor.Executor, coresequencer.Sequencer, coreda.DA, *p2p.Client, datastore.Batching, *key.NodeKey, func()) {
+func createTestComponents(t *testing.T, config rollkitconfig.Config) (coreexecutor.Executor, coresequencer.Sequencer, coreda.DA, *p2p.Client, datastore.Batching, *key.NodeKey, func()) {
 	executor := coreexecutor.NewDummyExecutor()
 	sequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0, config.DA.BlockTime.Duration)
@@ -69,26 +68,26 @@ func createTestComponents(t *testing.T, config config.Config) (coreexecutor.Exec
 	return executor, sequencer, dummyDA, p2pClient, ds, p2pKey, stopDAHeightTicker
 }
 
-func getTestConfig(t *testing.T, n int) config.Config {
+func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 	// Use a higher base port to reduce chances of conflicts with system services
 	startPort := 40000 // Spread port ranges further apart
-	return config.Config{
+	return rollkitconfig.Config{
 		RootDir: t.TempDir(),
-		Node: config.NodeConfig{
+		Node: rollkitconfig.NodeConfig{
 			Aggregator:        true,
-			BlockTime:         config.DurationWrapper{Duration: 100 * time.Millisecond},
+			BlockTime:         rollkitconfig.DurationWrapper{Duration: 100 * time.Millisecond},
 			MaxPendingHeaders: 100,
-			LazyBlockInterval: config.DurationWrapper{Duration: 5 * time.Second},
+			LazyBlockInterval: rollkitconfig.DurationWrapper{Duration: 5 * time.Second},
 		},
-		DA: config.DAConfig{
-			BlockTime: config.DurationWrapper{Duration: 200 * time.Millisecond},
+		DA: rollkitconfig.DAConfig{
+			BlockTime: rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond},
 			Address:   MockDAAddress,
 			Namespace: MockDANamespace,
 		},
-		P2P: config.P2PConfig{
+		P2P: rollkitconfig.P2PConfig{
 			ListenAddress: fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", startPort+n),
 		},
-		RPC: config.RPCConfig{
+		RPC: rollkitconfig.RPCConfig{
 			Address: fmt.Sprintf("127.0.0.1:%d", 8000+n),
 		},
 		ChainID: "test-chain",
@@ -98,7 +97,7 @@ func getTestConfig(t *testing.T, n int) config.Config {
 // newTestNode is a private helper that creates a node and returns it with a unified cleanup function.
 func newTestNode(
 	t *testing.T,
-	config config.Config,
+	config rollkitconfig.Config,
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.DA,
@@ -142,14 +141,14 @@ func newTestNode(
 	return node.(*FullNode), cleanup
 }
 
-func createNodeWithCleanup(t *testing.T, config config.Config) (*FullNode, func()) {
+func createNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullNode, func()) {
 	executor, sequencer, dac, p2pClient, ds, _, stopDAHeightTicker := createTestComponents(t, config)
 	return newTestNode(t, config, executor, sequencer, dac, p2pClient, ds, stopDAHeightTicker)
 }
 
 func createNodeWithCustomComponents(
 	t *testing.T,
-	config config.Config,
+	config rollkitconfig.Config,
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.DA,
@@ -161,7 +160,7 @@ func createNodeWithCustomComponents(
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchronize them
-func createNodesWithCleanup(t *testing.T, num int, config config.Config) ([]*FullNode, []func()) {
+func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) ([]*FullNode, []func()) {
 	t.Helper()
 	require := require.New(t)
 
