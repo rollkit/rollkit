@@ -21,7 +21,7 @@ services:
   reth:
     container_name: reth
     restart: unless-stopped
-    image: ghcr.io/paradigmxyz/reth:v1.2.1
+    image: ghcr.io/paradigmxyz/reth:v1.4.6
     depends_on:
       jwt-init:
         condition: service_completed_successfully

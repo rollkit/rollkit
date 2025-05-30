@@ -232,17 +232,18 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 
 	// get payload
 	var payloadResult engine.ExecutionPayloadEnvelope
-	err = c.engineClient.CallContext(ctx, &payloadResult, "engine_getPayloadV3", *forkchoiceResult.PayloadID)
+	err = c.engineClient.CallContext(ctx, &payloadResult, "engine_getPayloadV4", *forkchoiceResult.PayloadID)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get payload failed: %w", err)
 	}
 
 	// submit payload
 	var newPayloadResult engine.PayloadStatusV1
-	err = c.engineClient.CallContext(ctx, &newPayloadResult, "engine_newPayloadV3",
+	err = c.engineClient.CallContext(ctx, &newPayloadResult, "engine_newPayloadV4",
 		payloadResult.ExecutionPayload,
 		[]string{}, // No blob hashes
 		c.genesisHash.Hex(),
+		[][]byte{}, // No execution requests
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("new payload submission failed: %w", err)
