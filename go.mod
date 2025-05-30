@@ -13,7 +13,7 @@ require (
 	github.com/celestiaorg/go-header v0.6.6
 	github.com/celestiaorg/utils v0.1.0
 	github.com/go-kit/kit v0.13.0
-	github.com/goccy/go-yaml v1.17.1
+	github.com/goccy/go-yaml v1.18.0
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/ipfs/go-ds-badger4 v0.1.8
 	github.com/ipfs/go-log/v2 v2.6.0
@@ -31,7 +31,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.37.0
 	golang.org/x/net v0.38.0
-	golang.org/x/sync v0.13.0
+	golang.org/x/sync v0.14.0
 	google.golang.org/protobuf v1.36.6
 )
 
