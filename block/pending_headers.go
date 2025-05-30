@@ -112,11 +112,6 @@ func (pb *PendingHeaders) setLastSubmittedHeight(ctx context.Context, newLastSub
 		binary.LittleEndian.PutUint64(bz, newLastSubmittedHeight)
 		err := pb.store.SetMetadata(ctx, LastSubmittedHeightKey, bz)
 		if err != nil {
-			pb.logger.Error("failed to convert last submitted height to bytes", "err", err)
-			return
-		}
-		err = pb.store.SetMetadata(ctx, LastSubmittedHeightKey, bz)
-		if err != nil {
 			// This indicates IO error in KV store. We can't do much about this.
 			// After next successful DA submission, update will be re-attempted (with new value).
 			// If store is not updated, after node restart some headers will be re-submitted to DA.
