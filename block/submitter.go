@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // HeaderSubmissionLoop is responsible for submitting headers to the DA layer.
@@ -145,12 +143,49 @@ func (m *Manager) BatchSubmissionLoop(ctx context.Context) {
 			m.logger.Info("batch submission loop stopped")
 			return
 		case batch := <-m.batchSubmissionChan:
-			err := m.submitBatchToDA(ctx, batch)
+			signedData, err := m.createSignedDataFromBatch(&batch)
+			if err != nil {
+				m.logger.Error("failed to create signed data from batch", "error", err)
+				continue
+			}
+
+			err = m.submitBatchToDA(ctx, signedData)
 			if err != nil {
 				m.logger.Error("failed to submit batch to DA", "error", err)
 			}
 		}
 	}
+}
+
+// createSignedDataFromBatch converts a batch to a SignedData, including signing.
+func (m *Manager) createSignedDataFromBatch(batch *coresequencer.Batch) (*types.SignedData, error) {
+	data := types.Data{
+		Txs: make(types.Txs, len(batch.Transactions)),
+	}
+	for i, tx := range batch.Transactions {
+		data.Txs[i] = types.Tx(tx)
+	}
+
+	signature, err := m.getDataSignature(&data)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKey, err := m.signer.GetPublic()
+	if err != nil {
+		return nil, err
+	}
+
+	signer := types.Signer{
+		PubKey:  pubKey,
+		Address: m.genesis.ProposerAddress,
+	}
+
+	return &types.SignedData{
+		Data:      data,
+		Signature: signature,
+		Signer:    signer,
+	}, nil
 }
 
 // submitBatchToDA submits a batch of transactions to the Data Availability (DA) layer.
@@ -166,11 +201,11 @@ func (m *Manager) BatchSubmissionLoop(ctx context.Context) {
 // - On other errors: Uses exponential backoff
 //
 // It returns an error if not all transactions could be submitted after all attempts.
-func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch) error {
-	currentBatch := batch
+func (m *Manager) submitBatchToDA(ctx context.Context, signedData *types.SignedData) error {
+	currentSignedData := signedData
 	submittedAllTxs := false
 	var backoff time.Duration
-	totalTxCount := len(batch.Transactions)
+	totalTxCount := len(currentSignedData.Txs)
 	submittedTxCount := 0
 	attempt := 0
 
@@ -187,17 +222,13 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 		case <-time.After(backoff):
 		}
 
-		// Convert batch to protobuf and marshal
-		batchPb := &pb.Batch{
-			Txs: currentBatch.Transactions,
-		}
-		batchBz, err := proto.Marshal(batchPb)
+		signedDataBz, err := currentSignedData.MarshalBinary()
 		if err != nil {
-			return fmt.Errorf("failed to marshal batch: %w", err)
+			return fmt.Errorf("failed to marshal signed data: %w", err)
 		}
 
-		// Attempt to submit the batch to the DA layer using the helper function
-		res := types.SubmitWithHelpers(ctx, m.da, m.logger, [][]byte{batchBz}, gasPrice, nil)
+		// Attempt to submit the signed data to the DA layer using the helper function
+		res := types.SubmitWithHelpers(ctx, m.da, m.logger, [][]byte{signedDataBz}, gasPrice, nil)
 
 		gasMultiplier, multErr := m.da.GasMultiplier(ctx)
 		if multErr != nil {
@@ -212,16 +243,16 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 				"gasPrice", gasPrice,
 				"height", res.Height,
 				"submittedTxs", submittedTxs,
-				"remainingTxs", len(currentBatch.Transactions)-submittedTxs)
+				"remainingTxs", len(currentSignedData.Txs)-submittedTxs)
 
 			submittedTxCount += submittedTxs
 
 			// Check if all transactions in the current batch were submitted
-			if submittedTxs == len(currentBatch.Transactions) {
+			if submittedTxs == len(currentSignedData.Txs) {
 				submittedAllTxs = true
 			} else {
 				// Update the current batch to contain only the remaining transactions
-				currentBatch.Transactions = currentBatch.Transactions[submittedTxs:]
+				currentSignedData.Txs = currentSignedData.Txs[submittedTxs:]
 			}
 
 			// Reset submission parameters after success
@@ -237,13 +268,7 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 			// Set DA included in manager's dataCache if all txs submitted and manager is set
 			if submittedAllTxs {
-				data := &types.Data{
-					Txs: make(types.Txs, len(currentBatch.Transactions)),
-				}
-				for i, tx := range currentBatch.Transactions {
-					data.Txs[i] = types.Tx(tx)
-				}
-				m.DataCache().SetDAIncluded(data.DACommitment().String())
+				m.DataCache().SetDAIncluded(currentSignedData.Data.DACommitment().String())
 				m.sendNonBlockingSignalToDAIncluderCh()
 			}
 
