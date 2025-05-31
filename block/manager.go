@@ -923,7 +923,7 @@ func (m *Manager) getDataSignature(data *types.Data) (types.Signature, error) {
 		return nil, err
 	}
 	if m.signer == nil {
-		return nil, fmt.Errorf("signer is nil; cannot sign header")
+		return nil, fmt.Errorf("signer is nil; cannot sign data")
 	}
 	return m.signer.Sign(dataBz)
 }
