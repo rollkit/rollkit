@@ -143,6 +143,9 @@ func (m *Manager) DataSubmissionLoop(ctx context.Context) {
 			m.logger.Info("data submission loop stopped")
 			return
 		case batch := <-m.batchSubmissionChan:
+			if len(batch.Transactions) == 0 {
+				continue
+			}
 			signedData, err := m.createSignedDataFromBatch(&batch)
 			if err != nil {
 				m.logger.Error("failed to create signed data from batch", "error", err)
@@ -159,6 +162,9 @@ func (m *Manager) DataSubmissionLoop(ctx context.Context) {
 
 // createSignedDataFromBatch converts a batch to a SignedData, including signing.
 func (m *Manager) createSignedDataFromBatch(batch *coresequencer.Batch) (*types.SignedData, error) {
+	if len(batch.Transactions) == 0 {
+		return nil, fmt.Errorf("batch has no transactions")
+	}
 	data := types.Data{
 		Txs: make(types.Txs, len(batch.Transactions)),
 	}
