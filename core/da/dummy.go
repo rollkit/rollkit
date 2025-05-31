@@ -42,6 +42,7 @@ func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64, blo
 		gasMultiplier:      gasMultiplier,
 		blockTime:          blockTime,
 		stopCh:             make(chan struct{}),
+		currentHeight:      0,
 	}
 }
 
