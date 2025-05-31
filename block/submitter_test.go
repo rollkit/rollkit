@@ -70,7 +70,6 @@ func TestSubmitDataToDA_Success(t *testing.T) {
 		},
 	}
 
-	signedData.Txs = make(types.Txs, len(transactions))
 	for i, tx := range transactions {
 		signedData.Txs[i] = types.Tx(tx)
 	}
@@ -164,9 +163,9 @@ func TestCreateSignedDataFromBatch(t *testing.T) {
 		}
 		signedData, err := m.createSignedDataFromBatch(batch)
 		require.NoError(t, err)
-		assert.Equal(t, 2, len(signedData.Data.Txs))
-		assert.Equal(t, types.Tx("tx1"), signedData.Data.Txs[0])
-		assert.Equal(t, types.Tx("tx2"), signedData.Data.Txs[1])
+		assert.Equal(t, 2, len(signedData.Txs))
+		assert.Equal(t, types.Tx("tx1"), signedData.Txs[0])
+		assert.Equal(t, types.Tx("tx2"), signedData.Txs[1])
 		assert.Equal(t, pubKey, signedData.Signer.PubKey)
 		assert.Equal(t, proposerAddr, signedData.Signer.Address)
 		assert.NotEmpty(t, signedData.Signature)
