@@ -158,7 +158,7 @@ func (m *Manager) handlePotentialData(ctx context.Context, bz []byte, daHeight u
 		return
 	}
 
-	// Early validation to reject junk batches
+	// Early validation to reject junk data
 	if !m.isValidSignedData(&signedData) {
 		m.logger.Debug("invalid data signature", "daHeight", daHeight)
 		return
@@ -173,7 +173,7 @@ func (m *Manager) handlePotentialData(ctx context.Context, bz []byte, daHeight u
 		case <-ctx.Done():
 			return
 		default:
-			m.logger.Warn("dataInCh backlog full, dropping signed batch", "daHeight", daHeight)
+			m.logger.Warn("dataInCh backlog full, dropping signed data", "daHeight", daHeight)
 		}
 		m.dataInCh <- NewDataEvent{&signedData.Data, daHeight}
 	}

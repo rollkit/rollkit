@@ -174,8 +174,8 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_MultipleHeadersAndBatches verifies that multiple headers and batches in a single DA block are all processed and corresponding events are emitted.
-func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
+// TestProcessNextDAHeader_MultipleHeadersAndData verifies that multiple headers and data in a single DA block are all processed and corresponding events are emitted.
+func TestProcessNextDAHeader_MultipleHeadersAndData(t *testing.T) {
 	t.Parallel()
 	daHeight := uint64(50)
 	startBlockHeight := uint64(130)
@@ -214,7 +214,7 @@ func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
 		require.NoError(t, err)
 		blobs = append(blobs, headerBytes)
 
-		ntxs := i + 1 // unique number of txs for each batch
+		ntxs := i + 1 // unique number of txs for each data
 		blockConfig := types.BlockConfig{Height: height, NTxs: ntxs, ProposerAddr: proposerAddr}
 		_, blockData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
 		txLens = append(txLens, len(blockData.Txs))
@@ -673,8 +673,8 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	mockLogger.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_BatchWithNoTxs verifies that a batch with no transactions is ignored and does not emit events or mark as DA included.
-func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
+// TestProcessNextDAHeader_DataWithNoTxs verifies that a data with no transactions is ignored and does not emit events or mark as DA included.
+func TestProcessNextDAHeader_WithNoTxs(t *testing.T) {
 	t.Parallel()
 	daHeight := uint64(55)
 	blockHeight := uint64(140)
@@ -705,7 +705,7 @@ func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
 			PubKey:  pubKey,
 		},
 	}
-	emptyBatchBytes, err := emptySignedData.MarshalBinary()
+	emptyDataBytes, err := emptySignedData.MarshalBinary()
 	require.NoError(t, err)
 
 	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
@@ -713,7 +713,7 @@ func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
 		Timestamp: time.Now(),
 	}, nil).Once()
 	mockDAClient.On("Get", mock.Anything, []coreda.ID{[]byte("dummy-id")}, []byte("placeholder")).Return(
-		[]coreda.Blob{headerBytes, emptyBatchBytes}, nil,
+		[]coreda.Blob{headerBytes, emptyDataBytes}, nil,
 	).Once()
 
 	ctx := context.Background()
@@ -728,16 +728,16 @@ func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
 		t.Fatal("Expected header event not received")
 	}
 
-	// Validate data event for empty batch
+	// Validate data event for empty data
 	select {
 	case <-manager.dataInCh:
-		t.Fatal("No data event should be received for empty batch")
+		t.Fatal("No data event should be received for empty data")
 	case <-time.After(100 * time.Millisecond):
 		// ok, no event as expected
 	}
-	// The empty batch should NOT be marked as DA included in cache
+	// The empty data should NOT be marked as DA included in cache
 	emptyData := &types.Data{Txs: types.Txs{}}
-	assert.False(t, dataCache.IsDAIncluded(emptyData.DACommitment().String()), "Empty batch should not be marked as DA included in cache")
+	assert.False(t, dataCache.IsDAIncluded(emptyData.DACommitment().String()), "Empty data should not be marked as DA included in cache")
 
 	mockDAClient.AssertExpectations(t)
 }

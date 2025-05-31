@@ -135,12 +135,12 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	return nil
 }
 
-// BatchSubmissionLoop is responsible for submitting batches to the DA layer.
-func (m *Manager) BatchSubmissionLoop(ctx context.Context) {
+// DataSubmissionLoop is responsible for submitting data to the DA layer.
+func (m *Manager) DataSubmissionLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			m.logger.Info("batch submission loop stopped")
+			m.logger.Info("data submission loop stopped")
 			return
 		case batch := <-m.batchSubmissionChan:
 			signedData, err := m.createSignedDataFromBatch(&batch)
@@ -151,7 +151,7 @@ func (m *Manager) BatchSubmissionLoop(ctx context.Context) {
 
 			err = m.submitDataToDA(ctx, signedData)
 			if err != nil {
-				m.logger.Error("failed to submit batch to DA", "error", err)
+				m.logger.Error("failed to submit data to DA", "error", err)
 			}
 		}
 	}
@@ -188,12 +188,10 @@ func (m *Manager) createSignedDataFromBatch(batch *coresequencer.Batch) (*types.
 	}, nil
 }
 
-// submitBatchToDA submits signed data to the Data Availability (DA) layer.
-// It implements a retry mechanism with exponential backoff and gas price adjustments
-// to handle various failure scenarios.
-//
-// The function attempts to submit a batch multiple times (up to maxSubmitAttempts),
-// handling partial submissions where only some transactions within the batch are accepted.
+// submitDataToDA submits signed data to the Data Availability (DA) layer.
+// It implements a retry mechanism with exponential backoff and gas price adjustments to handle various failure scenarios.
+// The function attempts to submit data multiple times (up to maxSubmitAttempts).
+
 // Different strategies are used based on the response from the DA layer:
 // - On success: Reduces gas price gradually (but not below initial price)
 // - On mempool issues: Increases gas price and uses a longer backoff
