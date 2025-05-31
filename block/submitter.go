@@ -268,7 +268,7 @@ func (m *Manager) submitBatchToDA(ctx context.Context, signedData *types.SignedD
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 			// Set DA included in manager's dataCache if all txs submitted and manager is set
 			if submittedAllTxs {
-				m.DataCache().SetDAIncluded(currentSignedData.Data.DACommitment().String())
+				m.DataCache().SetDAIncluded(signedData.DACommitment().String())
 				m.sendNonBlockingSignalToDAIncluderCh()
 			}
 
