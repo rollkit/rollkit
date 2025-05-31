@@ -11,5 +11,5 @@ var (
 	ErrTxAlreadyInMempool         = errors.New("tx already in mempool")
 	ErrTxIncorrectAccountSequence = errors.New("incorrect account sequence")
 	ErrContextDeadline            = errors.New("context deadline")
-	ErrFutureHeight               = errors.New("future height")
+	ErrHeightFromFuture           = errors.New("given height is from the future")
 )

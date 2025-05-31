@@ -4,21 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
-
-	"github.com/rollkit/rollkit/pkg/p2p/key"
 )
 
 // Source is an enum representing different sources of height
 type Source int
 
 const (
-	// Header is the source of height from the header service
+	// Header is the source of height from the header sync service
 	Header Source = iota
-	// Block is the source of height from the block service
-	Block
+	// Data is the source of height from the data sync service
+	Data
 	// Store is the source of height from the block manager store
 	Store
 )
@@ -43,7 +39,7 @@ func waitForFirstBlock(node Node, source Source) error {
 	return waitForAtLeastNBlocks(node, 1, source)
 }
 
-func waitForFirstBlockToBeDAIncludedHeight(node Node) error {
+func waitForFirstBlockToBeDAIncluded(node Node) error {
 	return waitForAtLeastNDAIncludedHeight(node, 1)
 }
 
@@ -51,8 +47,8 @@ func getNodeHeight(node Node, source Source) (uint64, error) {
 	switch source {
 	case Header:
 		return getNodeHeightFromHeader(node)
-	case Block:
-		return getNodeHeightFromBlock(node)
+	case Data:
+		return getNodeHeightFromData(node)
 	case Store:
 		return getNodeHeightFromStore(node)
 	default:
@@ -70,7 +66,7 @@ func getNodeHeightFromHeader(node Node) (uint64, error) {
 	return 0, errors.New("not a full or light node")
 }
 
-func getNodeHeightFromBlock(node Node) (uint64, error) {
+func getNodeHeightFromData(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
 		return fn.dSyncService.Store().Height(), nil
 	}
@@ -142,24 +138,4 @@ func Retry(tries int, durationBetweenAttempts time.Duration, fn func() error) (e
 		time.Sleep(durationBetweenAttempts)
 	}
 	return fn()
-}
-
-// InitFiles initializes the files for the node.
-// It creates a configuration directory and generates a node key.
-// It returns the generated node key and an error if any occurs during the process.
-func InitFiles(dir string) (*key.NodeKey, error) {
-	// Create config directory
-	configDir := filepath.Join(dir, "config")
-	err := os.MkdirAll(configDir, 0700) //nolint:gosec
-	if err != nil {
-		return nil, fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	// create the nodekey file
-	nodeKey, err := key.LoadOrGenNodeKey(configDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create node key: %w", err)
-	}
-
-	return nodeKey, nil
 }

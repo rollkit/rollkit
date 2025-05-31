@@ -17,6 +17,7 @@ import (
 	goheader "github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"golang.org/x/sync/errgroup"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -45,9 +46,6 @@ const (
 	// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 	// This is temporary solution. It will be removed in future versions.
 	maxSubmitAttempts = 30
-
-	// Applies to most channels, 100 is a large enough buffer to avoid blocking
-	channelLength = 100
 
 	// Applies to the headerInCh and dataInCh, 10000 is a large enough number for headers per DA block.
 	eventInChLength = 10000
@@ -90,6 +88,10 @@ type BatchData struct {
 	Data [][]byte
 }
 
+type broadcaster[T any] interface {
+	WriteToStoreAndBroadcast(ctx context.Context, payload T) error
+}
+
 // Manager is responsible for aggregating transactions into blocks.
 type Manager struct {
 	lastState types.State
@@ -104,8 +106,8 @@ type Manager struct {
 
 	daHeight *atomic.Uint64
 
-	HeaderCh chan *types.SignedHeader
-	DataCh   chan *types.Data
+	headerBroadcaster broadcaster[*types.SignedHeader]
+	dataBroadcaster   broadcaster[*types.Data]
 
 	headerInCh  chan NewHeaderEvent
 	headerStore goheader.Store[*types.SignedHeader]
@@ -140,7 +142,7 @@ type Manager struct {
 
 	exec coreexecutor.Executor
 
-	// daIncludedHeight is rollup height at which all blocks have been included
+	// daIncludedHeight is rollkit height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
 	da               coreda.DA
@@ -268,6 +270,8 @@ func NewManager(
 	logger log.Logger,
 	headerStore goheader.Store[*types.SignedHeader],
 	dataStore goheader.Store[*types.Data],
+	headerBroadcaster broadcaster[*types.SignedHeader],
+	dataBroadcaster broadcaster[*types.Data],
 	seqMetrics *Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
@@ -326,15 +330,15 @@ func NewManager(
 	daH.Store(s.DAHeight)
 
 	m := &Manager{
-		signer:    signer,
-		config:    config,
-		genesis:   genesis,
-		lastState: s,
-		store:     store,
-		daHeight:  &daH,
+		signer:            signer,
+		config:            config,
+		genesis:           genesis,
+		lastState:         s,
+		store:             store,
+		daHeight:          &daH,
+		headerBroadcaster: headerBroadcaster,
+		dataBroadcaster:   dataBroadcaster,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:            make(chan *types.SignedHeader, channelLength),
-		DataCh:              make(chan *types.Data, channelLength),
 		headerInCh:          make(chan NewHeaderEvent, eventInChLength),
 		dataInCh:            make(chan NewDataEvent, eventInChLength),
 		headerStoreCh:       make(chan struct{}, 1),
@@ -398,7 +402,7 @@ func (m *Manager) GetLastState() types.State {
 	return m.lastState
 }
 
-// GetDAIncludedHeight returns the rollup height at which all blocks have been
+// GetDAIncludedHeight returns the height at which all blocks have been
 // included in the DA
 func (m *Manager) GetDAIncludedHeight() uint64 {
 	return m.daIncludedHeight.Load()
@@ -440,8 +444,15 @@ func (m *Manager) IsBlockHashSeen(blockHash string) bool {
 }
 
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
-// TODO(tac0turtle): should we use this for pending header system to verify how far ahead a rollup is?
+// TODO(tac0turtle): should we use this for pending header system to verify how far ahead a chain is?
 func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error) {
+	syncedHeight, err := m.store.Height(ctx)
+	if err != nil {
+		return false, err
+	}
+	if syncedHeight < height {
+		return false, nil
+	}
 	header, data, err := m.store.GetBlockData(ctx, height)
 	if err != nil {
 		return false, err
@@ -466,7 +477,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		"lastBatchData", m.lastBatchData)
 
 	req := coresequencer.GetNextBatchRequest{
-		RollupId:      []byte(m.genesis.ChainID),
+		Id:            []byte(m.genesis.ChainID),
 		LastBatchData: m.lastBatchData,
 	}
 
@@ -647,24 +658,14 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	m.recordMetrics(data)
 
-	// Check for shut down event prior to sending the header and block to
-	// their respective channels. The reason for checking for the shutdown
-	// event separately is due to the inconsistent nature of the select
-	// statement when multiple cases are satisfied.
-	select {
-	case <-ctx.Done():
-		return fmt.Errorf("unable to send header and block, context done: %w", ctx.Err())
-	default:
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return m.headerBroadcaster.WriteToStoreAndBroadcast(ctx, header) })
+	g.Go(func() error { return m.dataBroadcaster.WriteToStoreAndBroadcast(ctx, data) })
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
-	// Publish header to channel so that header exchange service can broadcast
-	m.HeaderCh <- header
-
-	// Publish block to channel so that block exchange service can broadcast
-	m.DataCh <- data
-
 	m.logger.Debug("successfully proposed header", "proposer", hex.EncodeToString(header.ProposerAddress), "height", headerHeight)
-
 	return nil
 }
 
