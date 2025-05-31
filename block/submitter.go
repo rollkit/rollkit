@@ -146,7 +146,7 @@ func (m *Manager) BatchSubmissionLoop(ctx context.Context) {
 				continue
 			}
 
-			err = m.submitBatchToDA(ctx, signedData)
+			err = m.submitDataToDA(ctx, signedData)
 			if err != nil {
 				m.logger.Error("failed to submit batch to DA", "error", err)
 			}
@@ -185,7 +185,7 @@ func (m *Manager) createSignedDataFromBatch(batch *coresequencer.Batch) (*types.
 	}, nil
 }
 
-// submitBatchToDA submits a batch of transactions to the Data Availability (DA) layer.
+// submitBatchToDA submits signed data to the Data Availability (DA) layer.
 // It implements a retry mechanism with exponential backoff and gas price adjustments
 // to handle various failure scenarios.
 //
@@ -198,20 +198,17 @@ func (m *Manager) createSignedDataFromBatch(batch *coresequencer.Batch) (*types.
 // - On other errors: Uses exponential backoff
 //
 // It returns an error if not all transactions could be submitted after all attempts.
-func (m *Manager) submitBatchToDA(ctx context.Context, signedData *types.SignedData) error {
-	currentSignedData := signedData
-	submittedAllTxs := false
+func (m *Manager) submitDataToDA(ctx context.Context, signedData *types.SignedData) error {
 	var backoff time.Duration
-	totalTxCount := len(currentSignedData.Txs)
-	submittedTxCount := 0
 	attempt := 0
+	submitted := false
 
 	// Store initial values to be able to reset or compare later
 	initialGasPrice := m.gasPrice
 	gasPrice := initialGasPrice
 
 daSubmitRetryLoop:
-	for !submittedAllTxs && attempt < maxSubmitAttempts {
+	for !submitted && attempt < maxSubmitAttempts {
 		// Wait for backoff duration or exit if context is done
 		select {
 		case <-ctx.Done():
@@ -219,7 +216,7 @@ daSubmitRetryLoop:
 		case <-time.After(backoff):
 		}
 
-		signedDataBz, err := currentSignedData.MarshalBinary()
+		signedDataBz, err := signedData.MarshalBinary()
 		if err != nil {
 			return fmt.Errorf("failed to marshal signed data: %w", err)
 		}
@@ -235,22 +232,11 @@ daSubmitRetryLoop:
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			submittedTxs := int(res.SubmittedCount)
-			m.logger.Info("successfully submitted transactions to DA layer",
+			m.logger.Info("successfully submitted data to DA layer",
 				"gasPrice", gasPrice,
-				"height", res.Height,
-				"submittedTxs", submittedTxs,
-				"remainingTxs", len(currentSignedData.Txs)-submittedTxs)
+				"height", res.Height)
 
-			submittedTxCount += submittedTxs
-
-			// Check if all transactions in the current batch were submitted
-			if submittedTxs == len(currentSignedData.Txs) {
-				submittedAllTxs = true
-			} else {
-				// Update the current batch to contain only the remaining transactions
-				currentSignedData.Txs = currentSignedData.Txs[submittedTxs:]
-			}
+			submitted = true
 
 			// Reset submission parameters after success
 			backoff = 0
@@ -263,11 +249,10 @@ daSubmitRetryLoop:
 				}
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
-			// Set DA included in manager's dataCache if all txs submitted and manager is set
-			if submittedAllTxs {
-				m.DataCache().SetDAIncluded(signedData.DACommitment().String())
-				m.sendNonBlockingSignalToDAIncluderCh()
-			}
+
+			m.DataCache().SetDAIncluded(signedData.DACommitment().String())
+			m.sendNonBlockingSignalToDAIncluderCh()
+			return nil
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
@@ -291,11 +276,9 @@ daSubmitRetryLoop:
 	}
 
 	// Return error if not all transactions were submitted after all attempts
-	if !submittedAllTxs {
+	if !submitted {
 		return fmt.Errorf(
-			"failed to submit all transactions to DA layer, submitted %d txs (%d left) after %d attempts",
-			submittedTxCount,
-			totalTxCount-submittedTxCount,
+			"failed to submit data to DA layer after %d attempts",
 			attempt,
 		)
 	}

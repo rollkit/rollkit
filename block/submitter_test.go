@@ -11,7 +11,6 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	coreda "github.com/rollkit/rollkit/core/da"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
@@ -41,12 +40,10 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 	}
 }
 
-// TestSubmitBatchToDA_Success verifies that submitBatchToDA succeeds when the DA layer accepts the batch.
-func TestSubmitBatchToDA_Success(t *testing.T) {
+// TestSubmitDataToDA_Success verifies that submitDataToDA succeeds when the DA layer accepts the batch.
+func TestSubmitDataToDA_Success(t *testing.T) {
 	da := &mocks.DA{}
 	m := newTestManagerWithDA(t, da)
-
-	batch := coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}
 
 	// Simulate DA success
 	da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
@@ -58,9 +55,11 @@ func TestSubmitBatchToDA_Success(t *testing.T) {
 	addr, err := m.signer.GetAddress()
 	require.NoError(t, err)
 
+	transactions := [][]byte{[]byte("tx1"), []byte("tx2")}
+
 	signedData := types.SignedData{
 		Data: types.Data{
-			Txs: make(types.Txs, len(batch.Transactions)),
+			Txs: make(types.Txs, len(transactions)),
 		},
 		Signer: types.Signer{
 			Address: addr,
@@ -68,8 +67,8 @@ func TestSubmitBatchToDA_Success(t *testing.T) {
 		},
 	}
 
-	signedData.Txs = make(types.Txs, len(batch.Transactions))
-	for i, tx := range batch.Transactions {
+	signedData.Txs = make(types.Txs, len(transactions))
+	for i, tx := range transactions {
 		signedData.Txs[i] = types.Tx(tx)
 	}
 
@@ -77,16 +76,14 @@ func TestSubmitBatchToDA_Success(t *testing.T) {
 	require.NoError(t, err)
 	signedData.Signature = signature
 
-	err = m.submitBatchToDA(context.Background(), &signedData)
+	err = m.submitDataToDA(context.Background(), &signedData)
 	assert.NoError(t, err)
 }
 
-// TestSubmitBatchToDA_Failure verifies that submitBatchToDA returns an error for various DA failures.
-func TestSubmitBatchToDA_Failure(t *testing.T) {
+// TestSubmitDataToDA_Failure verifies that submitDataToDA returns an error for various DA failures.
+func TestSubmitDataToDA_Failure(t *testing.T) {
 	da := &mocks.DA{}
 	m := newTestManagerWithDA(t, da)
-
-	batch := coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}
 
 	// Table-driven test for different DA error scenarios
 	testCases := []struct {
@@ -110,9 +107,11 @@ func TestSubmitBatchToDA_Failure(t *testing.T) {
 			addr, err := m.signer.GetAddress()
 			require.NoError(t, err)
 
+			transactions := [][]byte{[]byte("tx1"), []byte("tx2")}
+
 			signedData := types.SignedData{
 				Data: types.Data{
-					Txs: make(types.Txs, len(batch.Transactions)),
+					Txs: make(types.Txs, len(transactions)),
 				},
 				Signer: types.Signer{
 					Address: addr,
@@ -120,8 +119,8 @@ func TestSubmitBatchToDA_Failure(t *testing.T) {
 				},
 			}
 
-			signedData.Txs = make(types.Txs, len(batch.Transactions))
-			for i, tx := range batch.Transactions {
+			signedData.Txs = make(types.Txs, len(transactions))
+			for i, tx := range transactions {
 				signedData.Txs[i] = types.Tx(tx)
 			}
 
@@ -130,7 +129,7 @@ func TestSubmitBatchToDA_Failure(t *testing.T) {
 			signedData.Signature = signature
 
 			// Expect an error from submitBatchToDA
-			err = m.submitBatchToDA(context.Background(), &signedData)
+			err = m.submitDataToDA(context.Background(), &signedData)
 			assert.Error(t, err, "expected error")
 		})
 	}
