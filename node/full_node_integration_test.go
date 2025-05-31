@@ -93,7 +93,9 @@ func TestTxGossipingMultipleNodesDAIncluded(t *testing.T) {
 
 	// Inject a transaction into the sequencer's executor
 	executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
-	executor.InjectTx([]byte("test tx"))
+	executor.InjectTx([]byte("test tx 1"))
+	executor.InjectTx([]byte("test tx 2"))
+	executor.InjectTx([]byte("test tx 3"))
 
 	blocksToWaitFor := uint64(5)
 	// Wait for all nodes to reach at least blocksToWaitFor blocks with DA inclusion
