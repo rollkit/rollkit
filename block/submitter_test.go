@@ -40,7 +40,7 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 	}
 }
 
-// TestSubmitDataToDA_Success verifies that submitDataToDA succeeds when the DA layer accepts the batch.
+// TestSubmitDataToDA_Success verifies that submitDataToDA succeeds when the DA layer accepts the data.
 func TestSubmitDataToDA_Success(t *testing.T) {
 	da := &mocks.DA{}
 	m := newTestManagerWithDA(t, da)
@@ -128,7 +128,7 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 			require.NoError(t, err)
 			signedData.Signature = signature
 
-			// Expect an error from submitBatchToDA
+			// Expect an error from submitDataToDA
 			err = m.submitDataToDA(context.Background(), &signedData)
 			assert.Error(t, err, "expected error")
 		})
