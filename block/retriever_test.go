@@ -25,7 +25,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer/noop"
 	rollmocks "github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
-	v1 "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // setupManagerForRetrieverTest initializes a Manager with mocked dependencies.
@@ -117,12 +116,23 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 	}
 	_, blockData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
 
-	// Instead of marshaling blockData as pb.Data, marshal as pb.Batch for the DA client mock return
-	batchProto := &v1.Batch{Txs: make([][]byte, len(blockData.Txs))}
-	for i, tx := range blockData.Txs {
-		batchProto.Txs[i] = tx
+	pubKey, err := manager.signer.GetPublic()
+	require.NoError(t, err)
+	addr, err := manager.signer.GetAddress()
+	require.NoError(t, err)
+
+	// Sign the data to create a valid SignedData
+	signature, err := manager.getDataSignature(blockData)
+	require.NoError(t, err)
+	signedData := &types.SignedData{
+		Data:      *blockData,
+		Signature: signature,
+		Signer: types.Signer{
+			Address: addr,
+			PubKey:  pubKey,
+		},
 	}
-	blockDataBytes, err := proto.Marshal(batchProto)
+	blockDataBytes, err := signedData.MarshalBinary()
 	require.NoError(t, err)
 	// -----------------------------------------------------------
 	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{
@@ -208,11 +218,24 @@ func TestProcessNextDAHeader_MultipleHeadersAndBatches(t *testing.T) {
 		blockConfig := types.BlockConfig{Height: height, NTxs: ntxs, ProposerAddr: proposerAddr}
 		_, blockData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
 		txLens = append(txLens, len(blockData.Txs))
-		batchProto := &v1.Batch{Txs: make([][]byte, len(blockData.Txs))}
-		for j, tx := range blockData.Txs {
-			batchProto.Txs[j] = tx
+
+		pubKey, err := manager.signer.GetPublic()
+		require.NoError(t, err)
+		addr, err := manager.signer.GetAddress()
+		require.NoError(t, err)
+
+		// Sign the data to create a valid SignedData
+		signature, err := manager.getDataSignature(blockData)
+		require.NoError(t, err)
+		signedData := &types.SignedData{
+			Data:      *blockData,
+			Signature: signature,
+			Signer: types.Signer{
+				Address: addr,
+				PubKey:  pubKey,
+			},
 		}
-		blockDataBytes, err := proto.Marshal(batchProto)
+		blockDataBytes, err := signedData.MarshalBinary()
 		require.NoError(t, err)
 		blobs = append(blobs, blockDataBytes)
 		// Sprinkle an empty blob after each batch
@@ -334,7 +357,7 @@ func TestProcessNextDAHeaderAndData_UnmarshalHeaderError(t *testing.T) {
 
 	mockLogger.ExpectedCalls = nil
 	mockLogger.On("Debug", "failed to unmarshal header", mock.Anything).Return().Once()
-	mockLogger.On("Debug", "failed to unmarshal batch", mock.Anything).Return().Once()
+	mockLogger.On("Debug", "failed to unmarshal signed data", mock.Anything).Return().Once()
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
 
 	ctx := context.Background()
@@ -482,11 +505,24 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 		ProposerAddr: manager.genesis.ProposerAddress,
 	}
 	_, blockData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
-	batchProto := &v1.Batch{Txs: make([][]byte, len(blockData.Txs))}
-	for i, tx := range blockData.Txs {
-		batchProto.Txs[i] = tx
+
+	pubKey, err := manager.signer.GetPublic()
+	require.NoError(t, err)
+	addr, err := manager.signer.GetAddress()
+	require.NoError(t, err)
+
+	// Sign the data to create a valid SignedData
+	signature, err := manager.getDataSignature(blockData)
+	require.NoError(t, err)
+	signedData := &types.SignedData{
+		Data:      *blockData,
+		Signature: signature,
+		Signer: types.Signer{
+			Address: addr,
+			PubKey:  pubKey,
+		},
 	}
-	blockDataBytes, err := proto.Marshal(batchProto)
+	blockDataBytes, err := signedData.MarshalBinary()
 	require.NoError(t, err)
 	dataHash := blockData.DACommitment().String()
 
@@ -656,8 +692,20 @@ func TestProcessNextDAHeader_BatchWithNoTxs(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create an empty batch (no txs)
-	emptyBatchProto := &v1.Batch{Txs: [][]byte{}}
-	emptyBatchBytes, err := proto.Marshal(emptyBatchProto)
+	pubKey, err := manager.signer.GetPublic()
+	require.NoError(t, err)
+	addr, err := manager.signer.GetAddress()
+	require.NoError(t, err)
+
+	emptySignedData := &types.SignedData{
+		Data:      types.Data{Txs: types.Txs{}},
+		Signature: []byte{},
+		Signer: types.Signer{
+			Address: addr,
+			PubKey:  pubKey,
+		},
+	}
+	emptyBatchBytes, err := emptySignedData.MarshalBinary()
 	require.NoError(t, err)
 
 	mockDAClient.On("GetIDs", mock.Anything, daHeight, []byte("placeholder")).Return(&coreda.GetIDsResult{

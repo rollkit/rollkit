@@ -603,7 +603,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 	}
 
-	signature, err = m.getSignature(header.Header)
+	signature, err = m.getHeaderSignature(header.Header)
 	if err != nil {
 		return err
 	}
@@ -906,7 +906,7 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 	return result, nil
 }
 
-func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
+func (m *Manager) getHeaderSignature(header types.Header) (types.Signature, error) {
 	b, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -915,6 +915,17 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 		return nil, fmt.Errorf("signer is nil; cannot sign header")
 	}
 	return m.signer.Sign(b)
+}
+
+func (m *Manager) getDataSignature(data *types.Data) (types.Signature, error) {
+	dataBz, err := data.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	if m.signer == nil {
+		return nil, fmt.Errorf("signer is nil; cannot sign header")
+	}
+	return m.signer.Sign(dataBz)
 }
 
 // NotifyNewTransactions signals that new transactions are available for processing
@@ -976,4 +987,21 @@ func (m *Manager) SaveCache() error {
 		return fmt.Errorf("failed to save data cache to disk: %w", err)
 	}
 	return nil
+}
+
+// isValidSignedData returns true if the data signature is valid for the expected sequencer.
+func (m *Manager) isValidSignedData(signedData *types.SignedData) bool {
+	if signedData == nil || signedData.Txs == nil {
+		return false
+	}
+	if !bytes.Equal(signedData.Signer.Address, m.genesis.ProposerAddress) {
+		return false
+	}
+	dataBytes, err := signedData.Data.MarshalBinary()
+	if err != nil {
+		return false
+	}
+
+	valid, err := signedData.Signer.PubKey.Verify(dataBytes, signedData.Signature)
+	return err == nil && valid
 }
