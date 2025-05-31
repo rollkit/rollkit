@@ -381,7 +381,7 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		spawnWorker(func() { n.blockManager.AggregationLoop(ctx, errCh) })
 		spawnWorker(func() { n.reaper.Start(ctx) })
 		spawnWorker(func() { n.blockManager.HeaderSubmissionLoop(ctx) })
-		spawnWorker(func() { n.blockManager.BatchSubmissionLoop(ctx) })
+		spawnWorker(func() { n.blockManager.DataSubmissionLoop(ctx) })
 		spawnWorker(func() { n.blockManager.DAIncluderLoop(ctx, errCh) })
 	} else {
 		spawnWorker(func() { n.blockManager.RetrieveLoop(ctx) })

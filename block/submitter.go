@@ -199,14 +199,13 @@ func (m *Manager) createSignedDataFromBatch(batch *coresequencer.Batch) (*types.
 func (m *Manager) submitDataToDA(ctx context.Context, signedData *types.SignedData) error {
 	var backoff time.Duration
 	attempt := 0
-	submitted := false
 
 	// Store initial values to be able to reset or compare later
 	initialGasPrice := m.gasPrice
 	gasPrice := initialGasPrice
 
 daSubmitRetryLoop:
-	for !submitted && attempt < maxSubmitAttempts {
+	for attempt < maxSubmitAttempts {
 		// Wait for backoff duration or exit if context is done
 		select {
 		case <-ctx.Done():
@@ -233,8 +232,6 @@ daSubmitRetryLoop:
 			m.logger.Info("successfully submitted data to DA layer",
 				"gasPrice", gasPrice,
 				"height", res.Height)
-
-			submitted = true
 
 			// Reset submission parameters after success
 			backoff = 0
@@ -274,11 +271,5 @@ daSubmitRetryLoop:
 	}
 
 	// Return error if not all transactions were submitted after all attempts
-	if !submitted {
-		return fmt.Errorf(
-			"failed to submit data to DA layer after %d attempts",
-			attempt,
-		)
-	}
-	return nil
+	return fmt.Errorf("failed to submit data to DA layer after %d attempts", attempt)
 }
