@@ -41,15 +41,48 @@ The attester layer can plug into different validator‑set providers. Below we o
 
 #### Cosmos‑SDK
 
-For the Cosmos SDK the attester system will be located in the ABCI execution environment.
+Introduce a dedicated x/network module that completely owns the CommitHash and ValidatorHash that appear in every block‑header. Rollkit remains untouched; the logic lives entirely in the ABCI application.
 
-- The staking module is the single source of truth for membership and voting power.
-- Create / Edit / Unbond msgs emit ValidatorSetUpdate events every block; sequencer & attesters rebuild the bitmap each height.
-- Joining — once bonded, a validator runs the attester daemon.
-- Leaving — when voting power reaches 0 the sequencer drops the validator from the next bitmap, ignoring late sigs.
+Hashes produced in‑app During EndBlock, x/network gathers the attestation bitmap for height h, computes and returns them in ResponseEndBlock.
 
-The design adds a dedicated x/attestation Cosmos-SDK module that intercepts every IBC message in the AnteHandler, parks it in a state-kept queue, and releases it only after ≥ ⅔ validator voting-power has submitted attestations. Validators sign a hash of the queued tx; the module tracks signatures with a compact bitmap, finalises transactions in EndBlock (executing them through the normal IBC router), rewards timely signers, and optionally jails low-participation validators. Parameters cover quorum fraction, attestation window, pruning window, and queue size, keeping the solution pluggable and light-touch on existing IBC code.
+When a relayer queries /block or /header, the application serves the canonical valset hash and commit hash from its KV‑store, ensuring external clients see the attested header even though rollkit itself never verified the signatures.
 
+Validatorset updates from the staking module (x/staking) remains the single source of truth for bonded power. Every block it emits a ValidatorSetUpdate event. x/network subscribes and mirrors
+the active validator bitmap. On a set‑change (say at height 100) the EndBlock hook updates x/network's bitmap before computing the hashes for the next height.
+
+##### Flow
+
+```mermaid
+sequenceDiagram
+  participant Val as Validator
+  participant App as x/network
+  participant R as Rollkit
+  Val->>App: MsgAttest{h, sig}
+  loop within epoch
+      App->>App: store sig, update bitmap
+      App->>App:EndBlock{ValidatorHash, CommitHash}
+  end
+  R->> App: Request for hashes
+```
+
+Missing participation at the epoch boundary x/network evaluates participation:
+
+- if validator power‑weighted participation < Quorum (default 2/3) ⇒ return ErrAttestationTimeout and halt new block production;
+- validators whose participation < MinParticipation for the entire epoch are auto‑ejected from the attester set via an EditValidator emitted by x/network (their stake remains bonded but they cease to sign until they re‑declare).
+
+##### Config params
+
+| Param            | Purpose                                   | Default   |
+|------------------|-------------------------------------------|-----------|
+| EpochLength      | Blocks per attestation window             | 100       |
+| QuorumFraction   | Required voting-power for soft-finality   | 2/3       |
+| MinParticipation | Ejection threshold inside an epoch        | 1/2       |
+| PruneAfter       | Keep attestation records this many epochs | 7         |
+| EmergencyMode    | Governance switch to bypass quorum        | disabled  |
+
+In this design there is no need to queue IBC transactions as the light client update message can not be relayed to the counter party chain.
+
+<!-- TODO: should we wait for inclusion in the DA layer for the light client update message to be passed? How does this work with IBC timeouts -->
 #### Reth/EVM Rollup
 
 - Stake manager contract holds the validator stake/weight and maps an address to a key. It will emit `StakeSnapshot(epoch)` events that will be consumed by the consensus client.
