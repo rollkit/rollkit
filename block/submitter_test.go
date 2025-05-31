@@ -3,6 +3,7 @@ package block
 import (
 	"context"
 	"testing"
+	"time"
 
 	"cosmossdk.io/log"
 	"github.com/stretchr/testify/assert"
@@ -11,8 +12,10 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	coreda "github.com/rollkit/rollkit/core/da"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -133,4 +136,60 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 			assert.Error(t, err, "expected error")
 		})
 	}
+}
+
+// TestCreateSignedDataFromBatch tests createSignedDataFromBatch for normal, empty, and error cases.
+func TestCreateSignedDataFromBatch(t *testing.T) {
+	// Setup: create a Manager with a valid signer and genesis proposer address
+	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(t, err)
+	testSigner, err := noop.NewNoopSigner(privKey)
+	require.NoError(t, err)
+	proposerAddr, err := testSigner.GetAddress()
+	require.NoError(t, err)
+	gen := genesis.NewGenesis(
+		"testchain",
+		1,
+		time.Now(),
+		proposerAddr,
+	)
+	m := &Manager{
+		signer:  testSigner,
+		genesis: gen,
+	}
+
+	t.Run("normal batch", func(t *testing.T) {
+		batch := &coresequencer.Batch{
+			Transactions: [][]byte{[]byte("tx1"), []byte("tx2")},
+		}
+		signedData, err := m.createSignedDataFromBatch(batch)
+		require.NoError(t, err)
+		assert.Equal(t, 2, len(signedData.Data.Txs))
+		assert.Equal(t, types.Tx("tx1"), signedData.Data.Txs[0])
+		assert.Equal(t, types.Tx("tx2"), signedData.Data.Txs[1])
+		assert.Equal(t, pubKey, signedData.Signer.PubKey)
+		assert.Equal(t, proposerAddr, signedData.Signer.Address)
+		assert.NotEmpty(t, signedData.Signature)
+	})
+
+	t.Run("empty batch", func(t *testing.T) {
+		batch := &coresequencer.Batch{
+			Transactions: [][]byte{},
+		}
+		signedData, err := m.createSignedDataFromBatch(batch)
+		assert.Error(t, err)
+		assert.Nil(t, signedData)
+	})
+
+	t.Run("signer returns error", func(t *testing.T) {
+		badManager := &Manager{
+			signer:  nil, // nil signer will cause getDataSignature to fail
+			genesis: m.genesis,
+		}
+		batch := &coresequencer.Batch{
+			Transactions: [][]byte{[]byte("tx1")},
+		}
+		_, err := badManager.createSignedDataFromBatch(batch)
+		assert.Error(t, err)
+	})
 }
