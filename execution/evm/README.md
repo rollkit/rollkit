@@ -20,7 +20,7 @@ Since the `PureEngineClient` relies on the Engine API, the genesis configuration
 1. The genesis file must include post-merge hardfork configurations
 2. `terminalTotalDifficulty` must be set to 0
 3. `terminalTotalDifficultyPassed` must be set to true
-4. Hardforks like `mergeNetsplitBlock`, `shanghaiTime`, and `cancunTime` should be properly configured
+4. Hardforks like `mergeNetsplitBlock`, `shanghaiTime`, `cancunTime` and `pragueTime` should be properly configured
 
 Example of required genesis configuration:
 
@@ -42,7 +42,8 @@ Example of required genesis configuration:
     "terminalTotalDifficulty": 0,
     "terminalTotalDifficultyPassed": true,
     "shanghaiTime": 0,
-    "cancunTime": 0
+    "cancunTime": 0,
+    "pragueTime": 0
   }
 }
 ```
@@ -65,7 +66,7 @@ The `PureEngineClient` implements a unique approach to transaction execution:
 1. In `GetTxs`, the entire execution payload is serialized to JSON and returned as the first transaction
 2. In `ExecuteTxs`, this first transaction is deserialized back into an execution payload
 3. The remaining transactions are added to the payload's transaction list
-4. The complete payload is then submitted to the execution client via `engine_newPayloadV3`
+4. The complete payload is then submitted to the execution client via `engine_newPayloadV4`
 
 This approach ensures that:
 
