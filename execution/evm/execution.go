@@ -180,7 +180,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		}
 		err = c.ethClient.SendTransaction(context.Background(), ethTxs[i])
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to send transaction: %w", err)
+			continue
 		}
 	}
 
