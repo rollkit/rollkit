@@ -199,7 +199,6 @@ func TestEngineExecution(t *testing.T) {
 			require.GreaterOrEqual(tt, lastTxs, 0, "Number of transactions should be non-negative")
 
 			prevStateRoot = newStateRoot
-			fmt.Println("all good blockheight", blockHeight)
 		}
 	})
 }
