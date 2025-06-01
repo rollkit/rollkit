@@ -168,10 +168,7 @@ func (m *Manager) BatchSubmissionLoop(ctx context.Context) {
 // It returns an error if not all transactions could be submitted after all attempts.
 func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch) error {
 	currentBatch := batch
-	submittedAllTxs := false
 	var backoff time.Duration
-	totalTxCount := len(batch.Transactions)
-	submittedTxCount := 0
 	attempt := 0
 
 	// Store initial values to be able to reset or compare later
@@ -207,23 +204,10 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			submittedTxs := int(res.SubmittedCount)
 			m.logger.Info("successfully submitted transactions to DA layer",
 				"gasPrice", gasPrice,
 				"height", res.Height,
-				"submittedTxs", submittedTxs,
-				"remainingTxs", len(currentBatch.Transactions)-submittedTxs)
-
-			submittedTxCount += submittedTxs
-
-			// Check if all transactions in the current batch were submitted
-			if submittedTxs == len(currentBatch.Transactions) {
-				submittedAllTxs = true
-			} else {
-				// Update the current batch to contain only the remaining transactions
-				currentBatch.Transactions = currentBatch.Transactions[submittedTxs:]
-			}
-
+			)
 			// Reset submission parameters after success
 			backoff = 0
 
@@ -236,16 +220,15 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 			// Set DA included in manager's dataCache if all txs submitted and manager is set
-			if submittedAllTxs {
-				data := &types.Data{
-					Txs: make(types.Txs, len(currentBatch.Transactions)),
-				}
-				for i, tx := range currentBatch.Transactions {
-					data.Txs[i] = types.Tx(tx)
-				}
-				m.DataCache().SetDAIncluded(data.DACommitment().String())
-				m.sendNonBlockingSignalToDAIncluderCh()
+			data := &types.Data{
+				Txs: make(types.Txs, len(currentBatch.Transactions)),
 			}
+			for i, tx := range currentBatch.Transactions {
+				data.Txs[i] = types.Tx(tx)
+			}
+			m.DataCache().SetDAIncluded(data.DACommitment().String())
+			m.sendNonBlockingSignalToDAIncluderCh()
+			return nil
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
@@ -270,13 +253,8 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 	}
 
 	// Return error if not all transactions were submitted after all attempts
-	if !submittedAllTxs {
-		return fmt.Errorf(
-			"failed to submit all transactions to DA layer, submitted %d txs (%d left) after %d attempts",
-			submittedTxCount,
-			totalTxCount-submittedTxCount,
-			attempt,
-		)
-	}
-	return nil
+	return fmt.Errorf(
+		"failed to submit all transactions to DA layer after %d attempts",
+		attempt,
+	)
 }
