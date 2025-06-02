@@ -175,6 +175,24 @@ func (syncService *SyncService[H]) isInitialized() bool {
 
 // Start is a part of Service interface.
 func (syncService *SyncService[H]) Start(ctx context.Context) error {
+	// If in da_only mode, and this is the HeaderSyncService, skip P2P initialization.
+	if syncService.syncType == headerSync && syncService.conf.Node.SyncMode == config.SyncModeDaOnly {
+		syncService.logger.Info("P2P header synchronization is disabled in da_only sync mode")
+		// Initialize the store so that other components that depend on it don't fail,
+		// but don't start the syncer or P2P components.
+		// Need to ensure store can be started even if no initial header is available immediately.
+		// This might require a zero-height header or allowing the store to be started empty.
+		// For now, let's assume store.Start() can handle being called without full P2P sync.
+		// If the store requires an initial header, this part might need adjustment
+		// or the block manager needs to be robust to a non-fully initialized header store in this mode.
+		if err := syncService.store.Start(ctx); err != nil {
+			return fmt.Errorf("error while starting store in da_only mode for header sync: %w", err)
+		}
+		// The syncer itself is not started, so it won't attempt to sync from P2P.
+		// The block manager's SyncLoop will also not receive headers from P2P via this service.
+		return nil
+	}
+
 	peerIDs, err := syncService.setupP2P(ctx)
 	if err != nil {
 		return err

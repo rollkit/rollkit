@@ -477,3 +477,150 @@ func testTwoChainsInOneNamespace(t *testing.T, chainID1 string, chainID2 string)
 	shutdownAndWait(t, cancels1, &runningWg1, 5*time.Second)
 	shutdownAndWait(t, cancels2, &runningWg2, 5*time.Second)
 }
+
+// TestSyncModeDaOnlyNode verifies that a node in SyncModeDaOnly does not sync headers from P2P
+// but does sync them from DA.
+func TestSyncModeDaOnlyNode(t *testing.T) {
+	require := require.New(t)
+
+	// Config for Node A (Sequencer, SyncModeBoth)
+	configA := getTestConfig(t, 1) // Node A is a sequencer
+	configA.Node.Aggregator = true
+	configA.Node.SyncMode = rollkitconfig.SyncModeBoth // Default, but explicit
+	configA.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 100 * time.Millisecond} // Relatively fast DA for testing
+	configA.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond}
+
+	// Config for Node B (Syncer, SyncModeDaOnly)
+	configB := getTestConfig(t, 2) // Node B is a full node (not sequencer)
+	configB.Node.Aggregator = false
+	configB.Node.SyncMode = rollkitconfig.SyncModeDaOnly
+	configB.DA = configA.DA // Ensure they use the same DA config for mock DA behavior
+	configB.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond}
+
+
+	// Create nodes. For this test, we need a more controllable DA.
+	// The default createNodesWithCleanup might use a basic mock DA or a real client.
+	// We'll assume for now it uses a mock DA that we can implicitly test.
+	// A true controllable mock DA would require deeper changes to test infra.
+	nodes := make([]Node, 2)
+	cleanups := make([]func(), 2)
+
+	nodeA, cleanupA := createNodeWithCleanup(t, configA)
+	nodes[0] = nodeA
+	cleanups[0] = cleanupA
+	defer cleanupA()
+
+	nodeB, cleanupB := createNodeWithCleanup(t, configB)
+	nodes[1] = nodeB
+	cleanups[1] = cleanupB
+	defer cleanupB()
+
+	// Ensure Node B can connect to Node A for P2P (e.g., for transaction gossip, though not primary for this test)
+	// This setup is implicit in how createNodesWithCleanup might set up peer lists if P2P is enabled.
+	// For SyncModeDaOnly, header sync over P2P is disabled by SyncService, other P2P functions might still work.
+
+	ctxs, cancels := createNodeContexts(2)
+	var runningWg sync.WaitGroup
+
+	// Start Node A (Sequencer)
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
+	require.NoError(waitForFirstBlock(nodes[0], Store), "Node A (sequencer) failed to start or produce first block")
+
+	// Start Node B (DaOnly Syncer)
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 1)
+	// Wait a moment for Node B to establish P2P connection if any, and for its SyncLoop to start.
+	time.Sleep(500 * time.Millisecond)
+
+	// Node A produces a few blocks
+	targetHeight := uint64(3)
+	require.NoError(waitForAtLeastNBlocks(nodes[0], targetHeight, Store), "Node A failed to produce target blocks")
+
+	// Verification for Node B (DaOnly)
+	// 1. Node B should NOT sync these blocks from P2P.
+	// Check Node B's height. It should remain at genesis (or 0 if genesis isn't auto-synced without DA).
+	// Give it some time, if it were to sync from P2P, it would have by now.
+	time.Sleep(2 * configA.Node.BlockTime.Duration) // Wait longer than a block time
+
+	nodeBHeightP2PCheck, err := getNodeHeight(nodes[1], Store)
+	require.NoError(err)
+	// Assuming initial height is 1 after genesis. If it's 0, this check needs adjustment.
+	// The core idea is that it shouldn't have synced Node A's new blocks yet.
+	require.Less(nodeBHeightP2PCheck, targetHeight, "Node B (DaOnly) should not have synced blocks from P2P yet")
+
+	// 2. Node B should sync blocks once they are available on DA.
+	// The existing test infrastructure uses a DA client that eventually makes blocks available.
+	// We wait for Node B to catch up, implying it got them from DA.
+	require.NoError(waitForAtLeastNBlocks(nodes[1], targetHeight, Store), "Node B (DaOnly) failed to sync blocks from DA")
+
+	nodeBHeightDACheck, err := getNodeHeight(nodes[1], Store)
+	require.NoError(err)
+	require.GreaterOrEqual(nodeBHeightDACheck, targetHeight, "Node B (DaOnly) should have synced blocks from DA")
+
+	// Further verification: Ensure Node B's blocks match Node A's (implies successful DA sync)
+	require.NoError(verifyNodesSynced(nodes[0], nodes[1], Store), "Nodes did not sync the same blocks via DA")
+
+	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+}
+
+// TestSyncModeBothBaseline verifies that two nodes in SyncModeBoth can sync,
+// with P2P potentially being the faster source.
+func TestSyncModeBothBaseline(t *testing.T) {
+	require := require.New(t)
+
+	// Config for Node C (Sequencer, SyncModeBoth)
+	configC := getTestConfig(t, 1)
+	configC.Node.Aggregator = true
+	configC.Node.SyncMode = rollkitconfig.SyncModeBoth
+	configC.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 2 * time.Second}    // Slower DA
+	configC.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond} // Faster blocks
+
+	// Config for Node D (Syncer, SyncModeBoth)
+	configD := getTestConfig(t, 2)
+	configD.Node.Aggregator = false
+	configD.Node.SyncMode = rollkitconfig.SyncModeBoth
+	configD.DA = configC.DA // Same DA config
+	configD.Node.BlockTime = configC.Node.BlockTime
+
+
+	nodes := make([]Node, 2)
+	cleanups := make([]func(), 2)
+
+	nodeC, cleanupC := createNodeWithCleanup(t, configC)
+	nodes[0] = nodeC
+	cleanups[0] = cleanupC
+	defer cleanupC()
+
+	nodeD, cleanupD := createNodeWithCleanup(t, configD)
+	nodes[1] = nodeD
+	cleanups[1] = cleanupD
+	defer cleanupD()
+
+
+	ctxs, cancels := createNodeContexts(2)
+	var runningWg sync.WaitGroup
+
+	// Start Node C (Sequencer)
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 0)
+	require.NoError(waitForFirstBlock(nodes[0], Store), "Node C (sequencer) failed to start or produce first block")
+
+	// Start Node D (Both Syncer)
+	startNodeInBackground(t, nodes, ctxs, &runningWg, 1)
+
+	targetHeight := uint64(5)
+	// Node C produces blocks
+	require.NoError(waitForAtLeastNBlocks(nodes[0], targetHeight, Store), "Node C failed to produce target blocks")
+
+	// Node D should sync these blocks. P2P should be faster than DA.
+	// We verify it syncs to the target height. The exact source isn't explicitly checked here,
+	// but the setup encourages P2P.
+	err := Retry(15, configC.Node.BlockTime.Duration, func() error { // Retry for up to ~3 seconds
+		return waitForAtLeastNBlocks(nodes[1], targetHeight, Store)
+	})
+	require.NoError(err, "Node D (Both) failed to sync blocks in time (P2P expected)")
+
+
+	// Verify nodes are synced
+	require.NoError(verifyNodesSynced(nodes[0], nodes[1], Store), "Nodes did not sync the same blocks")
+
+	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+}

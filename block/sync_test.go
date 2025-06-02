@@ -17,6 +17,11 @@ import (
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
+	testifylog "github.com/stretchr/testify/log"
+
+	"github.com/rollkit/rollkit/pkg/cache"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -79,10 +84,125 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 	heightPtr := &currentMockHeight
 
 	mockStore.On("Height", mock.Anything).Return(func(context.Context) uint64 {
-		return *heightPtr
+		return atomic.LoadUint64(heightPtr)
 	}, nil).Maybe()
 
 	return m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, heightPtr
+}
+
+func TestSyncLoop_SyncModes(t *testing.T) {
+	initialState := types.State{LastBlockHeight: 0, ChainID: "syncLoopTest"}
+
+	tests := []struct {
+		name                string
+		mode                string
+		expectHeaderProcess bool
+		expectDaProcess     bool
+		expectedLogHeader   string
+		expectedLogDA       string
+	}{
+		{
+			name:                "SyncModeDaOnly",
+			mode:                config.SyncModeDaOnly,
+			expectHeaderProcess: false,
+			expectDaProcess:     true,
+			expectedLogHeader:   "P2P header event skipped in da_only sync mode",
+		},
+		{
+			name:                "SyncModeP2pOnly",
+			mode:                config.SyncModeP2pOnly,
+			expectHeaderProcess: true,
+			expectDaProcess:     false,
+			expectedLogDA:       "DA ticker skipped in p2p_only sync mode",
+		},
+		{
+			name:                "SyncModeBoth",
+			mode:                config.SyncModeBoth,
+			expectHeaderProcess: true,
+			expectDaProcess:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+
+			m, mockStore, _, ctx, cancel, headerInCh, _, _ := setupManagerForSyncLoopTest(t, initialState)
+			defer cancel()
+
+			// Use testify's logger for easy log capture
+			testLogger := testifylog.NewTestLogger(t)
+			m.logger = testLogger
+			m.config.Node.SyncMode = tt.mode
+			// Make DA ticker fast for test
+			m.config.DA.BlockTime.Duration = 10 * time.Millisecond
+
+			// Dummy header for testing P2P path
+			dummyHeader, _, _ := types.GenerateRandomBlock(initialState.LastBlockHeight+1, initialState.ChainID)
+			require.NotNil(dummyHeader)
+
+			// Setup mock for store.Height to avoid nil pointer if trySyncNextBlock is reached by mistake
+			mockStore.On("Height", mock.Anything).Return(initialState.LastBlockHeight, nil).Once().Maybe()
+
+
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				errCh := make(chan error, 1)
+				m.SyncLoop(ctx, errCh)
+			}()
+
+			// Test P2P header channel
+			headerInCh <- NewHeaderEvent{Header: dummyHeader, DAHeight: 1}
+			time.Sleep(50 * time.Millisecond) // Give SyncLoop time to process
+
+			if tt.expectHeaderProcess {
+				assert.NotNil(m.headerCache.GetItem(dummyHeader.Height()), "Header should be in cache if processed")
+				if tt.expectedLogHeader != "" {
+					assert.NotContains(testLogger.Logs().String(), tt.expectedLogHeader)
+				}
+			} else {
+				assert.Nil(m.headerCache.GetItem(dummyHeader.Height()), "Header should not be in cache if skipped")
+				if tt.expectedLogHeader != "" {
+					assert.Contains(testLogger.Logs().String(), tt.expectedLogHeader)
+				}
+			}
+			m.headerCache.DeleteItem(dummyHeader.Height()) // Clean up for next iteration/test
+
+			// Test DA ticker path
+			// Clear retrieveCh before checking to avoid race conditions from previous events
+			// This is a bit tricky as retrieveCh is unbuffered and read in a tight loop by RetrieveLoop (not run here)
+			// For this test, we check if sendNonBlockingSignalToRetrieveCh was called by observing its effect or log.
+			// Since sendNonBlockingSignalToRetrieveCh is simple, we assume if the DA branch is taken, it's called.
+			// We rely on the log message for DA skipping.
+
+			// Reset logger before DA tick to isolate log messages
+			testLogger.Clear()
+			time.Sleep(m.config.DA.BlockTime.Duration * 2) // Wait for DA ticker to fire
+
+			if tt.expectDaProcess {
+				// Check that retrieveCh would have been signalled.
+				// Difficult to directly check retrieveCh without RetrieveLoop running.
+				// If DA processing is expected, the "skipped" log should not be present.
+				if tt.expectedLogDA != "" {
+					assert.NotContains(testLogger.Logs().String(), tt.expectedLogDA)
+				}
+				// A more direct way would be to spy on sendNonBlockingSignalToRetrieveCh if possible,
+				// or check a side effect if RetrieveLoop was running.
+				// For now, absence of skip log is the primary check.
+			} else {
+				if tt.expectedLogDA != "" {
+					assert.Contains(testLogger.Logs().String(), tt.expectedLogDA)
+				}
+			}
+
+			cancel() // Stop SyncLoop
+			wg.Wait()
+			mockStore.AssertExpectations(t) // Verify all expected calls to store (like Height)
+		})
+	}
 }
 
 // TestSyncLoop_ProcessSingleBlock_HeaderFirst verifies that the sync loop processes a single block when the header arrives before the data.

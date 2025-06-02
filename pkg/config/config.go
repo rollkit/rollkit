@@ -42,6 +42,8 @@ const (
 	FlagMaxPendingHeaders = "rollkit.node.max_pending_headers"
 	// FlagLazyBlockTime is a flag for specifying the maximum interval between blocks in lazy aggregation mode
 	FlagLazyBlockTime = "rollkit.node.lazy_block_interval"
+	// FlagSyncMode is a flag for specifying the sync mode
+	FlagSyncMode = "rollkit.node.sync_mode"
 
 	// Data Availability configuration flags
 
@@ -114,6 +116,16 @@ const (
 	FlagRPCAddress = "rollkit.rpc.address"
 )
 
+// SyncMode defines the synchronization mode for the node.
+const (
+	// SyncModeDaOnly defines the DA only sync mode
+	SyncModeDaOnly = "da_only"
+	// SyncModeP2pOnly defines the P2P only sync mode
+	SyncModeP2pOnly = "p2p_only"
+	// SyncModeBoth defines the both P2P and DA sync mode
+	SyncModeBoth = "both"
+)
+
 // Config stores Rollkit configuration.
 type Config struct {
 	// Base configuration
@@ -169,6 +181,10 @@ type NodeConfig struct {
 
 	// Header configuration
 	TrustedHash string `mapstructure:"trusted_hash" yaml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis. When provided, the node will fetch the corresponding header/block from peers using this hash and use it as a starting point for synchronization. If not provided, the node will attempt to fetch the genesis block instead."`
+
+	// SyncMode specifies the synchronization mode for the node.
+	// It can be "da_only", "p2p_only", or "both".
+	SyncMode string `mapstructure:"sync_mode" yaml:"sync_mode" comment:"Sync mode for the node (da_only, p2p_only, both)."`
 }
 
 // LogConfig contains all logging configuration parameters
@@ -243,6 +259,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyMode, "produce blocks only when transactions are available or after lazy block time")
 	cmd.Flags().Uint64(FlagMaxPendingHeaders, def.Node.MaxPendingHeaders, "maximum headers pending DA confirmation before pausing block production (0 for no limit)")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockInterval.Duration, "maximum interval between blocks in lazy aggregation mode")
+	cmd.Flags().String(FlagSyncMode, SyncModeBoth, "Sync mode for the node (da_only, p2p_only, both)")
 
 	// Data Availability configuration flags
 	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")

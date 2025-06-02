@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -13,6 +14,9 @@ import (
 //
 // SyncLoop processes headers gossiped in P2P network to know what's the latest block height, block data is retrieved from DA layer.
 func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
+	syncMode := m.config.Node.SyncMode
+	m.logger.Info("starting sync loop", "mode", syncMode)
+
 	daTicker := time.NewTicker(m.config.DA.BlockTime.Duration)
 	defer daTicker.Stop()
 	blockTicker := time.NewTicker(m.config.Node.BlockTime.Duration)
@@ -20,11 +24,19 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 	for {
 		select {
 		case <-daTicker.C:
+			if syncMode == config.SyncModeP2pOnly {
+				m.logger.Debug("DA ticker skipped in p2p_only sync mode")
+				continue
+			}
 			m.sendNonBlockingSignalToRetrieveCh()
 		case <-blockTicker.C:
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToDataStoreCh()
 		case headerEvent := <-m.headerInCh:
+			if syncMode == config.SyncModeDaOnly {
+				m.logger.Debug("P2P header event skipped in da_only sync mode", "headerHeight", headerEvent.Header.Height(), "daHeight", headerEvent.DAHeight)
+				continue
+			}
 			// Only validated headers are sent to headerInCh, so we can safely assume that headerEvent.header is valid
 			header := headerEvent.Header
 			daHeight := headerEvent.DAHeight
