@@ -17,11 +17,6 @@ import (
 // ErrInvalidId is returned when the chain id is invalid
 var (
 	ErrInvalidId = errors.New("invalid chain id")
-
-	initialBackoff = 100 * time.Millisecond
-
-	maxSubmitAttempts = 30
-	defaultMempoolTTL = 25
 )
 
 var _ coresequencer.Sequencer = &Sequencer{}
@@ -37,8 +32,7 @@ type Sequencer struct {
 
 	batchTime time.Duration
 
-	queue               *BatchQueue              // single queue for immediate availability
-	batchSubmissionChan chan coresequencer.Batch // channel for ordered DA submission
+	queue *BatchQueue // single queue for immediate availability
 
 	metrics *Metrics
 }
@@ -87,16 +81,6 @@ func (c *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.Submit
 
 	batch := coresequencer.Batch{Transactions: req.Batch.Transactions}
 
-	if c.batchSubmissionChan == nil {
-		return nil, fmt.Errorf("sequencer mis-configured: batch submission channel is nil")
-	}
-
-	select {
-	case c.batchSubmissionChan <- batch:
-	default:
-		return nil, fmt.Errorf("DA submission queue full, please retry later")
-	}
-
 	err := c.queue.AddBatch(ctx, batch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add batch: %w", err)
@@ -120,27 +104,6 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 		Batch:     batch,
 		Timestamp: time.Now(),
 	}, nil
-}
-
-func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
-	if c.metrics != nil {
-		c.metrics.GasPrice.Set(gasPrice)
-		c.metrics.LastBlobSize.Set(float64(blobSize))
-		c.metrics.TransactionStatus.With("status", fmt.Sprintf("%d", statusCode)).Add(1)
-		c.metrics.NumPendingBlocks.Set(float64(numPendingBlocks))
-		c.metrics.IncludedBlockHeight.Set(float64(includedBlockHeight))
-	}
-}
-
-func (c *Sequencer) exponentialBackoff(backoff time.Duration) time.Duration {
-	backoff *= 2
-	if backoff == 0 {
-		backoff = initialBackoff
-	}
-	if backoff > c.batchTime {
-		backoff = c.batchTime
-	}
-	return backoff
 }
 
 // VerifyBatch implements sequencing.Sequencer.
@@ -173,8 +136,4 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 
 func (c *Sequencer) isValid(Id []byte) bool {
 	return bytes.Equal(c.Id, Id)
-}
-
-func (s *Sequencer) SetBatchSubmissionChan(batchSubmissionChan chan coresequencer.Batch) {
-	s.batchSubmissionChan = batchSubmissionChan
 }
