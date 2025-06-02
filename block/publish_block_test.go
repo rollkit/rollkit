@@ -90,8 +90,11 @@ func setupManagerForPublishBlockTest(
 	}
 	manager.publishBlock = manager.publishBlockInternal
 
-	pendingHeaders, err := NewPendingHeaders(mockStore, logger)
-	require.NoError(err, "Failed to create PendingHeaders")
+	pendingHeaders := func() *PendingHeaders {
+		ph, err := NewPendingHeaders(mockStore, logger)
+		require.NoError(err)
+		return ph
+	}()
 	manager.pendingHeaders = pendingHeaders
 
 	manager.lastState = types.State{
@@ -165,10 +168,11 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 				MaxPendingHeaders: 0,
 			},
 		},
-		pendingHeaders: &PendingHeaders{
-			store:  mockStore,
-			logger: logger,
-		},
+		pendingHeaders: func() *PendingHeaders {
+			ph, err := NewPendingHeaders(mockStore, logger)
+			require.NoError(err)
+			return ph
+		}(),
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		signaturePayloadProvider: defaultSignaturePayloadProvider,
@@ -248,10 +252,11 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 				MaxPendingHeaders: 0,
 			},
 		},
-		pendingHeaders: &PendingHeaders{
-			store:  mockStore,
-			logger: logger,
-		},
+		pendingHeaders: func() *PendingHeaders {
+			ph, err := NewPendingHeaders(mockStore, logger)
+			require.NoError(err)
+			return ph
+		}(),
 		lastStateMtx: &sync.RWMutex{},
 		metrics:      NopMetrics(),
 		lastState: types.State{
