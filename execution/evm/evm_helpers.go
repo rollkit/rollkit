@@ -167,6 +167,8 @@ func GetRandomTransaction(t *testing.T, privateKeyHex, toAddressHex, chainID str
 func SubmitTransaction(t *testing.T, tx *types.Transaction) {
 	rpcClient, err := ethclient.Dial("http://localhost:8545")
 	require.NoError(t, err)
+	defer rpcClient.Close()
+
 	err = rpcClient.SendTransaction(context.Background(), tx)
 	require.NoError(t, err)
 }
@@ -176,6 +178,7 @@ func CheckTxIncluded(t *testing.T, txHash common.Hash) bool {
 	if err != nil {
 		return false
 	}
+	defer rpcClient.Close()
 	receipt, err := rpcClient.TransactionReceipt(context.Background(), txHash)
 	return err == nil && receipt != nil && receipt.Status == 1
 }

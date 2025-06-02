@@ -1,8 +1,6 @@
 module github.com/rollkit/rollkit/test/e2e
 
-go 1.24.1
-
-toolchain go1.24.3
+go 1.24.2
 
 require (
 	github.com/libp2p/go-libp2p v0.41.1
