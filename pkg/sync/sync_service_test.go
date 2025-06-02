@@ -2,8 +2,14 @@ package sync
 
 import (
 	"context"
-	sdklog "cosmossdk.io/log"
 	cryptoRand "crypto/rand"
+	"math/rand"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"cosmossdk.io/log"
+	sdklog "cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	logging "github.com/ipfs/go-log/v2"
@@ -16,12 +22,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 	"github.com/stretchr/testify/require"
-	"math/rand"
-	"path/filepath"
-	"testing"
-	"time"
-
-	testifylog "github.com/stretchr/testify/log"
 )
 
 func TestHeaderSyncServiceRestart(t *testing.T) {
@@ -165,7 +165,7 @@ func TestSyncServiceStart_SyncModes(t *testing.T) {
 	t.Run("HeaderSyncService with SyncModeDaOnly", func(t *testing.T) {
 		conf := baseConf
 		conf.Node.SyncMode = config.SyncModeDaOnly
-		logger := testifylog.NewTestLogger(t) // Using testify's logger for easy capture
+		logger := log.NewTestLogger(t)
 
 		p2pClient, err := p2p.NewClient(conf, nodeKey, mainKV, logger, p2p.NopMetrics())
 		require.NoError(t, err)
@@ -245,13 +245,11 @@ func TestSyncServiceStart_SyncModes(t *testing.T) {
 		}
 		require.NoError(t, genesisData.Validate())
 
-
 		svc, err := NewDataSyncService(mainKV, conf, genesisDoc, p2pClient, logger)
 		require.NoError(t, err)
 
 		// Similar to HeaderSyncService in SyncModeBoth, initialize store to prevent issues with peer discovery
 		require.NoError(t, svc.store.Init(ctx, genesisData))
-
 
 		err = svc.Start(ctx)
 		require.NoError(t, err, "DataSyncService Start should not error in SyncModeDaOnly")

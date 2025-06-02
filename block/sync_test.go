@@ -17,11 +17,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
-	testifylog "github.com/stretchr/testify/log"
-
-	"github.com/rollkit/rollkit/pkg/cache"
-	"github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -132,7 +127,7 @@ func TestSyncLoop_SyncModes(t *testing.T) {
 			defer cancel()
 
 			// Use testify's logger for easy log capture
-			testLogger := testifylog.NewTestLogger(t)
+			testLogger := log.NewTestLogger(t)
 			m.logger = testLogger
 			m.config.Node.SyncMode = tt.mode
 			// Make DA ticker fast for test
@@ -144,7 +139,6 @@ func TestSyncLoop_SyncModes(t *testing.T) {
 
 			// Setup mock for store.Height to avoid nil pointer if trySyncNextBlock is reached by mistake
 			mockStore.On("Height", mock.Anything).Return(initialState.LastBlockHeight, nil).Once().Maybe()
-
 
 			var wg sync.WaitGroup
 			wg.Add(1)

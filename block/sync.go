@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/types"
 )
 
