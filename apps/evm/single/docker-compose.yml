@@ -26,6 +26,8 @@ services:
           --authrpc.jwtsecret /root/jwt/jwt.hex \
           --http --http.addr 0.0.0.0 --http.port 8545 \
           --http.api "eth,net,web3,txpool" \
+          --engine.persistence-threshold 0 \
+          --engine.memory-block-buffer-target 0 \
           --disable-discovery
     networks:
       - rollkit-network
