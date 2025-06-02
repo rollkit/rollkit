@@ -31,7 +31,7 @@ import (
 func setupManagerForPublishBlockTest(
 	t *testing.T,
 	initialHeight uint64,
-	lastSubmittedHeight uint64,
+	lastSubmittedHeaderHeight uint64,
 	logBuffer *bytes.Buffer,
 ) (*Manager, *mocks.Store, *mocks.Executor, *mocks.Sequencer, signer.Signer, context.CancelFunc) {
 	require := require.New(t)
@@ -58,8 +58,8 @@ func setupManagerForPublishBlockTest(
 	)
 
 	lastSubmittedBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(lastSubmittedBytes, lastSubmittedHeight)
-	mockStore.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(lastSubmittedBytes, nil).Maybe()
+	binary.LittleEndian.PutUint64(lastSubmittedBytes, lastSubmittedHeaderHeight)
+	mockStore.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(lastSubmittedBytes, nil).Maybe()
 
 	var headerStore *goheaderstore.Store[*types.SignedHeader]
 	var dataStore *goheaderstore.Store[*types.Data]
@@ -113,11 +113,11 @@ func TestPublishBlockInternal_MaxPendingHeadersReached(t *testing.T) {
 	require := require.New(t)
 
 	currentHeight := uint64(10)
-	lastSubmitted := uint64(5)
+	lastSubmittedHeaderHeight := uint64(5)
 	maxPending := uint64(5)
 	logBuffer := new(bytes.Buffer)
 
-	manager, mockStore, mockExec, mockSeq, _, cancel := setupManagerForPublishBlockTest(t, currentHeight+1, lastSubmitted, logBuffer)
+	manager, mockStore, mockExec, mockSeq, _, cancel := setupManagerForPublishBlockTest(t, currentHeight+1, lastSubmittedHeaderHeight, logBuffer)
 	defer cancel()
 
 	manager.config.Node.MaxPendingHeaders = maxPending
@@ -176,7 +176,7 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 
 	bz := make([]byte, 8)
 	binary.LittleEndian.PutUint64(bz, 0)
-	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(bz, nil)
+	mockStore.On("GetMetadata", ctx, LastSubmittedHeaderHeightKey).Return(bz, nil)
 	err = m.pendingHeaders.init()
 	require.NoError(err)
 
@@ -274,7 +274,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 
 	bz := make([]byte, 8)
 	binary.LittleEndian.PutUint64(bz, 0)
-	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(bz, nil)
+	mockStore.On("GetMetadata", ctx, LastSubmittedHeaderHeightKey).Return(bz, nil)
 	err = m.pendingHeaders.init()
 	require.NoError(err)
 
