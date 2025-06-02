@@ -217,7 +217,7 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedData *types.SignedDa
 		// Wait for backoff duration or exit if context is done
 		select {
 		case <-ctx.Done():
-			m.logger.Info("context done, stopping batch submission loop")
+			m.logger.Info("context done, stopping data submission loop")
 			return nil
 		case <-time.After(backoff):
 		}
