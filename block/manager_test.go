@@ -96,16 +96,16 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 		metrics,
 		gasPrice,
 		gasMultiplier,
-		func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
+		WithValidatorHasher(func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
 			return make(types.Hash, 32), nil
-		},
-		func(header *types.Header) (types.Hash, error) {
+		}),
+		WithHeaderHasher(func(header *types.Header) (types.Hash, error) {
 			return make(types.Hash, 32), nil
-		},
-		func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
+		}),
+		WithCommitHashProvider(func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
 			return make(types.Hash, 32), nil
-		},
-		createDefaultSignaturePayloadProvider(), // SignaturePayloadProvider
+		}),
+		WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()), // SignaturePayloadProvider
 	)
 	require.NoError(t, err)
 	return m, mockStore

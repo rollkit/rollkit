@@ -230,10 +230,10 @@ func initBlockManager(
 		seqMetrics,
 		gasPrice,
 		gasMultiplier,
-		validatorHasher,
-		headerHasher,
-		commitHashProvider,
-		signaturePayloadProvider,
+		block.WithValidatorHasher(validatorHasher),
+		block.WithHeaderHasher(headerHasher),
+		block.WithCommitHashProvider(commitHashProvider),
+		block.WithSignaturePayloadProvider(signaturePayloadProvider),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)

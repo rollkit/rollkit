@@ -173,6 +173,37 @@ type Manager struct {
 	dataCommitmentToHeight sync.Map
 }
 
+// ManagerOption is a function that configures a Manager
+type ManagerOption func(*Manager)
+
+// WithValidatorHasher sets the validator hasher provider
+func WithValidatorHasher(hasher types.ValidatorHasher) ManagerOption {
+	return func(m *Manager) {
+		m.validatorHasher = hasher
+	}
+}
+
+// WithHeaderHasher sets the header hasher provider
+func WithHeaderHasher(hasher types.HeaderHasher) ManagerOption {
+	return func(m *Manager) {
+		m.headerHasher = hasher
+	}
+}
+
+// WithCommitHashProvider sets the commit hash provider
+func WithCommitHashProvider(provider types.CommitHashProvider) ManagerOption {
+	return func(m *Manager) {
+		m.commitHashProvider = provider
+	}
+}
+
+// WithSignaturePayloadProvider sets the signature payload provider
+func WithSignaturePayloadProvider(provider types.SignaturePayloadProvider) ManagerOption {
+	return func(m *Manager) {
+		m.signaturePayloadProvider = provider
+	}
+}
+
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
 func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
@@ -281,10 +312,7 @@ func NewManager(
 	seqMetrics *Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
-	validatorHasher types.ValidatorHasher,
-	headerHasher types.HeaderHasher,
-	commitHashProvider types.CommitHashProvider,
-	signaturePayloadProvider types.SignaturePayloadProvider,
+	options ...ManagerOption,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
 	if err != nil {
@@ -350,33 +378,34 @@ func NewManager(
 		dataBroadcaster:   dataBroadcaster,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 
-		headerInCh:               make(chan NewHeaderEvent, eventInChLength),
-		dataInCh:                 make(chan NewDataEvent, eventInChLength),
-		headerStoreCh:            make(chan struct{}, 1),
-		dataStoreCh:              make(chan struct{}, 1),
-		headerStore:              headerStore,
-		dataStore:                dataStore,
-		lastStateMtx:             new(sync.RWMutex),
-		lastBatchData:            lastBatchData,
-		headerCache:              cache.NewCache[types.SignedHeader](),
-		dataCache:                cache.NewCache[types.Data](),
-		retrieveCh:               make(chan struct{}, 1),
-		daIncluderCh:             make(chan struct{}, 1),
-		logger:                   logger,
-		txsAvailable:             false,
-		pendingHeaders:           pendingHeaders,
-		metrics:                  seqMetrics,
-		sequencer:                sequencer,
-		exec:                     exec,
-		da:                       da,
-		gasPrice:                 gasPrice,
-		gasMultiplier:            gasMultiplier,
-		txNotifyCh:               make(chan struct{}, 1),
-		validatorHasher:          validatorHasher,
-		batchSubmissionChan:      make(chan coresequencer.Batch, eventInChLength),
-		signaturePayloadProvider: signaturePayloadProvider,
-		headerHasher:             headerHasher,
-		commitHashProvider:       commitHashProvider,
+		headerInCh:          make(chan NewHeaderEvent, eventInChLength),
+		dataInCh:            make(chan NewDataEvent, eventInChLength),
+		headerStoreCh:       make(chan struct{}, 1),
+		dataStoreCh:         make(chan struct{}, 1),
+		headerStore:         headerStore,
+		dataStore:           dataStore,
+		lastStateMtx:        new(sync.RWMutex),
+		lastBatchData:       lastBatchData,
+		headerCache:         cache.NewCache[types.SignedHeader](),
+		dataCache:           cache.NewCache[types.Data](),
+		retrieveCh:          make(chan struct{}, 1),
+		daIncluderCh:        make(chan struct{}, 1),
+		logger:              logger,
+		txsAvailable:        false,
+		pendingHeaders:      pendingHeaders,
+		metrics:             seqMetrics,
+		sequencer:           sequencer,
+		exec:                exec,
+		da:                  da,
+		gasPrice:            gasPrice,
+		gasMultiplier:       gasMultiplier,
+		txNotifyCh:          make(chan struct{}, 1),
+		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
+		// Providers are initialized to nil by default, options will set them
+		validatorHasher:          nil,
+		headerHasher:             nil,
+		commitHashProvider:       nil,
+		signaturePayloadProvider: nil,
 	}
 
 	// initialize da included height
@@ -395,6 +424,11 @@ func NewManager(
 	// fetch caches from disks
 	if err := m.LoadCache(); err != nil {
 		return nil, fmt.Errorf("failed to load cache: %w", err)
+	}
+
+	// Apply options to configure the manager
+	for _, option := range options {
+		option(m)
 	}
 
 	return m, nil
