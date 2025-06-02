@@ -278,24 +278,19 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFinal bool) error {
 	var args engine.ForkchoiceStateV1
 
+	// Update block hashes based on finalization status
 	if isFinal {
-		// Use the last stored values for head and safe block hashes
-		args = engine.ForkchoiceStateV1{
-			HeadBlockHash:      c.currentHeadBlockHash,
-			SafeBlockHash:      c.currentSafeBlockHash,
-			FinalizedBlockHash: blockHash,
-		}
-		// Store the current blockHash as the latest finalized block hash
 		c.currentFinalizedBlockHash = blockHash
 	} else {
-		// Store the current blockHash as the latest head and safe block hashes
 		c.currentHeadBlockHash = blockHash
 		c.currentSafeBlockHash = blockHash
-		args = engine.ForkchoiceStateV1{
-			HeadBlockHash:      blockHash,
-			SafeBlockHash:      blockHash,
-			FinalizedBlockHash: c.currentFinalizedBlockHash,
-		}
+	}
+
+	// Construct forkchoice state
+	args = engine.ForkchoiceStateV1{
+		HeadBlockHash:      c.currentHeadBlockHash,
+		SafeBlockHash:      c.currentSafeBlockHash,
+		FinalizedBlockHash: c.currentFinalizedBlockHash,
 	}
 
 	var forkchoiceResult engine.ForkChoiceResponse
