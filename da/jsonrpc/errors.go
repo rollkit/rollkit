@@ -15,5 +15,6 @@ func getKnownErrorsMapping() jsonrpc.Errors {
 	errs.Register(jsonrpc.ErrorCode(coreda.StatusAlreadyInMempool), &coreda.ErrTxAlreadyInMempool)
 	errs.Register(jsonrpc.ErrorCode(coreda.StatusIncorrectAccountSequence), &coreda.ErrTxIncorrectAccountSequence)
 	errs.Register(jsonrpc.ErrorCode(coreda.StatusContextDeadline), &coreda.ErrContextDeadline)
+	errs.Register(jsonrpc.ErrorCode(coreda.StatusContextCanceled), &coreda.ErrContextCanceled)
 	return errs
 }
