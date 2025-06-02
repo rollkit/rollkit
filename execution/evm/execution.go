@@ -42,10 +42,10 @@ type EngineClient struct {
 	initialHeight uint64
 	feeRecipient  common.Address // Address to receive transaction fees
 
-	lastHeadBlockHash      common.Hash // Store last non-finalized HeadBlockHash
-	lastSafeBlockHash      common.Hash // Store last non-finalized SafeBlockHash
-	lastFinalizedBlockHash common.Hash // Store last finalized block hash
-	mu                     sync.Mutex  // Mutex to protect concurrent access to mutable state
+	currentHeadBlockHash      common.Hash // Store last non-finalized HeadBlockHash
+	currentSafeBlockHash      common.Hash // Store last non-finalized SafeBlockHash
+	currentFinalizedBlockHash common.Hash // Store last finalized block hash
+	mu                        sync.Mutex  // Mutex to protect concurrent access to mutable state
 }
 
 // NewEngineExecutionClient creates a new instance of EngineClient
@@ -281,20 +281,20 @@ func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFi
 	if isFinal {
 		// Use the last stored values for head and safe block hashes
 		args = engine.ForkchoiceStateV1{
-			HeadBlockHash:      c.lastHeadBlockHash,
-			SafeBlockHash:      c.lastSafeBlockHash,
+			HeadBlockHash:      c.currentHeadBlockHash,
+			SafeBlockHash:      c.currentSafeBlockHash,
 			FinalizedBlockHash: blockHash,
 		}
 		// Store the current blockHash as the latest finalized block hash
-		c.lastFinalizedBlockHash = blockHash
+		c.currentFinalizedBlockHash = blockHash
 	} else {
 		// Store the current blockHash as the latest head and safe block hashes
-		c.lastHeadBlockHash = blockHash
-		c.lastSafeBlockHash = blockHash
+		c.currentHeadBlockHash = blockHash
+		c.currentSafeBlockHash = blockHash
 		args = engine.ForkchoiceStateV1{
 			HeadBlockHash:      blockHash,
 			SafeBlockHash:      blockHash,
-			FinalizedBlockHash: c.lastFinalizedBlockHash,
+			FinalizedBlockHash: c.currentFinalizedBlockHash,
 		}
 	}
 
