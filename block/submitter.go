@@ -91,11 +91,11 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 			for _, header := range submittedHeaders {
 				m.headerCache.SetDAIncluded(header.Hash().String())
 			}
-			lastSubmittedHeight := uint64(0)
+			lastSubmittedHeaderHeight := uint64(0)
 			if l := len(submittedHeaders); l > 0 {
-				lastSubmittedHeight = submittedHeaders[l-1].Height()
+				lastSubmittedHeaderHeight = submittedHeaders[l-1].Height()
 			}
-			m.pendingHeaders.setLastSubmittedHeight(ctx, lastSubmittedHeight)
+			m.pendingHeaders.setLastSubmittedHeaderHeight(ctx, lastSubmittedHeaderHeight)
 			headersToSubmit = notSubmittedHeaders
 			m.sendNonBlockingSignalToDAIncluderCh()
 			// reset submission options when successful
