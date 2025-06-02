@@ -11,9 +11,9 @@ test:
 .PHONY: test
 
 ## test-e2e: Running e2e tests
-test-e2e: build build-da
+test-e2e: build build-da build-evm-single
 	@echo "--> Running e2e tests"
-	@go test -mod=readonly -failfast -timeout=15m -tags='e2e' ./test/e2e/... --binary=$(CURDIR)/build/testapp
+	@cd test/e2e && go test -mod=readonly -failfast -timeout=15m -tags='e2e evm' ./... --binary=$(CURDIR)/build/testapp --evm-binary=$(CURDIR)/build/evm-single
 .PHONY: test-e2e
 
 ## cover: generate to code coverage report.
@@ -30,6 +30,6 @@ test-cover:
 .PHONY: test-cover
 
 ## test-evm: Running EVM tests
-test-evm: 
+test-evm: build-evm-single
 	@echo "--> Running EVM tests"
 	@cd execution/evm && go test -mod=readonly -failfast -timeout=15m ./... -tags=evm
