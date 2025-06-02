@@ -42,6 +42,10 @@ func (api *API) Get(ctx context.Context, ids []da.ID, _ []byte) ([]da.Blob, erro
 	api.Logger.Debug("Making RPC call", "method", "Get", "num_ids", len(ids), "namespace", string(api.Namespace))
 	res, err := api.Internal.Get(ctx, ids, api.Namespace)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Get")
+			return res, context.Canceled
+		}
 		api.Logger.Error("RPC call failed", "method", "Get", "error", err)
 		// Wrap error for context, potentially using the translated error from the RPC library
 		return nil, fmt.Errorf("failed to get blobs: %w", err)
@@ -63,6 +67,10 @@ func (api *API) GetIDs(ctx context.Context, height uint64, _ []byte) (*da.GetIDs
 		if errors.Is(err, da.ErrHeightFromFuture) {
 			api.Logger.Debug("RPC call indicates height from future", "method", "GetIDs", "height", height)
 			return nil, err // Return the specific ErrHeightFromFuture
+		}
+		if errors.Is(err, context.Canceled) {
+			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "GetIDs")
+			return res, context.Canceled
 		}
 		api.Logger.Error("RPC call failed", "method", "GetIDs", "error", err)
 		return nil, err
@@ -119,6 +127,10 @@ func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, _
 	api.Logger.Debug("Making RPC call", "method", "Submit", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(api.Namespace))
 	res, err := api.Internal.Submit(ctx, blobs, gasPrice, api.Namespace)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Submit")
+			return res, context.Canceled
+		}
 		api.Logger.Error("RPC call failed", "method", "Submit", "error", err)
 	} else {
 		api.Logger.Debug("RPC call successful", "method", "Submit", "num_ids_returned", len(res))
