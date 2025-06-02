@@ -51,25 +51,29 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 
 	// Manager setup
 	m := &Manager{
-		store:          mockStore,
-		exec:           mockExec,
-		config:         cfg,
-		genesis:        *genesisDoc,
-		lastState:      initialState,
-		lastStateMtx:   new(sync.RWMutex),
-		logger:         log.NewTestLogger(t),
-		headerCache:    cache.NewCache[types.SignedHeader](),
-		dataCache:      cache.NewCache[types.Data](),
-		headerInCh:     headerInCh,
-		dataInCh:       dataInCh,
-		headerStoreCh:  headerStoreCh,
-		dataStoreCh:    dataStoreCh,
-		retrieveCh:     retrieveCh,
-		daHeight:       &atomic.Uint64{},
-		metrics:        NopMetrics(),
-		headerStore:    &goheaderstore.Store[*types.SignedHeader]{},
-		dataStore:      &goheaderstore.Store[*types.Data]{},
-		pendingHeaders: &PendingHeaders{logger: log.NewNopLogger()},
+		store:         mockStore,
+		exec:          mockExec,
+		config:        cfg,
+		genesis:       *genesisDoc,
+		lastState:     initialState,
+		lastStateMtx:  new(sync.RWMutex),
+		logger:        log.NewTestLogger(t),
+		headerCache:   cache.NewCache[types.SignedHeader](),
+		dataCache:     cache.NewCache[types.Data](),
+		headerInCh:    headerInCh,
+		dataInCh:      dataInCh,
+		headerStoreCh: headerStoreCh,
+		dataStoreCh:   dataStoreCh,
+		retrieveCh:    retrieveCh,
+		daHeight:      &atomic.Uint64{},
+		metrics:       NopMetrics(),
+		headerStore:   &goheaderstore.Store[*types.SignedHeader]{},
+		dataStore:     &goheaderstore.Store[*types.Data]{},
+		pendingHeaders: func() *PendingHeaders {
+			ph, err := NewPendingHeaders(mockStore, log.NewNopLogger())
+			require.NoError(t, err)
+			return ph
+		}(),
 	}
 	m.daHeight.Store(initialState.DAHeight)
 
