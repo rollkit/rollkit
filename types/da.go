@@ -29,6 +29,16 @@ func SubmitWithHelpers(
 
 	// Handle errors returned by SubmitWithOptions
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			logger.Debug("DA submission canceled via helper due to context cancellation")
+			return coreda.ResultSubmit{
+				BaseResult: coreda.BaseResult{
+					Code:    coreda.StatusContextCanceled,
+					Message: "submission canceled",
+					IDs:     ids,
+				},
+			}
+		}
 		status := coreda.StatusError
 		switch {
 		case errors.Is(err, coreda.ErrTxTimedOut):

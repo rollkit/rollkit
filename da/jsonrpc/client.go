@@ -168,6 +168,10 @@ func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gas
 	api.Logger.Debug("Making RPC call", "method", "SubmitWithOptions", "num_blobs_original", len(inputBlobs), "num_blobs_to_submit", len(blobsToSubmit), "gas_price", gasPrice, "namespace", string(api.Namespace))
 	res, err := api.Internal.SubmitWithOptions(ctx, blobsToSubmit, gasPrice, api.Namespace, options)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "SubmitWithOptions")
+			return res, context.Canceled
+		}
 		api.Logger.Error("RPC call failed", "method", "SubmitWithOptions", "error", err)
 	} else {
 		api.Logger.Debug("RPC call successful", "method", "SubmitWithOptions", "num_ids_returned", len(res))
