@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -135,28 +136,59 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 		return nil, fmt.Errorf("failed to get tx pool content: %w", err)
 	}
 
-	var txs [][]byte
-
-	// add pending txs
+	// Step 1: Flatten all txs into a slice
+	var allTxs []*types.Transaction
 	for _, accountTxs := range result.Pending {
 		for _, tx := range accountTxs {
-			txBytes, err := tx.MarshalBinary()
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal transaction: %w", err)
-			}
-			txs = append(txs, txBytes)
+			allTxs = append(allTxs, tx)
+		}
+	}
+	for _, accountTxs := range result.Queued {
+		for _, tx := range accountTxs {
+			allTxs = append(allTxs, tx)
 		}
 	}
 
-	// add queued txs
-	for _, accountTxs := range result.Queued {
-		for _, tx := range accountTxs {
+	txs := make([][]byte, len(allTxs))
+	numWorkers := runtime.NumCPU()
+	jobs := make(chan int, len(allTxs))
+	errCh := make(chan error, 1)
+	var wg sync.WaitGroup
+
+	// Worker function
+	worker := func() {
+		for i := range jobs {
+			tx := allTxs[i]
 			txBytes, err := tx.MarshalBinary()
 			if err != nil {
-				return nil, fmt.Errorf("failed to marshal transaction: %w", err)
+				// Only send the first error
+				select {
+				case errCh <- err:
+				default:
+				}
+				continue
 			}
-			txs = append(txs, txBytes)
+			txs[i] = txBytes
 		}
+		wg.Done()
+	}
+
+	// Start workers
+	wg.Add(numWorkers)
+	for w := 0; w < numWorkers; w++ {
+		go worker()
+	}
+
+	// Send jobs
+	for i := range allTxs {
+		jobs <- i
+	}
+	close(jobs)
+
+	wg.Wait()
+	close(errCh)
+	if err, ok := <-errCh; ok {
+		return nil, fmt.Errorf("failed to marshal transaction: %w", err)
 	}
 	return txs, nil
 }
