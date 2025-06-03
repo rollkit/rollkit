@@ -12,7 +12,7 @@ import (
 // LastSubmittedDataHeightKey is the key used for persisting the last submitted data height in store.
 const LastSubmittedDataHeightKey = "last-submitted-data-height"
 
-// PendingData maintains SignedData that need to be published to DA layer
+// PendingData maintains Data that need to be published to DA layer
 //
 // Important assertions:
 // - data is safely stored in database before submission to DA
@@ -25,10 +25,10 @@ const LastSubmittedDataHeightKey = "last-submitted-data-height"
 // rollkit is able to skip duplicate data so this shouldn't affect full nodes.
 // TODO: we shouldn't try to push all pending data at once; this should depend on max blob size
 type PendingData struct {
-	base *pendingBase[*types.SignedData]
+	base *pendingBase[*types.Data]
 }
 
-func fetchSignedData(ctx context.Context, store store.Store, height uint64) (*types.SignedData, error) {
+func fetchData(ctx context.Context, store store.Store, height uint64) (*types.Data, error) {
 	_, data, err := store.GetBlockData(ctx, height)
 	if err != nil {
 		return nil, err
@@ -36,20 +36,20 @@ func fetchSignedData(ctx context.Context, store store.Store, height uint64) (*ty
 	if data == nil {
 		return nil, nil
 	}
-	return &types.SignedData{Data: *data}, nil
+	return data, nil
 }
 
 // NewPendingData returns a new PendingData struct
 func NewPendingData(store store.Store, logger log.Logger) (*PendingData, error) {
-	base, err := newPendingBase(store, logger, LastSubmittedDataHeightKey, fetchSignedData)
+	base, err := newPendingBase(store, logger, LastSubmittedDataHeightKey, fetchData)
 	if err != nil {
 		return nil, err
 	}
 	return &PendingData{base: base}, nil
 }
 
-// GetPendingData returns a sorted slice of pending SignedData.
-func (pd *PendingData) getPendingData(ctx context.Context) ([]*types.SignedData, error) {
+// GetPendingData returns a sorted slice of pending Data.
+func (pd *PendingData) getPendingData(ctx context.Context) ([]*types.Data, error) {
 	return pd.base.getPending(ctx)
 }
 

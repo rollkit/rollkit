@@ -140,6 +140,7 @@ type Manager struct {
 	txsAvailable bool
 
 	pendingHeaders *PendingHeaders
+	pendingData    *PendingData
 
 	// for reporting metrics
 	metrics *Metrics
@@ -162,9 +163,6 @@ type Manager struct {
 
 	// txNotifyCh is used to signal when new transactions are available
 	txNotifyCh chan struct{}
-
-	// batchSubmissionChan is used to submit batches to the sequencer
-	batchSubmissionChan chan coresequencer.Batch
 
 	// dataCommitmentToHeight tracks the height a data commitment (data hash) has been seen on.
 	// Key: data commitment (string), Value: uint64 (height)
@@ -337,6 +335,11 @@ func NewManager(
 		return nil, err
 	}
 
+	pendingData, err := NewPendingData(store, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	// If lastBatchHash is not set, retrieve the last batch hash from store
 	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
 	if err != nil && s.LastBlockHeight > 0 {
@@ -376,6 +379,7 @@ func NewManager(
 		logger:                   logger,
 		txsAvailable:             false,
 		pendingHeaders:           pendingHeaders,
+		pendingData:              pendingData,
 		metrics:                  seqMetrics,
 		sequencer:                sequencer,
 		exec:                     exec,
@@ -383,7 +387,6 @@ func NewManager(
 		gasPrice:                 gasPrice,
 		gasMultiplier:            gasMultiplier,
 		txNotifyCh:               make(chan struct{}, 1), // Non-blocking channel
-		batchSubmissionChan:      make(chan coresequencer.Batch, eventInChLength),
 		signaturePayloadProvider: signaturePayloadProvider,
 	}
 
@@ -394,11 +397,6 @@ func NewManager(
 
 	// Set the default publishBlock implementation
 	m.publishBlock = m.publishBlockInternal
-	if s, ok := m.sequencer.(interface {
-		SetBatchSubmissionChan(chan coresequencer.Batch)
-	}); ok {
-		s.SetBatchSubmissionChan(m.batchSubmissionChan)
-	}
 
 	// fetch caches from disks
 	if err := m.LoadCache(); err != nil {
