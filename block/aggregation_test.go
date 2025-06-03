@@ -62,7 +62,7 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 		lastStateMtx: &sync.RWMutex{},
 		metrics:      NopMetrics(),
 		headerCache:  cache.NewCache[types.SignedHeader](),
-		dataCache:    cache.NewCache[types.Data](),
+		dataCache:    cache.NewCache[types.SignedData](),
 	}
 
 	var publishTimes []time.Time
@@ -158,7 +158,7 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 		lastStateMtx: &sync.RWMutex{},
 		metrics:      NopMetrics(),
 		headerCache:  cache.NewCache[types.SignedHeader](),
-		dataCache:    cache.NewCache[types.Data](),
+		dataCache:    cache.NewCache[types.SignedData](),
 	}
 
 	var publishCalls atomic.Int64

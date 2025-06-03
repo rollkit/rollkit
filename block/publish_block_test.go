@@ -62,7 +62,7 @@ func setupManagerForPublishBlockTest(
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(lastSubmittedBytes, nil).Maybe()
 
 	var headerStore *goheaderstore.Store[*types.SignedHeader]
-	var dataStore *goheaderstore.Store[*types.Data]
+	var dataStore *goheaderstore.Store[*types.SignedData]
 	// Manager initialization (simplified, add fields as needed by tests)
 	manager := &Manager{
 		store:     mockStore,
@@ -75,14 +75,14 @@ func setupManagerForPublishBlockTest(
 		headerBroadcaster: broadcasterFn[*types.SignedHeader](func(ctx context.Context, payload *types.SignedHeader) error {
 			return nil
 		}),
-		dataBroadcaster: broadcasterFn[*types.Data](func(ctx context.Context, payload *types.Data) error {
+		dataBroadcaster: broadcasterFn[*types.SignedData](func(ctx context.Context, payload *types.SignedData) error {
 			return nil
 		}),
 		headerStore:    headerStore,
 		daHeight:       &atomic.Uint64{},
 		dataStore:      dataStore,
 		headerCache:    cache.NewCache[types.SignedHeader](),
-		dataCache:      cache.NewCache[types.Data](),
+		dataCache:      cache.NewCache[types.SignedData](),
 		lastStateMtx:   &sync.RWMutex{},
 		metrics:        NopMetrics(),
 		pendingHeaders: nil,
@@ -265,11 +265,11 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 			AppHash:         []byte("initialAppHash"),
 		},
 		headerCache: cache.NewCache[types.SignedHeader](),
-		dataCache:   cache.NewCache[types.Data](),
+		dataCache:   cache.NewCache[types.SignedData](),
 		headerBroadcaster: broadcasterFn[*types.SignedHeader](func(ctx context.Context, payload *types.SignedHeader) error {
 			return nil
 		}),
-		dataBroadcaster: broadcasterFn[*types.Data](func(ctx context.Context, payload *types.Data) error {
+		dataBroadcaster: broadcasterFn[*types.SignedData](func(ctx context.Context, payload *types.SignedData) error {
 			return nil
 		}),
 		daHeight: &daH,
@@ -371,8 +371,8 @@ func Test_publishBlock_Success(t *testing.T) {
 			return ctx.Err()
 		}
 	})
-	dataCh := make(chan *types.Data, 1)
-	manager.dataBroadcaster = broadcasterFn[*types.Data](func(ctx context.Context, payload *types.Data) error {
+	dataCh := make(chan *types.SignedData, 1)
+	manager.dataBroadcaster = broadcasterFn[*types.SignedData](func(ctx context.Context, payload *types.SignedData) error {
 		select {
 		case dataCh <- payload:
 			return nil

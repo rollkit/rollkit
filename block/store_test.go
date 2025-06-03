@@ -18,6 +18,7 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+
 	// Use existing store mock if available, or define one
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	extmocks "github.com/rollkit/rollkit/test/mocks/external"
@@ -28,7 +29,7 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	m *Manager,
 	mockStore *mocksStore.Store,
 	mockHeaderStore *extmocks.Store[*types.SignedHeader],
-	mockDataStore *extmocks.Store[*types.Data],
+	mockDataStore *extmocks.Store[*types.SignedData],
 	headerStoreCh chan struct{},
 	dataStoreCh chan struct{},
 	headerInCh chan NewHeaderEvent,
@@ -41,7 +42,7 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	// Mocks
 	mockStore = mocksStore.NewStore(t)
 	mockHeaderStore = extmocks.NewStore[*types.SignedHeader](t)
-	mockDataStore = extmocks.NewStore[*types.Data](t)
+	mockDataStore = extmocks.NewStore[*types.SignedData](t)
 
 	// Channels (buffered to prevent deadlocks in simple test cases)
 	headerStoreCh = make(chan struct{}, 1)

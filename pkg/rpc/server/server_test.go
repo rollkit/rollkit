@@ -26,7 +26,7 @@ func TestGetBlock(t *testing.T) {
 	// Create test data
 	height := uint64(10)
 	header := &types.SignedHeader{}
-	data := &types.Data{}
+	data := &types.SignedData{}
 
 	// Setup mock expectations
 	mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil)
@@ -73,7 +73,7 @@ func TestGetBlock_Latest(t *testing.T) {
 	server := NewStoreServer(mockStore)
 
 	header := &types.SignedHeader{}
-	data := &types.Data{}
+	data := &types.SignedData{}
 
 	// Expectation for GetHeight (which should be called by GetLatestBlockHeight)
 	mockStore.On("Height", context.Background()).Return(uint64(20), nil).Once()

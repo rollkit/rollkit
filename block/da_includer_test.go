@@ -29,7 +29,7 @@ func newTestManager(t *testing.T) (*Manager, *mocks.Store, *mocks.Executor, *Moc
 	m := &Manager{
 		store:        store,
 		headerCache:  cache.NewCache[types.SignedHeader](),
-		dataCache:    cache.NewCache[types.Data](),
+		dataCache:    cache.NewCache[types.SignedData](),
 		daIncluderCh: make(chan struct{}, 1),
 		logger:       logger,
 		exec:         exec,
@@ -263,7 +263,7 @@ func TestDAIncluderLoop_MultipleConsecutiveHeightsDAIncluded(t *testing.T) {
 	m.daIncludedHeight.Store(startDAIncludedHeight)
 
 	headers := make([]*types.SignedHeader, numConsecutive)
-	dataBlocks := make([]*types.Data, numConsecutive)
+	dataBlocks := make([]*types.SignedData, numConsecutive)
 
 	for i := 0; i < numConsecutive; i++ {
 		height := startDAIncludedHeight + uint64(i+1)

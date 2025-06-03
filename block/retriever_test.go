@@ -28,7 +28,7 @@ import (
 )
 
 // setupManagerForRetrieverTest initializes a Manager with mocked dependencies.
-func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.DA, *rollmocks.Store, *MockLogger, *cache.Cache[types.SignedHeader], *cache.Cache[types.Data], context.CancelFunc) {
+func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.DA, *rollmocks.Store, *MockLogger, *cache.Cache[types.SignedHeader], *cache.Cache[types.SignedData], context.CancelFunc) {
 	t.Helper()
 	mockDAClient := rollmocks.NewDA(t)
 	mockStore := rollmocks.NewStore(t)
@@ -39,7 +39,7 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 	mockLogger.On("Error", mock.Anything, mock.Anything).Maybe()
 
 	headerStore, _ := goheaderstore.NewStore[*types.SignedHeader](ds.NewMapDatastore())
-	dataStore, _ := goheaderstore.NewStore[*types.Data](ds.NewMapDatastore())
+	dataStore, _ := goheaderstore.NewStore[*types.SignedData](ds.NewMapDatastore())
 
 	mockStore.On("GetState", mock.Anything).Return(types.State{DAHeight: initialDAHeight}, nil).Maybe()
 	mockStore.On("SetHeight", mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -68,7 +68,7 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 		dataInCh:      make(chan NewDataEvent, eventInChLength),
 		dataStore:     dataStore,
 		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
+		dataCache:     cache.NewCache[types.SignedData](),
 		headerStoreCh: make(chan struct{}, 1),
 		dataStoreCh:   make(chan struct{}, 1),
 		retrieveCh:    make(chan struct{}, 1),
@@ -114,24 +114,9 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 		NTxs:         2,
 		ProposerAddr: proposerAddr,
 	}
-	_, blockData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
-
-	pubKey, err := manager.signer.GetPublic()
-	require.NoError(t, err)
-	addr, err := manager.signer.GetAddress()
-	require.NoError(t, err)
+	_, signedData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
 
 	// Sign the data to create a valid SignedData
-	signature, err := manager.getDataSignature(blockData)
-	require.NoError(t, err)
-	signedData := &types.SignedData{
-		Data:      *blockData,
-		Signature: signature,
-		Signer: types.Signer{
-			Address: addr,
-			PubKey:  pubKey,
-		},
-	}
 	blockDataBytes, err := signedData.MarshalBinary()
 	require.NoError(t, err)
 	// -----------------------------------------------------------
@@ -163,12 +148,12 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 	select {
 	case dataEvent := <-manager.dataInCh:
 		assert.Equal(t, daHeight, dataEvent.DAHeight)
-		assert.Equal(t, blockData.Txs, dataEvent.Data.Txs)
+		assert.Equal(t, signedData.Data.Txs, dataEvent.Data.Txs)
 		// Optionally, compare more fields if needed
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected block data event not received")
 	}
-	assert.True(t, dataCache.IsDAIncluded(blockData.DACommitment().String()), "Block data commitment should be marked as DA included in cache")
+	assert.True(t, dataCache.IsDAIncluded(signedData.Data.DACommitment().String()), "Block data commitment should be marked as DA included in cache")
 
 	mockDAClient.AssertExpectations(t)
 	mockStore.AssertExpectations(t)
@@ -216,25 +201,9 @@ func TestProcessNextDAHeader_MultipleHeadersAndData(t *testing.T) {
 
 		ntxs := i + 1 // unique number of txs for each data
 		blockConfig := types.BlockConfig{Height: height, NTxs: ntxs, ProposerAddr: proposerAddr}
-		_, blockData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
-		txLens = append(txLens, len(blockData.Txs))
+		_, signedData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
+		txLens = append(txLens, len(signedData.Data.Txs))
 
-		pubKey, err := manager.signer.GetPublic()
-		require.NoError(t, err)
-		addr, err := manager.signer.GetAddress()
-		require.NoError(t, err)
-
-		// Sign the data to create a valid SignedData
-		signature, err := manager.getDataSignature(blockData)
-		require.NoError(t, err)
-		signedData := &types.SignedData{
-			Data:      *blockData,
-			Signature: signature,
-			Signer: types.Signer{
-				Address: addr,
-				PubKey:  pubKey,
-			},
-		}
 		blockDataBytes, err := signedData.MarshalBinary()
 		require.NoError(t, err)
 		blobs = append(blobs, blockDataBytes)
@@ -504,27 +473,11 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 		NTxs:         2,
 		ProposerAddr: manager.genesis.ProposerAddress,
 	}
-	_, blockData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
+	_, signedData, _ := types.GenerateRandomBlockCustom(&blockConfig, manager.genesis.ChainID)
 
-	pubKey, err := manager.signer.GetPublic()
-	require.NoError(t, err)
-	addr, err := manager.signer.GetAddress()
-	require.NoError(t, err)
-
-	// Sign the data to create a valid SignedData
-	signature, err := manager.getDataSignature(blockData)
-	require.NoError(t, err)
-	signedData := &types.SignedData{
-		Data:      *blockData,
-		Signature: signature,
-		Signer: types.Signer{
-			Address: addr,
-			PubKey:  pubKey,
-		},
-	}
 	blockDataBytes, err := signedData.MarshalBinary()
 	require.NoError(t, err)
-	dataHash := blockData.DACommitment().String()
+	dataHash := signedData.Data.DACommitment().String()
 
 	// Mark both header and data as seen and DA included
 	headerCache.SetSeen(headerHash)

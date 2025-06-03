@@ -26,7 +26,7 @@ const (
 type Block struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Header        *SignedHeader          `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
-	Data          *Data                  `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	Data          *SignedData            `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -68,7 +68,7 @@ func (x *Block) GetHeader() *SignedHeader {
 	return nil
 }
 
-func (x *Block) GetData() *Data {
+func (x *Block) GetData() *SignedData {
 	if x != nil {
 		return x.Data
 	}
@@ -345,10 +345,10 @@ var File_rollkit_v1_state_rpc_proto protoreflect.FileDescriptor
 const file_rollkit_v1_state_rpc_proto_rawDesc = "" +
 	"\n" +
 	"\x1arollkit/v1/state_rpc.proto\x12\n" +
-	"rollkit.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x18rollkit/v1/rollkit.proto\x1a\x16rollkit/v1/state.proto\"_\n" +
+	"rollkit.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x18rollkit/v1/rollkit.proto\x1a\x16rollkit/v1/state.proto\"e\n" +
 	"\x05Block\x120\n" +
-	"\x06header\x18\x01 \x01(\v2\x18.rollkit.v1.SignedHeaderR\x06header\x12$\n" +
-	"\x04data\x18\x02 \x01(\v2\x10.rollkit.v1.DataR\x04data\"O\n" +
+	"\x06header\x18\x01 \x01(\v2\x18.rollkit.v1.SignedHeaderR\x06header\x12*\n" +
+	"\x04data\x18\x02 \x01(\v2\x16.rollkit.v1.SignedDataR\x04data\"O\n" +
 	"\x0fGetBlockRequest\x12\x18\n" +
 	"\x06height\x18\x01 \x01(\x04H\x00R\x06height\x12\x14\n" +
 	"\x04hash\x18\x02 \x01(\fH\x00R\x04hashB\f\n" +
@@ -388,13 +388,13 @@ var file_rollkit_v1_state_rpc_proto_goTypes = []any{
 	(*GetMetadataRequest)(nil),  // 4: rollkit.v1.GetMetadataRequest
 	(*GetMetadataResponse)(nil), // 5: rollkit.v1.GetMetadataResponse
 	(*SignedHeader)(nil),        // 6: rollkit.v1.SignedHeader
-	(*Data)(nil),                // 7: rollkit.v1.Data
+	(*SignedData)(nil),          // 7: rollkit.v1.SignedData
 	(*State)(nil),               // 8: rollkit.v1.State
 	(*emptypb.Empty)(nil),       // 9: google.protobuf.Empty
 }
 var file_rollkit_v1_state_rpc_proto_depIdxs = []int32{
 	6, // 0: rollkit.v1.Block.header:type_name -> rollkit.v1.SignedHeader
-	7, // 1: rollkit.v1.Block.data:type_name -> rollkit.v1.Data
+	7, // 1: rollkit.v1.Block.data:type_name -> rollkit.v1.SignedData
 	0, // 2: rollkit.v1.GetBlockResponse.block:type_name -> rollkit.v1.Block
 	8, // 3: rollkit.v1.GetStateResponse.state:type_name -> rollkit.v1.State
 	1, // 4: rollkit.v1.StoreService.GetBlock:input_type -> rollkit.v1.GetBlockRequest

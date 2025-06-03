@@ -175,7 +175,7 @@ func (m *Manager) handlePotentialData(ctx context.Context, bz []byte, daHeight u
 		default:
 			m.logger.Warn("dataInCh backlog full, dropping signed data", "daHeight", daHeight)
 		}
-		m.dataInCh <- NewDataEvent{&signedData.Data, daHeight}
+		m.dataInCh <- NewDataEvent{&signedData, daHeight}
 	}
 }
 

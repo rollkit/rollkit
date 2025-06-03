@@ -158,11 +158,11 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		hHeight := h.Height()
 		m.logger.Info("syncing header and data", "height", hHeight)
 		// Validate the received block before applying
-		if err := m.Validate(ctx, h, d); err != nil {
+		if err := m.Validate(ctx, h, &d.Data); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
 
-		newState, err := m.applyBlock(ctx, h, d)
+		newState, err := m.applyBlock(ctx, h, &d.Data)
 		if err != nil {
 			return fmt.Errorf("failed to apply block: %w", err)
 		}
@@ -199,7 +199,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 	if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
 		var lastDataHash types.Hash
 		var err error
-		var lastData *types.Data
+		var lastData *types.SignedData
 		if headerHeight > 1 {
 			_, lastData, err = m.store.GetBlockData(ctx, headerHeight-1)
 			if lastData != nil {
@@ -217,7 +217,10 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 			d := &types.Data{
 				Metadata: metadata,
 			}
-			m.dataCache.SetItem(headerHeight, d)
+			signedData := &types.SignedData{
+				Data: *d,
+			}
+			m.dataCache.SetItem(headerHeight, signedData)
 		}
 		return true
 	}

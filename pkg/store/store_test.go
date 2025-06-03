@@ -26,13 +26,13 @@ func TestStoreHeight(t *testing.T) {
 	cases := []struct {
 		name     string
 		headers  []*types.SignedHeader
-		data     []*types.Data
+		data     []*types.SignedData
 		expected uint64
 	}{
-		{"single block", []*types.SignedHeader{header1}, []*types.Data{data1}, 1},
-		{"two consecutive blocks", []*types.SignedHeader{header2, header3}, []*types.Data{data2, data3}, 2},
-		{"blocks out of order", []*types.SignedHeader{header4, header5, header6}, []*types.Data{data4, data5, data6}, 3},
-		{"with a gap", []*types.SignedHeader{header7, header8, header9}, []*types.Data{data7, data8, data9}, 10},
+		{"single block", []*types.SignedHeader{header1}, []*types.SignedData{data1}, 1},
+		{"two consecutive blocks", []*types.SignedHeader{header2, header3}, []*types.SignedData{data2, data3}, 2},
+		{"blocks out of order", []*types.SignedHeader{header4, header5, header6}, []*types.SignedData{data4, data5, data6}, 3},
+		{"with a gap", []*types.SignedHeader{header7, header8, header9}, []*types.SignedData{data7, data8, data9}, 10},
 	}
 
 	for _, c := range cases {
@@ -68,10 +68,10 @@ func TestStoreLoad(t *testing.T) {
 	cases := []struct {
 		name    string
 		headers []*types.SignedHeader
-		data    []*types.Data
+		data    []*types.SignedData
 	}{
-		{"single block", []*types.SignedHeader{header1}, []*types.Data{data1}},
-		{"two consecutive blocks", []*types.SignedHeader{header2, header3}, []*types.Data{data2, data3}},
+		{"single block", []*types.SignedHeader{header1}, []*types.SignedData{data1}},
+		{"two consecutive blocks", []*types.SignedHeader{header2, header3}, []*types.SignedData{data2, data3}},
 		// TODO(tzdybal): this test needs extra handling because of lastCommits
 		//{"blocks out of order", []*types.Block{
 		//	getRandomBlock(2, 20),

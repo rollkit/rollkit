@@ -77,7 +77,7 @@ func (s *DefaultStore) Height(ctx context.Context) (uint64, error) {
 
 // SaveBlockData adds block header and data to the store along with corresponding signature.
 // Stored height is updated if block height is greater than stored value.
-func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
+func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.SignedData, signature *types.Signature) error {
 	hash := header.Hash()
 	height := header.Height()
 	signatureHash := *signature
@@ -115,7 +115,7 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 }
 
 // GetBlockData returns block header and data at given height, or error if it's not found in Store.
-func (s *DefaultStore) GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error) {
+func (s *DefaultStore) GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.SignedData, error) {
 	headerBlob, err := s.db.Get(ctx, ds.NewKey(getHeaderKey(height)))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load block header: %w", err)
@@ -130,7 +130,7 @@ func (s *DefaultStore) GetBlockData(ctx context.Context, height uint64) (*types.
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load block data: %w", err)
 	}
-	data := new(types.Data)
+	data := new(types.SignedData)
 	err = data.UnmarshalBinary(dataBlob)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to unmarshal block data: %w", err)
@@ -139,7 +139,7 @@ func (s *DefaultStore) GetBlockData(ctx context.Context, height uint64) (*types.
 }
 
 // GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash []byte) (*types.SignedHeader, *types.Data, error) {
+func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash []byte) (*types.SignedHeader, *types.SignedData, error) {
 	height, err := s.getHeightByHash(ctx, hash)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load height from index %w", err)

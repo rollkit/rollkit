@@ -44,7 +44,7 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 	m := &Manager{
 		da:            da,
 		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
+		dataCache:     cache.NewCache[types.SignedData](),
 		logger:        logger,
 		gasPrice:      gasPrice,
 		gasMultiplier: gasMultiplier,
@@ -378,9 +378,8 @@ func TestGetDataSignature_Success(t *testing.T) {
 	require.NoError(err)
 	m.signer = signer
 	_, data := types.GetRandomBlock(1, 2, "TestGetDataSignature")
-	sig, err := m.getDataSignature(data)
 	require.NoError(err)
-	require.NotEmpty(sig)
+	require.NotEmpty(data.Signature)
 }
 
 // TestGetDataSignature_NilSigner ensures the correct error is returned when the signer is nil.
@@ -397,7 +396,7 @@ func TestGetDataSignature_NilSigner(t *testing.T) {
 	_, data := types.GetRandomBlock(1, 2, "TestGetDataSignature")
 
 	m.signer = nil
-	_, err = m.getDataSignature(data)
+	_, err = m.getDataSignature(&data.Data)
 	require.ErrorContains(err, "signer is nil; cannot sign data")
 }
 

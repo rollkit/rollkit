@@ -95,7 +95,7 @@ func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollm
 	mockLogger := log.NewNopLogger()
 
 	headerStore, _ := goheaderstore.NewStore[*types.SignedHeader](ds.NewMapDatastore())
-	dataStore, _ := goheaderstore.NewStore[*types.Data](ds.NewMapDatastore())
+	dataStore, _ := goheaderstore.NewStore[*types.SignedData](ds.NewMapDatastore())
 
 	mockStore.On("GetState", mock.Anything).Return(types.State{DAHeight: initialDAHeight}, nil).Maybe()
 	mockStore.On("Height", mock.Anything).Return(initialDAHeight, nil).Maybe()
@@ -125,7 +125,7 @@ func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollm
 		dataInCh:      make(chan NewDataEvent),
 		dataStore:     dataStore,
 		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
+		dataCache:     cache.NewCache[types.SignedData](),
 		headerStoreCh: make(chan struct{}),
 		dataStoreCh:   make(chan struct{}),
 		retrieveCh:    make(chan struct{}),

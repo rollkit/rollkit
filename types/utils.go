@@ -26,7 +26,7 @@ type BlockConfig struct {
 
 // GetRandomBlock creates a block with a given height and number of transactions, intended for testing.
 // It's tailored for simplicity, primarily used in test setups where additional outputs are not needed.
-func GetRandomBlock(height uint64, nTxs int, chainID string) (*SignedHeader, *Data) {
+func GetRandomBlock(height uint64, nTxs int, chainID string) (*SignedHeader, *SignedData) {
 	config := BlockConfig{
 		Height: height,
 		NTxs:   nTxs,
@@ -38,7 +38,7 @@ func GetRandomBlock(height uint64, nTxs int, chainID string) (*SignedHeader, *Da
 }
 
 // GenerateRandomBlockCustomWithAppHash returns a block with random data and the given height, transactions, privateKey, proposer address, and custom appHash.
-func GenerateRandomBlockCustomWithAppHash(config *BlockConfig, chainID string, appHash []byte) (*SignedHeader, *Data, crypto.PrivKey) {
+func GenerateRandomBlockCustomWithAppHash(config *BlockConfig, chainID string, appHash []byte) (*SignedHeader, *SignedData, crypto.PrivKey) {
 	data := getBlockDataWith(config.NTxs)
 	dataHash := data.DACommitment()
 
@@ -78,11 +78,37 @@ func GenerateRandomBlockCustomWithAppHash(config *BlockConfig, chainID string, a
 		Time:         uint64(signedHeader.Time().UnixNano()),
 	}
 
-	return signedHeader, data, config.PrivKey
+	pk, err := noopSigner.GetPublic()
+	if err != nil {
+		panic(err)
+	}
+
+	signer, err := NewSigner(pk)
+	if err != nil {
+		panic(err)
+	}
+
+	signedData := &SignedData{
+		Data:   *data,
+		Signer: signer,
+	}
+
+	dataBz, err := signedData.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+
+	signature, err := noopSigner.Sign(dataBz)
+	if err != nil {
+		panic(err)
+	}
+	signedData.Signature = signature
+
+	return signedHeader, signedData, config.PrivKey
 }
 
 // GenerateRandomBlockCustom returns a block with random data and the given height, transactions, privateKey and proposer address.
-func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHeader, *Data, crypto.PrivKey) {
+func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHeader, *SignedData, crypto.PrivKey) {
 	// Use random bytes for appHash
 	appHash := GetRandomBytes(32)
 	return GenerateRandomBlockCustomWithAppHash(config, chainID, appHash)

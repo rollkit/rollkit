@@ -34,7 +34,7 @@ func (_m *Store) Close() error {
 }
 
 // GetBlockByHash provides a mock function with given fields: ctx, hash
-func (_m *Store) GetBlockByHash(ctx context.Context, hash []byte) (*types.SignedHeader, *types.Data, error) {
+func (_m *Store) GetBlockByHash(ctx context.Context, hash []byte) (*types.SignedHeader, *types.SignedData, error) {
 	ret := _m.Called(ctx, hash)
 
 	if len(ret) == 0 {
@@ -42,9 +42,9 @@ func (_m *Store) GetBlockByHash(ctx context.Context, hash []byte) (*types.Signed
 	}
 
 	var r0 *types.SignedHeader
-	var r1 *types.Data
+	var r1 *types.SignedData
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, []byte) (*types.SignedHeader, *types.Data, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []byte) (*types.SignedHeader, *types.SignedData, error)); ok {
 		return rf(ctx, hash)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, []byte) *types.SignedHeader); ok {
@@ -55,11 +55,11 @@ func (_m *Store) GetBlockByHash(ctx context.Context, hash []byte) (*types.Signed
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, []byte) *types.Data); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, []byte) *types.SignedData); ok {
 		r1 = rf(ctx, hash)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(*types.Data)
+			r1 = ret.Get(1).(*types.SignedData)
 		}
 	}
 
@@ -73,7 +73,7 @@ func (_m *Store) GetBlockByHash(ctx context.Context, hash []byte) (*types.Signed
 }
 
 // GetBlockData provides a mock function with given fields: ctx, height
-func (_m *Store) GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error) {
+func (_m *Store) GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.SignedData, error) {
 	ret := _m.Called(ctx, height)
 
 	if len(ret) == 0 {
@@ -81,9 +81,9 @@ func (_m *Store) GetBlockData(ctx context.Context, height uint64) (*types.Signed
 	}
 
 	var r0 *types.SignedHeader
-	var r1 *types.Data
+	var r1 *types.SignedData
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*types.SignedHeader, *types.Data, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*types.SignedHeader, *types.SignedData, error)); ok {
 		return rf(ctx, height)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uint64) *types.SignedHeader); ok {
@@ -94,11 +94,11 @@ func (_m *Store) GetBlockData(ctx context.Context, height uint64) (*types.Signed
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64) *types.Data); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) *types.SignedData); ok {
 		r1 = rf(ctx, height)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(*types.Data)
+			r1 = ret.Get(1).(*types.SignedData)
 		}
 	}
 
@@ -258,7 +258,7 @@ func (_m *Store) Height(ctx context.Context) (uint64, error) {
 }
 
 // SaveBlockData provides a mock function with given fields: ctx, header, data, signature
-func (_m *Store) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
+func (_m *Store) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.SignedData, signature *types.Signature) error {
 	ret := _m.Called(ctx, header, data, signature)
 
 	if len(ret) == 0 {
@@ -266,7 +266,7 @@ func (_m *Store) SaveBlockData(ctx context.Context, header *types.SignedHeader, 
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *types.SignedHeader, *types.Data, *types.Signature) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *types.SignedHeader, *types.SignedData, *types.Signature) error); ok {
 		r0 = rf(ctx, header, data, signature)
 	} else {
 		r0 = ret.Error(0)

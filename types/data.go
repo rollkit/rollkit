@@ -35,13 +35,6 @@ type Data struct {
 	Txs Txs
 }
 
-// SignedData combines Data and its signature.
-type SignedData struct {
-	Data
-	Signature Signature
-	Signer    Signer
-}
-
 // Signature represents signature of block creator.
 type Signature []byte
 
@@ -72,27 +65,27 @@ func Validate(header *SignedHeader, data *Data) error {
 	return nil
 }
 
-// New returns a new Block.
+// New returns a new Data.
 func (d *Data) New() *Data {
 	return new(Data)
 }
 
-// IsZero returns true if the block is nil.
+// IsZero returns true if the Data is nil.
 func (d *Data) IsZero() bool {
 	return d == nil
 }
 
-// ChainID returns chain ID of the block.
+// ChainID returns chain ID of the Data.
 func (d *Data) ChainID() string {
 	return d.Metadata.ChainID
 }
 
-// Height returns height of the block.
+// Height returns height of the Data.
 func (d *Data) Height() uint64 {
 	return d.Metadata.Height
 }
 
-// LastHeader returns last header hash of the block.
+// LastHeader returns last header hash of the Data.
 func (d *Data) LastHeader() Hash {
 	return d.LastDataHash
 }
@@ -102,7 +95,7 @@ func (d *Data) Time() time.Time {
 	return time.Unix(0, int64(d.Metadata.Time))
 }
 
-// Verify Verifies a new, untrusted block against a trusted block.
+// Verify Verifies a new, untrusted SignedData against a trusted SignedData.
 func (d *Data) Verify(untrustedData *Data) error {
 	if untrustedData == nil {
 		return errors.New("untrusted block cannot be nil")

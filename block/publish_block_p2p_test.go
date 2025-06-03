@@ -68,9 +68,9 @@ func TestSlowConsumers(t *testing.T) {
 			require.NoError(t, err)
 
 			manager, headerSync, dataSync := setupBlockManager(t, ctx, workDir, dbm, blockTime, noopSigner)
-			var lastCapturedDataPayload *types.Data
+			var lastCapturedDataPayload *types.SignedData
 			var lastCapturedHeaderPayload *types.SignedHeader
-			manager.dataBroadcaster = capturingTailBroadcaster[*types.Data](spec.dataConsumerDelay, &lastCapturedDataPayload, dataSync)
+			manager.dataBroadcaster = capturingTailBroadcaster[*types.SignedData](spec.dataConsumerDelay, &lastCapturedDataPayload, dataSync)
 			manager.headerBroadcaster = capturingTailBroadcaster[*types.SignedHeader](spec.headerConsumerDelay, &lastCapturedHeaderPayload, headerSync)
 
 			blockTime := manager.config.Node.BlockTime.Duration
@@ -102,9 +102,9 @@ func TestSlowConsumers(t *testing.T) {
 			ctx, cancel = context.WithCancel(t.Context())
 			manager, headerSync, dataSync = setupBlockManager(t, ctx, workDir, dbm, blockTime, noopSigner)
 
-			var firstCapturedDataPayload *types.Data
+			var firstCapturedDataPayload *types.SignedData
 			var firstCapturedHeaderPayload *types.SignedHeader
-			manager.dataBroadcaster = capturingHeadBroadcaster[*types.Data](0, &firstCapturedDataPayload, dataSync)
+			manager.dataBroadcaster = capturingHeadBroadcaster[*types.SignedData](0, &firstCapturedDataPayload, dataSync)
 			manager.headerBroadcaster = capturingHeadBroadcaster[*types.SignedHeader](0, &firstCapturedHeaderPayload, headerSync)
 			go manager.AggregationLoop(ctx, errChan)
 			select {

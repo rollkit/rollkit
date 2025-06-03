@@ -77,7 +77,7 @@ type NewHeaderEvent struct {
 
 // NewDataEvent is used to pass header and DA height to headerInCh
 type NewDataEvent struct {
-	Data     *types.Data
+	Data     *types.SignedData
 	DAHeight uint64
 }
 
@@ -107,16 +107,16 @@ type Manager struct {
 	daHeight *atomic.Uint64
 
 	headerBroadcaster broadcaster[*types.SignedHeader]
-	dataBroadcaster   broadcaster[*types.Data]
+	dataBroadcaster   broadcaster[*types.SignedData]
 
 	headerInCh  chan NewHeaderEvent
 	headerStore goheader.Store[*types.SignedHeader]
 
 	dataInCh  chan NewDataEvent
-	dataStore goheader.Store[*types.Data]
+	dataStore goheader.Store[*types.SignedData]
 
 	headerCache *cache.Cache[types.SignedHeader]
-	dataCache   *cache.Cache[types.Data]
+	dataCache   *cache.Cache[types.SignedData]
 
 	// headerStoreCh is used to notify sync goroutine (HeaderStoreRetrieveLoop) that it needs to retrieve headers from headerStore
 	headerStoreCh chan struct{}
@@ -225,7 +225,9 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				},
 				Signature: signature,
 			},
-			&types.Data{},
+			&types.SignedData{
+				Data: types.Data{},
+			},
 			&signature,
 		)
 		if err != nil {
@@ -269,9 +271,9 @@ func NewManager(
 	da coreda.DA,
 	logger log.Logger,
 	headerStore goheader.Store[*types.SignedHeader],
-	dataStore goheader.Store[*types.Data],
+	dataStore goheader.Store[*types.SignedData],
 	headerBroadcaster broadcaster[*types.SignedHeader],
-	dataBroadcaster broadcaster[*types.Data],
+	dataBroadcaster broadcaster[*types.SignedData],
 	seqMetrics *Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
@@ -348,7 +350,7 @@ func NewManager(
 		lastStateMtx:        new(sync.RWMutex),
 		lastBatchData:       lastBatchData,
 		headerCache:         cache.NewCache[types.SignedHeader](),
-		dataCache:           cache.NewCache[types.Data](),
+		dataCache:           cache.NewCache[types.SignedData](),
 		retrieveCh:          make(chan struct{}, 1),
 		daIncluderCh:        make(chan struct{}, 1),
 		logger:              logger,
@@ -561,7 +563,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	var (
 		header    *types.SignedHeader
-		data      *types.Data
+		data      *types.SignedData
 		signature types.Signature
 	)
 
@@ -593,9 +595,28 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 			m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
 		}
 
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
+		header, unsignedData, err := m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
 		if err != nil {
 			return err
+		}
+
+		signature, err := m.getDataSignature(unsignedData)
+		if err != nil {
+			return err
+		}
+
+		pubKey, err := m.signer.GetPublic()
+		if err != nil {
+			return fmt.Errorf("failed to get proposer public key: %w", err)
+		}
+
+		data = &types.SignedData{
+			Data:      *unsignedData,
+			Signature: signature,
+			Signer: types.Signer{
+				Address: header.ProposerAddress,
+				PubKey:  pubKey,
+			},
 		}
 
 		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
@@ -616,7 +637,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return fmt.Errorf("header validation error: %w", err)
 	}
 
-	newState, err := m.applyBlock(ctx, header, data)
+	newState, err := m.applyBlock(ctx, header, &data.Data)
 	if err != nil {
 		return fmt.Errorf("error applying block: %w", err)
 	}
@@ -629,7 +650,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		LastDataHash: lastDataHash,
 	}
 	// Validate the created block before storing
-	if err := m.Validate(ctx, header, data); err != nil {
+	if err := m.Validate(ctx, header, &data.Data); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
 	}
 
@@ -669,7 +690,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) recordMetrics(data *types.Data) {
+func (m *Manager) recordMetrics(data *types.SignedData) {
 	m.metrics.NumTxs.Set(float64(len(data.Txs)))
 	m.metrics.TotalTxs.Add(float64(len(data.Txs)))
 	m.metrics.BlockSizeBytes.Set(float64(data.Size()))
@@ -953,7 +974,7 @@ func (m *Manager) HeaderCache() *cache.Cache[types.SignedHeader] {
 }
 
 // DataCache returns the dataCache used by the manager.
-func (m *Manager) DataCache() *cache.Cache[types.Data] {
+func (m *Manager) DataCache() *cache.Cache[types.SignedData] {
 	return m.dataCache
 }
 

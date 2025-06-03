@@ -54,7 +54,7 @@ type SyncService[H header.Header[H]] struct {
 }
 
 // DataSyncService is the P2P Sync Service for blocks.
-type DataSyncService = SyncService[*types.Data]
+type DataSyncService = SyncService[*types.SignedData]
 
 // HeaderSyncService is the P2P Sync Service for headers.
 type HeaderSyncService = SyncService[*types.SignedHeader]
@@ -67,7 +67,7 @@ func NewDataSyncService(
 	p2p *p2p.Client,
 	logger log.Logger,
 ) (*DataSyncService, error) {
-	return newSyncService[*types.Data](store, dataSync, conf, genesis, p2p, logger)
+	return newSyncService[*types.SignedData](store, dataSync, conf, genesis, p2p, logger)
 }
 
 // NewHeaderSyncService returns a new HeaderSyncService.

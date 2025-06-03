@@ -59,7 +59,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 		lastStateMtx:  new(sync.RWMutex),
 		logger:        log.NewTestLogger(t),
 		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
+		dataCache:     cache.NewCache[types.SignedData](),
 		headerInCh:    headerInCh,
 		dataInCh:      dataInCh,
 		headerStoreCh: headerStoreCh,
@@ -68,7 +68,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 		daHeight:      &atomic.Uint64{},
 		metrics:       NopMetrics(),
 		headerStore:   &goheaderstore.Store[*types.SignedHeader]{},
-		dataStore:     &goheaderstore.Store[*types.Data]{},
+		dataStore:     &goheaderstore.Store[*types.SignedData]{},
 		pendingHeaders: func() *PendingHeaders {
 			ph, err := NewPendingHeaders(mockStore, log.NewNopLogger())
 			require.NoError(t, err)
@@ -739,7 +739,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 
 	// Mock store and data cache
 	store := mocks.NewStore(t)
-	dataCache := cache.NewCache[types.Data]()
+	dataCache := cache.NewCache[types.SignedData]()
 
 	// Setup the manager with the mock and data cache
 	m := &Manager{

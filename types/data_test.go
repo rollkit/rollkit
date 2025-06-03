@@ -26,7 +26,7 @@ func TestValidate(t *testing.T) {
 
 	// Case 1: Valid header and data
 	t.Run("valid header and data", func(t *testing.T) {
-		err := Validate(header, data)
+		err := Validate(header, &data.Data)
 		assert.NoError(t, err)
 	})
 
@@ -35,9 +35,9 @@ func TestValidate(t *testing.T) {
 		invalidData := data.New()
 		*invalidData = *data
 		invalidData.Metadata = &Metadata{}
-		*invalidData.Metadata = *data.Metadata
+		*invalidData.Metadata = *data.Data.Metadata
 		invalidData.Metadata.ChainID = "wrongchain"
-		err := Validate(header, invalidData)
+		err := Validate(header, &invalidData.Data)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "header and data do not match")
 	})
@@ -47,9 +47,9 @@ func TestValidate(t *testing.T) {
 		invalidData := data.New()
 		*invalidData = *data
 		invalidData.Metadata = &Metadata{}
-		*invalidData.Metadata = *data.Metadata
+		*invalidData.Metadata = *data.Data.Metadata
 		invalidData.Metadata.Height = header.Height() + 1
-		err := Validate(header, invalidData)
+		err := Validate(header, &invalidData.Data)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "header and data do not match")
 	})
@@ -59,9 +59,9 @@ func TestValidate(t *testing.T) {
 		invalidData := data.New()
 		*invalidData = *data
 		invalidData.Metadata = &Metadata{}
-		*invalidData.Metadata = *data.Metadata
+		*invalidData.Metadata = *data.Data.Metadata
 		invalidData.Metadata.Time = uint64(header.Time().Unix() + 1)
-		err := Validate(header, invalidData)
+		err := Validate(header, &invalidData.Data)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "header and data do not match")
 	})
@@ -71,7 +71,7 @@ func TestValidate(t *testing.T) {
 		invalidData := data.New()
 		*invalidData = *data
 		invalidData.Txs = Txs{Tx("different tx")}
-		err := Validate(header, invalidData)
+		err := Validate(header, &invalidData.Data)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "dataHash from the header does not match with hash of the block's data")
 	})
@@ -152,7 +152,8 @@ func TestVerify(t *testing.T) {
 // TestDataSize tests the Size method of Data.
 func TestDataSize(t *testing.T) {
 	_, data := GetRandomBlock(1, 5, "size-test")
-	protoData := data.ToProto()
+	protoData, err := data.ToProto()
+	assert.NoError(t, err)
 	expectedSize := proto.Size(protoData)
 	assert.Equal(t, expectedSize, data.Size())
 	assert.True(t, data.Size() > 0)
@@ -165,10 +166,10 @@ func TestDataSize(t *testing.T) {
 
 // TestIsZero tests the IsZero method of Data.
 func TestIsZero(t *testing.T) {
-	var nilData *Data
+	var nilData *SignedData
 	assert.True(t, nilData.IsZero())
 
-	data := &Data{}
+	data := &SignedData{}
 	assert.False(t, data.IsZero())
 
 	_, data = GetRandomBlock(1, 1, "not-zero")

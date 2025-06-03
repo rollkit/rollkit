@@ -22,7 +22,7 @@ service StoreService {
 // Block contains all the components of a complete block
 message Block {
   SignedHeader header = 1;
-  Data         data   = 2;
+  SignedData data = 2;
 }
 
 // GetBlockRequest defines the request for retrieving a block
@@ -30,7 +30,7 @@ message GetBlockRequest {
   // The height or hash of the block to retrieve
   oneof identifier {
     uint64 height = 1;
-    bytes  hash   = 2;
+    bytes hash = 2;
   }
 }
 

@@ -38,7 +38,7 @@ func (s *StoreServer) GetBlock(
 	req *connect.Request[pb.GetBlockRequest],
 ) (*connect.Response[pb.GetBlockResponse], error) {
 	var header *types.SignedHeader
-	var data *types.Data
+	var data *types.SignedData
 	var err error
 
 	switch identifier := req.Msg.Identifier.(type) {
@@ -76,7 +76,10 @@ func (s *StoreServer) GetBlock(
 		// Error during conversion indicates an issue with the retrieved data or proto definition
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to convert block header to proto format: %w", err))
 	}
-	pbData := data.ToProto() // Assuming data.ToProto() exists and doesn't return an error
+	pbData, err := data.ToProto() // Assuming data.ToProto() exists and doesn't return an error
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to convert block data to proto format: %w", err))
+	}
 
 	// Return the successful response
 	return connect.NewResponse(&pb.GetBlockResponse{

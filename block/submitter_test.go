@@ -38,7 +38,7 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 		gasPrice:      1.0,
 		gasMultiplier: 2.0,
 		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
+		dataCache:     cache.NewCache[types.SignedData](),
 		signer:        testSigner,
 	}
 }

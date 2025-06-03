@@ -113,11 +113,11 @@ func (m *Manager) getHeadersFromHeaderStore(ctx context.Context, startHeight, en
 	return headers, nil
 }
 
-func (m *Manager) getDataFromDataStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.Data, error) {
+func (m *Manager) getDataFromDataStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.SignedData, error) {
 	if startHeight > endHeight {
 		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
 	}
-	data := make([]*types.Data, endHeight-startHeight+1)
+	data := make([]*types.SignedData, endHeight-startHeight+1)
 	for i := startHeight; i <= endHeight; i++ {
 		d, err := m.dataStore.GetByHeight(ctx, i)
 		if err != nil {

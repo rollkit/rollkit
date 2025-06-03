@@ -36,7 +36,7 @@ func fetchSignedData(ctx context.Context, store store.Store, height uint64) (*ty
 	if data == nil {
 		return nil, nil
 	}
-	return &types.SignedData{Data: *data}, nil
+	return data, nil
 }
 
 // NewPendingData returns a new PendingData struct
