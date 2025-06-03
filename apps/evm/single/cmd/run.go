@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
-	evm "github.com/rollkit/go-execution-evm"
+	"github.com/rollkit/rollkit/execution/evm"
 
 	"github.com/rollkit/rollkit/core/execution"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
@@ -100,39 +100,39 @@ func init() {
 
 func createExecutionClient(cmd *cobra.Command) (execution.Executor, error) {
 	// Read execution client parameters from flags
-	ethURL, err := cmd.Flags().GetString("evm.eth-url")
+	ethURL, err := cmd.Flags().GetString(evm.FlagEvmEthURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get 'evm.eth-url' flag: %w", err)
+		return nil, fmt.Errorf("failed to get '%s' flag: %w", evm.FlagEvmEthURL, err)
 	}
-	engineURL, err := cmd.Flags().GetString("evm.engine-url")
+	engineURL, err := cmd.Flags().GetString(evm.FlagEvmEngineURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get 'evm.engine-url' flag: %w", err)
+		return nil, fmt.Errorf("failed to get '%s' flag: %w", evm.FlagEvmEngineURL, err)
 	}
-	jwtSecret, err := cmd.Flags().GetString("evm.jwt-secret")
+	jwtSecret, err := cmd.Flags().GetString(evm.FlagEvmJWTSecret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get 'evm.jwt-secret' flag: %w", err)
+		return nil, fmt.Errorf("failed to get '%s' flag: %w", evm.FlagEvmJWTSecret, err)
 	}
-	genesisHashStr, err := cmd.Flags().GetString("evm.genesis-hash")
+	genesisHashStr, err := cmd.Flags().GetString(evm.FlagEvmGenesisHash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get 'evm.genesis-hash' flag: %w", err)
+		return nil, fmt.Errorf("failed to get '%s' flag: %w", evm.FlagEvmGenesisHash, err)
 	}
-	feeRecipientStr, err := cmd.Flags().GetString("evm.fee-recipient")
+	feeRecipientStr, err := cmd.Flags().GetString(evm.FlagEvmFeeRecipient)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get 'evm.fee-recipient' flag: %w", err)
+		return nil, fmt.Errorf("failed to get '%s' flag: %w", evm.FlagEvmFeeRecipient, err)
 	}
 
 	// Convert string parameters to Ethereum types
 	genesisHash := common.HexToHash(genesisHashStr)
 	feeRecipient := common.HexToAddress(feeRecipientStr)
 
-	return evm.NewPureEngineExecutionClient(ethURL, engineURL, jwtSecret, genesisHash, feeRecipient)
+	return evm.NewEngineExecutionClient(ethURL, engineURL, jwtSecret, genesisHash, feeRecipient)
 }
 
 // addFlags adds flags related to the EVM execution client
 func addFlags(cmd *cobra.Command) {
-	cmd.Flags().String("evm.eth-url", "http://localhost:8545", "URL of the Ethereum JSON-RPC endpoint")
-	cmd.Flags().String("evm.engine-url", "http://localhost:8551", "URL of the Engine API endpoint")
-	cmd.Flags().String("evm.jwt-secret", "", "Path to the JWT secret file for authentication with the execution client")
-	cmd.Flags().String("evm.genesis-hash", "", "Hash of the genesis block")
-	cmd.Flags().String("evm.fee-recipient", "", "Address that will receive transaction fees")
+	cmd.Flags().String(evm.FlagEvmEthURL, "http://localhost:8545", "URL of the Ethereum JSON-RPC endpoint")
+	cmd.Flags().String(evm.FlagEvmEngineURL, "http://localhost:8551", "URL of the Engine API endpoint")
+	cmd.Flags().String(evm.FlagEvmJWTSecret, "", "Path to the JWT secret file for authentication with the execution client")
+	cmd.Flags().String(evm.FlagEvmGenesisHash, "", "Hash of the genesis block")
+	cmd.Flags().String(evm.FlagEvmFeeRecipient, "", "Address that will receive transaction fees")
 }
