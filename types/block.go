@@ -35,6 +35,13 @@ type Data struct {
 	Txs Txs
 }
 
+// SignedData combines Data and its signature.
+type SignedData struct {
+	Data
+	Signature Signature
+	Signer    Signer
+}
+
 // Signature represents signature of block creator.
 type Signature []byte
 

@@ -229,7 +229,7 @@ func (x *Header) GetChainId() string {
 	return ""
 }
 
-// SignedHeader is a header with a signature and a validator set.
+// SignedHeader is a header with a signature and a signer.
 type SignedHeader struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Header        *Header                `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
@@ -422,7 +422,7 @@ func (x *Metadata) GetLastDataHash() []byte {
 type Data struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Metadata      *Metadata              `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	Txs           [][]byte               `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"` // repeated bytes intermediate_state_roots = 2;
+	Txs           [][]byte               `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -471,6 +471,67 @@ func (x *Data) GetTxs() [][]byte {
 	return nil
 }
 
+// SignedData is a data with a signature and a signer.
+type SignedData struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Data          *Data                  `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Signature     []byte                 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	Signer        *Signer                `protobuf:"bytes,3,opt,name=signer,proto3" json:"signer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SignedData) Reset() {
+	*x = SignedData{}
+	mi := &file_rollkit_v1_rollkit_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignedData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignedData) ProtoMessage() {}
+
+func (x *SignedData) ProtoReflect() protoreflect.Message {
+	mi := &file_rollkit_v1_rollkit_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignedData.ProtoReflect.Descriptor instead.
+func (*SignedData) Descriptor() ([]byte, []int) {
+	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SignedData) GetData() *Data {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *SignedData) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+func (x *SignedData) GetSigner() *Signer {
+	if x != nil {
+		return x.Signer
+	}
+	return nil
+}
+
 // Vote is a vote for a block in the blockchain.
 type Vote struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -490,7 +551,7 @@ type Vote struct {
 
 func (x *Vote) Reset() {
 	*x = Vote{}
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[6]
+	mi := &file_rollkit_v1_rollkit_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -502,7 +563,7 @@ func (x *Vote) String() string {
 func (*Vote) ProtoMessage() {}
 
 func (x *Vote) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[6]
+	mi := &file_rollkit_v1_rollkit_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -515,7 +576,7 @@ func (x *Vote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vote.ProtoReflect.Descriptor instead.
 func (*Vote) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{6}
+	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Vote) GetChainId() string {
@@ -590,7 +651,12 @@ const file_rollkit_v1_rollkit_proto_rawDesc = "" +
 	"\x0elast_data_hash\x18\x04 \x01(\fR\flastDataHash\"J\n" +
 	"\x04Data\x120\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x14.rollkit.v1.MetadataR\bmetadata\x12\x10\n" +
-	"\x03txs\x18\x02 \x03(\fR\x03txs\"\xc4\x01\n" +
+	"\x03txs\x18\x02 \x03(\fR\x03txs\"|\n" +
+	"\n" +
+	"SignedData\x12$\n" +
+	"\x04data\x18\x01 \x01(\v2\x10.rollkit.v1.DataR\x04data\x12\x1c\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\x12*\n" +
+	"\x06signer\x18\x03 \x01(\v2\x12.rollkit.v1.SignerR\x06signer\"\xc4\x01\n" +
 	"\x04Vote\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\tR\achainId\x12\x16\n" +
 	"\x06height\x18\x02 \x01(\x04R\x06height\x128\n" +
@@ -610,7 +676,7 @@ func file_rollkit_v1_rollkit_proto_rawDescGZIP() []byte {
 	return file_rollkit_v1_rollkit_proto_rawDescData
 }
 
-var file_rollkit_v1_rollkit_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_rollkit_v1_rollkit_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_rollkit_v1_rollkit_proto_goTypes = []any{
 	(*Version)(nil),               // 0: rollkit.v1.Version
 	(*Header)(nil),                // 1: rollkit.v1.Header
@@ -618,20 +684,23 @@ var file_rollkit_v1_rollkit_proto_goTypes = []any{
 	(*Signer)(nil),                // 3: rollkit.v1.Signer
 	(*Metadata)(nil),              // 4: rollkit.v1.Metadata
 	(*Data)(nil),                  // 5: rollkit.v1.Data
-	(*Vote)(nil),                  // 6: rollkit.v1.Vote
-	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
+	(*SignedData)(nil),            // 6: rollkit.v1.SignedData
+	(*Vote)(nil),                  // 7: rollkit.v1.Vote
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
 }
 var file_rollkit_v1_rollkit_proto_depIdxs = []int32{
 	0, // 0: rollkit.v1.Header.version:type_name -> rollkit.v1.Version
 	1, // 1: rollkit.v1.SignedHeader.header:type_name -> rollkit.v1.Header
 	3, // 2: rollkit.v1.SignedHeader.signer:type_name -> rollkit.v1.Signer
 	4, // 3: rollkit.v1.Data.metadata:type_name -> rollkit.v1.Metadata
-	7, // 4: rollkit.v1.Vote.timestamp:type_name -> google.protobuf.Timestamp
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	5, // 4: rollkit.v1.SignedData.data:type_name -> rollkit.v1.Data
+	3, // 5: rollkit.v1.SignedData.signer:type_name -> rollkit.v1.Signer
+	8, // 6: rollkit.v1.Vote.timestamp:type_name -> google.protobuf.Timestamp
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_rollkit_v1_rollkit_proto_init() }
@@ -645,7 +714,7 @@ func file_rollkit_v1_rollkit_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rollkit_v1_rollkit_proto_rawDesc), len(file_rollkit_v1_rollkit_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
