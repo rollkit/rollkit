@@ -22,7 +22,7 @@ func TestPendingBase_InitAndGetLastSubmittedDataHeight(t *testing.T) {
 	mockStore := mocksStore.NewStore(t)
 	logger := log.NewNopLogger()
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(nil, ds.ErrNotFound).Once()
-	pb, err := newPendingBase[*types.SignedData](mockStore, logger, LastSubmittedDataHeightKey, fetchSignedData)
+	pb, err := newPendingBase[*types.Data](mockStore, logger, LastSubmittedDataHeightKey, fetchData)
 	assert.NoError(t, err)
 	assert.NotNil(t, pb)
 	assert.Equal(t, uint64(0), pb.lastHeight.Load())
@@ -34,7 +34,7 @@ func TestPendingBase_GetPending_AllCases(t *testing.T) {
 	mockStore := mocksStore.NewStore(t)
 	logger := log.NewNopLogger()
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(nil, ds.ErrNotFound).Once()
-	pb, err := newPendingBase[*types.SignedData](mockStore, logger, LastSubmittedDataHeightKey, fetchSignedData)
+	pb, err := newPendingBase[*types.Data](mockStore, logger, LastSubmittedDataHeightKey, fetchData)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -62,8 +62,8 @@ func TestPendingBase_GetPending_AllCases(t *testing.T) {
 	pending, err = pb.getPending(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, pending, 2)
-	assert.Equal(t, uint64(3), pending[0].Data.Height())
-	assert.Equal(t, uint64(4), pending[1].Data.Height())
+	assert.Equal(t, uint64(3), pending[0].Height())
+	assert.Equal(t, uint64(4), pending[1].Height())
 
 	// Case: error in store
 	pb.lastHeight.Store(4)
@@ -80,7 +80,7 @@ func TestPendingBase_isEmpty_numPending(t *testing.T) {
 	mockStore := mocksStore.NewStore(t)
 	logger := log.NewNopLogger()
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(nil, ds.ErrNotFound).Once()
-	pb, err := newPendingBase[*types.SignedData](mockStore, logger, LastSubmittedDataHeightKey, fetchSignedData)
+	pb, err := newPendingBase[*types.Data](mockStore, logger, LastSubmittedDataHeightKey, fetchData)
 	require.NoError(t, err)
 
 	// isEmpty true
@@ -105,7 +105,7 @@ func TestPendingBase_setLastSubmittedHeight(t *testing.T) {
 	mockStore := mocksStore.NewStore(t)
 	logger := log.NewNopLogger()
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(nil, ds.ErrNotFound).Once()
-	pb, err := newPendingBase[*types.SignedData](mockStore, logger, LastSubmittedDataHeightKey, fetchSignedData)
+	pb, err := newPendingBase[*types.Data](mockStore, logger, LastSubmittedDataHeightKey, fetchData)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -129,7 +129,7 @@ func TestPendingBase_init_with_existing_metadata(t *testing.T) {
 	val := make([]byte, 8)
 	binary.LittleEndian.PutUint64(val, 7)
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(val, nil).Once()
-	pb := &pendingBase[*types.SignedData]{store: mockStore, logger: logger, metaKey: LastSubmittedDataHeightKey, fetch: fetchSignedData}
+	pb := &pendingBase[*types.Data]{store: mockStore, logger: logger, metaKey: LastSubmittedDataHeightKey, fetch: fetchData}
 	err := pb.init()
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(7), pb.lastHeight.Load())
@@ -141,7 +141,7 @@ func TestPendingBase_init_invalid_length(t *testing.T) {
 	mockStore := mocksStore.NewStore(t)
 	logger := log.NewNopLogger()
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return([]byte{1, 2}, nil).Once()
-	pb := &pendingBase[*types.SignedData]{store: mockStore, logger: logger, metaKey: LastSubmittedDataHeightKey, fetch: fetchSignedData}
+	pb := &pendingBase[*types.Data]{store: mockStore, logger: logger, metaKey: LastSubmittedDataHeightKey, fetch: fetchData}
 	err := pb.init()
 	assert.Error(t, err)
 }
