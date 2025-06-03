@@ -18,6 +18,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/types"
 
@@ -124,10 +125,10 @@ func newTestNode(
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
-		createDefaultValidatorHasher(),
-		createDefaultSignaturePayloadProvider(),
-		createDefaultHeaderHasher(),
-		createDefaultCommitHashProvider(),
+		block.WithValidatorHasher(createDefaultValidatorHasher()),
+		block.WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()),
+		block.WithHeaderHasher(createDefaultHeaderHasher()),
+		block.WithCommitHashProvider(createDefaultCommitHashProvider()),
 	)
 	require.NoError(t, err)
 
@@ -192,10 +193,10 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
-		createDefaultValidatorHasher(),
-		createDefaultSignaturePayloadProvider(),
-		createDefaultHeaderHasher(),
-		createDefaultCommitHashProvider(),
+		block.WithValidatorHasher(createDefaultValidatorHasher()),
+		block.WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()),
+		block.WithHeaderHasher(createDefaultHeaderHasher()),
+		block.WithCommitHashProvider(createDefaultCommitHashProvider()),
 	)
 	require.NoError(err)
 
@@ -233,10 +234,10 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 			dssync.MutexWrap(datastore.NewMapDatastore()),
 			DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 			log.NewTestLogger(t),
-			createDefaultValidatorHasher(),
-			createDefaultSignaturePayloadProvider(),
-			createDefaultHeaderHasher(),
-			createDefaultCommitHashProvider(),
+			block.WithValidatorHasher(createDefaultValidatorHasher()),
+			block.WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()),
+			block.WithHeaderHasher(createDefaultHeaderHasher()),
+			block.WithCommitHashProvider(createDefaultCommitHashProvider()),
 		)
 		require.NoError(err)
 		// Update cleanup to cancel the context instead of calling Stop

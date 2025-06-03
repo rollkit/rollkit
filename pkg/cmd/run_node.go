@@ -16,6 +16,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
+	"github.com/rollkit/rollkit/block"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -158,6 +159,7 @@ func StartNode(
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
 	nodeConfig rollconf.Config,
+	opts ...block.ManagerOption,
 ) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
@@ -201,10 +203,7 @@ func StartNode(
 		datastore,
 		metrics,
 		logger,
-		types.ValidatorHasher(nil),
-		createDefaultSignaturePayloadProvider(),
-		createDefaultHeaderHasher(),
-		createDefaultCommitHashProvider(),
+		opts...,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create node: %w", err)
