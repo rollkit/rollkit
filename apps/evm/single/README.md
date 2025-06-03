@@ -31,7 +31,7 @@ This directory contains the implementation of a single EVM sequencer using Rollk
     ```bash
     ./evm-single start \
       --evm.jwt-secret $(cat <path_to>/go-execution-evm/docker/jwttoken/jwt.hex) \
-      --evm.genesis-hash 0x0a962a0d163416829894c89cb604ae422323bcdf02d7ea08b94d68d3e026a380 \
+      --evm.genesis-hash 0xe720f8ec96a43a741b1ab34819acfeb029ce4f083fe73c5a08c1f6a7b17a8568 \
       --rollkit.node.block_time 1s \
       --rollkit.node.aggregator=true \
       --rollkit.signer.passphrase secret

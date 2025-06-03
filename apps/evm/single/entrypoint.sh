@@ -5,7 +5,10 @@ cd /usr/bin
 
 sleep 5
 
-./evm-single init --rollkit.node.aggregator=true --rollkit.signer.passphrase $EVM_SIGNER_PASSPHRASE
+# Create default rollkit config if missing
+if [ ! -f "$HOME/.evm-single/config/signer.json" ]; then
+  ./evm-single init --rollkit.node.aggregator=true --rollkit.signer.passphrase $EVM_SIGNER_PASSPHRASE
+fi
 
 # Conditionally add --rollkit.da.address if ROLLKIT_DA_ADDRESS is set
 da_flag=""
@@ -35,4 +38,4 @@ exec ./evm-single start \
   --rollkit.signer.passphrase $EVM_SIGNER_PASSPHRASE \
   $da_flag \
   $da_auth_token_flag \
-  $da_namespace_flag 
+  $da_namespace_flag

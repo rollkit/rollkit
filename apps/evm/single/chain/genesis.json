@@ -15,7 +15,8 @@
     "terminalTotalDifficulty": 0,
     "terminalTotalDifficultyPassed": true,
     "shanghaiTime": 0,
-    "cancunTime": 0
+    "cancunTime": 0,
+    "pragueTime": 0
   },
   "nonce": "0x0",
   "timestamp": "0x0",

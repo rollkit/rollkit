@@ -56,11 +56,11 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	gasPrice := m.gasPrice
 	initialGasPrice := gasPrice
 
-daSubmitRetryLoop:
 	for !submittedAllHeaders && attempt < maxSubmitAttempts {
 		select {
 		case <-ctx.Done():
-			break daSubmitRetryLoop
+			m.logger.Info("context done, stopping header submission loop")
+			return nil
 		case <-time.After(backoff):
 		}
 
@@ -78,9 +78,9 @@ daSubmitRetryLoop:
 			}
 		}
 
-		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) // TODO: make this configurable
-		res := types.SubmitWithHelpers(ctx, m.da, m.logger, headersBz, gasPrice, nil)
-		cancel()
+		submitctx, submitCtxCancel := context.WithTimeout(ctx, 60*time.Second) // TODO: make this configurable
+		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, headersBz, gasPrice, nil)
+		submitCtxCancel()
 
 		switch res.Code {
 		case coreda.StatusSuccess:
@@ -115,6 +115,9 @@ daSubmitRetryLoop:
 				gasPrice = gasPrice * m.gasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
+		case coreda.StatusContextCanceled:
+			m.logger.Info("DA layer submission canceled", "attempt", attempt)
+			return nil
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.exponentialBackoff(backoff)
@@ -175,12 +178,12 @@ func (m *Manager) submitBatchToDA(ctx context.Context, batch coresequencer.Batch
 	initialGasPrice := m.gasPrice
 	gasPrice := initialGasPrice
 
-daSubmitRetryLoop:
-	for !submittedAllTxs && attempt < maxSubmitAttempts {
+	for attempt < maxSubmitAttempts {
 		// Wait for backoff duration or exit if context is done
 		select {
 		case <-ctx.Done():
-			break daSubmitRetryLoop
+			m.logger.Info("context done, stopping batch submission loop")
+			return nil
 		case <-time.After(backoff):
 		}
 
@@ -251,12 +254,13 @@ daSubmitRetryLoop:
 				gasPrice = gasPrice * gasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
-
+		case coreda.StatusContextCanceled:
+			m.logger.Info("DA layer submission canceled due to context cancellation", "attempt", attempt)
+			return nil
 		case coreda.StatusTooBig:
 			// Blob size adjustment is handled within DA impl or SubmitWithOptions call
 			// fallthrough to default exponential backoff
 			fallthrough
-
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.exponentialBackoff(backoff)

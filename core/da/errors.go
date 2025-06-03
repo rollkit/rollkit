@@ -12,4 +12,5 @@ var (
 	ErrTxIncorrectAccountSequence = errors.New("incorrect account sequence")
 	ErrContextDeadline            = errors.New("context deadline")
 	ErrHeightFromFuture           = errors.New("given height is from the future")
+	ErrContextCanceled            = errors.New("context canceled")
 )
