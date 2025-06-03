@@ -64,7 +64,7 @@ mockery-docker:
 		-v $(GOPATH)/pkg/mod:/go/pkg/mod \
 		-w /src \
 		-e GOPATH=/go \
-		golang:1.24.3 bash -c "\
+		golang:latest bash -c "\
 			go mod download && \
 			go mod tidy && \
 			go install github.com/vektra/mockery/v2@v2.53.0 && \
