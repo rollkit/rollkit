@@ -42,10 +42,10 @@ type EngineClient struct {
 	initialHeight uint64
 	feeRecipient  common.Address // Address to receive transaction fees
 
-	lastHeadBlockHash      common.Hash // Store last non-finalized HeadBlockHash
-	lastSafeBlockHash      common.Hash // Store last non-finalized SafeBlockHash
-	lastFinalizedBlockHash common.Hash // Store last finalized block hash
-	mu                     sync.Mutex  // Mutex to protect concurrent access to mutable state
+	currentHeadBlockHash      common.Hash // Store last non-finalized HeadBlockHash
+	currentSafeBlockHash      common.Hash // Store last non-finalized SafeBlockHash
+	currentFinalizedBlockHash common.Hash // Store last finalized block hash
+	mu                        sync.Mutex  // Mutex to protect concurrent access to mutable state
 }
 
 // NewEngineExecutionClient creates a new instance of EngineAPIExecutionClient
@@ -278,24 +278,19 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFinal bool) error {
 	var args engine.ForkchoiceStateV1
 
+	// Update block hashes based on finalization status
 	if isFinal {
-		// Use the last stored values for head and safe block hashes
-		args = engine.ForkchoiceStateV1{
-			HeadBlockHash:      c.lastHeadBlockHash,
-			SafeBlockHash:      c.lastSafeBlockHash,
-			FinalizedBlockHash: blockHash,
-		}
-		// Store the current blockHash as the latest finalized block hash
-		c.lastFinalizedBlockHash = blockHash
+		c.currentFinalizedBlockHash = blockHash
 	} else {
-		// Store the current blockHash as the latest head and safe block hashes
-		c.lastHeadBlockHash = blockHash
-		c.lastSafeBlockHash = blockHash
-		args = engine.ForkchoiceStateV1{
-			HeadBlockHash:      blockHash,
-			SafeBlockHash:      blockHash,
-			FinalizedBlockHash: c.lastFinalizedBlockHash,
-		}
+		c.currentHeadBlockHash = blockHash
+		c.currentSafeBlockHash = blockHash
+	}
+
+	// Construct forkchoice state
+	args = engine.ForkchoiceStateV1{
+		HeadBlockHash:      c.currentHeadBlockHash,
+		SafeBlockHash:      c.currentSafeBlockHash,
+		FinalizedBlockHash: c.currentFinalizedBlockHash,
 	}
 
 	var forkchoiceResult engine.ForkChoiceResponse
