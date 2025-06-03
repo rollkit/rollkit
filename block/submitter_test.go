@@ -2,6 +2,7 @@ package block
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"testing"
 	"time"
@@ -319,4 +320,67 @@ func TestCreateSignedDataToSubmit(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "signer is nil; cannot sign data")
 	})
+}
+
+// TestSubmitDataToDA_RetryPartialFailures tests that when submitting multiple blobs, if some fail, they are retried and lastSubmittedDataHeight is only updated after all succeed.
+func TestSubmitDataToDA_RetryPartialFailures(t *testing.T) {
+	// Set up mocks and manager with lastSubmittedDataHeight = 1
+	mockStore := mocks.NewStore(t)
+	logger := log.NewNopLogger()
+	lastSubmittedBytes := make([]byte, 8)
+	// Set lastSubmittedDataHeight to 1
+	lastHeight := uint64(1)
+	binary.LittleEndian.PutUint64(lastSubmittedBytes, lastHeight)
+	mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(lastSubmittedBytes, nil).Once()
+	mockStore.On("SetMetadata", mock.Anything, "last-submitted-data-height", mock.Anything).Return(nil).Maybe()
+	// Store height is 3, so heights 2 and 3 are pending
+	mockStore.On("Height", mock.Anything).Return(uint64(3), nil).Maybe()
+	// Provide Data for heights 2 and 3
+	mockStore.On("GetBlockData", mock.Anything, uint64(2)).Return(nil, &types.Data{Txs: types.Txs{types.Tx("tx2")}, Metadata: &types.Metadata{Height: 2}}, nil).Maybe()
+	mockStore.On("GetBlockData", mock.Anything, uint64(3)).Return(nil, &types.Data{Txs: types.Txs{types.Tx("tx3")}, Metadata: &types.Metadata{Height: 3}}, nil).Maybe()
+	pendingData, err := NewPendingData(mockStore, logger)
+	require.NoError(t, err)
+
+	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(t, err)
+	testSigner, err := noop.NewNoopSigner(privKey)
+	require.NoError(t, err)
+	proposerAddr, err := testSigner.GetAddress()
+	require.NoError(t, err)
+	gen := genesis.NewGenesis("testchain", 1, time.Now(), proposerAddr)
+
+	m := &Manager{
+		signer:      testSigner,
+		genesis:     gen,
+		pendingData: pendingData,
+		logger:      logger,
+		dataCache:   cache.NewCache[types.Data](),
+		headerCache: cache.NewCache[types.SignedHeader](),
+	}
+
+	// Prepare two SignedData for heights 2 and 3
+	ctx := context.Background()
+	signedDataList, err := m.createSignedDataToSubmit(ctx)
+	require.NoError(t, err)
+	require.Len(t, signedDataList, 2)
+
+	// Set up DA mock: first call only one succeeds, second call succeeds for the rest
+	da := &mocks.DA{}
+	m.da = da
+	m.gasPrice = 1.0
+	m.gasMultiplier = 2.0
+
+	// First attempt: only the first blob is accepted
+	da.On("GasMultiplier", mock.Anything).Return(2.0, nil).Twice()
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Once().Return([]coreda.ID{[]byte("id2")}, nil) // Only one submitted
+	// Second attempt: the remaining blob is accepted
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Once().Return([]coreda.ID{[]byte("id3")}, nil)
+
+	err = m.submitDataToDA(ctx, signedDataList)
+	assert.NoError(t, err)
+
+	// After all succeed, lastSubmittedDataHeight should be 3
+	assert.Equal(t, uint64(3), m.pendingData.getLastSubmittedDataHeight())
 }
