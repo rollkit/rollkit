@@ -230,7 +230,9 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	m.pendingHeaders, err = NewPendingHeaders(store, m.logger)
 	require.NoError(err)
 
-	err = m.submitHeadersToDA(ctx)
+	headers, err := m.pendingHeaders.getPendingHeaders(ctx)
+	require.NoError(err)
+	err = m.submitHeadersToDA(ctx, headers)
 	assert.ErrorContains(err, "failed to transform header to proto")
 	blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
 	assert.NoError(err)
@@ -265,7 +267,10 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	var err error
 	m.pendingHeaders, err = NewPendingHeaders(store, m.logger)
 	require.NoError(err)
-	err = m.submitHeadersToDA(ctx)
+
+	headers, err := m.pendingHeaders.getPendingHeaders(ctx)
+	require.NoError(err)
+	err = m.submitHeadersToDA(ctx, headers)
 	assert.ErrorContains(err, "failed to transform header to proto")
 	blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
 	assert.NoError(err)
