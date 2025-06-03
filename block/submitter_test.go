@@ -2,6 +2,7 @@ package block
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,9 +11,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	coreda "github.com/rollkit/rollkit/core/da"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
@@ -31,6 +32,12 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 	testSigner, err := noop.NewNoopSigner(privKey)
 	require.NoError(t, err)
 
+	mockStore := mocks.NewStore(t)
+	mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Maybe()
+	mockStore.On("SetMetadata", mock.Anything, "last-submitted-data-height", mock.Anything).Return(nil).Maybe()
+	pendingData, err := NewPendingData(mockStore, logger)
+	require.NoError(t, err)
+
 	return &Manager{
 		da:            da,
 		logger:        logger,
@@ -40,6 +47,7 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 		headerCache:   cache.NewCache[types.SignedHeader](),
 		dataCache:     cache.NewCache[types.Data](),
 		signer:        testSigner,
+		pendingData:   pendingData,
 	}
 }
 
@@ -63,6 +71,9 @@ func TestSubmitDataToDA_Success(t *testing.T) {
 	signedData := types.SignedData{
 		Data: types.Data{
 			Txs: make(types.Txs, len(transactions)),
+			Metadata: &types.Metadata{
+				Height: 1,
+			},
 		},
 		Signer: types.Signer{
 			Address: addr,
@@ -78,7 +89,7 @@ func TestSubmitDataToDA_Success(t *testing.T) {
 	require.NoError(t, err)
 	signedData.Signature = signature
 
-	err = m.submitDataToDA(context.Background(), &signedData)
+	err = m.submitDataToDA(t.Context(), []*types.SignedData{&signedData})
 	assert.NoError(t, err)
 }
 
@@ -116,6 +127,9 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 			signedData := types.SignedData{
 				Data: types.Data{
 					Txs: make(types.Txs, len(transactions)),
+					Metadata: &types.Metadata{
+						Height: 1,
+					},
 				},
 				Signer: types.Signer{
 					Address: addr,
@@ -133,7 +147,7 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 			signedData.Signature = signature
 
 			// Expect an error from submitDataToDA
-			err = m.submitDataToDA(context.Background(), &signedData)
+			err = m.submitDataToDA(t.Context(), []*types.SignedData{&signedData})
 			assert.Error(t, err, "expected error")
 
 			// Validate that gas price increased according to gas multiplier
@@ -209,9 +223,8 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 	}
 }
 
-// TestCreateSignedDataFromBatch tests createSignedDataFromBatch for normal, empty, and error cases.
-func TestCreateSignedDataFromBatch(t *testing.T) {
-	// Setup: create a Manager with a valid signer and genesis proposer address
+// TestCreateSignedDataToSubmit tests createSignedDataToSubmit for normal, empty, and error cases.
+func TestCreateSignedDataToSubmit(t *testing.T) {
 	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(t, err)
 	testSigner, err := noop.NewNoopSigner(privKey)
@@ -224,43 +237,86 @@ func TestCreateSignedDataFromBatch(t *testing.T) {
 		time.Now(),
 		proposerAddr,
 	)
-	m := &Manager{
-		signer:  testSigner,
-		genesis: gen,
-	}
 
-	t.Run("normal batch", func(t *testing.T) {
-		batch := &coresequencer.Batch{
-			Transactions: [][]byte{[]byte("tx1"), []byte("tx2")},
-		}
-		signedData, err := m.createSignedDataFromBatch(batch)
+	t.Run("normal case", func(t *testing.T) {
+		mockStore := mocks.NewStore(t)
+		logger := log.NewNopLogger()
+		// Set up Height and GetBlockData to return two Data items
+		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
+		mockStore.On("Height", mock.Anything).Return(uint64(2), nil).Once()
+		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(nil, &types.Data{Txs: types.Txs{types.Tx("tx1"), types.Tx("tx2")}, Metadata: &types.Metadata{Height: 1}}, nil).Once()
+		mockStore.On("GetBlockData", mock.Anything, uint64(2)).Return(nil, &types.Data{Txs: types.Txs{types.Tx("tx3")}, Metadata: &types.Metadata{Height: 2}}, nil).Once()
+		pendingData, err := NewPendingData(mockStore, logger)
 		require.NoError(t, err)
-		assert.Equal(t, 2, len(signedData.Txs))
-		assert.Equal(t, types.Tx("tx1"), signedData.Txs[0])
-		assert.Equal(t, types.Tx("tx2"), signedData.Txs[1])
-		assert.Equal(t, pubKey, signedData.Signer.PubKey)
-		assert.Equal(t, proposerAddr, signedData.Signer.Address)
-		assert.NotEmpty(t, signedData.Signature)
+		m := &Manager{
+			signer:      testSigner,
+			genesis:     gen,
+			pendingData: pendingData,
+		}
+		signedDataList, err := m.createSignedDataToSubmit(context.Background())
+		require.NoError(t, err)
+		require.Len(t, signedDataList, 2)
+		assert.Equal(t, types.Tx("tx1"), signedDataList[0].Txs[0])
+		assert.Equal(t, types.Tx("tx2"), signedDataList[0].Txs[1])
+		assert.Equal(t, pubKey, signedDataList[0].Signer.PubKey)
+		assert.Equal(t, proposerAddr, signedDataList[0].Signer.Address)
+		assert.NotEmpty(t, signedDataList[0].Signature)
+		assert.Equal(t, types.Tx("tx3"), signedDataList[1].Txs[0])
+		assert.Equal(t, pubKey, signedDataList[1].Signer.PubKey)
+		assert.Equal(t, proposerAddr, signedDataList[1].Signer.Address)
+		assert.NotEmpty(t, signedDataList[1].Signature)
 	})
 
-	t.Run("empty batch", func(t *testing.T) {
-		batch := &coresequencer.Batch{
-			Transactions: [][]byte{},
+	t.Run("empty pending data", func(t *testing.T) {
+		mockStore := mocks.NewStore(t)
+		logger := log.NewNopLogger()
+		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
+		mockStore.On("Height", mock.Anything).Return(uint64(0), nil).Once()
+		pendingData, err := NewPendingData(mockStore, logger)
+		require.NoError(t, err)
+		m := &Manager{
+			signer:      testSigner,
+			genesis:     gen,
+			pendingData: pendingData,
 		}
-		signedData, err := m.createSignedDataFromBatch(batch)
+		signedDataList, err := m.createSignedDataToSubmit(context.Background())
+		assert.NoError(t, err)
+		assert.Empty(t, signedDataList)
+	})
+
+	t.Run("getPendingData returns error", func(t *testing.T) {
+		mockStore := mocks.NewStore(t)
+		logger := log.NewNopLogger()
+		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
+		mockStore.On("Height", mock.Anything).Return(uint64(1), nil).Once()
+		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(nil, nil, fmt.Errorf("mock error")).Once()
+		pendingData, err := NewPendingData(mockStore, logger)
+		require.NoError(t, err)
+		m := &Manager{
+			signer:      testSigner,
+			genesis:     gen,
+			pendingData: pendingData,
+		}
+		_, err = m.createSignedDataToSubmit(context.Background())
 		assert.Error(t, err)
-		assert.Nil(t, signedData)
+		assert.Contains(t, err.Error(), "mock error")
 	})
 
 	t.Run("signer returns error", func(t *testing.T) {
-		badManager := &Manager{
-			signer:  nil, // nil signer will cause getDataSignature to fail
-			genesis: m.genesis,
+		mockStore := mocks.NewStore(t)
+		logger := log.NewNopLogger()
+		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
+		mockStore.On("Height", mock.Anything).Return(uint64(1), nil).Once()
+		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(nil, &types.Data{Txs: types.Txs{types.Tx("tx1")}, Metadata: &types.Metadata{Height: 1}}, nil).Once()
+		pendingData, err := NewPendingData(mockStore, logger)
+		require.NoError(t, err)
+		m := &Manager{
+			signer:      nil, // nil signer will cause getDataSignature to fail
+			genesis:     gen,
+			pendingData: pendingData,
 		}
-		batch := &coresequencer.Batch{
-			Transactions: [][]byte{[]byte("tx1")},
-		}
-		_, err := badManager.createSignedDataFromBatch(batch)
+		_, err = m.createSignedDataToSubmit(context.Background())
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "signer is nil; cannot sign data")
 	})
 }
