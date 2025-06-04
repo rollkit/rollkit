@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"time"
 
 	ds "github.com/ipfs/go-datastore"
 
@@ -10,40 +9,53 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-const DefaultFlushInterval = 1 * time.Second
-
-type defaultPruningStore struct {
+// DefaultPruningStore is for a store that supports pruning of block data.
+type DefaultPruningStore struct {
 	Store
 
-	Config config.PruningConfig
+	config                config.PruningConfig
+	latestBlockDataHeight uint64
 }
 
-var _ PruningStore = &defaultPruningStore{}
+var _ PruningStore = &DefaultPruningStore{}
 
-// newDefaultPruningStore returns default pruning store.
-func newDefaultPruningStore(ds ds.Batching, config config.PruningConfig) PruningStore {
-	return &defaultPruningStore{
-		Store:  &DefaultStore{db: ds},
-		Config: config,
+func NewDefaultPruningStore(ds ds.Batching, config config.PruningConfig) PruningStore {
+	return &DefaultPruningStore{
+		Store: &DefaultStore{db: ds},
+
+		config: config,
 	}
 }
 
-func (s *defaultPruningStore) PruneBlockData(ctx context.Context, height uint64) error {
+// SaveBlockData saves the block data and updates the latest block data height.
+func (s *DefaultPruningStore) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
+	err := s.SaveBlockData(ctx, header, data, signature)
+	if err == nil {
+		s.latestBlockDataHeight = header.Height()
+	}
+
+	return err
+}
+
+func (s *DefaultPruningStore) PruneBlockData(ctx context.Context) error {
 	// Skip if strategy is none.
-	if s.Config.Strategy == config.PruningConfigStrategyNone {
+	if s.config.Strategy == config.PruningConfigStrategyNone {
 		return nil
 	}
 
+	// Read latest height after calling SaveBlockData. There is a delay between SetHeight and SaveBlockData.
+	height := s.latestBlockDataHeight
+
 	// Skip if not the correct interval or latest height is less or equal than number of blocks need to keep.
-	if height%s.Config.Interval != 0 || height < s.Config.KeepRecent {
+	if height%s.config.Interval != 0 || height < s.config.KeepRecent {
 		return nil
 	}
 
 	// Must keep at least 2 blocks(while strategy is everything).
-	endHeight := height + 1 - s.Config.KeepRecent
+	endHeight := height + 1 - s.config.KeepRecent
 	startHeight := uint64(0)
-	if endHeight > s.Config.Interval {
-		startHeight = endHeight - s.Config.Interval
+	if endHeight > s.config.Interval {
+		startHeight = endHeight - s.config.Interval
 	}
 
 	for i := startHeight; i < endHeight; i++ {
@@ -52,51 +64,4 @@ func (s *defaultPruningStore) PruneBlockData(ctx context.Context, height uint64)
 	}
 
 	return nil
-}
-
-type AsyncPruningStore struct {
-	PruningStore
-
-	latestBlockDataHeight uint64
-	flushInterval         time.Duration
-}
-
-var _ PruningStore = &AsyncPruningStore{}
-
-func NewAsyncPruningStore(ds ds.Batching, config config.PruningConfig) *AsyncPruningStore {
-	pruningStore := newDefaultPruningStore(ds, config)
-
-	// todo: initialize latestBlockDataHeight from the store
-	return &AsyncPruningStore{
-		PruningStore: pruningStore,
-
-		flushInterval: DefaultFlushInterval,
-	}
-}
-
-// SaveBlockData saves the block data and updates the latest block data height.
-func (s *AsyncPruningStore) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
-	err := s.PruningStore.SaveBlockData(ctx, header, data, signature)
-	if err == nil {
-		s.latestBlockDataHeight = header.Height()
-	}
-
-	return err
-}
-
-// Start begins the pruning process at the specified interval.
-func (s *AsyncPruningStore) Start(ctx context.Context) {
-	// todo: use ctx for cancellation
-	ticker := time.NewTicker(s.flushInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			// Currently PruneBlockData only returns nil.
-			_ = s.PruneBlockData(ctx, s.latestBlockDataHeight)
-		}
-	}
 }
