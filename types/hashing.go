@@ -22,7 +22,7 @@ func SetHeaderHasher(hasher HeaderHasher) {
 func (h *Header) Hash() Hash {
 	hash, err := DefaultHeaderHasher(h)
 	if err != nil {
-		// For backward compatibility, return nil on error
+		// For backward compatibility with go-header
 		// In the future, this method signature could be changed to return (Hash, error)
 		return nil
 	}
