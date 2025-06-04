@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
@@ -171,7 +172,7 @@ func StartNode(
 
 	// Wait for interrupt signal to gracefully shut down the server
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	select {
 	case <-quit:

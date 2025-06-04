@@ -27,7 +27,7 @@ func TestNewDummyExecutor(t *testing.T) {
 		t.Error("pendingRoots map was not initialized")
 	}
 
-	if executor.injectedTxs != nil && len(executor.injectedTxs) > 0 {
+	if len(executor.injectedTxs) > 0 {
 		t.Errorf("Expected injectedTxs to be empty, got %v", executor.injectedTxs)
 	}
 }

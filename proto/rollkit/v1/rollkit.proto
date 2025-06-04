@@ -59,7 +59,7 @@ message Header {
   string chain_id = 12;
 }
 
-// SignedHeader is a header with a signature and a validator set.
+// SignedHeader is a header with a signature and a signer.
 message SignedHeader {
   Header header = 1;
   bytes signature = 2;
@@ -93,7 +93,13 @@ message Metadata {
 message Data {
   Metadata metadata = 1;
   repeated bytes txs = 2;
-  // repeated bytes intermediate_state_roots = 2;
+}
+
+// SignedData is a data with a signature and a signer.
+message SignedData {
+  Data data = 1;
+  bytes signature = 2;
+  Signer signer = 3;
 }
 
 // Vote is a vote for a block in the blockchain.
