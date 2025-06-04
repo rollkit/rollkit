@@ -393,10 +393,11 @@ func NewManager(
 		gasMultiplier:       gasMultiplier,
 		txNotifyCh:          make(chan struct{}, 1),
 		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
-		// Providers are initialized to nil by default, options will set them
-		validatorHasher:          nil,
-		commitHashProvider:       nil,
-		signaturePayloadProvider: nil,
+
+		// Providers are initialized to default values by default, options will set them
+		validatorHasher:          types.CreateDefaultValidatorHasher(),
+		commitHashProvider:       types.CreateDefaultCommitHashProvider(),
+		signaturePayloadProvider: types.CreateDefaultSignaturePayloadProvider(),
 	}
 
 	// initialize da included height
