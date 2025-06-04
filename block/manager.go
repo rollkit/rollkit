@@ -105,7 +105,6 @@ type Manager struct {
 
 	signer signer.Signer
 
-	headerHasher             types.HeaderHasher
 	validatorHasher          types.ValidatorHasher
 	signaturePayloadProvider types.SignaturePayloadProvider
 	commitHashProvider       types.CommitHashProvider
@@ -180,13 +179,6 @@ type ManagerOption func(*Manager)
 func WithValidatorHasher(hasher types.ValidatorHasher) ManagerOption {
 	return func(m *Manager) {
 		m.validatorHasher = hasher
-	}
-}
-
-// WithHeaderHasher sets the header hasher provider
-func WithHeaderHasher(hasher types.HeaderHasher) ManagerOption {
-	return func(m *Manager) {
-		m.headerHasher = hasher
 	}
 }
 
@@ -403,7 +395,6 @@ func NewManager(
 		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
 		// Providers are initialized to nil by default, options will set them
 		validatorHasher:          nil,
-		headerHasher:             nil,
 		commitHashProvider:       nil,
 		signaturePayloadProvider: nil,
 	}
@@ -507,13 +498,8 @@ func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error)
 		return false, err
 	}
 
-	headerHash, err := m.headerHasher(&header.Header)
-	if err != nil {
-		return false, err
-	}
-
 	dataHash := data.DACommitment()
-	isIncluded := m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, dataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String()))
+	isIncluded := m.headerCache.IsDAIncluded(header.Hash().String()) && (bytes.Equal(dataHash, dataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String()))
 	return isIncluded, nil
 }
 
@@ -674,12 +660,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	headerHeight := header.Height()
 
-	headerHash, err := m.headerHasher(&header.Header)
-	if err != nil {
-		return fmt.Errorf("failed to hash header: %w", err)
-	}
-
-	m.headerCache.SetSeen(headerHash.String())
+	m.headerCache.SetSeen(header.Hash().String())
 
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlockData(ctx, header, data, &signature)
@@ -755,10 +736,7 @@ func (m *Manager) getPreviousBlockData(ctx context.Context, newHeight uint64) (*
 			return nil, fmt.Errorf("error while loading last block: %w, height: %d", errGetBlockData, prevHeight)
 		}
 
-		prevCtx.headerHash, err = m.headerHasher(&lastHeader.Header)
-		if err != nil {
-			return nil, fmt.Errorf("failed to hash header: %w", err)
-		}
+		prevCtx.headerHash = lastHeader.Hash()
 		prevCtx.dataHash = lastData.Hash()
 		prevCtx.headerTime = lastHeader.Time()
 	}
@@ -944,19 +922,7 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 
 	// Prepare metadata
 	metadata := make(map[string]interface{})
-
-	// Calculate and add the header hash to metadata
-	if m.headerHasher != nil {
-		currentHeaderHash, err := m.headerHasher(&header.Header)
-		if err != nil {
-			m.logger.Error("failed to calculate header hash in execApplyBlock for metadata", "error", err)
-		} else if currentHeaderHash != nil {
-			metadata[types.HeaderHashKey] = currentHeaderHash
-			m.logger.Debug("Added header hash to metadata for ExecuteTxs", "headerHash", hex.EncodeToString(currentHeaderHash))
-		}
-	} else {
-		m.logger.Warn("headerHasher is nil, cannot add currentHeaderHash to metadata")
-	}
+	metadata[types.HeaderHashKey] = header.Hash()
 
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash, metadata)
 	if err != nil {
