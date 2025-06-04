@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
@@ -26,70 +25,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
-	"github.com/rollkit/rollkit/types"
 )
-
-// createDefaultSignaturePayloadProvider creates a basic signature payload provider
-// that returns a hash of the header for signing
-func createDefaultSignaturePayloadProvider() types.SignaturePayloadProvider {
-	return func(header *types.Header, data *types.Data) ([]byte, error) {
-		if header == nil {
-			return nil, errors.New("header cannot be nil")
-		}
-
-		// Create a simple payload by hashing the header bytes
-		headerBytes, err := header.MarshalBinary()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal header: %w", err)
-		}
-
-		hash := sha256.Sum256(headerBytes)
-		return hash[:], nil
-	}
-}
-
-// createDefaultHeaderHasher creates a basic header hasher that returns a hash of the header
-func createDefaultHeaderHasher() types.HeaderHasher {
-	return func(header *types.Header) (types.Hash, error) {
-		if header == nil {
-			return nil, errors.New("header cannot be nil")
-		}
-
-		// Create a hash of the header bytes
-		headerBytes, err := header.MarshalBinary()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal header: %w", err)
-		}
-
-		hash := sha256.Sum256(headerBytes)
-		return hash[:], nil
-	}
-}
-
-// createDefaultCommitHashProvider creates a basic commit hash provider
-func createDefaultCommitHashProvider() types.CommitHashProvider {
-	return func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
-		if header == nil {
-			return nil, errors.New("header cannot be nil")
-		}
-
-		// Create a simple commit hash from header and signature
-		headerBytes, err := header.MarshalBinary()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal header: %w", err)
-		}
-
-		// Combine header bytes with signature if available
-		var commitData []byte
-		commitData = append(commitData, headerBytes...)
-		if signature != nil {
-			commitData = append(commitData, *signature...)
-		}
-
-		hash := sha256.Sum256(commitData)
-		return hash[:], nil
-	}
-}
 
 // ParseConfig is an helpers that loads the node configuration and validates it.
 func ParseConfig(cmd *cobra.Command) (rollconf.Config, error) {
