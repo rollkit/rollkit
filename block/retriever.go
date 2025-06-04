@@ -118,7 +118,7 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 		return true
 	}
 	// Stronger validation: check for obviously invalid headers using ValidateBasic
-	if err := header.ValidateBasic(); err != nil {
+	if err := header.ValidateBasic(m.signaturePayloadProvider); err != nil {
 		m.logger.Debug("blob does not look like a valid header", "daHeight", daHeight, "error", err)
 		return false
 	}
