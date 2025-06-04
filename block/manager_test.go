@@ -102,7 +102,7 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 		WithCommitHashProvider(func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
 			return make(types.Hash, 32), nil
 		}),
-		WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()), // SignaturePayloadProvider
+		WithSignaturePayloadProvider(types.CreateDefaultSignaturePayloadProvider()),
 	)
 	require.NoError(t, err)
 	return m, mockStore

@@ -78,7 +78,7 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 		lastStateMtx:             new(sync.RWMutex),
 		config:                   nodeConf,
 		signer:                   signer,
-		signaturePayloadProvider: createDefaultSignaturePayloadProvider(),
+		signaturePayloadProvider: types.CreateDefaultSignaturePayloadProvider(),
 	}
 
 	// initialize da included height
@@ -421,18 +421,4 @@ func TestHeaderStoreRetrieveLoop_NoNewHeaders(t *testing.T) {
 
 	// Verify mock expectations
 	mockHeaderStore.AssertExpectations(t)
-}
-
-// createDefaultSignaturePayloadProvider creates a basic signature payload provider for tests
-// that matches the behavior used in GetSignature function in utils.go
-func createDefaultSignaturePayloadProvider() types.SignaturePayloadProvider {
-	return func(header *types.Header, data *types.Data) ([]byte, error) {
-		if header == nil {
-			return nil, errors.New("header cannot be nil")
-		}
-
-		// Use the same approach as GetSignature: just return the marshaled header bytes
-		// This matches the behavior in utils.go GetSignature function
-		return header.MarshalBinary()
-	}
 }

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
@@ -12,20 +11,6 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/signer/noop"
 )
-
-// createDefaultSignaturePayloadProvider creates a basic signature payload provider for tests
-// that matches the behavior used in GetSignature function in utils.go
-func createDefaultSignaturePayloadProvider() SignaturePayloadProvider {
-	return func(header *Header, data *Data) ([]byte, error) {
-		if header == nil {
-			return nil, errors.New("header cannot be nil")
-		}
-
-		// Use the same approach as GetSignature: just return the marshaled header bytes
-		// This matches the behavior in utils.go GetSignature function
-		return header.MarshalBinary()
-	}
-}
 
 func TestSignedHeader(t *testing.T) {
 	chainID := "TestSignedHeader"
@@ -242,7 +227,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 				preparedHeader.Signature = signature
 			}
 
-			err = preparedHeader.ValidateBasic(createDefaultSignaturePayloadProvider())
+			err = preparedHeader.ValidateBasic(CreateDefaultSignaturePayloadProvider())
 
 			if test.err == nil {
 				assert.NoError(t, err)

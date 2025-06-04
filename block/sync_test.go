@@ -70,7 +70,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 		headerStore:              &goheaderstore.Store[*types.SignedHeader]{},
 		dataStore:                &goheaderstore.Store[*types.Data]{},
 		pendingHeaders:           &PendingHeaders{logger: log.NewNopLogger()},
-		signaturePayloadProvider: createDefaultSignaturePayloadProvider(),
+		signaturePayloadProvider: types.CreateDefaultSignaturePayloadProvider(),
 	}
 	m.daHeight.Store(initialState.DAHeight)
 

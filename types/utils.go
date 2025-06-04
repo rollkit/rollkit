@@ -2,6 +2,7 @@ package types
 
 import (
 	cryptoRand "crypto/rand"
+	"errors"
 	"math/rand"
 	"time"
 
@@ -309,4 +310,15 @@ func getBlockDataWith(nTxs int) *Data {
 		data.Txs = nil
 	}
 	return data
+}
+
+// CreateDefaultSignaturePayloadProvider creates a basic signature payload provider for tests
+func CreateDefaultSignaturePayloadProvider() SignaturePayloadProvider {
+	return func(header *Header, data *Data) ([]byte, error) {
+		if header == nil {
+			return nil, errors.New("header cannot be nil")
+		}
+
+		return header.MarshalBinary()
+	}
 }
