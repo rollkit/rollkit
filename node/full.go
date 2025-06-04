@@ -61,6 +61,7 @@ type FullNode struct {
 	Store        store.Store
 	blockManager *block.Manager
 	reaper       *block.Reaper
+	asyncPruner  *block.AsyncPruner
 
 	prometheusSrv *http.Server
 	pprofSrv      *http.Server
@@ -129,12 +130,17 @@ func newFullNode(
 	// Connect the reaper to the manager for transaction notifications
 	reaper.SetManager(blockManager)
 
+	asyncPruner := block.NewAsyncPruner(
+		rktStore, block.DefaultFlushInterval,
+	)
+
 	node := &FullNode{
 		genesis:      genesis,
 		nodeConfig:   nodeConfig,
 		p2pClient:    p2pClient,
 		blockManager: blockManager,
 		reaper:       reaper,
+		asyncPruner:  asyncPruner,
 		da:           da,
 		Store:        rktStore,
 		hSyncService: headerSyncService,
@@ -390,6 +396,7 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		spawnWorker(func() { n.blockManager.SyncLoop(ctx, errCh) })
 		spawnWorker(func() { n.blockManager.DAIncluderLoop(ctx, errCh) })
 	}
+	spawnWorker(func() { n.asyncPruner.Start(ctx) })
 
 	select {
 	case err := <-errCh:
