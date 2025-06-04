@@ -42,7 +42,7 @@ type EngineClient struct {
 	feeRecipient  common.Address // Address to receive transaction fees
 }
 
-// NewPureEngineExecutionClient creates a new instance of EngineAPIExecutionClient
+// NewEngineExecutionClient creates a new instance of EngineAPIExecutionClient
 func NewEngineExecutionClient(
 	ethURL,
 	engineURL string,
