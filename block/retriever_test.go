@@ -682,7 +682,7 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	mockLogger.AssertExpectations(t)
 }
 
-// TestProcessNextDAHeader_DataWithNoTxs verifies that a data with no transactions is ignored and does not emit events or mark as DA included.
+// TestProcessNextDAHeader_WithNoTxs verifies that a data with no transactions is ignored and does not emit events or mark as DA included.
 func TestProcessNextDAHeader_WithNoTxs(t *testing.T) {
 	t.Parallel()
 	daHeight := uint64(55)
