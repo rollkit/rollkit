@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	kvexecutor "github.com/rollkit/rollkit/apps/testapp/kv"
+	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/da/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/config"
@@ -17,6 +18,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/sequencers/single"
+	"github.com/rollkit/rollkit/types"
 )
 
 var RunCmd = &cobra.Command{
@@ -106,6 +108,17 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig)
+		return rollcmd.StartNode(
+			logger,
+			cmd,
+			executor,
+			sequencer,
+			&daJrpc.DA,
+			p2pClient,
+			datastore,
+			nodeConfig,
+			block.WithSignaturePayloadProvider(types.CreateDefaultSignaturePayloadProvider()),
+			block.WithCommitHashProvider(types.CreateDefaultCommitHashProvider()),
+		)
 	},
 }
