@@ -92,16 +92,22 @@ func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 	}
 }
 
-func createNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullNode, func()) {
-	// Create a cancellable context instead of using background context
+// newTestNode is a private helper that creates a node and returns it with a unified cleanup function.
+func newTestNode(
+	t *testing.T,
+	config rollkitconfig.Config,
+	executor coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
+	dac coreda.DA,
+	p2pClient *p2p.Client,
+	ds datastore.Batching,
+	stopDAHeightTicker func(),
+) (*FullNode, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Generate genesis and keys
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey(config.ChainID)
 	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
-	require.NoError(t, err)
-
-	executor, sequencer, dac, p2pClient, ds, _, stopDAHeightTicker := createTestComponents(t, config)
 	require.NoError(t, err)
 
 	node, err := NewNode(
@@ -119,14 +125,32 @@ func createNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullNode
 	)
 	require.NoError(t, err)
 
-	// Update cleanup to cancel the context instead of calling Stop
 	cleanup := func() {
-		// Cancel the context to stop the node
 		cancel()
-		stopDAHeightTicker()
+		if stopDAHeightTicker != nil {
+			stopDAHeightTicker()
+		}
 	}
 
 	return node.(*FullNode), cleanup
+}
+
+func createNodeWithCleanup(t *testing.T, config rollkitconfig.Config) (*FullNode, func()) {
+	executor, sequencer, dac, p2pClient, ds, _, stopDAHeightTicker := createTestComponents(t, config)
+	return newTestNode(t, config, executor, sequencer, dac, p2pClient, ds, stopDAHeightTicker)
+}
+
+func createNodeWithCustomComponents(
+	t *testing.T,
+	config rollkitconfig.Config,
+	executor coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
+	dac coreda.DA,
+	p2pClient *p2p.Client,
+	ds datastore.Batching,
+	stopDAHeightTicker func(),
+) (*FullNode, func()) {
+	return newTestNode(t, config, executor, sequencer, dac, p2pClient, ds, stopDAHeightTicker)
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchronize them
@@ -140,7 +164,7 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 
 	// Generate genesis and keys
-	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey(config.ChainID)
 	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
 	require.NoError(err)
 

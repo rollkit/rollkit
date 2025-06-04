@@ -4,7 +4,7 @@ services:
   reth:
     container_name: reth
     restart: unless-stopped
-    image: ghcr.io/paradigmxyz/reth:v1.2.1
+    image: ghcr.io/paradigmxyz/reth:v1.4.6
     ports:
       - "9001:9001"
       - "30303:30303"
@@ -26,6 +26,8 @@ services:
           --authrpc.jwtsecret /root/jwt/jwt.hex \
           --http --http.addr 0.0.0.0 --http.port 8545 \
           --http.api "eth,net,web3,txpool" \
+          --engine.persistence-threshold 0 \
+          --engine.memory-block-buffer-target 0 \
           --disable-discovery
     networks:
       - rollkit-network
@@ -52,7 +54,7 @@ services:
       - EVM_ENGINE_URL=http://reth:8551
       - EVM_ETH_URL=http://reth:8545
       - EVM_JWT_SECRET=f747494bb0fb338a0d71f5f9fe5b5034c17cc988c229b59fd71e005ee692e9bf
-      - EVM_GENESIS_HASH=0x0a962a0d163416829894c89cb604ae422323bcdf02d7ea08b94d68d3e026a380
+      - EVM_GENESIS_HASH=0xe720f8ec96a43a741b1ab34819acfeb029ce4f083fe73c5a08c1f6a7b17a8568
       - EVM_BLOCK_TIME=1s
       - EVM_SIGNER_PASSPHRASE=secret
       # - DA_ADDRESS=http://localhost:26658
