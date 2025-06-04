@@ -127,7 +127,6 @@ func newTestNode(
 		log.NewTestLogger(t),
 		block.WithValidatorHasher(createDefaultValidatorHasher()),
 		block.WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()),
-		block.WithHeaderHasher(createDefaultHeaderHasher()),
 		block.WithCommitHashProvider(createDefaultCommitHashProvider()),
 	)
 	require.NoError(t, err)
@@ -195,7 +194,6 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 		log.NewTestLogger(t),
 		block.WithValidatorHasher(createDefaultValidatorHasher()),
 		block.WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()),
-		block.WithHeaderHasher(createDefaultHeaderHasher()),
 		block.WithCommitHashProvider(createDefaultCommitHashProvider()),
 	)
 	require.NoError(err)
@@ -236,7 +234,6 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 			log.NewTestLogger(t),
 			block.WithValidatorHasher(createDefaultValidatorHasher()),
 			block.WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()),
-			block.WithHeaderHasher(createDefaultHeaderHasher()),
 			block.WithCommitHashProvider(createDefaultCommitHashProvider()),
 		)
 		require.NoError(err)
@@ -343,24 +340,6 @@ func createDefaultSignaturePayloadProvider() types.SignaturePayloadProvider {
 		// Use the same approach as GetSignature: just return the marshaled header bytes
 		// This matches the behavior in utils.go GetSignature function
 		return header.MarshalBinary()
-	}
-}
-
-// createDefaultHeaderHasher creates a basic header hasher that returns a hash of the header
-func createDefaultHeaderHasher() types.HeaderHasher {
-	return func(header *types.Header) (types.Hash, error) {
-		if header == nil {
-			return nil, errors.New("header cannot be nil")
-		}
-
-		// Create a hash of the header bytes
-		headerBytes, err := header.MarshalBinary()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal header: %w", err)
-		}
-
-		hash := sha256.Sum256(headerBytes)
-		return hash[:], nil
 	}
 }
 

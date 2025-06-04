@@ -215,9 +215,6 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		WithValidatorHasher(func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
 			return make(types.Hash, 32), nil
 		}),
-		WithHeaderHasher(func(header *types.Header) (types.Hash, error) {
-			return header.Hash(), nil
-		}),
 		WithCommitHashProvider(func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
 			return make(types.Hash, 32), nil
 		}),

@@ -78,9 +78,6 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 		lastStateMtx:  new(sync.RWMutex),
 		da:            mockDAClient,
 		signer:        noopSigner,
-		headerHasher: func(header *types.Header) (types.Hash, error) {
-			return header.Hash(), nil
-		},
 		validatorHasher: func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
 			return make(types.Hash, 32), nil
 		},

@@ -87,9 +87,6 @@ func setupManagerForPublishBlockTest(
 		metrics:                  NopMetrics(),
 		pendingHeaders:           nil,
 		signaturePayloadProvider: createDefaultSignaturePayloadProvider(),
-		headerHasher: func(header *types.Header) (types.Hash, error) {
-			return header.Hash(), nil
-		},
 		validatorHasher: func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
 			return make(types.Hash, 32), nil
 		},
@@ -180,9 +177,6 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		signaturePayloadProvider: createDefaultSignaturePayloadProvider(),
-		headerHasher: func(header *types.Header) (types.Hash, error) {
-			return header.Hash(), nil
-		},
 		validatorHasher: func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
 			return make(types.Hash, 32), nil
 		},
@@ -274,9 +268,6 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		signaturePayloadProvider: createDefaultSignaturePayloadProvider(),
-		headerHasher: func(header *types.Header) (types.Hash, error) {
-			return header.Hash(), nil
-		},
 		validatorHasher: func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
 			return make(types.Hash, 32), nil
 		},

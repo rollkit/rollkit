@@ -99,9 +99,6 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 		WithValidatorHasher(func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
 			return make(types.Hash, 32), nil
 		}),
-		WithHeaderHasher(func(header *types.Header) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		}),
 		WithCommitHashProvider(func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
 			return make(types.Hash, 32), nil
 		}),
@@ -244,12 +241,8 @@ func TestIsDAIncluded(t *testing.T) {
 	// IsDAIncluded should return false for unseen hash
 	require.False(m.IsDAIncluded(ctx, height))
 
-	// Get the header hash using the same headerHasher that IsDAIncluded uses
-	headerHash, err := m.headerHasher(&header.Header)
-	require.NoError(err)
-
 	// Set the hash as DAIncluded and verify IsDAIncluded returns true
-	m.headerCache.SetDAIncluded(headerHash.String())
+	m.headerCache.SetDAIncluded(header.Hash().String())
 	require.False(m.IsDAIncluded(ctx, height))
 
 	// Set the data as DAIncluded and verify IsDAIncluded returns true

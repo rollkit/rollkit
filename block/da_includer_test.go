@@ -29,9 +29,6 @@ func newTestManager(t *testing.T) (*Manager, *mocks.Store, *mocks.Executor, *Moc
 	store.On("Height", mock.Anything).Return(uint64(100), nil).Maybe()
 
 	// Create default hasher functions for testing
-	headerHasher := func(header *types.Header) (types.Hash, error) {
-		return header.Hash(), nil
-	}
 	validatorHasher := func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
 		return make(types.Hash, 32), nil
 	}
@@ -51,7 +48,6 @@ func newTestManager(t *testing.T) (*Manager, *mocks.Store, *mocks.Executor, *Moc
 		exec:                     exec,
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
-		headerHasher:             headerHasher,
 		validatorHasher:          validatorHasher,
 		commitHashProvider:       commitHashProvider,
 		signaturePayloadProvider: signaturePayloadProvider,
