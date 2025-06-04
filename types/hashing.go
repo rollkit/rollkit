@@ -10,19 +10,8 @@ import (
 var (
 	leafPrefix = []byte{0}
 	// DefaultHeaderHasher is the global header hasher that can be overridden by different implementations
-	DefaultHeaderHasher HeaderHasher = defaultHeaderHash
+	DefaultHeaderHasher HeaderHasher = CreateDefaultHeaderHasher()
 )
-
-// defaultHeaderHash is the default implementation for header hashing using SHA256
-func defaultHeaderHash(header *Header) (Hash, error) {
-	bytes, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	hash := sha256.Sum256(bytes)
-
-	return hash[:], nil
-}
 
 // SetHeaderHasher allows different implementations to override the default header hasher
 func SetHeaderHasher(hasher HeaderHasher) {

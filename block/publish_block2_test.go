@@ -212,12 +212,8 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		NopMetrics(),
 		1.,
 		1.,
-		WithValidatorHasher(func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		}),
-		WithCommitHashProvider(func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		}),
+		WithValidatorHasher(types.CreateDefaultValidatorHasher()),
+		WithCommitHashProvider(types.CreateDefaultCommitHashProvider()),
 		WithSignaturePayloadProvider(types.CreateDefaultSignaturePayloadProvider()),
 	)
 	require.NoError(t, err)

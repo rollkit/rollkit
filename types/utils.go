@@ -2,7 +2,9 @@ package types
 
 import (
 	cryptoRand "crypto/rand"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -312,13 +314,71 @@ func getBlockDataWith(nTxs int) *Data {
 	return data
 }
 
-// CreateDefaultSignaturePayloadProvider creates a basic signature payload provider for tests
+// CreateDefaultSignaturePayloadProvider creates a basic signature payload provider
+// that returns a hash of the header for signing
 func CreateDefaultSignaturePayloadProvider() SignaturePayloadProvider {
 	return func(header *Header, data *Data) ([]byte, error) {
 		if header == nil {
 			return nil, errors.New("header cannot be nil")
 		}
 
-		return header.MarshalBinary()
+		// Create a simple payload by hashing the header bytes
+		headerBytes, err := header.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal header: %w", err)
+		}
+
+		hash := sha256.Sum256(headerBytes)
+		return hash[:], nil
+	}
+}
+
+// CreateDefaultHeaderHasher creates a basic header hasher that returns a hash of the header
+func CreateDefaultHeaderHasher() HeaderHasher {
+	return func(header *Header) (Hash, error) {
+		if header == nil {
+			return nil, errors.New("header cannot be nil")
+		}
+
+		// Create a hash of the header bytes
+		headerBytes, err := header.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal header: %w", err)
+		}
+
+		hash := sha256.Sum256(headerBytes)
+		return hash[:], nil
+	}
+}
+
+// createDefaultCommitHashProvider creates a basic commit hash provider
+func CreateDefaultCommitHashProvider() CommitHashProvider {
+	return func(signature *Signature, header *Header, proposerAddress []byte) (Hash, error) {
+		if header == nil {
+			return nil, errors.New("header cannot be nil")
+		}
+
+		// Create a simple commit hash from header and signature
+		headerBytes, err := header.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal header: %w", err)
+		}
+
+		// Combine header bytes with signature if available
+		var commitData []byte
+		commitData = append(commitData, headerBytes...)
+		if signature != nil {
+			commitData = append(commitData, *signature...)
+		}
+
+		hash := sha256.Sum256(commitData)
+		return hash[:], nil
+	}
+}
+
+func CreateDefaultValidatorHasher() ValidatorHasher {
+	return func(proposerAddress []byte, pubKey crypto.PubKey) (Hash, error) {
+		hash := sha256.Sum256(proposerAddress)
+		return hash[:], nil
 	}
 }

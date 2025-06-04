@@ -96,12 +96,8 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 		metrics,
 		gasPrice,
 		gasMultiplier,
-		WithValidatorHasher(func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		}),
-		WithCommitHashProvider(func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		}),
+		WithValidatorHasher(types.CreateDefaultValidatorHasher()),
+		WithCommitHashProvider(types.CreateDefaultCommitHashProvider()),
 		WithSignaturePayloadProvider(types.CreateDefaultSignaturePayloadProvider()),
 	)
 	require.NoError(t, err)

@@ -87,12 +87,8 @@ func setupManagerForPublishBlockTest(
 		metrics:                  NopMetrics(),
 		pendingHeaders:           nil,
 		signaturePayloadProvider: types.CreateDefaultSignaturePayloadProvider(),
-		validatorHasher: func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		},
-		commitHashProvider: func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		},
+		validatorHasher:          types.CreateDefaultValidatorHasher(),
+		commitHashProvider:       types.CreateDefaultCommitHashProvider(),
 	}
 	manager.publishBlock = manager.publishBlockInternal
 
@@ -177,12 +173,8 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		signaturePayloadProvider: types.CreateDefaultSignaturePayloadProvider(),
-		validatorHasher: func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		},
-		commitHashProvider: func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		},
+		validatorHasher:          types.CreateDefaultValidatorHasher(),
+		commitHashProvider:       types.CreateDefaultCommitHashProvider(),
 	}
 
 	m.publishBlock = m.publishBlockInternal
@@ -268,12 +260,8 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		signaturePayloadProvider: types.CreateDefaultSignaturePayloadProvider(),
-		validatorHasher: func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		},
-		commitHashProvider: func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
-			return make(types.Hash, 32), nil
-		},
+		validatorHasher:          types.CreateDefaultValidatorHasher(),
+		commitHashProvider:       types.CreateDefaultCommitHashProvider(),
 		lastState: types.State{
 			ChainID:         chainID,
 			InitialHeight:   1,
