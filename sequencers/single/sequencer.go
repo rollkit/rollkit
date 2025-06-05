@@ -87,16 +87,6 @@ func (c *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.Submit
 
 	batch := coresequencer.Batch{Transactions: req.Batch.Transactions}
 
-	if c.batchSubmissionChan == nil {
-		return nil, fmt.Errorf("sequencer mis-configured: batch submission channel is nil")
-	}
-
-	select {
-	case c.batchSubmissionChan <- batch:
-	default:
-		return nil, fmt.Errorf("DA submission queue full, please retry later")
-	}
-
 	err := c.queue.AddBatch(ctx, batch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add batch: %w", err)
