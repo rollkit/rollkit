@@ -119,7 +119,7 @@ func StartNode(
 		return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 	}
 
-	metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
+	metrics := node.DefaultMetricsProvider(nodeConfig.Instrumentation)
 
 	genesisPath := filepath.Join(filepath.Dir(nodeConfig.ConfigPath()), "genesis.json")
 	genesis, err := genesispkg.LoadGenesis(genesisPath)
