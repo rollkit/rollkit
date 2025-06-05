@@ -171,7 +171,7 @@ type EvidenceParams struct {
     //
     // It should correspond with an app's "unbonding period" or other similar
     // mechanism for handling [Nothing-At-Stake
-    // attacks](https://github.com/ethereum/wiki/wiki/Proof-of-Stake-FAQ#what-is-the-nothing-at-stake-problem-and-how-can-it-be-fixed).
+    // attacks](https://vitalik.eth.limo/general/2017/12/31/pos_faq.html#what-is-the-nothing-at-stake-problem-and-how-can-it-be-fixed).
     MaxAgeDuration time.Duration
     // This sets the maximum size of total evidence in bytes that can be committed in a single block.
     // and should fall comfortably under the max block bytes.
