@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -99,7 +100,8 @@ func TestEngineExecution(t *testing.T) {
 			}
 			txs := make([]*ethTypes.Transaction, nTxs)
 			for i := range txs {
-				txs[i] = getRandomTransaction(t, 22000)
+				txs[i] = getRandomTransaction(t, 22000, lastNonce)
+				lastNonce++
 			}
 			for i := range txs {
 				submitTransaction(t, txs[i])
@@ -380,7 +382,7 @@ func waitForRethContainer(t *testing.T, jwtSecret string) error {
 }
 
 func TestSubmitTransaction(t *testing.T) {
-	t.Skip("Use this test to submit a transaction manually to the Ethereum client")
+	//t.Skip("Use this test to submit a transaction manually to the Ethereum client")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	rpcClient, err := ethclient.Dial(TEST_ETH_URL)
@@ -395,15 +397,37 @@ func TestSubmitTransaction(t *testing.T) {
 	lastNonce, err = rpcClient.NonceAt(ctx, address, new(big.Int).SetUint64(height))
 	require.NoError(t, err)
 
-	for s := 0; s < 30; s++ {
+	batchSize := 500000
+	for {
 		startTime := time.Now()
-		for i := 0; i < 5000; i++ {
-			tx := getRandomTransaction(t, 22000)
-			submitTransaction(t, tx)
+
+		// Pre-allocate nonces for this batch
+		nonces := make([]uint64, batchSize)
+		for i := 0; i < batchSize; i++ {
+			nonces[i] = lastNonce + uint64(i)
 		}
+		lastNonce += uint64(batchSize)
+
+		// Generate transactions in parallel
+		txs := make([]*ethTypes.Transaction, batchSize)
+		var wg sync.WaitGroup
+		wg.Add(batchSize)
+		for i := 0; i < batchSize; i++ {
+			go func(idx int) {
+				defer wg.Done()
+				txs[idx] = getRandomTransaction(t, 22000, nonces[idx])
+			}(i)
+		}
+		wg.Wait()
+
+		// Submit transactions sequentially
+		for i := 0; i < batchSize; i++ {
+			submitTransaction(t, txs[i])
+		}
+
 		elapsed := time.Since(startTime)
-		if elapsed < time.Second {
-			time.Sleep(time.Second - elapsed)
+		if elapsed < 100*time.Millisecond {
+			time.Sleep(100*time.Millisecond - elapsed)
 		}
 	}
 }
@@ -419,7 +443,7 @@ func submitTransaction(t *testing.T, signedTx *ethTypes.Transaction) {
 var lastNonce uint64
 
 // getRandomTransaction generates a randomized valid ETH transaction
-func getRandomTransaction(t *testing.T, gasLimit uint64) *ethTypes.Transaction {
+func getRandomTransaction(t *testing.T, gasLimit uint64, lastNonce uint64) *ethTypes.Transaction {
 	privateKey, err := crypto.HexToECDSA(TEST_PRIVATE_KEY)
 	require.NoError(t, err)
 
@@ -439,7 +463,6 @@ func getRandomTransaction(t *testing.T, gasLimit uint64) *ethTypes.Transaction {
 		GasPrice: gasPrice,
 		Data:     data,
 	})
-	lastNonce++
 
 	signedTx, err := ethTypes.SignTx(tx, ethTypes.NewEIP155Signer(chainId), privateKey)
 	require.NoError(t, err)
