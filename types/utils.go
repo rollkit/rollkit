@@ -333,8 +333,8 @@ func CreateDefaultSignaturePayloadProvider() SignaturePayloadProvider {
 	}
 }
 
-// CreateDefaultHeaderHasher creates a basic header hasher that returns a hash of the header
-func CreateDefaultHeaderHasher() HeaderHasher {
+// createDefaultHeaderHasher creates a basic header hasher that returns a hash of the header
+func createDefaultHeaderHasher() HeaderHasher {
 	return func(header *Header) (Hash, error) {
 		if header == nil {
 			return nil, errors.New("header cannot be nil")

@@ -10,7 +10,7 @@ import (
 var (
 	leafPrefix = []byte{0}
 	// DefaultHeaderHasher is the global header hasher that can be overridden by different implementations
-	DefaultHeaderHasher HeaderHasher = CreateDefaultHeaderHasher()
+	DefaultHeaderHasher HeaderHasher = createDefaultHeaderHasher()
 )
 
 // SetHeaderHasher allows different implementations to override the default header hasher
