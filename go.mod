@@ -21,7 +21,7 @@ require (
 	github.com/libp2p/go-libp2p-kad-dht v0.29.1
 	github.com/libp2p/go-libp2p-pubsub v0.14.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/multiformats/go-multiaddr v0.15.0
+	github.com/multiformats/go-multiaddr v0.16.0
 	github.com/prometheus/client_golang v1.21.1
 	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
 	github.com/rs/zerolog v1.34.0
