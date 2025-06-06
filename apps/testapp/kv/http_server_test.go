@@ -141,7 +141,7 @@ func TestHandleKV_Get(t *testing.T) {
 				// Create and execute the transaction directly
 				tx := []byte(fmt.Sprintf("%s=%s", tt.key, tt.value))
 				ctx := context.Background()
-				_, _, err := exec.ExecuteTxs(ctx, [][]byte{tx}, 1, time.Now(), []byte(""))
+				_, _, err := exec.ExecuteTxs(ctx, [][]byte{tx}, 1, time.Now(), []byte(""), nil)
 				if err != nil {
 					t.Fatalf("Failed to execute setup transaction: %v", err)
 				}

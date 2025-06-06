@@ -152,7 +152,7 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 }
 
 // ExecuteTxs executes the given transactions at the specified block height and timestamp
-func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (updatedStateRoot []byte, maxBytes uint64, err error) {
+func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte, metadata map[string]interface{}) (updatedStateRoot []byte, maxBytes uint64, err error) {
 	// convert rollkit tx to eth tx
 	ethTxs := make([]*types.Transaction, len(txs))
 	for i, tx := range txs {

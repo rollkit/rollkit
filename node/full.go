@@ -80,6 +80,7 @@ func newFullNode(
 	da coreda.DA,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
+	opts ...block.ManagerOption,
 ) (fn *FullNode, err error) {
 	seqMetrics, _ := metricsProvider(genesis.ChainID)
 
@@ -111,6 +112,7 @@ func newFullNode(
 		seqMetrics,
 		nodeConfig.DA.GasPrice,
 		nodeConfig.DA.GasMultiplier,
+		opts...,
 	)
 	if err != nil {
 		return nil, err
@@ -197,6 +199,7 @@ func initBlockManager(
 	seqMetrics *block.Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
+	opts ...block.ManagerOption,
 ) (*block.Manager, error) {
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
 
@@ -217,6 +220,7 @@ func initBlockManager(
 		seqMetrics,
 		gasPrice,
 		gasMultiplier,
+		opts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)

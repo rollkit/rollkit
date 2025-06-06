@@ -6,6 +6,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
+type SignaturePayloadProvider func(header *Header, data *Data) ([]byte, error)
+
 // Signer is a type that can verify messages.
 type Signer struct {
 	PubKey  crypto.PubKey

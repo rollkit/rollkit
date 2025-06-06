@@ -59,9 +59,10 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 				}
 			}
 
-			if err = m.trySyncNextBlock(ctx, daHeight); err != nil {
-				errCh <- fmt.Errorf("failed to sync next block: %w", err)
-				return
+			// Try to sync the next block, in case the corresponding data was already present
+			if err := m.trySyncNextBlock(ctx, daHeight); err != nil {
+				m.logger.Error("error while trying to sync next block", "error", err)
+				errCh <- err
 			}
 
 			m.headerCache.SetSeen(headerHash)
@@ -115,10 +116,10 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 
 			m.dataCache.SetItemByHash(dataHash, data)
 
-			err = m.trySyncNextBlock(ctx, daHeight)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to sync next block: %w", err)
-				return
+			// Try to sync the next block, as this data event might have completed a block
+			if err := m.trySyncNextBlock(ctx, dataEvent.DAHeight); err != nil {
+				m.logger.Error("error while trying to sync next block", "error", err)
+				errCh <- err
 			}
 			m.dataCache.SetSeen(dataHash)
 		case <-ctx.Done():

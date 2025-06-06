@@ -16,7 +16,7 @@ replace (
 require (
 	github.com/ethereum/go-ethereum v1.15.0
 	github.com/rollkit/rollkit v0.14.2-0.20250317130407-e9e0a1b0485e
-	github.com/rollkit/rollkit/core v0.0.0-20250317130407-e9e0a1b0485e
+	github.com/rollkit/rollkit/core v0.0.0-20250603093950-47df1ada2ee8
 	github.com/rollkit/rollkit/da v0.0.0-20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/execution/evm v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/sequencers/based v0.0.0-00010101000000-000000000000

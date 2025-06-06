@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,18 +14,20 @@ import (
 	testutils "github.com/celestiaorg/utils/test"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rollkit/rollkit/block"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
+	"github.com/rollkit/rollkit/types"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
-	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
-	"github.com/rollkit/rollkit/types"
+	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 )
 
 const (
@@ -107,7 +110,7 @@ func newTestNode(
 
 	// Generate genesis and keys
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey(config.ChainID)
-	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	remoteSigner, err := noopsigner.NewNoopSigner(genesisValidatorKey)
 	require.NoError(t, err)
 
 	node, err := NewNode(
@@ -122,6 +125,9 @@ func newTestNode(
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
+		block.WithValidatorHasher(createDefaultValidatorHasher()),
+		block.WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()),
+		block.WithCommitHashProvider(createDefaultCommitHashProvider()),
 	)
 	require.NoError(t, err)
 
@@ -165,7 +171,7 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 
 	// Generate genesis and keys
 	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey(config.ChainID)
-	remoteSigner, err := remote_signer.NewNoopSigner(genesisValidatorKey)
+	remoteSigner, err := noopsigner.NewNoopSigner(genesisValidatorKey)
 	require.NoError(err)
 
 	aggListenAddress := config.P2P.ListenAddress
@@ -186,6 +192,9 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
+		block.WithValidatorHasher(createDefaultValidatorHasher()),
+		block.WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()),
+		block.WithCommitHashProvider(createDefaultCommitHashProvider()),
 	)
 	require.NoError(err)
 
@@ -223,6 +232,9 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 			dssync.MutexWrap(datastore.NewMapDatastore()),
 			DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 			log.NewTestLogger(t),
+			block.WithValidatorHasher(createDefaultValidatorHasher()),
+			block.WithSignaturePayloadProvider(createDefaultSignaturePayloadProvider()),
+			block.WithCommitHashProvider(createDefaultCommitHashProvider()),
 		)
 		require.NoError(err)
 		// Update cleanup to cancel the context instead of calling Stop
@@ -315,4 +327,50 @@ func verifyNodesSynced(node1, syncingNode Node, source Source) error {
 		}
 		return fmt.Errorf("nodes not synced: sequencer at height %v, syncing node at height %v", sequencerHeight, syncingHeight)
 	})
+}
+
+// createDefaultSignaturePayloadProvider creates a basic signature payload provider for tests
+// that matches the behavior used in GetSignature function in utils.go
+func createDefaultSignaturePayloadProvider() types.SignaturePayloadProvider {
+	return func(header *types.Header, data *types.Data) ([]byte, error) {
+		if header == nil {
+			return nil, errors.New("header cannot be nil")
+		}
+
+		// Use the same approach as GetSignature: just return the marshaled header bytes
+		// This matches the behavior in utils.go GetSignature function
+		return header.MarshalBinary()
+	}
+}
+
+// createDefaultCommitHashProvider creates a basic commit hash provider
+func createDefaultCommitHashProvider() types.CommitHashProvider {
+	return func(signature *types.Signature, header *types.Header, proposerAddress []byte) (types.Hash, error) {
+		if header == nil {
+			return nil, errors.New("header cannot be nil")
+		}
+
+		// Create a simple commit hash from header and signature
+		headerBytes, err := header.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal header: %w", err)
+		}
+
+		// Combine header bytes with signature if available
+		var commitData []byte
+		commitData = append(commitData, headerBytes...)
+		if signature != nil {
+			commitData = append(commitData, *signature...)
+		}
+
+		hash := sha256.Sum256(commitData)
+		return hash[:], nil
+	}
+}
+
+// createDefaultValidatorHasher creates a basic validator hasher
+func createDefaultValidatorHasher() types.ValidatorHasher {
+	return func(proposerAddress []byte, pubKey crypto.PubKey) (types.Hash, error) {
+		return make(types.Hash, 32), nil
+	}
 }

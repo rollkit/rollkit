@@ -175,7 +175,7 @@ func (k *KVExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
 // ExecuteTxs processes each transaction assumed to be in the format "key=value".
 // It updates the database accordingly using a batch and removes the executed transactions from the mempool.
 // If a transaction is malformed, an error is returned, and the database is not changed.
-func (k *KVExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) ([]byte, uint64, error) {
+func (k *KVExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte, metadata map[string]interface{}) ([]byte, uint64, error) {
 	select {
 	case <-ctx.Done():
 		return nil, 0, ctx.Err()

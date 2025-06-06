@@ -18,6 +18,7 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+
 	// Use existing store mock if available, or define one
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	extmocks "github.com/rollkit/rollkit/test/mocks/external"
@@ -64,19 +65,20 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	require.NoError(t, err)
 	// Create Manager instance with mocks and necessary fields
 	m = &Manager{
-		store:         mockStore,
-		headerStore:   mockHeaderStore,
-		dataStore:     mockDataStore,
-		headerStoreCh: headerStoreCh,
-		dataStoreCh:   dataStoreCh,
-		headerInCh:    headerInCh,
-		dataInCh:      dataInCh,
-		logger:        logger,
-		genesis:       genDoc,
-		daHeight:      &atomic.Uint64{},
-		lastStateMtx:  new(sync.RWMutex),
-		config:        nodeConf,
-		signer:        signer,
+		store:                    mockStore,
+		headerStore:              mockHeaderStore,
+		dataStore:                mockDataStore,
+		headerStoreCh:            headerStoreCh,
+		dataStoreCh:              dataStoreCh,
+		headerInCh:               headerInCh,
+		dataInCh:                 dataInCh,
+		logger:                   logger,
+		genesis:                  genDoc,
+		daHeight:                 &atomic.Uint64{},
+		lastStateMtx:             new(sync.RWMutex),
+		config:                   nodeConf,
+		signer:                   signer,
+		signaturePayloadProvider: types.CreateDefaultSignaturePayloadProvider(),
 	}
 
 	// initialize da included height

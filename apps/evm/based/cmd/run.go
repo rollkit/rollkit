@@ -102,7 +102,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 				return fmt.Errorf("failed to parse config: %w", err)
 			}
 
-			executor, err := evm.NewEngineExecutionClient( // Use renamed import
+			executor, err := evm.NewEngineExecutionClient(
 				ethURL, engineURL, jwtSecret, common.HexToHash(genesisHash), common.HexToAddress(feeRecipient),
 			)
 			if err != nil {
