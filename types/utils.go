@@ -322,14 +322,8 @@ func CreateDefaultSignaturePayloadProvider() SignaturePayloadProvider {
 			return nil, errors.New("header cannot be nil")
 		}
 
-		// Create a simple payload by hashing the header bytes
-		headerBytes, err := header.MarshalBinary()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal header: %w", err)
-		}
-
-		hash := sha256.Sum256(headerBytes)
-		return hash[:], nil
+		// The payload for signing is the binary representation of the header.
+		return header.MarshalBinary()
 	}
 }
 
