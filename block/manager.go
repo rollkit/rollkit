@@ -867,7 +867,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
-				Block: 11, // hardcoded
+				Block: types.BlockProtocolVersion,
 				App:   m.lastState.Version.App,
 			},
 			BaseHeader: types.BaseHeader{

@@ -12,7 +12,7 @@ import (
 // The Consensus.App version will be set during the Handshake, once
 // we hear from the app what protocol version it is running.
 var InitStateVersion = Version{
-	Block: 11, // this is needed for IBC compatibility
+	Block: BlockProtocolVersion, // this is needed for IBC compatibility
 	App:   0,
 }
 

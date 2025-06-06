@@ -9,6 +9,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// BlockProtocolVersion set to 11, same as the one in CometBFT for compatibility
+const BlockProtocolVersion uint64 = 11
+
 // Version captures the consensus rules for processing a block in the blockchain,
 // including all blockchain data structures and the rules of the application's
 // state transition machine.
