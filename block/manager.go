@@ -555,7 +555,7 @@ func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) boo
 }
 
 // getBlockData retrieves or creates the block data for the given height.
-func (m *Manager) getBlockData(ctx context.Context, newHeight uint64, prevBlockData *previousBlockData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) getBlockData(ctx context.Context, newHeight uint64, prevBlockData *blockDataWithSignature) (*types.SignedHeader, *types.Data, error) {
 	// Check if there's an already stored block at a newer height
 	pendingHeader, pendingData, err := m.store.GetBlockData(ctx, newHeight)
 	if err == nil {
@@ -577,14 +577,18 @@ func (m *Manager) getBlockData(ctx context.Context, newHeight uint64, prevBlockD
 			return nil, nil, nil
 		}
 	} else {
-		if batchData.Before(prevBlockData.headerTime) {
-			return nil, nil, fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, prevBlockData.headerTime)
+		if prevBlockData.header != nil && batchData.Before(prevBlockData.header.Time()) {
+			return nil, nil, fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, prevBlockData.header.Time())
 		}
 		m.logger.Info("creating and publishing block", "height", newHeight)
 		m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
 	}
 
-	header, data, err := m.createBlock(ctx, newHeight, prevBlockData.signature, prevBlockData.headerHash, batchData)
+	var lastHeaderHash types.Hash
+	if prevBlockData.header != nil {
+		lastHeaderHash = prevBlockData.header.Hash()
+	}
+	header, data, err := m.createBlock(ctx, newHeight, prevBlockData.signature, lastHeaderHash, batchData)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -616,7 +620,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	newHeight := height + 1
 	m.logger.Info("start publishing block", "height", newHeight)
 
-	prevBlockData, err := m.getPreviousBlockData(ctx, newHeight)
+	prevBlockData, err := m.getBlockDataWithSignature(ctx, height)
 	if err != nil {
 		return fmt.Errorf("error while getting previous block data: %w", err)
 	}
@@ -647,12 +651,16 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return fmt.Errorf("error applying block: %w", err)
 	}
 
+	var lastDataHash types.Hash
+	if prevBlockData.data != nil {
+		lastDataHash = prevBlockData.data.Hash()
+	}
 	// append metadata to Data before validating and saving
 	data.Metadata = &types.Metadata{
 		ChainID:      header.ChainID(),
 		Height:       header.Height(),
 		Time:         header.BaseHeader.Time,
-		LastDataHash: prevBlockData.dataHash,
+		LastDataHash: lastDataHash,
 	}
 	// Validate the created block before storing
 	if err := m.Validate(ctx, header, data); err != nil {
@@ -692,13 +700,12 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	return nil
 }
 
-// previousBlockData holds information about the previous block,
+// blockDataWithSignature holds information about the previous block,
 // necessary for creating the next block.
-type previousBlockData struct {
-	signature  *types.Signature
-	headerHash types.Hash
-	dataHash   types.Hash
-	headerTime time.Time
+type blockDataWithSignature struct {
+	signature *types.Signature
+	header    *types.SignedHeader
+	data      *types.Data
 }
 
 // checkContextAndPendingBlocks checks if the context is done or if the number of pending headers has reached the limit.
@@ -717,29 +724,24 @@ func (m *Manager) checkContextAndPendingBlocks(ctx context.Context) error {
 	return nil
 }
 
-// getPreviousBlockData gathers necessary information from the last processed block.
-func (m *Manager) getPreviousBlockData(ctx context.Context, newHeight uint64) (*previousBlockData, error) {
-	var prevCtx previousBlockData
+// getBlockDataWithSignature gathers necessary information from the last processed block.
+func (m *Manager) getBlockDataWithSignature(ctx context.Context, height uint64) (*blockDataWithSignature, error) {
+	var prevCtx blockDataWithSignature
 	var err error
-	prevHeight := newHeight - 1
 
-	// Logic to get lastSignature, lastHeaderHash, lastDataHash, lastHeaderTime
-	if newHeight <= m.genesis.InitialHeight {
+	if height < m.genesis.InitialHeight {
 		// Special handling for genesis block
 		prevCtx.signature = &types.Signature{}
 	} else {
-		prevCtx.signature, err = m.store.GetSignature(ctx, prevHeight)
+		prevCtx.header, prevCtx.data, err = m.store.GetBlockData(ctx, height)
 		if err != nil {
-			return nil, fmt.Errorf("error while loading last commit: %w, height: %d", err, prevHeight)
-		}
-		lastHeader, lastData, errGetBlockData := m.store.GetBlockData(ctx, prevHeight)
-		if errGetBlockData != nil {
-			return nil, fmt.Errorf("error while loading last block: %w, height: %d", errGetBlockData, prevHeight)
+			return nil, fmt.Errorf("error while loading last block: %w, height: %d", err, height)
 		}
 
-		prevCtx.headerHash = lastHeader.Hash()
-		prevCtx.dataHash = lastData.Hash()
-		prevCtx.headerTime = lastHeader.Time()
+		prevCtx.signature, err = m.store.GetSignature(ctx, height)
+		if err != nil {
+			return nil, fmt.Errorf("error while loading last commit: %w, height: %d", err, height)
+		}
 	}
 
 	return &prevCtx, nil
