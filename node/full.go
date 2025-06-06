@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"sync"
 	"time"
 
 	"cosmossdk.io/log"
@@ -23,12 +24,11 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
 	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
-	"github.com/rollkit/rollkit/pkg/sync"
+	rollkitsync "github.com/rollkit/rollkit/pkg/sync"
 )
 
 // prefixes used in KV store to separate rollkit data from execution environment data (if the same data base is reused)
@@ -56,8 +56,8 @@ type FullNode struct {
 	da coreda.DA
 
 	p2pClient    *p2p.Client
-	hSyncService *sync.HeaderSyncService
-	dSyncService *sync.DataSyncService
+	hSyncService *rollkitsync.HeaderSyncService
+	dSyncService *rollkitsync.DataSyncService
 	Store        store.Store
 	blockManager *block.Manager
 	reaper       *block.Reaper
@@ -73,7 +73,6 @@ func newFullNode(
 	nodeConfig config.Config,
 	p2pClient *p2p.Client,
 	signer signer.Signer,
-	nodeKey key.NodeKey,
 	genesis genesispkg.Genesis,
 	database ds.Batching,
 	exec coreexecutor.Executor,
@@ -95,7 +94,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	store := store.New(mainKV)
+	rktStore := store.New(mainKV)
 
 	blockManager, err := initBlockManager(
 		ctx,
@@ -103,7 +102,7 @@ func newFullNode(
 		exec,
 		nodeConfig,
 		genesis,
-		store,
+		rktStore,
 		sequencer,
 		da,
 		logger,
@@ -137,7 +136,7 @@ func newFullNode(
 		blockManager: blockManager,
 		reaper:       reaper,
 		da:           da,
-		Store:        store,
+		Store:        rktStore,
 		hSyncService: headerSyncService,
 		dSyncService: dataSyncService,
 	}
@@ -153,8 +152,8 @@ func initHeaderSyncService(
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
-) (*sync.HeaderSyncService, error) {
-	headerSyncService, err := sync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+) (*rollkitsync.HeaderSyncService, error) {
+	headerSyncService, err := rollkitsync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -167,8 +166,8 @@ func initDataSyncService(
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
-) (*sync.DataSyncService, error) {
-	dataSyncService, err := sync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
+) (*rollkitsync.DataSyncService, error) {
+	dataSyncService, err := rollkitsync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing DataSyncService: %w", err)
 	}
@@ -193,8 +192,8 @@ func initBlockManager(
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
 	logger log.Logger,
-	headerSyncService *sync.HeaderSyncService,
-	dataSyncService *sync.DataSyncService,
+	headerSyncService *rollkitsync.HeaderSyncService,
+	dataSyncService *rollkitsync.DataSyncService,
 	seqMetrics *block.Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
@@ -213,6 +212,8 @@ func initBlockManager(
 		logger.With("module", "BlockManager"),
 		headerSyncService.Store(),
 		dataSyncService.Store(),
+		headerSyncService,
+		dataSyncService,
 		seqMetrics,
 		gasPrice,
 		gasMultiplier,
@@ -244,38 +245,6 @@ func (n *FullNode) initGenesisChunks() error {
 	return nil
 }
 
-func (n *FullNode) headerPublishLoop(ctx context.Context) {
-	for {
-		select {
-		case signedHeader := <-n.blockManager.HeaderCh:
-			err := n.hSyncService.WriteToStoreAndBroadcast(ctx, signedHeader)
-			if err != nil {
-				// failed to init or start headerstore
-				n.Logger.Error(err.Error())
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (n *FullNode) dataPublishLoop(ctx context.Context) {
-	for {
-		select {
-		case data := <-n.blockManager.DataCh:
-			err := n.dSyncService.WriteToStoreAndBroadcast(ctx, data)
-			if err != nil {
-				// failed to init or start blockstore
-				n.Logger.Error(err.Error())
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 // startInstrumentationServer starts HTTP servers for instrumentation (Prometheus metrics and pprof).
 // Returns the primary server (Prometheus if enabled, otherwise pprof) and optionally a secondary server.
 func (n *FullNode) startInstrumentationServer() (*http.Server, *http.Server) {
@@ -300,8 +269,7 @@ func (n *FullNode) startInstrumentationServer() (*http.Server, *http.Server) {
 		}
 
 		go func() {
-			if err := prometheusServer.ListenAndServe(); err != http.ErrServerClosed {
-				// Error starting or closing listener:
+			if err := prometheusServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				n.Logger.Error("Prometheus HTTP server ListenAndServe", "err", err)
 			}
 		}()
@@ -334,8 +302,7 @@ func (n *FullNode) startInstrumentationServer() (*http.Server, *http.Server) {
 		}
 
 		go func() {
-			if err := pprofServer.ListenAndServe(); err != http.ErrServerClosed {
-				// Error starting or closing listener:
+			if err := pprofServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				n.Logger.Error("pprof HTTP server ListenAndServe", "err", err)
 			}
 		}()
@@ -377,12 +344,11 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	}
 
 	go func() {
-		if err := n.rpcServer.ListenAndServe(); err != http.ErrServerClosed {
+		n.Logger.Info("started RPC server", "addr", n.nodeConfig.RPC.Address)
+		if err := n.rpcServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			n.Logger.Error("RPC server error", "err", err)
 		}
 	}()
-
-	n.Logger.Info("Started RPC server", "addr", n.nodeConfig.RPC.Address)
 
 	n.Logger.Info("starting P2P client")
 	err = n.p2pClient.Start(ctx)
@@ -401,22 +367,28 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	// only the first error is propagated
 	// any error is an issue, so blocking is not a problem
 	errCh := make(chan error, 1)
-
+	// prepare to join the go routines later
+	var wg sync.WaitGroup
+	spawnWorker := func(f func()) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			f()
+		}()
+	}
 	if n.nodeConfig.Node.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
-		go n.blockManager.AggregationLoop(ctx, errCh)
-		go n.reaper.Start(ctx)
-		go n.blockManager.HeaderSubmissionLoop(ctx)
-		go n.blockManager.BatchSubmissionLoop(ctx)
-		go n.headerPublishLoop(ctx)
-		go n.dataPublishLoop(ctx)
-		go n.blockManager.DAIncluderLoop(ctx, errCh)
+		spawnWorker(func() { n.blockManager.AggregationLoop(ctx, errCh) })
+		spawnWorker(func() { n.reaper.Start(ctx) })
+		spawnWorker(func() { n.blockManager.HeaderSubmissionLoop(ctx) })
+		spawnWorker(func() { n.blockManager.DataSubmissionLoop(ctx) })
+		spawnWorker(func() { n.blockManager.DAIncluderLoop(ctx, errCh) })
 	} else {
-		go n.blockManager.RetrieveLoop(ctx)
-		go n.blockManager.HeaderStoreRetrieveLoop(ctx)
-		go n.blockManager.DataStoreRetrieveLoop(ctx)
-		go n.blockManager.SyncLoop(ctx, errCh)
-		go n.blockManager.DAIncluderLoop(ctx, errCh)
+		spawnWorker(func() { n.blockManager.RetrieveLoop(ctx) })
+		spawnWorker(func() { n.blockManager.HeaderStoreRetrieveLoop(ctx) })
+		spawnWorker(func() { n.blockManager.DataStoreRetrieveLoop(ctx) })
+		spawnWorker(func() { n.blockManager.SyncLoop(ctx, errCh) })
+		spawnWorker(func() { n.blockManager.DAIncluderLoop(ctx, errCh) })
 	}
 
 	select {
@@ -432,11 +404,13 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	}
 
 	// Perform cleanup
-	n.Logger.Info("halting full node...")
-	n.Logger.Info("shutting down full node sub services...")
+	n.Logger.Info("halting full node and its sub services...")
+	// wait for all worker Go routines to finish so that we have
+	// no in-flight tasks while shutting down
+	wg.Wait()
 
 	// Use a timeout context to ensure shutdown doesn't hang
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 9*time.Second)
 	defer cancel()
 
 	var multiErr error // Use a multierror variable
@@ -444,7 +418,6 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	// Stop P2P Client
 	err = n.p2pClient.Close()
 	if err != nil {
-		n.Logger.Error("error closing P2P client", "error", err)
 		multiErr = errors.Join(multiErr, fmt.Errorf("closing P2P client: %w", err))
 	}
 
@@ -454,11 +427,10 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		// Log context canceled errors at a lower level if desired, or handle specific non-cancel errors
 		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			n.Logger.Error("error stopping header sync service", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
 		} else {
 			n.Logger.Debug("header sync service stop context ended", "reason", err) // Log cancellation as debug
 		}
-		// Still include the error in multiErr for completeness if needed
-		multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
 	}
 
 	// Stop Data Sync Service
@@ -467,11 +439,10 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		// Log context canceled errors at a lower level if desired, or handle specific non-cancel errors
 		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			n.Logger.Error("error stopping data sync service", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("stopping data sync service: %w", err))
 		} else {
 			n.Logger.Debug("data sync service stop context ended", "reason", err) // Log cancellation as debug
 		}
-		// Still include the error in multiErr for completeness if needed
-		multiErr = errors.Join(multiErr, fmt.Errorf("stopping data sync service: %w", err))
 	}
 
 	// Shutdown Prometheus Server
@@ -479,8 +450,9 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		err = n.prometheusSrv.Shutdown(shutdownCtx)
 		// http.ErrServerClosed is expected on graceful shutdown
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			n.Logger.Error("error shutting down Prometheus server", "error", err)
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down Prometheus server: %w", err))
+		} else {
+			n.Logger.Debug("Prometheus server shutdown context ended", "reason", err)
 		}
 	}
 
@@ -488,8 +460,9 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	if n.pprofSrv != nil {
 		err = n.pprofSrv.Shutdown(shutdownCtx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			n.Logger.Error("error shutting down pprof server", "error", err)
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down pprof server: %w", err))
+		} else {
+			n.Logger.Debug("pprof server shutdown context ended", "reason", err)
 		}
 	}
 
@@ -497,22 +470,31 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 	if n.rpcServer != nil {
 		err = n.rpcServer.Shutdown(shutdownCtx)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			n.Logger.Error("error shutting down RPC server", "error", err)
 			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down RPC server: %w", err))
+		} else {
+			n.Logger.Debug("RPC server shutdown context ended", "reason", err)
 		}
 	}
 
 	// Ensure Store.Close is called last to maximize chance of data flushing
-	err = n.Store.Close()
-	if err != nil {
-		// Store.Close() might log internally, but log here too for context
-		n.Logger.Error("error closing store", "error", err)
+	if err = n.Store.Close(); err != nil {
 		multiErr = errors.Join(multiErr, fmt.Errorf("closing store: %w", err))
+	} else {
+		n.Logger.Debug("store closed")
+	}
+
+	// Save caches if needed
+	if err := n.blockManager.SaveCache(); err != nil {
+		multiErr = errors.Join(multiErr, fmt.Errorf("saving caches: %w", err))
+	} else {
+		n.Logger.Debug("caches saved")
 	}
 
 	// Log final status
 	if multiErr != nil {
-		n.Logger.Error("errors encountered while stopping node", "errors", multiErr)
+		for _, err := range multiErr.(interface{ Unwrap() []error }).Unwrap() {
+			n.Logger.Error("error during shutdown", "error", err)
+		}
 	} else {
 		n.Logger.Info("full node halted successfully")
 	}

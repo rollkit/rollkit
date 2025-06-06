@@ -76,7 +76,7 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 				m.logger.Debug("no blob data found", "daHeight", daHeight, "reason", blobsResp.Message)
 				return nil
 			}
-			m.logger.Debug("retrieved potential data", "n", len(blobsResp.Data), "daHeight", daHeight)
+			m.logger.Debug("retrieved potential blob data", "n", len(blobsResp.Data), "daHeight", daHeight)
 			for _, bz := range blobsResp.Data {
 				if len(bz) == 0 {
 					m.logger.Debug("ignoring nil or empty blob", "daHeight", daHeight)
@@ -85,7 +85,7 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 				if m.handlePotentialHeader(ctx, bz, daHeight) {
 					continue
 				}
-				m.handlePotentialBatch(ctx, bz, daHeight)
+				m.handlePotentialData(ctx, bz, daHeight)
 			}
 			return nil
 		}
@@ -117,6 +117,11 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 		m.logger.Debug("failed to decode unmarshalled header", "error", err)
 		return true
 	}
+	// Stronger validation: check for obviously invalid headers using ValidateBasic
+	if err := header.ValidateBasic(); err != nil {
+		m.logger.Debug("blob does not look like a valid header", "daHeight", daHeight, "error", err)
+		return false
+	}
 	// early validation to reject junk headers
 	if !m.isUsingExpectedSingleSequencer(header) {
 		m.logger.Debug("skipping header from unexpected sequencer",
@@ -140,36 +145,37 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 	return true
 }
 
-// handlePotentialBatch tries to decode and process a batch. No return value.
-func (m *Manager) handlePotentialBatch(ctx context.Context, bz []byte, daHeight uint64) {
-	var batchPb pb.Batch
-	err := proto.Unmarshal(bz, &batchPb)
+// handlePotentialData tries to decode and process a data. No return value.
+func (m *Manager) handlePotentialData(ctx context.Context, bz []byte, daHeight uint64) {
+	var signedData types.SignedData
+	err := signedData.UnmarshalBinary(bz)
 	if err != nil {
-		m.logger.Debug("failed to unmarshal batch", "error", err)
+		m.logger.Debug("failed to unmarshal signed data", "error", err)
 		return
 	}
-	if len(batchPb.Txs) == 0 {
-		m.logger.Debug("ignoring empty batch", "daHeight", daHeight)
+	if len(signedData.Txs) == 0 {
+		m.logger.Debug("ignoring empty signed data", "daHeight", daHeight)
 		return
 	}
-	data := &types.Data{
-		Txs: make(types.Txs, len(batchPb.Txs)),
+
+	// Early validation to reject junk data
+	if !m.isValidSignedData(&signedData) {
+		m.logger.Debug("invalid data signature", "daHeight", daHeight)
+		return
 	}
-	for i, tx := range batchPb.Txs {
-		data.Txs[i] = types.Tx(tx)
-	}
-	dataHashStr := data.DACommitment().String()
+
+	dataHashStr := signedData.Data.DACommitment().String()
 	m.dataCache.SetDAIncluded(dataHashStr)
 	m.sendNonBlockingSignalToDAIncluderCh()
-	m.logger.Info("batch marked as DA included", "batchHash", dataHashStr, "daHeight", daHeight)
+	m.logger.Info("signed data marked as DA included", "dataHash", dataHashStr, "daHeight", daHeight)
 	if !m.dataCache.IsSeen(dataHashStr) {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			m.logger.Warn("dataInCh backlog full, dropping batch", "daHeight", daHeight)
+			m.logger.Warn("dataInCh backlog full, dropping signed data", "daHeight", daHeight)
 		}
-		m.dataInCh <- NewDataEvent{data, daHeight}
+		m.dataInCh <- NewDataEvent{&signedData.Data, daHeight}
 	}
 }
 
@@ -197,7 +203,7 @@ func (m *Manager) areAllErrorsHeightFromFuture(err error) bool {
 	return false
 }
 
-// featchHeaders retrieves blobs from the DA layer
+// fetchBlobs retrieves blobs from the DA layer
 func (m *Manager) fetchBlobs(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
 	var err error
 	ctx, cancel := context.WithTimeout(ctx, dAefetcherTimeout)

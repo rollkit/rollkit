@@ -22,3 +22,14 @@ cover:
 	@go install github.com/ory/go-acc@latest
 	@go-acc -o coverage.txt ./...
 .PHONY: cover
+
+## test-cover: generate code coverage report.
+test-cover:
+	@echo "--> Running unit tests"
+	@go run -tags=cover scripts/test_cover.go
+.PHONY: test-cover
+
+## test-evm: Running EVM tests
+test-evm: 
+	@echo "--> Running EVM tests"
+	@cd execution/evm && go test -mod=readonly -failfast -timeout=15m ./... -tags=evm

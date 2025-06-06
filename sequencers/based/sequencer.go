@@ -31,13 +31,13 @@ const (
 )
 
 var (
-	ErrInvalidRollupId = errors.New("invalid rollup id")
+	ErrInvalidId       = errors.New("invalid  id")
 	ErrInvalidMaxBytes = errors.New("invalid max bytes")
 )
 
 var _ coresequencer.Sequencer = &Sequencer{}
 
-// Sequencer is responsible for managing rollup transactions and interacting with the
+// Sequencer is responsible for managing  transactions and interacting with the
 // Data Availability (DA) layer. It handles tasks such as adding transactions to a
 // pending queue, retrieving batches of transactions, verifying batches, and submitting
 // them to the DA layer. The Sequencer ensures that transactions are processed in a
@@ -53,14 +53,14 @@ type Sequencer struct {
 	// block height and the DA layer's block height.
 	maxHeightDrift uint64
 
-	// rollupId is the unique identifier for the rollup associated with this Sequencer.
-	rollupId []byte
+	// id is the unique identifier for the chain associated with this Sequencer.
+	Id []byte
 
 	// DA represents the Data Availability layer interface used by the Sequencer.
 	DA coreda.DA
 
 	// pendingTxs is a persistent storage for transactions that are pending inclusion
-	// in the rollup blocks.
+	// in the  blocks.
 	pendingTxs *PersistentPendingTxs
 
 	// daStartHeight specifies the starting block height in the Data Availability layer
@@ -75,7 +75,7 @@ type Sequencer struct {
 func NewSequencer(
 	logger log.Logger,
 	daImpl coreda.DA,
-	rollupId []byte,
+	Id []byte,
 	daStartHeight uint64,
 	maxHeightDrift uint64,
 	ds datastore.Batching,
@@ -87,7 +87,7 @@ func NewSequencer(
 	return &Sequencer{
 		logger:         logger,
 		maxHeightDrift: maxHeightDrift,
-		rollupId:       rollupId,
+		Id:             Id,
 		DA:             daImpl,
 		daStartHeight:  daStartHeight,
 		pendingTxs:     pending,
@@ -100,22 +100,22 @@ func (s *Sequencer) AddToPendingTxs(txs [][]byte, ids [][]byte, timestamp time.T
 	s.pendingTxs.Push(txs, ids, timestamp)
 }
 
-// SubmitRollupBatchTxs implements sequencer.Sequencer.
-func (s *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.SubmitRollupBatchTxsRequest) (*coresequencer.SubmitRollupBatchTxsResponse, error) {
-	if !s.isValid(req.RollupId) {
-		return nil, ErrInvalidRollupId
+// SubmitBatchTxs implements sequencer.Sequencer.
+func (s *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.SubmitBatchTxsRequest) (*coresequencer.SubmitBatchTxsResponse, error) {
+	if !s.isValid(req.Id) {
+		return nil, ErrInvalidId
 	}
 	if err := s.submitBatchToDA(ctx, *req.Batch); err != nil {
 		return nil, err
 	}
 
-	return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
+	return &coresequencer.SubmitBatchTxsResponse{}, nil
 }
 
 // GetNextBatch implements sequencer.Sequencer.
 func (s *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextBatchRequest) (*coresequencer.GetNextBatchResponse, error) {
-	if !s.isValid(req.RollupId) {
-		return nil, ErrInvalidRollupId
+	if !s.isValid(req.Id) {
+		return nil, ErrInvalidId
 	}
 	maxBytes := DefaultMaxBlobSize
 	if req.MaxBytes != 0 {
@@ -174,7 +174,7 @@ OuterLoop:
 			s.logger.Warn("failed to retrieve transactions from DA layer via helper", "error", res.Message)
 			break OuterLoop
 		}
-		if len(res.Data) == 0 { // TODO: some heights may not have rollup blobs, find a better way to handle this
+		if len(res.Data) == 0 { // TODO: some heights may not have  blobs, find a better way to handle this
 			// stop fetching more transactions and return the current batch
 			s.logger.Debug("no transactions to retrieve from DA layer via helper for", "height", nextDAHeight)
 			// don't break yet, wait for maxHeightDrift to elapse
@@ -214,8 +214,8 @@ OuterLoop:
 
 // VerifyBatch implements sequencer.Sequencer.
 func (s *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBatchRequest) (*coresequencer.VerifyBatchResponse, error) {
-	if !s.isValid(req.RollupId) {
-		return nil, ErrInvalidRollupId
+	if !s.isValid(req.Id) {
+		return nil, ErrInvalidId
 	}
 	// Use stored namespace
 	proofs, err := s.DA.GetProofs(ctx, req.BatchData, []byte("placeholder"))
@@ -237,8 +237,8 @@ func (s *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 	return &coresequencer.VerifyBatchResponse{Status: true}, nil
 }
 
-func (c *Sequencer) isValid(rollupId []byte) bool {
-	return bytes.Equal(c.rollupId, rollupId)
+func (c *Sequencer) isValid(Id []byte) bool {
+	return bytes.Equal(c.Id, Id)
 }
 
 func (s *Sequencer) lastDAHeight(ids [][]byte) (uint64, error) {
