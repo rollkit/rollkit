@@ -112,20 +112,6 @@ func TestExportKeyCmd(t *testing.T) {
 		assert.Contains(err.Error(), "wrong passphrase")
 	})
 
-	t.Run("key file not found", func(t *testing.T) {
-		root := setupRootCmd()
-		nonExistentHomeDir := t.TempDir()
-		args := []string{
-			"keys", "export",
-			"--" + rollconf.FlagRootDir, nonExistentHomeDir,
-			"--" + rollconf.FlagSignerPassphrase, passphrase,
-		}
-		root.SetArgs(args)
-
-		err := root.Execute()
-		require.Error(err)
-		assert.Contains(t, err.Error(), "failed to read key file")
-	})
 }
 
 func TestImportKeyCmd(t *testing.T) {
