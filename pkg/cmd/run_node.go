@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
@@ -22,7 +23,6 @@ import (
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
 )
@@ -92,7 +92,6 @@ func StartNode(
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
-	nodeKey *key.NodeKey,
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
 	nodeConfig rollconf.Config,
@@ -118,7 +117,7 @@ func StartNode(
 		return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 	}
 
-	metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
+	metrics := node.DefaultMetricsProvider(nodeConfig.Instrumentation)
 
 	genesisPath := filepath.Join(filepath.Dir(nodeConfig.ConfigPath()), "genesis.json")
 	genesis, err := genesispkg.LoadGenesis(genesisPath)
@@ -134,7 +133,6 @@ func StartNode(
 		sequencer,
 		da,
 		signer,
-		*nodeKey,
 		p2pClient,
 		genesis,
 		datastore,
@@ -171,7 +169,7 @@ func StartNode(
 
 	// Wait for interrupt signal to gracefully shut down the server
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	select {
 	case <-quit:

@@ -61,7 +61,7 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 // TestInitialStateClean verifies that getInitialState initializes state correctly when no state is stored.
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	// Create genesis document
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateClean")
@@ -186,6 +186,7 @@ func TestIsDAIncluded(t *testing.T) {
 	height := uint64(1)
 	header, data := types.GetRandomBlock(height, 5, "TestIsDAIncluded")
 	mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil).Times(3)
+	mockStore.On("Height", mock.Anything).Return(uint64(100), nil).Maybe()
 	ctx := context.Background()
 	// IsDAIncluded should return false for unseen hash
 	require.False(m.IsDAIncluded(ctx, height))
@@ -363,4 +364,139 @@ func TestBytesToBatchData(t *testing.T) {
 	_, err = bytesToBatchData(bad)
 	assert.Error(err)
 	assert.Contains(err.Error(), "corrupted data")
+}
+
+// TestGetDataSignature_Success ensures a valid signature is returned when the signer is set.
+func TestGetDataSignature_Success(t *testing.T) {
+	require := require.New(t)
+	mockDAC := mocks.NewDA(t)
+	m, _ := getManager(t, mockDAC, -1, -1)
+
+	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(err)
+	signer, err := noopsigner.NewNoopSigner(privKey)
+	require.NoError(err)
+	m.signer = signer
+	_, data := types.GetRandomBlock(1, 2, "TestGetDataSignature")
+	sig, err := m.getDataSignature(data)
+	require.NoError(err)
+	require.NotEmpty(sig)
+}
+
+// TestGetDataSignature_NilSigner ensures the correct error is returned when the signer is nil.
+func TestGetDataSignature_NilSigner(t *testing.T) {
+	require := require.New(t)
+	mockDAC := mocks.NewDA(t)
+	m, _ := getManager(t, mockDAC, -1, -1)
+
+	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(err)
+	signer, err := noopsigner.NewNoopSigner(privKey)
+	require.NoError(err)
+	m.signer = signer
+	_, data := types.GetRandomBlock(1, 2, "TestGetDataSignature")
+
+	m.signer = nil
+	_, err = m.getDataSignature(data)
+	require.ErrorContains(err, "signer is nil; cannot sign data")
+}
+
+// TestIsValidSignedData covers valid, nil, wrong proposer, and invalid signature cases for isValidSignedData.
+func TestIsValidSignedData(t *testing.T) {
+	require := require.New(t)
+	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(err)
+	testSigner, err := noopsigner.NewNoopSigner(privKey)
+	require.NoError(err)
+	proposerAddr, err := testSigner.GetAddress()
+	require.NoError(err)
+	gen := genesispkg.NewGenesis(
+		"testchain",
+		1,
+		time.Now(),
+		proposerAddr,
+	)
+	m := &Manager{
+		signer:  testSigner,
+		genesis: gen,
+	}
+
+	t.Run("valid signed data", func(t *testing.T) {
+		batch := &types.Data{
+			Txs: types.Txs{types.Tx("tx1"), types.Tx("tx2")},
+		}
+		sig, err := m.getDataSignature(batch)
+		require.NoError(err)
+		pubKey, err := m.signer.GetPublic()
+		require.NoError(err)
+		signedData := &types.SignedData{
+			Data:      *batch,
+			Signature: sig,
+			Signer: types.Signer{
+				PubKey:  pubKey,
+				Address: proposerAddr,
+			},
+		}
+		assert.True(t, m.isValidSignedData(signedData))
+	})
+
+	t.Run("nil signed data", func(t *testing.T) {
+		assert.False(t, m.isValidSignedData(nil))
+	})
+
+	t.Run("nil Txs", func(t *testing.T) {
+		signedData := &types.SignedData{
+			Data: types.Data{},
+			Signer: types.Signer{
+				Address: proposerAddr,
+			},
+		}
+		signedData.Txs = nil
+		assert.False(t, m.isValidSignedData(signedData))
+	})
+
+	t.Run("wrong proposer address", func(t *testing.T) {
+		batch := &types.Data{
+			Txs: types.Txs{types.Tx("tx1")},
+		}
+		sig, err := m.getDataSignature(batch)
+		require.NoError(err)
+		pubKey, err := m.signer.GetPublic()
+		require.NoError(err)
+		wrongAddr := make([]byte, len(proposerAddr))
+		copy(wrongAddr, proposerAddr)
+		wrongAddr[0] ^= 0xFF // flip a bit
+		signedData := &types.SignedData{
+			Data:      *batch,
+			Signature: sig,
+			Signer: types.Signer{
+				PubKey:  pubKey,
+				Address: wrongAddr,
+			},
+		}
+		assert.False(t, m.isValidSignedData(signedData))
+	})
+
+	t.Run("invalid signature", func(t *testing.T) {
+		batch := &types.Data{
+			Txs: types.Txs{types.Tx("tx1")},
+		}
+		sig, err := m.getDataSignature(batch)
+		require.NoError(err)
+		pubKey, err := m.signer.GetPublic()
+		require.NoError(err)
+		// Corrupt the signature
+		badSig := make([]byte, len(sig))
+		copy(badSig, sig)
+		badSig[0] ^= 0xFF
+		signedData := &types.SignedData{
+			Data:      *batch,
+			Signature: badSig,
+			Signer: types.Signer{
+				PubKey:  pubKey,
+				Address: proposerAddr,
+			},
+		}
+		assert.False(t, m.isValidSignedData(signedData))
+	})
 }
