@@ -146,7 +146,7 @@ func ExportPrivateKey(keyPath string, passphrase []byte) ([]byte, error) {
 	// Decrypt the private key
 	privKeyBytes, err := gcm.Open(nil, data.Nonce, data.PrivKeyEncrypted, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt private key (wrong passphrase?): %w", err)
+		return nil, fmt.Errorf("failed to decrypt private key (wrong passphrase): %w", err)
 	}
 
 	return privKeyBytes, nil
