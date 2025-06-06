@@ -820,6 +820,8 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 
 type headerContextKey struct{}
 
+// HeaderContextKey is used to store the header in the context.
+// This is useful if the execution client needs to access the header during transaction execution.
 var HeaderContextKey = headerContextKey{}
 
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
