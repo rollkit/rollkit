@@ -132,6 +132,7 @@ func newFullNode(
 
 	asyncPruner := block.NewAsyncPruner(
 		rktStore, block.DefaultFlushInterval,
+		logger.With("module", "AsyncPruner"),
 	)
 
 	node := &FullNode{
