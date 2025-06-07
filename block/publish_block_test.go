@@ -32,6 +32,7 @@ func setupManagerForPublishBlockTest(
 	t *testing.T,
 	initialHeight uint64,
 	lastSubmittedHeaderHeight uint64,
+	lastSubmittedDataHeight uint64,
 	logBuffer *bytes.Buffer,
 ) (*Manager, *mocks.Store, *mocks.Executor, *mocks.Sequencer, signer.Signer, context.CancelFunc) {
 	require := require.New(t)
@@ -57,9 +58,12 @@ func setupManagerForPublishBlockTest(
 		log.ColorOption(false),
 	)
 
-	lastSubmittedBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(lastSubmittedBytes, lastSubmittedHeaderHeight)
-	mockStore.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(lastSubmittedBytes, nil).Maybe()
+	lastSubmittedHeaderBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lastSubmittedHeaderBytes, lastSubmittedHeaderHeight)
+	mockStore.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(lastSubmittedHeaderBytes, nil).Maybe()
+	lastSubmittedDataBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lastSubmittedDataBytes, lastSubmittedDataHeight)
+	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(lastSubmittedDataBytes, nil).Maybe()
 
 	var headerStore *goheaderstore.Store[*types.SignedHeader]
 	var dataStore *goheaderstore.Store[*types.Data]
@@ -86,6 +90,7 @@ func setupManagerForPublishBlockTest(
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		pendingHeaders:           nil,
+		pendingData:              nil,
 		signaturePayloadProvider: defaultSignaturePayloadProvider,
 	}
 	manager.publishBlock = manager.publishBlockInternal
@@ -96,6 +101,13 @@ func setupManagerForPublishBlockTest(
 		return ph
 	}()
 	manager.pendingHeaders = pendingHeaders
+
+	pendingData := func() *PendingData {
+		pd, err := NewPendingData(mockStore, logger)
+		require.NoError(err)
+		return pd
+	}()
+	manager.pendingData = pendingData
 
 	manager.lastState = types.State{
 		ChainID:         genesis.ChainID,
@@ -111,20 +123,21 @@ func setupManagerForPublishBlockTest(
 	return manager, mockStore, mockExec, mockSeq, testSigner, cancel
 }
 
-// TestPublishBlockInternal_MaxPendingHeadersReached verifies that publishBlockInternal returns an error if the maximum number of pending headers is reached.
-func TestPublishBlockInternal_MaxPendingHeadersReached(t *testing.T) {
+// TestPublishBlockInternal_MaxPendingHeadersAndDataReached verifies that publishBlockInternal returns an error if the maximum number of pending headers or data is reached.
+func TestPublishBlockInternal_MaxPendingHeadersAndDataReached(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
 	currentHeight := uint64(10)
 	lastSubmittedHeaderHeight := uint64(5)
+	lastSubmittedDataHeight := uint64(5)
 	maxPending := uint64(5)
 	logBuffer := new(bytes.Buffer)
 
-	manager, mockStore, mockExec, mockSeq, _, cancel := setupManagerForPublishBlockTest(t, currentHeight+1, lastSubmittedHeaderHeight, logBuffer)
+	manager, mockStore, mockExec, mockSeq, _, cancel := setupManagerForPublishBlockTest(t, currentHeight+1, lastSubmittedHeaderHeight, lastSubmittedDataHeight, logBuffer)
 	defer cancel()
 
-	manager.config.Node.MaxPendingHeaders = maxPending
+	manager.config.Node.MaxPendingHeadersAndData = maxPending
 	ctx := context.Background()
 
 	mockStore.On("Height", ctx).Return(currentHeight, nil)
@@ -132,7 +145,7 @@ func TestPublishBlockInternal_MaxPendingHeadersReached(t *testing.T) {
 	err := manager.publishBlock(ctx)
 
 	require.Nil(err, "publishBlockInternal should not return an error (otherwise the chain would halt)")
-	require.Contains(logBuffer.String(), "pending blocks [5] reached limit [5]", "log message mismatch")
+	require.Contains(logBuffer.String(), "pending headers [5] or data [5] reached limit [5]", "log message mismatch")
 
 	mockStore.AssertExpectations(t)
 	mockExec.AssertNotCalled(t, "GetTxs", mock.Anything)
@@ -165,7 +178,7 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 		genesis:   genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
-				MaxPendingHeaders: 0,
+				MaxPendingHeadersAndData: 0,
 			},
 		},
 		lastStateMtx:             &sync.RWMutex{},
@@ -238,7 +251,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		genesis:   genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
-				MaxPendingHeaders: 0,
+				MaxPendingHeadersAndData: 0,
 			},
 		},
 		lastStateMtx: &sync.RWMutex{},
@@ -327,7 +340,7 @@ func Test_publishBlock_Success(t *testing.T) {
 	newHeight := initialHeight + 1
 	chainID := "testchain"
 
-	manager, mockStore, mockExec, mockSeq, _, _ := setupManagerForPublishBlockTest(t, initialHeight, 0, new(bytes.Buffer))
+	manager, mockStore, mockExec, mockSeq, _, _ := setupManagerForPublishBlockTest(t, initialHeight, 0, 0, new(bytes.Buffer))
 	manager.lastState.LastBlockHeight = initialHeight
 
 	mockStore.On("Height", t.Context()).Return(initialHeight, nil).Once()
