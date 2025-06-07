@@ -41,7 +41,9 @@ func (s *AsyncPruner) Start(ctx context.Context) {
 			return
 		case <-ticker.C:
 			err := s.ps.PruneBlockData(ctx)
-			s.logger.Error("Failed to prune block data", "error", err)
+			if err != nil {
+				s.logger.Error("Failed to prune block data", "error", err)
+			}
 		}
 	}
 }
