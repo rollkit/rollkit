@@ -524,7 +524,7 @@ func TestGetStateError(t *testing.T) {
 
 	_, err = sUnmarshal.GetState(t.Context())
 	require.Error(err)
-	require.Contains(err.Error(), "failed to unmarshal state from JSON") // Error message from proto.Unmarshal
+	require.Contains(err.Error(), "failed to unmarshal state from protobuf")
 }
 
 func TestSetMetadataError(t *testing.T) {
