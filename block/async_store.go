@@ -7,7 +7,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/store"
 )
 
-const DefaultFlushInterval = 1 * time.Second
+const DefaultFlushInterval = 10 * time.Second
 
 // AsyncPruner is a service that periodically prunes block data in the background.
 type AsyncPruner struct {
@@ -17,10 +17,6 @@ type AsyncPruner struct {
 }
 
 func NewAsyncPruner(pruningStore store.PruningStore, flushInterval time.Duration) *AsyncPruner {
-	if flushInterval <= 0 {
-		flushInterval = DefaultFlushInterval
-	}
-
 	return &AsyncPruner{
 		ps: pruningStore,
 

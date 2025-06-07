@@ -76,10 +76,7 @@ func GetPruningConfigFromStrategy(strategy string) PruningConfig {
 		return PruningConfigDefault
 	case PruningConfigStrategyEverything:
 		return PruningConfigEverything
-	case PruningConfigStrategyCustom:
-		return PruningConfigCustom
+	default:
+		return PruningConfigNone
 	}
-
-	// Return strategy "none" if unknown.
-	return PruningConfigNone
 }
