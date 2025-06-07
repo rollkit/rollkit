@@ -168,23 +168,12 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 				MaxPendingHeaders: 0,
 			},
 		},
-		pendingHeaders: func() *PendingHeaders {
-			ph, err := NewPendingHeaders(mockStore, logger)
-			require.NoError(err)
-			return ph
-		}(),
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		signaturePayloadProvider: defaultSignaturePayloadProvider,
 	}
 
 	m.publishBlock = m.publishBlockInternal
-
-	bz := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bz, 0)
-	mockStore.On("GetMetadata", ctx, LastSubmittedHeaderHeightKey).Return(bz, nil)
-	err = m.pendingHeaders.init()
-	require.NoError(err)
 
 	// Mock store calls for height and previous block/commit
 	currentHeight := uint64(1)
@@ -252,11 +241,6 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 				MaxPendingHeaders: 0,
 			},
 		},
-		pendingHeaders: func() *PendingHeaders {
-			ph, err := NewPendingHeaders(mockStore, logger)
-			require.NoError(err)
-			return ph
-		}(),
 		lastStateMtx: &sync.RWMutex{},
 		metrics:      NopMetrics(),
 		lastState: types.State{
@@ -279,12 +263,6 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	}
 
 	m.publishBlock = m.publishBlockInternal
-
-	bz := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bz, 0)
-	mockStore.On("GetMetadata", ctx, LastSubmittedHeaderHeightKey).Return(bz, nil)
-	err = m.pendingHeaders.init()
-	require.NoError(err)
 
 	// Mock store calls
 	currentHeight := uint64(1)

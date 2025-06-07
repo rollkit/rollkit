@@ -164,10 +164,6 @@ type Manager struct {
 	// txNotifyCh is used to signal when new transactions are available
 	txNotifyCh chan struct{}
 
-	// dataCommitmentToHeight tracks the height a data commitment (data hash) has been seen on.
-	// Key: data commitment (string), Value: uint64 (height)
-	dataCommitmentToHeight sync.Map
-
 	// signaturePayloadProvider is used to provide a signature payload for the header.
 	// It is used to sign the header with the provided signer.
 	signaturePayloadProvider types.SignaturePayloadProvider
@@ -952,6 +948,7 @@ func (m *Manager) getDataSignature(data *types.Data) (types.Signature, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if m.signer == nil {
 		return nil, fmt.Errorf("signer is nil; cannot sign data")
 	}

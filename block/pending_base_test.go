@@ -22,7 +22,7 @@ func TestPendingBase_InitAndGetLastSubmittedDataHeight(t *testing.T) {
 	mockStore := mocksStore.NewStore(t)
 	logger := log.NewNopLogger()
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(nil, ds.ErrNotFound).Once()
-	pb, err := newPendingBase[*types.Data](mockStore, logger, LastSubmittedDataHeightKey, fetchData)
+	pb, err := newPendingBase(mockStore, logger, LastSubmittedDataHeightKey, fetchData)
 	assert.NoError(t, err)
 	assert.NotNil(t, pb)
 	assert.Equal(t, uint64(0), pb.lastHeight.Load())
@@ -34,7 +34,7 @@ func TestPendingBase_GetPending_AllCases(t *testing.T) {
 	mockStore := mocksStore.NewStore(t)
 	logger := log.NewNopLogger()
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(nil, ds.ErrNotFound).Once()
-	pb, err := newPendingBase[*types.Data](mockStore, logger, LastSubmittedDataHeightKey, fetchData)
+	pb, err := newPendingBase(mockStore, logger, LastSubmittedDataHeightKey, fetchData)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -71,7 +71,7 @@ func TestPendingBase_GetPending_AllCases(t *testing.T) {
 	mockStore.On("GetBlockData", ctx, uint64(5)).Return(nil, nil, errors.New("err")).Once()
 	pending, err = pb.getPending(ctx)
 	assert.Error(t, err)
-	assert.Nil(t, pending)
+	assert.Empty(t, pending)
 }
 
 // TestPendingBase_isEmpty_numPending verifies isEmpty and numPending methods for correct behavior
@@ -80,7 +80,7 @@ func TestPendingBase_isEmpty_numPending(t *testing.T) {
 	mockStore := mocksStore.NewStore(t)
 	logger := log.NewNopLogger()
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(nil, ds.ErrNotFound).Once()
-	pb, err := newPendingBase[*types.Data](mockStore, logger, LastSubmittedDataHeightKey, fetchData)
+	pb, err := newPendingBase(mockStore, logger, LastSubmittedDataHeightKey, fetchData)
 	require.NoError(t, err)
 
 	// isEmpty true
@@ -105,7 +105,7 @@ func TestPendingBase_setLastSubmittedHeight(t *testing.T) {
 	mockStore := mocksStore.NewStore(t)
 	logger := log.NewNopLogger()
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(nil, ds.ErrNotFound).Once()
-	pb, err := newPendingBase[*types.Data](mockStore, logger, LastSubmittedDataHeightKey, fetchData)
+	pb, err := newPendingBase(mockStore, logger, LastSubmittedDataHeightKey, fetchData)
 	require.NoError(t, err)
 
 	ctx := context.Background()

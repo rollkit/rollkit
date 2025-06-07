@@ -3,6 +3,7 @@ package block
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -69,11 +71,6 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 		metrics:       NopMetrics(),
 		headerStore:   &goheaderstore.Store[*types.SignedHeader]{},
 		dataStore:     &goheaderstore.Store[*types.Data]{},
-		pendingHeaders: func() *PendingHeaders {
-			ph, err := NewPendingHeaders(mockStore, log.NewNopLogger())
-			require.NoError(t, err)
-			return ph
-		}(),
 	}
 	m.daHeight.Store(initialState.DAHeight)
 
@@ -733,6 +730,7 @@ func TestSyncLoop_ErrorOnApplyError(t *testing.T) {
 	assert.NotNil(m.dataCache.GetItem(heightH1), "Data cache should still contain item for H+1")
 }
 
+// TestHandleEmptyDataHash tests that handleEmptyDataHash correctly handles the case where a header has an empty data hash, ensuring the data cache is updated with the previous block's data hash and metadata.
 func TestHandleEmptyDataHash(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -779,120 +777,108 @@ func TestHandleEmptyDataHash(t *testing.T) {
 	require.Equal(d.Metadata.Time, header.BaseHeader.Time)
 }
 
-// TestDataCommitmentToHeight_HeaderThenData verifies that when a header arrives before its data, the data is set for the correct height and the mapping is removed after processing.
-func TestDataCommitmentToHeight_HeaderThenData(t *testing.T) {
+// TestSyncLoop_MultipleHeadersArriveFirst_ThenData verifies that the sync loop correctly processes multiple blocks when all headers arrive first (without data), then their corresponding data arrives (or is handled as empty).
+// 1. Headers for H+1 through H+5 arrive (no data yet).
+// 2. State should not advance after only headers are received.
+// 3. For non-empty blocks, data for H+1, H+2, H+4, and H+5 arrives in order and each block is processed as soon as both header and data are available.
+// 4. For empty blocks (H+3 and H+4), no data is sent; the sync loop handles these using the empty data hash logic.
+// 5. Final state is H+5, caches are cleared for all processed heights, and mocks are called as expected.
+func TestSyncLoop_MultipleHeadersArriveFirst_ThenData(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
+
 	initialHeight := uint64(100)
 	initialState := types.State{
 		LastBlockHeight: initialHeight,
-		AppHash:         []byte("app_hash"),
+		AppHash:         []byte("initial_app_hash_multi_headers"),
 		ChainID:         "syncLoopTest",
-		DAHeight:        50,
+		DAHeight:        95,
 	}
-	newHeight := initialHeight + 1
-	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
-	defer cancel()
-
-	header, data, _ := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: newHeight, NTxs: 1}, initialState.ChainID, initialState.AppHash)
-	dataHash := data.DACommitment().String()
-	var txs [][]byte
-	for _, tx := range data.Txs {
-		txs = append(txs, tx)
+	numBlocks := 5
+	blockHeights := make([]uint64, numBlocks)
+	for i := 0; i < numBlocks; i++ {
+		blockHeights[i] = initialHeight + uint64(i+1)
 	}
-	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash).Return([]byte("new_app_hash"), uint64(100), nil).Once()
-	mockStore.On("SaveBlockData", mock.Anything, header, data, &header.Signature).Return(nil).Once()
-	mockStore.On("UpdateState", mock.Anything, mock.Anything).Return(nil).Once()
-	mockStore.On("SetHeight", mock.Anything, newHeight).Return(nil).Once()
+	daHeight := initialState.DAHeight
 
-	ctx, loopCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer loopCancel()
+	// Use a real in-memory store
+	kv, err := store.NewDefaultInMemoryKVStore()
+	require.NoError(err)
+	store := store.New(kv)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		m.SyncLoop(ctx, make(chan<- error))
-	}()
+	mockExec := mocks.NewExecutor(t)
 
-	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
-	time.Sleep(10 * time.Millisecond)
-	dataInCh <- NewDataEvent{Data: data, DAHeight: initialState.DAHeight}
-	wg.Wait()
+	headerInCh := make(chan NewHeaderEvent, 5)
+	dataInCh := make(chan NewDataEvent, 5)
 
-	// Data should be processed and cache cleared
-	assert.Nil(m.dataCache.GetItem(newHeight), "Data cache should be cleared after processing")
-	_, ok := m.dataCommitmentToHeight.Load(dataHash)
-	assert.False(ok, "Mapping should be removed after data is set")
-}
+	headers := make([]*types.SignedHeader, numBlocks)
+	data := make([]*types.Data, numBlocks)
+	privKeys := make([]any, numBlocks)
+	expectedAppHashes := make([][]byte, numBlocks)
+	expectedStates := make([]types.State, numBlocks)
+	txs := make([][][]byte, numBlocks)
+	syncChans := make([]chan struct{}, numBlocks)
 
-// TestDataCommitmentToHeight_HeaderWithExistingData verifies that if data is already present when the header arrives, the data is immediately set for the header height and no mapping is created.
-func TestDataCommitmentToHeight_HeaderWithExistingData(t *testing.T) {
-	assert := assert.New(t)
-	initialHeight := uint64(200)
-	initialState := types.State{
-		LastBlockHeight: initialHeight,
-		AppHash:         []byte("app_hash2"),
-		ChainID:         "syncLoopTest",
-		DAHeight:        150,
+	prevAppHash := initialState.AppHash
+	prevState := initialState
+
+	// Save initial state in the store
+	require.NoError(store.UpdateState(context.Background(), initialState))
+	require.NoError(store.SetHeight(context.Background(), initialHeight))
+
+	for i := 0; i < numBlocks; i++ {
+		// Make blocks 2 and 3 (H+3 and H+4) and block 7 (H+8) empty
+		var nTxs int
+		if i == 2 || i == 3 {
+			nTxs = 0
+		} else {
+			nTxs = i + 1
+		}
+		headers[i], data[i], privKeys[i] = types.GenerateRandomBlockCustomWithAppHash(
+			&types.BlockConfig{Height: blockHeights[i], NTxs: nTxs},
+			prevState.ChainID, prevAppHash,
+		)
+		require.NotNil(headers[i])
+		require.NotNil(data[i])
+
+		txs[i] = make([][]byte, 0, len(data[i].Txs))
+		for _, tx := range data[i].Txs {
+			txs[i] = append(txs[i], tx)
+		}
+
+		expectedAppHashes[i] = []byte(fmt.Sprintf("app_hash_h%d", i+1))
+		var err error
+		expectedStates[i], err = prevState.NextState(headers[i], expectedAppHashes[i])
+		require.NoError(err)
+
+		syncChans[i] = make(chan struct{})
+
+		// Set up mocks for each block
+		mockExec.On("ExecuteTxs", mock.Anything, txs[i], blockHeights[i], headers[i].Time(), prevAppHash).
+			Return(expectedAppHashes[i], uint64(100), nil).Run(func(args mock.Arguments) {
+			close(syncChans[i])
+		}).Once()
+
+		prevAppHash = expectedAppHashes[i]
+		prevState = expectedStates[i]
 	}
-	newHeight := initialHeight + 1
-	m, mockStore, mockExec, ctx, cancel, headerInCh, _, _ := setupManagerForSyncLoopTest(t, initialState)
-	defer cancel()
 
-	header, data, _ := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: newHeight, NTxs: 1}, initialState.ChainID, initialState.AppHash)
-	dataHash := data.DACommitment().String()
-	m.dataCache.SetItemByHash(dataHash, data)
-	var txs [][]byte
-	for _, tx := range data.Txs {
-		txs = append(txs, tx)
+	m := &Manager{
+		store:        store,
+		exec:         mockExec,
+		config:       config.DefaultConfig,
+		genesis:      genesis.Genesis{ChainID: initialState.ChainID},
+		lastState:    initialState,
+		lastStateMtx: new(sync.RWMutex),
+		logger:       log.NewTestLogger(t),
+		headerCache:  cache.NewCache[types.SignedHeader](),
+		dataCache:    cache.NewCache[types.Data](),
+		headerInCh:   headerInCh,
+		dataInCh:     dataInCh,
+		daHeight:     &atomic.Uint64{},
+		metrics:      NopMetrics(),
 	}
-	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash).Return([]byte("new_app_hash2"), uint64(100), nil).Once()
-	mockStore.On("SaveBlockData", mock.Anything, header, data, &header.Signature).Return(nil).Once()
-	mockStore.On("UpdateState", mock.Anything, mock.Anything).Return(nil).Once()
-	mockStore.On("SetHeight", mock.Anything, newHeight).Return(nil).Once()
-
-	ctx, loopCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer loopCancel()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		m.SyncLoop(ctx, make(chan<- error))
-	}()
-
-	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
-	wg.Wait()
-
-	// Data should be processed and cache cleared
-	assert.Nil(m.dataCache.GetItem(newHeight), "Data cache should be cleared after processing")
-	_, ok := m.dataCommitmentToHeight.Load(dataHash)
-	assert.False(ok, "No mapping should be created if data is already present")
-}
-
-// TestDataCommitmentToHeight_DataBeforeHeader verifies that if data arrives before the header, it is not set for any height until the header and a subsequent data event arrive, after which the data is processed and the mapping is removed.
-func TestDataCommitmentToHeight_DataBeforeHeader(t *testing.T) {
-	assert := assert.New(t)
-	initialHeight := uint64(300)
-	initialState := types.State{
-		LastBlockHeight: initialHeight,
-		AppHash:         []byte("app_hash3"),
-		ChainID:         "syncLoopTest",
-		DAHeight:        250,
-	}
-	newHeight := initialHeight + 1
-	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
-	defer cancel()
-
-	header, data, _ := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: newHeight, NTxs: 1}, initialState.ChainID, initialState.AppHash)
-	var txs [][]byte
-	for _, tx := range data.Txs {
-		txs = append(txs, tx)
-	}
-	mockExec.On("ExecuteTxs", mock.Anything, txs, newHeight, header.Time(), initialState.AppHash).Return([]byte("new_app_hash3"), uint64(100), nil).Once()
-	mockStore.On("SaveBlockData", mock.Anything, header, data, &header.Signature).Return(nil).Once()
-	mockStore.On("UpdateState", mock.Anything, mock.Anything).Return(nil).Once()
-	mockStore.On("SetHeight", mock.Anything, newHeight).Return(nil).Once()
+	m.daHeight.Store(initialState.DAHeight)
 
 	ctx, loopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer loopCancel()
@@ -904,143 +890,52 @@ func TestDataCommitmentToHeight_DataBeforeHeader(t *testing.T) {
 		m.SyncLoop(ctx, make(chan<- error))
 	}()
 
-	data.Metadata = nil
-
-	// Data arrives before header
-	dataInCh <- NewDataEvent{Data: data, DAHeight: initialState.DAHeight}
-	time.Sleep(100 * time.Millisecond)
-	// Data should not be set for any height yet, but should be present by hash
-	assert.Nil(m.dataCache.GetItem(newHeight))
-	assert.NotNil(m.dataCache.GetItemByHash(data.DACommitment().String()), "Data should be present in cache by hash after first data event")
-	// Now header arrives
-	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
-	// Data should be processed and cache cleared after header event
-	time.Sleep(100 * time.Millisecond)
-	assert.Nil(m.dataCache.GetItem(newHeight))
-	assert.Nil(m.dataCache.GetItemByHash(data.DACommitment().String()), "Data cache by hash should be cleared after header event")
-	// Data event arrives again
-	dataInCh <- NewDataEvent{Data: data, DAHeight: initialState.DAHeight}
-	wg.Wait()
-	// Data should still be cleared
-	assert.Nil(m.dataCache.GetItem(newHeight), "Data cache should be cleared after processing")
-	assert.Nil(m.dataCache.GetItemByHash(data.DACommitment().String()), "Data cache by hash should be cleared after processing")
-	_, ok := m.dataCommitmentToHeight.Load(data.DACommitment().String())
-	assert.False(ok, "Mapping should be removed after data is set")
-}
-
-// TestDataCommitmentToHeight_HeaderAlreadySynced verifies that if a header arrives for an already-synced height, the data is not set and the mapping is cleaned up.
-func TestDataCommitmentToHeight_HeaderAlreadySynced(t *testing.T) {
-	assert := assert.New(t)
-	initialHeight := uint64(400)
-	initialState := types.State{
-		LastBlockHeight: initialHeight,
-		AppHash:         []byte("app_hash4"),
-		ChainID:         "syncLoopTest",
-		DAHeight:        350,
+	// 1. Send all headers first (no data yet)
+	for i := 0; i < numBlocks; i++ {
+		headerInCh <- NewHeaderEvent{Header: headers[i], DAHeight: daHeight}
 	}
-	m, _, _, _, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
-	defer cancel()
 
-	header, data, _ := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: initialHeight, NTxs: 1}, initialState.ChainID, initialState.AppHash)
-	dataHash := data.DACommitment().String()
-
-	ctx, loopCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer loopCancel()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		m.SyncLoop(ctx, make(chan<- error))
-	}()
-
-	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
-	time.Sleep(10 * time.Millisecond)
-	dataInCh <- NewDataEvent{Data: data, DAHeight: initialState.DAHeight}
-	wg.Wait()
-
-	// Data should not be set for already synced height
-	assert.Nil(m.dataCache.GetItem(initialHeight))
-	// Mapping should be cleaned up
-	_, ok := m.dataCommitmentToHeight.Load(dataHash)
-	assert.False(ok, "Mapping should be cleaned up for already synced height")
-}
-
-// TestDataCommitmentToHeight_EmptyDataHash verifies that no mapping is created for dataHashForEmptyTxs and the empty block logic is handled correctly.
-func TestDataCommitmentToHeight_EmptyDataHash(t *testing.T) {
-	assert := assert.New(t)
-	initialHeight := uint64(500)
-	initialState := types.State{
-		LastBlockHeight: initialHeight,
-		AppHash:         []byte("app_hash5"),
-		ChainID:         "syncLoopTest",
-		DAHeight:        450,
+	// 2. Wait briefly to ensure state has not advanced
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(initialHeight, m.GetLastState().LastBlockHeight, "Height should not have advanced yet after only headers")
+	for i := 0; i < numBlocks; i++ {
+		if i == 2 || i == 3 {
+			assert.NotNil(m.dataCache.GetItem(blockHeights[i]), "Data should be in cache for empty block H+%d", i+1)
+		} else {
+			assert.Nil(m.dataCache.GetItem(blockHeights[i]), "Data should not be in cache for H+%d yet", i+1)
+		}
+		assert.NotNil(m.headerCache.GetItem(blockHeights[i]), "Header should be in cache for H+%d", i+1)
 	}
-	newHeight := initialHeight + 1
-	m, mockStore, mockExec, _, cancel, headerInCh, _, _ := setupManagerForSyncLoopTest(t, initialState)
-	defer cancel()
 
-	header, _, _ := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: newHeight, NTxs: 0}, initialState.ChainID, initialState.AppHash)
-	header.DataHash = dataHashForEmptyTxs
-	// Mock GetBlockData for previous height
-	mockStore.On("GetBlockData", mock.Anything, newHeight-1).Return(nil, &types.Data{}, nil).Once()
-	// Mock ExecuteTxs, SaveBlockData, UpdateState, SetHeight for empty block
-	mockExec.On("ExecuteTxs", mock.Anything, [][]byte{}, newHeight, header.Time(), initialState.AppHash).Return([]byte("new_app_hash5"), uint64(100), nil).Once()
-	mockStore.On("SaveBlockData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-	mockStore.On("UpdateState", mock.Anything, mock.Anything).Return(nil).Once()
-	mockStore.On("SetHeight", mock.Anything, newHeight).Return(nil).Once()
-
-	ctx, loopCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer loopCancel()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		m.SyncLoop(ctx, make(chan<- error))
-	}()
-
-	headerInCh <- NewHeaderEvent{Header: header, DAHeight: initialState.DAHeight}
-	wg.Wait()
-
-	// No mapping should be created for dataHashForEmptyTxs
-	_, ok := m.dataCommitmentToHeight.Load(string(dataHashForEmptyTxs))
-	assert.False(ok, "No mapping should be created for dataHashForEmptyTxs")
-}
-
-// TestDataCommitmentToHeight_DataAlreadySeen verifies that if data is already marked as seen, it is not set again for any height.
-func TestDataCommitmentToHeight_DataAlreadySeen(t *testing.T) {
-	assert := assert.New(t)
-	initialHeight := uint64(600)
-	initialState := types.State{
-		LastBlockHeight: initialHeight,
-		AppHash:         []byte("app_hash6"),
-		ChainID:         "syncLoopTest",
-		DAHeight:        550,
+	// 3. Send data for each block in order (skip empty blocks)
+	for i := 0; i < numBlocks; i++ {
+		if i == 2 || i == 3 {
+			// Do NOT send data for empty blocks
+			continue
+		}
+		dataInCh <- NewDataEvent{Data: data[i], DAHeight: daHeight}
+		// Wait for block to be processed
+		select {
+		case <-syncChans[i]:
+			// processed
+		case <-time.After(2 * time.Second):
+			t.Fatalf("Timeout waiting for sync of H+%d", i+1)
+		}
 	}
-	newHeight := initialHeight + 1
-	m, _, _, _, cancel, _, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
-	defer cancel()
 
-	_, data, _ := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: newHeight, NTxs: 1}, initialState.ChainID, initialState.AppHash)
-	dataHash := data.DACommitment().String()
-	m.dataCache.SetSeen(dataHash)
-
-	ctx, loopCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer loopCancel()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		m.SyncLoop(ctx, make(chan<- error))
-	}()
-
-	dataInCh <- NewDataEvent{Data: data, DAHeight: initialState.DAHeight}
 	wg.Wait()
 
-	// Data should not be set again if already seen
-	assert.Nil(m.dataCache.GetItem(newHeight))
-}
+	mockExec.AssertExpectations(t)
 
-// --- END dataCommitmentToHeight TESTS ---
+	finalState := m.GetLastState()
+	assert.Equal(expectedStates[numBlocks-1].LastBlockHeight, finalState.LastBlockHeight)
+	assert.Equal(expectedStates[numBlocks-1].AppHash, finalState.AppHash)
+	assert.Equal(expectedStates[numBlocks-1].LastBlockTime, finalState.LastBlockTime)
+	assert.Equal(expectedStates[numBlocks-1].DAHeight, finalState.DAHeight)
+
+	// Assert caches are cleared for all processed heights
+	for i := 0; i < numBlocks; i++ {
+		assert.Nil(m.headerCache.GetItem(blockHeights[i]), "Header cache should be cleared for H+%d", i+1)
+		assert.Nil(m.dataCache.GetItem(blockHeights[i]), "Data cache should be cleared for H+%d", i+1)
+	}
+}
