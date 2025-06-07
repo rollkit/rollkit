@@ -457,7 +457,7 @@ func TestGetSignatureByHashError(t *testing.T) {
 	_, err := s.GetSignatureByHash(t.Context(), hash)
 	require.Error(err)
 	require.Contains(err.Error(), mockErr.Error())
-	require.Contains(err.Error(), "failed to load height from index")
+	require.Contains(err.Error(), "failed to load hash from index")
 }
 
 func TestGetSignatureError(t *testing.T) {
