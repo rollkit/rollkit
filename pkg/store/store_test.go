@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -10,6 +11,75 @@ import (
 
 	"github.com/rollkit/rollkit/types"
 )
+
+// mockBatchingDatastore is a mock implementation of ds.Batching for testing error cases.
+type mockBatchingDatastore struct {
+	ds.Batching          // Embed ds.Batching directly
+	mockBatch            *mockBatch
+	putError             error
+	getError             error // General get error, used if getErrors is empty
+	batchError           error
+	commitError          error
+	unmarshalErrorOnCall int     // New field: 0 for no unmarshal error, 1 for first Get, 2 for second Get, etc.
+	getCallCount         int     // Tracks number of Get calls
+	getErrors            []error // Specific errors for sequential Get calls
+}
+
+// mockBatch is a mock implementation of ds.Batch for testing error cases.
+type mockBatch struct {
+	ds.Batch
+	putError    error
+	commitError error
+}
+
+func (m *mockBatchingDatastore) Put(ctx context.Context, key ds.Key, value []byte) error {
+	if m.putError != nil {
+		return m.putError
+	}
+	return m.Batching.Put(ctx, key, value)
+}
+
+func (m *mockBatchingDatastore) Get(ctx context.Context, key ds.Key) ([]byte, error) {
+	m.getCallCount++
+	if len(m.getErrors) >= m.getCallCount && m.getErrors[m.getCallCount-1] != nil {
+		return nil, m.getErrors[m.getCallCount-1]
+	}
+	if m.getError != nil { // Fallback to general getError if sequential not set
+		return nil, m.getError
+	}
+	if m.unmarshalErrorOnCall == m.getCallCount { // Trigger unmarshal error on specific call
+		return []byte("malformed data"), nil
+	}
+	return m.Batching.Get(ctx, key)
+}
+
+func (m *mockBatchingDatastore) Batch(ctx context.Context) (ds.Batch, error) {
+	if m.batchError != nil {
+		return nil, m.batchError
+	}
+	baseBatch, err := m.Batching.Batch(ctx)
+	if err != nil {
+		return nil, err
+	}
+	m.mockBatch = &mockBatch{Batch: baseBatch}
+	m.mockBatch.putError = m.putError // Propagate put error to batch
+	m.mockBatch.commitError = m.commitError
+	return m.mockBatch, nil
+}
+
+func (m *mockBatch) Put(ctx context.Context, key ds.Key, value []byte) error {
+	if m.putError != nil {
+		return m.putError
+	}
+	return m.Batch.Put(ctx, key, value)
+}
+
+func (m *mockBatch) Commit(ctx context.Context) error {
+	if m.commitError != nil {
+		return m.commitError
+	}
+	return m.Batch.Commit(ctx)
+}
 
 func TestStoreHeight(t *testing.T) {
 	t.Parallel()
@@ -155,6 +225,65 @@ func TestRestart(t *testing.T) {
 	assert.Equal(expectedHeight, state2.LastBlockHeight)
 }
 
+func TestSetHeightError(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Simulate an error when putting data
+	mockErr := fmt.Errorf("mock put error")
+	mockDs, _ := NewDefaultInMemoryKVStore()
+	mockBatchingDs := &mockBatchingDatastore{Batching: mockDs, putError: mockErr}
+	s := New(mockBatchingDs)
+
+	err := s.SetHeight(t.Context(), 10)
+	require.Error(err)
+	require.Contains(err.Error(), mockErr.Error())
+}
+
+func TestHeightErrors(t *testing.T) {
+	t.Parallel()
+
+	type cfg struct {
+		name      string
+		mock      *mockBatchingDatastore
+		expectSub string
+	}
+	mockErr := func(msg string) error { return fmt.Errorf("mock %s error", msg) }
+
+	// badHeightBytes triggers decodeHeight length check
+	badHeightBytes := []byte("bad")
+
+	inMem := mustNewInMem()
+
+	cases := []cfg{
+		{
+			name:      "store get error",
+			mock:      &mockBatchingDatastore{Batching: mustNewInMem(), getError: mockErr("get height")},
+			expectSub: "get height",
+		},
+		{
+			name:      "unmarshal height error",
+			mock:      &mockBatchingDatastore{Batching: inMem},
+			expectSub: "invalid height length",
+		},
+	}
+
+	// pre-seed the second case once
+	_ = cases[1].mock.Put(context.Background(), ds.NewKey(getHeightKey()), badHeightBytes)
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := New(tc.mock)
+
+			h, err := s.Height(t.Context())
+			require.ErrorContains(t, err, tc.expectSub)
+			require.Equal(t, uint64(0), h)
+		})
+	}
+}
+
 func TestMetadata(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -184,4 +313,251 @@ func TestMetadata(t *testing.T) {
 	v, err := s.GetMetadata(t.Context(), "unused key")
 	require.Error(err)
 	require.Nil(v)
+}
+func TestGetBlockDataErrors(t *testing.T) {
+	t.Parallel()
+	chainID := "TestGetBlockDataErrors"
+	header, _ := types.GetRandomBlock(1, 0, chainID)
+	headerBlob, _ := header.MarshalBinary()
+
+	mockErr := func(msg string) error { return fmt.Errorf("mock %s error", msg) }
+
+	type cfg struct {
+		name      string
+		mock      *mockBatchingDatastore
+		prepare   func(context.Context, *mockBatchingDatastore)
+		expectSub string
+	}
+	cases := []cfg{
+		{
+			name:      "header get error",
+			mock:      &mockBatchingDatastore{Batching: mustNewInMem(), getError: mockErr("get header")},
+			prepare:   func(_ context.Context, _ *mockBatchingDatastore) {}, // nothing to pre-seed
+			expectSub: "failed to load block header",
+		},
+		{
+			name: "header unmarshal error",
+			mock: &mockBatchingDatastore{Batching: mustNewInMem(), unmarshalErrorOnCall: 1},
+			prepare: func(ctx context.Context, m *mockBatchingDatastore) {
+				_ = m.Put(ctx, ds.NewKey(getHeaderKey(header.Height())), []byte("garbage"))
+			},
+			expectSub: "failed to unmarshal block header",
+		},
+		{
+			name: "data get error",
+			mock: &mockBatchingDatastore{Batching: mustNewInMem(), getErrors: []error{nil, mockErr("get data")}},
+			prepare: func(ctx context.Context, m *mockBatchingDatastore) {
+				_ = m.Put(ctx, ds.NewKey(getHeaderKey(header.Height())), headerBlob)
+			},
+			expectSub: "failed to load block data",
+		},
+		{
+			name: "data unmarshal error",
+			mock: &mockBatchingDatastore{Batching: mustNewInMem(), unmarshalErrorOnCall: 2},
+			prepare: func(ctx context.Context, m *mockBatchingDatastore) {
+				_ = m.Put(ctx, ds.NewKey(getHeaderKey(header.Height())), headerBlob)
+				_ = m.Put(ctx, ds.NewKey(getDataKey(header.Height())), []byte("garbage"))
+			},
+			expectSub: "failed to unmarshal block data",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := New(tc.mock)
+			tc.prepare(t.Context(), tc.mock)
+
+			_, _, err := s.GetBlockData(t.Context(), header.Height())
+			require.ErrorContains(t, err, tc.expectSub)
+		})
+	}
+}
+
+func TestSaveBlockDataErrors(t *testing.T) {
+	t.Parallel()
+
+	type errConf struct {
+		name      string
+		mock      *mockBatchingDatastore
+		expectSub string
+	}
+	chainID := "TestSaveBlockDataErrors"
+	header, data := types.GetRandomBlock(1, 0, chainID)
+	signature := &types.Signature{}
+
+	mockErr := func(msg string) error { return fmt.Errorf("mock %s error", msg) }
+
+	cases := []errConf{
+		{
+			name:      "batch creation error",
+			mock:      &mockBatchingDatastore{Batching: mustNewInMem(), batchError: mockErr("batch")},
+			expectSub: "failed to create a new batch",
+		},
+		{
+			name:      "header put error",
+			mock:      &mockBatchingDatastore{Batching: mustNewInMem(), putError: mockErr("put header")},
+			expectSub: "failed to put header blob",
+		},
+		{
+			name:      "commit error",
+			mock:      &mockBatchingDatastore{Batching: mustNewInMem(), commitError: mockErr("commit")},
+			expectSub: "failed to commit batch",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := New(tc.mock)
+
+			err := s.SaveBlockData(t.Context(), header, data, signature)
+			require.ErrorContains(t, err, tc.expectSub)
+		})
+	}
+}
+
+// mustNewInMem is a test-helper that panics if the in-memory KV store cannot be created.
+func mustNewInMem() ds.Batching {
+	m, err := NewDefaultInMemoryKVStore()
+	if err != nil {
+		panic(err)
+	}
+	return m
+}
+
+func TestGetBlockByHashError(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	hash := []byte("test_hash")
+
+	// Simulate getHeightByHash error
+	mockErr := fmt.Errorf("mock get height by hash error")
+	mockDs, _ := NewDefaultInMemoryKVStore()
+	mockBatchingDs := &mockBatchingDatastore{Batching: mockDs, getError: mockErr} // This will cause getHeightByHash to fail
+	s := New(mockBatchingDs)
+
+	_, _, err := s.GetBlockByHash(t.Context(), hash)
+	require.Error(err)
+	require.Contains(err.Error(), mockErr.Error())
+	require.Contains(err.Error(), "failed to load height from index")
+}
+
+func TestGetSignatureByHashError(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	hash := []byte("test_hash")
+
+	// Simulate getHeightByHash error
+	mockErr := fmt.Errorf("mock get height by hash error")
+	mockDs, _ := NewDefaultInMemoryKVStore()
+	mockBatchingDs := &mockBatchingDatastore{Batching: mockDs, getError: mockErr} // This will cause getHeightByHash to fail
+	s := New(mockBatchingDs)
+
+	_, err := s.GetSignatureByHash(t.Context(), hash)
+	require.Error(err)
+	require.Contains(err.Error(), mockErr.Error())
+	require.Contains(err.Error(), "failed to load hash from index")
+}
+
+func TestGetSignatureError(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	height := uint64(1)
+
+	// Simulate get error for signature data
+	mockErrGet := fmt.Errorf("mock get signature error")
+	mockDsGet, _ := NewDefaultInMemoryKVStore()
+	mockBatchingDsGet := &mockBatchingDatastore{Batching: mockDsGet, getError: mockErrGet}
+	sGet := New(mockBatchingDsGet)
+
+	_, err := sGet.GetSignature(t.Context(), height)
+	require.Error(err)
+	require.Contains(err.Error(), mockErrGet.Error())
+	require.Contains(err.Error(), fmt.Sprintf("failed to retrieve signature from height %v", height))
+}
+
+func TestUpdateStateError(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	state := types.State{} // Empty state for testing
+
+	// Simulate ToProto error (not directly mockable on types.State, but can be simulated if ToProto was part of an interface)
+	// For now, we assume types.State.ToProto() doesn't fail unless the underlying data is invalid.
+
+	// Simulate proto.Marshal error (hard to simulate with valid state, but can be if state contains unmarshalable fields)
+
+	// Simulate put error
+	mockErrPut := fmt.Errorf("mock put state error")
+	mockDsPut, _ := NewDefaultInMemoryKVStore()
+	mockBatchingDsPut := &mockBatchingDatastore{Batching: mockDsPut, putError: mockErrPut}
+	sPut := New(mockBatchingDsPut)
+
+	err := sPut.UpdateState(t.Context(), state)
+	require.Error(err)
+	require.Contains(err.Error(), mockErrPut.Error())
+}
+
+func TestGetStateError(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Simulate get error
+	mockErrGet := fmt.Errorf("mock get state error")
+	mockDsGet, _ := NewDefaultInMemoryKVStore()
+	mockBatchingDsGet := &mockBatchingDatastore{Batching: mockDsGet, getError: mockErrGet}
+	sGet := New(mockBatchingDsGet)
+
+	_, err := sGet.GetState(t.Context())
+	require.Error(err)
+	require.Contains(err.Error(), mockErrGet.Error())
+	require.Contains(err.Error(), "failed to retrieve state")
+
+	// Simulate proto.Unmarshal error
+	mockDsUnmarshal, _ := NewDefaultInMemoryKVStore()
+	mockBatchingDsUnmarshal := &mockBatchingDatastore{Batching: mockDsUnmarshal, unmarshalErrorOnCall: 1}
+	sUnmarshal := New(mockBatchingDsUnmarshal)
+
+	// Put some data that will cause unmarshal error
+	err = mockBatchingDsUnmarshal.Put(t.Context(), ds.NewKey(getStateKey()), []byte("invalid state proto"))
+	require.NoError(err)
+
+	_, err = sUnmarshal.GetState(t.Context())
+	require.Error(err)
+	require.Contains(err.Error(), "failed to unmarshal state from JSON") // Error message from proto.Unmarshal
+}
+
+func TestSetMetadataError(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	key := "test_key"
+	value := []byte("test_value")
+
+	// Simulate put error
+	mockErrPut := fmt.Errorf("mock put metadata error")
+	mockDsPut, _ := NewDefaultInMemoryKVStore()
+	mockBatchingDsPut := &mockBatchingDatastore{Batching: mockDsPut, putError: mockErrPut}
+	sPut := New(mockBatchingDsPut)
+
+	err := sPut.SetMetadata(t.Context(), key, value)
+	require.Error(err)
+	require.Contains(err.Error(), mockErrPut.Error())
+	require.Contains(err.Error(), fmt.Sprintf("failed to set metadata for key '%s'", key))
+}
+
+func TestGetMetadataError(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	key := "test_key"
+
+	// Simulate get error
+	mockErrGet := fmt.Errorf("mock get metadata error")
+	mockDsGet, _ := NewDefaultInMemoryKVStore()
+	mockBatchingDsGet := &mockBatchingDatastore{Batching: mockDsGet, getError: mockErrGet}
+	sGet := New(mockBatchingDsGet)
+
+	_, err := sGet.GetMetadata(t.Context(), key)
+	require.Error(err)
+	require.Contains(err.Error(), mockErrGet.Error())
+	require.Contains(err.Error(), fmt.Sprintf("failed to get metadata for key '%s'", key))
 }
