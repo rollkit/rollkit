@@ -90,7 +90,7 @@ func setupManagerForPublishBlockTest(
 		lastStateMtx:   &sync.RWMutex{},
 		metrics:        NopMetrics(),
 		pendingHeaders: nil,
-		// pendingData:    nil,
+		pendingData:    nil,
 	}
 	manager.publishBlock = manager.publishBlockInternal
 
