@@ -159,10 +159,6 @@ type Manager struct {
 
 	// txNotifyCh is used to signal when new transactions are available
 	txNotifyCh chan struct{}
-
-	// dataCommitmentToHeight tracks the height a data commitment (data hash) has been seen on.
-	// Key: data commitment (string), Value: uint64 (height)
-	dataCommitmentToHeight sync.Map
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -927,6 +923,7 @@ func (m *Manager) getDataSignature(data *types.Data) (types.Signature, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if m.signer == nil {
 		return nil, fmt.Errorf("signer is nil; cannot sign data")
 	}

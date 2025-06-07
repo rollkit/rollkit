@@ -55,6 +55,9 @@ func (m *Manager) DataSubmissionLoop(ctx context.Context) {
 			m.logger.Error("failed to create signed data to submit", "error", err)
 			continue
 		}
+		if len(signedDataToSubmit) == 0 {
+			continue
+		}
 
 		err = m.submitDataToDA(ctx, signedDataToSubmit)
 		if err != nil {
@@ -84,6 +87,7 @@ func submitToDA(
 	// Marshal all items once before the loop
 	var marshaled [][]byte
 	var remLen int
+	var itemType string
 	switch v := items.(type) {
 	case []*types.SignedHeader:
 		marshaled = make([][]byte, len(v))
@@ -95,6 +99,7 @@ func submitToDA(
 			marshaled[i] = bz
 		}
 		remLen = len(v)
+		itemType = "header"
 	case []*types.SignedData:
 		marshaled = make([][]byte, len(v))
 		for i, item := range v {
@@ -105,6 +110,7 @@ func submitToDA(
 			marshaled[i] = bz
 		}
 		remLen = len(v)
+		itemType = "data"
 	}
 
 	for !submittedAll && attempt < maxSubmitAttempts {
@@ -130,7 +136,7 @@ func submitToDA(
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			m.logger.Info("successfully submitted items to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "count", res.SubmittedCount)
+			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer", itemType), "gasPrice", gasPrice, "count", res.SubmittedCount)
 			if res.SubmittedCount == uint64(remLen) {
 				submittedAll = true
 			}
@@ -141,7 +147,7 @@ func submitToDA(
 				notSubmitted := currItems[res.SubmittedCount:]
 				notSubmittedMarshaled = currMarshaled[res.SubmittedCount:]
 				numSubmitted += int(res.SubmittedCount)
-				postSubmit.(func([]*types.SignedHeader, []*types.SignedHeader, *coreda.ResultSubmit))(submitted, notSubmitted, &res)
+				postSubmit.(func([]*types.SignedHeader, *coreda.ResultSubmit))(submitted, &res)
 				remaining = notSubmitted
 				marshaled = notSubmittedMarshaled
 			case []*types.SignedData:
@@ -249,18 +255,21 @@ func (m *Manager) createSignedDataToSubmit(ctx context.Context) ([]*types.Signed
 		Address: m.genesis.ProposerAddress,
 	}
 
-	signedDataToSubmit := make([]*types.SignedData, len(dataList))
+	signedDataToSubmit := make([]*types.SignedData, 0, len(dataList))
 
-	for i, data := range dataList {
+	for _, data := range dataList {
+		if len(data.Txs) == 0 {
+			continue
+		}
 		signature, err := m.getDataSignature(data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get data signature: %w", err)
 		}
-		signedDataToSubmit[i] = &types.SignedData{
+		signedDataToSubmit = append(signedDataToSubmit, &types.SignedData{
 			Data:      *data,
 			Signature: signature,
 			Signer:    signer,
-		}
+		})
 	}
 
 	return signedDataToSubmit, nil

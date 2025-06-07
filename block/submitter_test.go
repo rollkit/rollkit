@@ -19,6 +19,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -33,22 +34,27 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 	testSigner, err := noop.NewNoopSigner(privKey)
 	require.NoError(t, err)
 
-	mockStore := mocks.NewStore(t)
-	mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Maybe()
-	mockStore.On("SetMetadata", mock.Anything, "last-submitted-data-height", mock.Anything).Return(nil).Maybe()
-	pendingData, err := NewPendingData(mockStore, logger)
+	proposerAddr, err := testSigner.GetAddress()
 	require.NoError(t, err)
+	gen := genesis.NewGenesis(
+		"testchain",
+		1,
+		time.Now(),
+		proposerAddr,
+	)
 
 	return &Manager{
-		da:            da,
-		logger:        logger,
-		config:        nodeConf,
-		gasPrice:      1.0,
-		gasMultiplier: 2.0,
-		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
-		signer:        testSigner,
-		pendingData:   pendingData,
+		da:             da,
+		logger:         logger,
+		config:         nodeConf,
+		gasPrice:       1.0,
+		gasMultiplier:  2.0,
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		signer:         testSigner,
+		genesis:        gen,
+		pendingData:    newPendingData(t),
+		pendingHeaders: newPendingHeaders(t),
 	}
 }
 
@@ -165,18 +171,19 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 func TestSubmitHeadersToDA_Success(t *testing.T) {
 	da := &mocks.DA{}
 	m := newTestManagerWithDA(t, da)
-	// Prepare a mock PendingHeaders with test data
-	m.pendingHeaders = newPendingBlocks(t)
 
 	// Fill the pending headers with mock block data
-	fillWithBlockData(context.Background(), t, m.pendingHeaders, "Test Submitting Headers")
+	fillPendingHeaders(t.Context(), t, m.pendingHeaders, "Test Submitting Headers", 3)
 
 	// Simulate DA layer successfully accepting the header submission
 	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return([]coreda.ID{[]byte("id")}, nil)
 
+	headers, err := m.pendingHeaders.getPendingHeaders(t.Context())
+	require.NoError(t, err)
+
 	// Call submitHeadersToDA and expect no error
-	err := m.submitHeadersToDA(context.Background())
+	err = m.submitHeadersToDA(context.Background(), headers)
 	assert.NoError(t, err)
 }
 
@@ -184,8 +191,6 @@ func TestSubmitHeadersToDA_Success(t *testing.T) {
 func TestSubmitHeadersToDA_Failure(t *testing.T) {
 	da := &mocks.DA{}
 	m := newTestManagerWithDA(t, da)
-	// Prepare a mock PendingHeaders with test data
-	m.pendingHeaders = newPendingBlocks(t)
 
 	// Table-driven test for different DA error scenarios
 	testCases := []struct {
@@ -199,7 +204,7 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Fill the pending headers with mock block data for each subtest
-			fillWithBlockData(context.Background(), t, m.pendingHeaders, "Test Submitting Headers")
+			fillPendingHeaders(t.Context(), t, m.pendingHeaders, "Test Submitting Headers", 3)
 			// Reset mock expectations for each error scenario
 			da.ExpectedCalls = nil
 			// Simulate DA layer returning a specific error
@@ -209,9 +214,11 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 				Return(nil, tc.daError)
 
 			// Call submitHeadersToDA and expect an error
-			err := m.submitHeadersToDA(context.Background())
+			headers, err := m.pendingHeaders.getPendingHeaders(context.Background())
+			require.NoError(t, err)
+			err = m.submitHeadersToDA(context.Background(), headers)
 			assert.Error(t, err, "expected error for DA error: %v", tc.daError)
-			assert.Contains(t, err.Error(), "failed to submit all headers to DA layer")
+			assert.Contains(t, err.Error(), "failed to submit all items to DA layer")
 
 			// Validate that gas price increased according to gas multiplier
 			previousGasPrice := m.gasPrice
@@ -226,35 +233,15 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 
 // TestCreateSignedDataToSubmit tests createSignedDataToSubmit for normal, empty, and error cases.
 func TestCreateSignedDataToSubmit(t *testing.T) {
-	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
-	require.NoError(t, err)
-	testSigner, err := noop.NewNoopSigner(privKey)
-	require.NoError(t, err)
-	proposerAddr, err := testSigner.GetAddress()
-	require.NoError(t, err)
-	gen := genesis.NewGenesis(
-		"testchain",
-		1,
-		time.Now(),
-		proposerAddr,
-	)
-
+	// Normal case: pending data exists and is signed correctly
 	t.Run("normal case", func(t *testing.T) {
-		mockStore := mocks.NewStore(t)
-		logger := log.NewNopLogger()
-		// Set up Height and GetBlockData to return two Data items
-		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
-		mockStore.On("Height", mock.Anything).Return(uint64(2), nil).Once()
-		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(nil, &types.Data{Txs: types.Txs{types.Tx("tx1"), types.Tx("tx2")}, Metadata: &types.Metadata{Height: 1}}, nil).Once()
-		mockStore.On("GetBlockData", mock.Anything, uint64(2)).Return(nil, &types.Data{Txs: types.Txs{types.Tx("tx3")}, Metadata: &types.Metadata{Height: 2}}, nil).Once()
-		pendingData, err := NewPendingData(mockStore, logger)
+		m := newTestManagerWithDA(t, nil)
+		fillPendingData(t.Context(), t, m.pendingData, "Test Creating Signed Data", 2)
+		pubKey, err := m.signer.GetPublic()
 		require.NoError(t, err)
-		m := &Manager{
-			signer:      testSigner,
-			genesis:     gen,
-			pendingData: pendingData,
-		}
-		signedDataList, err := m.createSignedDataToSubmit(context.Background())
+		proposerAddr, err := m.signer.GetAddress()
+		require.NoError(t, err)
+		signedDataList, err := m.createSignedDataToSubmit(t.Context())
 		require.NoError(t, err)
 		require.Len(t, signedDataList, 2)
 		assert.Equal(t, types.Tx("tx1"), signedDataList[0].Txs[0])
@@ -263,29 +250,23 @@ func TestCreateSignedDataToSubmit(t *testing.T) {
 		assert.Equal(t, proposerAddr, signedDataList[0].Signer.Address)
 		assert.NotEmpty(t, signedDataList[0].Signature)
 		assert.Equal(t, types.Tx("tx3"), signedDataList[1].Txs[0])
+		assert.Equal(t, types.Tx("tx4"), signedDataList[1].Txs[1])
 		assert.Equal(t, pubKey, signedDataList[1].Signer.PubKey)
 		assert.Equal(t, proposerAddr, signedDataList[1].Signer.Address)
 		assert.NotEmpty(t, signedDataList[1].Signature)
 	})
 
+	// Empty pending data: should return no error and an empty list
 	t.Run("empty pending data", func(t *testing.T) {
-		mockStore := mocks.NewStore(t)
-		logger := log.NewNopLogger()
-		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
-		mockStore.On("Height", mock.Anything).Return(uint64(0), nil).Once()
-		pendingData, err := NewPendingData(mockStore, logger)
-		require.NoError(t, err)
-		m := &Manager{
-			signer:      testSigner,
-			genesis:     gen,
-			pendingData: pendingData,
-		}
-		signedDataList, err := m.createSignedDataToSubmit(context.Background())
-		assert.NoError(t, err)
-		assert.Empty(t, signedDataList)
+		m := newTestManagerWithDA(t, nil)
+		signedDataList, err := m.createSignedDataToSubmit(t.Context())
+		assert.NoError(t, err, "expected no error when pending data is empty")
+		assert.Empty(t, signedDataList, "expected signedDataList to be empty when no pending data")
 	})
 
+	// getPendingData returns error: should return error and error message should match
 	t.Run("getPendingData returns error", func(t *testing.T) {
+		m := newTestManagerWithDA(t, nil)
 		mockStore := mocks.NewStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
@@ -293,40 +274,29 @@ func TestCreateSignedDataToSubmit(t *testing.T) {
 		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(nil, nil, fmt.Errorf("mock error")).Once()
 		pendingData, err := NewPendingData(mockStore, logger)
 		require.NoError(t, err)
-		m := &Manager{
-			signer:      testSigner,
-			genesis:     gen,
-			pendingData: pendingData,
-		}
-		_, err = m.createSignedDataToSubmit(context.Background())
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "mock error")
+		m.pendingData = pendingData
+		signedDataList, err := m.createSignedDataToSubmit(t.Context())
+		assert.Error(t, err, "expected error when getPendingData fails")
+		assert.Contains(t, err.Error(), "mock error", "error message should contain 'mock error'")
+		assert.Nil(t, signedDataList, "signedDataList should be nil on error")
 	})
 
+	// signer returns error: should return error and error message should match
 	t.Run("signer returns error", func(t *testing.T) {
-		mockStore := mocks.NewStore(t)
-		logger := log.NewNopLogger()
-		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
-		mockStore.On("Height", mock.Anything).Return(uint64(1), nil).Once()
-		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(nil, &types.Data{Txs: types.Txs{types.Tx("tx1")}, Metadata: &types.Metadata{Height: 1}}, nil).Once()
-		pendingData, err := NewPendingData(mockStore, logger)
-		require.NoError(t, err)
-		m := &Manager{
-			signer:      nil, // nil signer will cause getDataSignature to fail
-			genesis:     gen,
-			pendingData: pendingData,
-		}
-		_, err = m.createSignedDataToSubmit(context.Background())
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "signer is nil; cannot sign data")
+		m := newTestManagerWithDA(t, nil)
+		m.signer = nil
+		signedDataList, err := m.createSignedDataToSubmit(t.Context())
+		assert.Error(t, err, "expected error when signer is nil")
+		assert.Contains(t, err.Error(), "signer is nil; cannot sign data", "error message should mention nil signer")
+		assert.Nil(t, signedDataList, "signedDataList should be nil on error")
 	})
 }
 
 // TestSubmitDataToDA_RetryPartialFailures tests that when submitting multiple blobs, if some fail, they are retried and lastSubmittedDataHeight is only updated after all succeed.
 func TestSubmitDataToDA_RetryPartialFailures(t *testing.T) {
+	m := newTestManagerWithDA(t, nil)
 	// Set up mocks and manager with lastSubmittedDataHeight = 1
 	mockStore := mocks.NewStore(t)
-	logger := log.NewNopLogger()
 	lastSubmittedBytes := make([]byte, 8)
 	// Set lastSubmittedDataHeight to 1
 	lastHeight := uint64(1)
@@ -338,28 +308,13 @@ func TestSubmitDataToDA_RetryPartialFailures(t *testing.T) {
 	// Provide Data for heights 2 and 3
 	mockStore.On("GetBlockData", mock.Anything, uint64(2)).Return(nil, &types.Data{Txs: types.Txs{types.Tx("tx2")}, Metadata: &types.Metadata{Height: 2}}, nil).Maybe()
 	mockStore.On("GetBlockData", mock.Anything, uint64(3)).Return(nil, &types.Data{Txs: types.Txs{types.Tx("tx3")}, Metadata: &types.Metadata{Height: 3}}, nil).Maybe()
-	pendingData, err := NewPendingData(mockStore, logger)
-	require.NoError(t, err)
 
-	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	pendingData, err := NewPendingData(mockStore, m.logger)
 	require.NoError(t, err)
-	testSigner, err := noop.NewNoopSigner(privKey)
-	require.NoError(t, err)
-	proposerAddr, err := testSigner.GetAddress()
-	require.NoError(t, err)
-	gen := genesis.NewGenesis("testchain", 1, time.Now(), proposerAddr)
-
-	m := &Manager{
-		signer:      testSigner,
-		genesis:     gen,
-		pendingData: pendingData,
-		logger:      logger,
-		dataCache:   cache.NewCache[types.Data](),
-		headerCache: cache.NewCache[types.SignedHeader](),
-	}
+	m.pendingData = pendingData
 
 	// Prepare two SignedData for heights 2 and 3
-	ctx := context.Background()
+	ctx := t.Context()
 	signedDataList, err := m.createSignedDataToSubmit(ctx)
 	require.NoError(t, err)
 	require.Len(t, signedDataList, 2)
@@ -383,4 +338,66 @@ func TestSubmitDataToDA_RetryPartialFailures(t *testing.T) {
 
 	// After all succeed, lastSubmittedDataHeight should be 3
 	assert.Equal(t, uint64(3), m.pendingData.getLastSubmittedDataHeight())
+}
+
+// fillPendingHeaders populates the given PendingHeaders with a sequence of mock SignedHeader objects for testing.
+// It generates headers with consecutive heights and stores them in the underlying store so that PendingHeaders logic can retrieve them.
+//
+// Parameters:
+//
+//	ctx: context for store operations
+//	t: the testing.T instance
+//	pendingHeaders: the PendingHeaders instance to fill
+//	chainID: the chain ID to use for generated headers
+//	startHeight: the starting height for headers (default 1 if 0)
+//	count: the number of headers to generate (default 3 if 0)
+func fillPendingHeaders(ctx context.Context, t *testing.T, pendingHeaders *PendingHeaders, chainID string, numBlocks uint64) {
+	t.Helper()
+
+	store := pendingHeaders.base.store
+	for i := uint64(0); i < numBlocks; i++ {
+		height := i + 1
+		header, data := types.GetRandomBlock(height, 0, chainID)
+		sig := &header.Signature
+		err := store.SaveBlockData(ctx, header, data, sig)
+		require.NoError(t, err, "failed to save block data for header at height %d", height)
+		err = store.SetHeight(ctx, height)
+		require.NoError(t, err, "failed to set store height for header at height %d", height)
+	}
+}
+
+func fillPendingData(ctx context.Context, t *testing.T, pendingData *PendingData, chainID string, numBlocks uint64) {
+	t.Helper()
+	store := pendingData.base.store
+	txNum := 1
+	for i := uint64(0); i < numBlocks; i++ {
+		height := i + 1
+		header, data := types.GetRandomBlock(height, 2, chainID)
+		data.Txs = make(types.Txs, len(data.Txs))
+		for i := 0; i < len(data.Txs); i++ {
+			data.Txs[i] = types.Tx(fmt.Sprintf("tx%d", txNum))
+			txNum++
+		}
+		sig := &header.Signature
+		err := store.SaveBlockData(ctx, header, data, sig)
+		require.NoError(t, err, "failed to save block data for data at height %d", height)
+		err = store.SetHeight(ctx, height)
+		require.NoError(t, err, "failed to set store height for data at height %d", height)
+	}
+}
+
+func newPendingHeaders(t *testing.T) *PendingHeaders {
+	kv, err := store.NewDefaultInMemoryKVStore()
+	require.NoError(t, err)
+	pendingHeaders, err := NewPendingHeaders(store.New(kv), log.NewTestLogger(t))
+	require.NoError(t, err)
+	return pendingHeaders
+}
+
+func newPendingData(t *testing.T) *PendingData {
+	kv, err := store.NewDefaultInMemoryKVStore()
+	require.NoError(t, err)
+	pendingData, err := NewPendingData(store.New(kv), log.NewTestLogger(t))
+	require.NoError(t, err)
+	return pendingData
 }
