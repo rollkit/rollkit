@@ -104,6 +104,134 @@ func LoadFileSystemSigner(keyPath string, passphrase []byte) (signer.Signer, err
 	return signer, nil
 }
 
+// ExportPrivateKey decrypts and returns the raw private key from the key file.
+// It is intended for key backup and migration purposes.
+// WARNING: Handle the returned private key with extreme care.
+func ExportPrivateKey(keyPath string, passphrase []byte) ([]byte, error) {
+	defer zeroBytes(passphrase)
+
+	filePath := filepath.Join(keyPath, "signer.json")
+
+	// Read the key file
+	jsonData, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read key file: %w", err)
+	}
+
+	// Unmarshal JSON
+	var data keyData
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal key data: %w", err)
+	}
+
+	// Derive decryption key
+	var derivedKey []byte
+	if len(data.Salt) == 0 {
+		derivedKey = fallbackDeriveKey(passphrase, 32)
+	} else {
+		derivedKey = deriveKeyArgon2(passphrase, data.Salt, 32)
+	}
+	defer zeroBytes(derivedKey)
+
+	block, err := aes.NewCipher(derivedKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cipher: %w", err)
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GCM: %w", err)
+	}
+
+	// Decrypt the private key
+	privKeyBytes, err := gcm.Open(nil, data.Nonce, data.PrivKeyEncrypted, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt private key (wrong passphrase): %w", err)
+	}
+
+	return privKeyBytes, nil
+}
+
+// ImportPrivateKey encrypts a raw private key and saves it to the key file.
+// It will overwrite an existing key file if one exists.
+// WARNING: This is a destructive operation.
+func ImportPrivateKey(keyPath string, privKeyBytes []byte, passphrase []byte) error {
+	defer zeroBytes(passphrase)
+	defer zeroBytes(privKeyBytes)
+
+	filePath := filepath.Join(keyPath, "signer.json")
+
+	// Create directory if it doesn't exist
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Unmarshal the private key to validate it and get the public key
+	privKey, err := crypto.UnmarshalEd25519PrivateKey(privKeyBytes)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal private key: %w", err)
+	}
+
+	pubKey := privKey.GetPublic()
+	pubKeyBytes, err := pubKey.Raw()
+	if err != nil {
+		return fmt.Errorf("failed to get raw public key: %w", err)
+	}
+
+	// Create or reuse a random salt for Argon2
+	salt := make([]byte, 16)
+	if _, err := rand.Read(salt); err != nil {
+		return fmt.Errorf("failed to generate salt: %w", err)
+	}
+
+	// Derive a key with Argon2
+	derivedKey := deriveKeyArgon2(passphrase, salt, 32)
+	defer zeroBytes(derivedKey)
+
+	// Create AES cipher
+	block, err := aes.NewCipher(derivedKey)
+	if err != nil {
+		return fmt.Errorf("failed to create cipher: %w", err)
+	}
+
+	// Create GCM mode
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return fmt.Errorf("failed to create GCM: %w", err)
+	}
+
+	// Create a nonce
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return fmt.Errorf("failed to generate nonce: %w", err)
+	}
+
+	// Encrypt the private key
+	encryptedPrivKey := gcm.Seal(nil, nonce, privKeyBytes, nil)
+
+	// Create key data structure
+	data := keyData{
+		PrivKeyEncrypted: encryptedPrivKey,
+		Nonce:            nonce,
+		PubKeyBytes:      pubKeyBytes,
+		Salt:             salt,
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal key data: %w", err)
+	}
+
+	// Write to file with secure permissions
+	if err := os.WriteFile(filePath, jsonData, 0600); err != nil {
+		return fmt.Errorf("failed to write key file: %w", err)
+	}
+
+	return nil
+}
+
 // saveKeys encrypts and saves the private key to disk
 func (s *FileSystemSigner) saveKeys(passphrase []byte) error {
 	s.mu.Lock()
