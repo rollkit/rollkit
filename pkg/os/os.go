@@ -54,7 +54,7 @@ func ReadFile(filePath string) ([]byte, error) {
 func MustReadFile(filePath string) []byte {
 	fileBytes, err := os.ReadFile(filePath) //nolint:gosec
 	if err != nil {
-		fmt.Println(fmt.Sprintf("MustReadFile failed: %v", err))
+		fmt.Printf("MustReadFile failed: %v", err)
 		os.Exit(1)
 		return nil
 	}
@@ -70,7 +70,7 @@ func WriteFile(filePath string, contents []byte, mode os.FileMode) error {
 func MustWriteFile(filePath string, contents []byte, mode os.FileMode) {
 	err := WriteFile(filePath, contents, mode)
 	if err != nil {
-		fmt.Println(fmt.Sprintf("MustWriteFile failed: %v", err))
+		fmt.Printf("MustWriteFile failed: %v", err)
 		os.Exit(1)
 	}
 }
