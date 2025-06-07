@@ -49,7 +49,7 @@ func (pb *pendingBase[T]) getPending(ctx context.Context) ([]T, error) {
 		return nil, nil
 	}
 	if lastSubmitted > height {
-		panic(fmt.Sprintf("height of last submitted item (%d) is greater than height of last item (%d)", lastSubmitted, height))
+		return nil, fmt.Errorf("height of last submitted item (%d) is greater than height of last item (%d)", lastSubmitted, height)
 	}
 	pending := make([]T, 0, height-lastSubmitted)
 	for i := lastSubmitted + 1; i <= height; i++ {
@@ -65,6 +65,7 @@ func (pb *pendingBase[T]) getPending(ctx context.Context) ([]T, error) {
 func (pb *pendingBase[T]) isEmpty() bool {
 	height, err := pb.store.Height(context.Background())
 	if err != nil {
+		pb.logger.Error("failed to get height in isEmpty", "err", err)
 		return false
 	}
 	return height == pb.lastHeight.Load()
@@ -73,6 +74,7 @@ func (pb *pendingBase[T]) isEmpty() bool {
 func (pb *pendingBase[T]) numPending() uint64 {
 	height, err := pb.store.Height(context.Background())
 	if err != nil {
+		pb.logger.Error("failed to get height in numPending", "err", err)
 		return 0
 	}
 	return height - pb.lastHeight.Load()
