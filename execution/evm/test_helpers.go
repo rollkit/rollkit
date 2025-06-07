@@ -22,13 +22,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 	tc "github.com/testcontainers/testcontainers-go/modules/compose"
 )
 
-// JWT Helpers
-func GenerateJWTSecret() (string, error) {
+// generateJWTSecret generates a random 32-byte JWT secret and returns it as a hex string.
+func generateJWTSecret() (string, error) {
 	jwtSecret := make([]byte, 32)
 	_, err := rand.Read(jwtSecret)
 	if err != nil {
@@ -37,34 +36,15 @@ func GenerateJWTSecret() (string, error) {
 	return hex.EncodeToString(jwtSecret), nil
 }
 
-func DecodeSecret(jwtSecret string) ([]byte, error) {
-	secret, err := hex.DecodeString(strings.TrimPrefix(jwtSecret, "0x"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode JWT secret: %w", err)
-	}
-	return secret, nil
-}
-
-func GetAuthToken(jwtSecret []byte) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"exp": time.Now().Add(time.Hour * 1).Unix(),
-		"iat": time.Now().Unix(),
-	})
-	authToken, err := token.SignedString(jwtSecret)
-	if err != nil {
-		return "", fmt.Errorf("failed to sign JWT token: %w", err)
-	}
-	return authToken, nil
-}
-
-// Docker Compose Setup for Reth Engine
+// SetupTestRethEngine sets up a Reth engine test environment using Docker Compose, writes a JWT secret file, and returns the secret. It also registers cleanup for resources.
 func SetupTestRethEngine(t *testing.T, dockerPath, jwtFilename string) string {
+	t.Helper()
 	dockerAbsPath, err := filepath.Abs(dockerPath)
 	require.NoError(t, err)
 	jwtPath := filepath.Join(dockerAbsPath, "jwttoken")
 	err = os.MkdirAll(jwtPath, 0750)
 	require.NoError(t, err)
-	jwtSecret, err := GenerateJWTSecret()
+	jwtSecret, err := generateJWTSecret()
 	require.NoError(t, err)
 	jwtFile := filepath.Join(jwtPath, jwtFilename)
 	err = os.WriteFile(jwtFile, []byte(jwtSecret), 0600)
@@ -86,13 +66,13 @@ func SetupTestRethEngine(t *testing.T, dockerPath, jwtFilename string) string {
 	ctx := context.Background()
 	err = compose.Up(ctx, tc.Wait(true))
 	require.NoError(t, err, "Failed to start docker compose")
-	err = WaitForRethContainer(t, jwtSecret, "http://localhost:8545", "http://localhost:8551")
+	err = waitForRethContainer(t, jwtSecret, "http://localhost:8545", "http://localhost:8551")
 	require.NoError(t, err)
 	return jwtSecret
 }
 
-// Wait for Reth container to be ready
-func WaitForRethContainer(t *testing.T, jwtSecret, ethURL, engineURL string) error {
+// waitForRethContainer waits for the Reth container to be ready by polling the provided endpoints with JWT authentication.
+func waitForRethContainer(t *testing.T, jwtSecret, ethURL, engineURL string) error {
 	t.Helper()
 	client := &http.Client{Timeout: 100 * time.Millisecond}
 	timer := time.NewTimer(30 * time.Second)
@@ -114,11 +94,11 @@ func WaitForRethContainer(t *testing.T, jwtSecret, ethURL, engineURL string) err
 						return err
 					}
 					req.Header.Set("Content-Type", "application/json")
-					secret, err := DecodeSecret(jwtSecret)
+					secret, err := decodeSecret(jwtSecret)
 					if err != nil {
 						return err
 					}
-					authToken, err := GetAuthToken(secret)
+					authToken, err := getAuthToken(secret)
 					if err != nil {
 						return err
 					}
@@ -140,7 +120,10 @@ func WaitForRethContainer(t *testing.T, jwtSecret, ethURL, engineURL string) err
 }
 
 // Transaction Helpers
+
+// GetRandomTransaction creates and signs a random Ethereum legacy transaction using the provided private key, recipient, chain ID, gas limit, and nonce.
 func GetRandomTransaction(t *testing.T, privateKeyHex, toAddressHex, chainID string, gasLimit uint64, lastNonce *uint64) *types.Transaction {
+	t.Helper()
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
 	require.NoError(t, err)
 	chainId, ok := new(big.Int).SetString(chainID, 10)
@@ -165,7 +148,9 @@ func GetRandomTransaction(t *testing.T, privateKeyHex, toAddressHex, chainID str
 	return signedTx
 }
 
+// SubmitTransaction submits a signed Ethereum transaction to the local node at http://localhost:8545.
 func SubmitTransaction(t *testing.T, tx *types.Transaction) {
+	t.Helper()
 	rpcClient, err := ethclient.Dial("http://localhost:8545")
 	require.NoError(t, err)
 	defer rpcClient.Close()
@@ -174,7 +159,9 @@ func SubmitTransaction(t *testing.T, tx *types.Transaction) {
 	require.NoError(t, err)
 }
 
+// CheckTxIncluded checks if a transaction with the given hash was included in a block and succeeded.
 func CheckTxIncluded(t *testing.T, txHash common.Hash) bool {
+	t.Helper()
 	rpcClient, err := ethclient.Dial("http://localhost:8545")
 	if err != nil {
 		return false
@@ -184,8 +171,9 @@ func CheckTxIncluded(t *testing.T, txHash common.Hash) bool {
 	return err == nil && receipt != nil && receipt.Status == 1
 }
 
-// Genesis Hash Helper
+// GetGenesisHash retrieves the hash of the genesis block from the local Ethereum node.
 func GetGenesisHash(t *testing.T) string {
+	t.Helper()
 	client := &http.Client{Timeout: 2 * time.Second}
 	data := []byte(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x0", false],"id":1}`)
 	resp, err := client.Post("http://localhost:8545", "application/json", bytes.NewReader(data))

@@ -30,6 +30,6 @@ test-cover:
 .PHONY: test-cover
 
 ## test-evm: Running EVM tests
-test-evm: build-evm-single
+test-evm:
 	@echo "--> Running EVM tests"
 	@cd execution/evm && go test -mod=readonly -failfast -timeout=15m ./... -tags=evm

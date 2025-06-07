@@ -77,14 +77,8 @@ func TestEvmAggregatorE2E(t *testing.T) {
 	t.Log("Submitted test transaction to EVM")
 
 	// 7. Wait for block production and verify transaction inclusion
-	found := false
-	for i := 0; i < 20; i++ {
-		time.Sleep(1 * time.Second)
-		if evm.CheckTxIncluded(t, tx.Hash()) {
-			found = true
-			break
-		}
-	}
-	require.True(t, found, "Transaction not included in EVM block after waiting")
+	require.Eventually(t, func() bool {
+		return evm.CheckTxIncluded(t, tx.Hash())
+	}, 20*time.Second, 1*time.Second)
 	t.Log("Transaction included in EVM block")
 }

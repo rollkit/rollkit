@@ -42,10 +42,10 @@ type EngineClient struct {
 	initialHeight uint64
 	feeRecipient  common.Address // Address to receive transaction fees
 
+	mu                        sync.Mutex  // Mutex to protect concurrent access to block hashes
 	currentHeadBlockHash      common.Hash // Store last non-finalized HeadBlockHash
 	currentSafeBlockHash      common.Hash // Store last non-finalized SafeBlockHash
 	currentFinalizedBlockHash common.Hash // Store last finalized block hash
-	mu                        sync.Mutex  // Mutex to protect concurrent access to mutable state
 }
 
 // NewEngineExecutionClient creates a new instance of EngineAPIExecutionClient
@@ -92,8 +92,6 @@ func NewEngineExecutionClient(
 
 // InitChain initializes the blockchain with the given genesis parameters
 func (c *EngineClient) InitChain(ctx context.Context, genesisTime time.Time, initialHeight uint64, chainID string) ([]byte, uint64, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if initialHeight != 1 {
 		return nil, 0, fmt.Errorf("initialHeight must be 1, got %d", initialHeight)
 	}
@@ -124,8 +122,6 @@ func (c *EngineClient) InitChain(ctx context.Context, genesisTime time.Time, ini
 
 // GetTxs retrieves transactions from the current execution payload
 func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	var result struct {
 		Pending map[string]map[string]*types.Transaction `json:"pending"`
 		Queued  map[string]map[string]*types.Transaction `json:"queued"`
@@ -163,8 +159,6 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 
 // ExecuteTxs executes the given transactions at the specified block height and timestamp
 func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (updatedStateRoot []byte, maxBytes uint64, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	// convert rollkit tx to eth tx
 	ethTxs := make([]*types.Transaction, len(txs))
 	for i, tx := range txs {
@@ -180,6 +174,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		}
 		err = c.ethClient.SendTransaction(context.Background(), ethTxs[i])
 		if err != nil {
+			// Ignore the error if the transaction fails to be sent since transactions can be invalid and an invalid transaction sent by a client should not crash the node.
 			continue
 		}
 	}
@@ -276,6 +271,9 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 }
 
 func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFinal bool) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	var args engine.ForkchoiceStateV1
 
 	// Update block hashes based on finalization status
@@ -311,8 +309,6 @@ func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFi
 
 // SetFinal marks the block at the given height as finalized
 func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	blockHash, _, _, _, err := c.getBlockInfo(ctx, blockHeight)
 	if err != nil {
 		return fmt.Errorf("failed to get block info: %w", err)
@@ -334,6 +330,7 @@ func (c *EngineClient) getBlockInfo(ctx context.Context, height uint64) (common.
 	return header.Hash(), header.Root, header.GasLimit, header.Time, nil
 }
 
+// decodeSecret decodes a hex-encoded JWT secret string into a byte slice.
 func decodeSecret(jwtSecret string) ([]byte, error) {
 	secret, err := hex.DecodeString(strings.TrimPrefix(jwtSecret, "0x"))
 	if err != nil {
@@ -342,6 +339,7 @@ func decodeSecret(jwtSecret string) ([]byte, error) {
 	return secret, nil
 }
 
+// getAuthToken creates a JWT token signed with the provided secret, valid for 1 hour.
 func getAuthToken(jwtSecret []byte) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"exp": time.Now().Add(time.Hour * 1).Unix(), // Expires in 1 hour

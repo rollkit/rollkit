@@ -9,13 +9,12 @@ require (
 	github.com/stretchr/testify v1.10.0
 )
 
-replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101503.0
-
-replace github.com/rollkit/rollkit => ../../
-
-replace github.com/rollkit/rollkit/core => ../../core
-
-replace github.com/rollkit/rollkit/execution/evm => ../../execution/evm
+replace (
+	github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101503.0
+	github.com/rollkit/rollkit => ../../
+	github.com/rollkit/rollkit/core => ../../core
+	github.com/rollkit/rollkit/execution/evm => ../../execution/evm
+)
 
 require (
 	connectrpc.com/connect v1.18.1 // indirect
