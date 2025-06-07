@@ -59,15 +59,15 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 }
 
 // --- Generic success test for data and headers submission ---
-type submitToDASuccessCase struct {
+type submitToDASuccessCase[T any] struct {
 	name        string
 	fillPending func(ctx context.Context, t *testing.T, m *Manager)
-	getToSubmit func(m *Manager, ctx context.Context) (interface{}, error)
-	submitToDA  func(m *Manager, ctx context.Context, items interface{}) error
+	getToSubmit func(m *Manager, ctx context.Context) ([]T, error)
+	submitToDA  func(m *Manager, ctx context.Context, items []T) error
 	mockDASetup func(da *mocks.DA)
 }
 
-func runSubmitToDASuccessCase(t *testing.T, tc submitToDASuccessCase) {
+func runSubmitToDASuccessCase[T any](t *testing.T, tc submitToDASuccessCase[T]) {
 	da := &mocks.DA{}
 	m := newTestManagerWithDA(t, da)
 
@@ -84,16 +84,16 @@ func runSubmitToDASuccessCase(t *testing.T, tc submitToDASuccessCase) {
 }
 
 func TestSubmitDataToDA_Success(t *testing.T) {
-	runSubmitToDASuccessCase(t, submitToDASuccessCase{
+	runSubmitToDASuccessCase(t, submitToDASuccessCase[*types.SignedData]{
 		name: "Data",
 		fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
 			fillPendingData(ctx, t, m.pendingData, "Test Submitting Data", 3)
 		},
-		getToSubmit: func(m *Manager, ctx context.Context) (interface{}, error) {
+		getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedData, error) {
 			return m.createSignedDataToSubmit(ctx)
 		},
-		submitToDA: func(m *Manager, ctx context.Context, items interface{}) error {
-			return m.submitDataToDA(ctx, items.([]*types.SignedData))
+		submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedData) error {
+			return m.submitDataToDA(ctx, items)
 		},
 		mockDASetup: func(da *mocks.DA) {
 			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
@@ -103,16 +103,16 @@ func TestSubmitDataToDA_Success(t *testing.T) {
 }
 
 func TestSubmitHeadersToDA_Success(t *testing.T) {
-	runSubmitToDASuccessCase(t, submitToDASuccessCase{
+	runSubmitToDASuccessCase(t, submitToDASuccessCase[*types.SignedHeader]{
 		name: "Headers",
 		fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
 			fillPendingHeaders(ctx, t, m.pendingHeaders, "Test Submitting Headers", 3)
 		},
-		getToSubmit: func(m *Manager, ctx context.Context) (interface{}, error) {
+		getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedHeader, error) {
 			return m.pendingHeaders.getPendingHeaders(ctx)
 		},
-		submitToDA: func(m *Manager, ctx context.Context, items interface{}) error {
-			return m.submitHeadersToDA(ctx, items.([]*types.SignedHeader))
+		submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedHeader) error {
+			return m.submitHeadersToDA(ctx, items)
 		},
 		mockDASetup: func(da *mocks.DA) {
 			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
@@ -122,17 +122,17 @@ func TestSubmitHeadersToDA_Success(t *testing.T) {
 }
 
 // --- Generic failure test for data and headers submission ---
-type submitToDAFailureCase struct {
+type submitToDAFailureCase[T any] struct {
 	name        string
 	fillPending func(ctx context.Context, t *testing.T, m *Manager)
-	getToSubmit func(m *Manager, ctx context.Context) (interface{}, error)
-	submitToDA  func(m *Manager, ctx context.Context, items interface{}) error
+	getToSubmit func(m *Manager, ctx context.Context) ([]T, error)
+	submitToDA  func(m *Manager, ctx context.Context, items []T) error
 	errorMsg    string
 	daError     error
 	mockDASetup func(da *mocks.DA, gasPriceHistory *[]float64, daError error)
 }
 
-func runSubmitToDAFailureCase(t *testing.T, tc submitToDAFailureCase) {
+func runSubmitToDAFailureCase[T any](t *testing.T, tc submitToDAFailureCase[T]) {
 	da := &mocks.DA{}
 	m := newTestManagerWithDA(t, da)
 
@@ -170,16 +170,16 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			runSubmitToDAFailureCase(t, submitToDAFailureCase{
+			runSubmitToDAFailureCase(t, submitToDAFailureCase[*types.SignedData]{
 				name: "Data",
 				fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
 					fillPendingData(ctx, t, m.pendingData, "Test Submitting Data", 3)
 				},
-				getToSubmit: func(m *Manager, ctx context.Context) (interface{}, error) {
+				getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedData, error) {
 					return m.createSignedDataToSubmit(ctx)
 				},
-				submitToDA: func(m *Manager, ctx context.Context, items interface{}) error {
-					return m.submitDataToDA(ctx, items.([]*types.SignedData))
+				submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedData) error {
+					return m.submitDataToDA(ctx, items)
 				},
 				errorMsg: "failed to submit all data(s) to DA layer",
 				daError:  tc.daError,
@@ -205,16 +205,16 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			runSubmitToDAFailureCase(t, submitToDAFailureCase{
+			runSubmitToDAFailureCase(t, submitToDAFailureCase[*types.SignedHeader]{
 				name: "Headers",
 				fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
 					fillPendingHeaders(ctx, t, m.pendingHeaders, "Test Submitting Headers", 3)
 				},
-				getToSubmit: func(m *Manager, ctx context.Context) (interface{}, error) {
+				getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedHeader, error) {
 					return m.pendingHeaders.getPendingHeaders(ctx)
 				},
-				submitToDA: func(m *Manager, ctx context.Context, items interface{}) error {
-					return m.submitHeadersToDA(ctx, items.([]*types.SignedHeader))
+				submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedHeader) error {
+					return m.submitHeadersToDA(ctx, items)
 				},
 				errorMsg: "failed to submit all header(s) to DA layer",
 				daError:  tc.daError,
@@ -230,123 +230,124 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 }
 
 // --- Generic retry partial failures test for data and headers ---
-type retryPartialFailuresCase struct {
+type retryPartialFailuresCase[T any] struct {
 	name               string
 	metaKey            string
 	fillPending        func(ctx context.Context, t *testing.T, m *Manager)
-	submitToDA         func(m *Manager, ctx context.Context, items interface{}) error
+	submitToDA         func(m *Manager, ctx context.Context, items []T) error
 	getLastSubmitted   func(m *Manager) uint64
-	getPendingToSubmit func(m *Manager, ctx context.Context) (interface{}, error)
+	getPendingToSubmit func(m *Manager, ctx context.Context) ([]T, error)
 	setupStoreAndDA    func(m *Manager, mockStore *mocks.Store, da *mocks.DA)
 }
 
+func runRetryPartialFailuresCase[T any](t *testing.T, tc retryPartialFailuresCase[T]) {
+	m := newTestManagerWithDA(t, nil)
+	mockStore := mocks.NewStore(t)
+	m.store = mockStore
+	m.logger = log.NewTestLogger(t)
+	da := &mocks.DA{}
+	m.da = da
+	m.gasPrice = 1.0
+	m.gasMultiplier = 2.0
+	tc.setupStoreAndDA(m, mockStore, da)
+	ctx := t.Context()
+	tc.fillPending(ctx, t, m)
+
+	// Prepare items to submit
+	items, err := tc.getPendingToSubmit(m, ctx)
+	require.NoError(t, err)
+	require.Len(t, items, 3)
+
+	// Set up DA mock: three calls, each time only one item is accepted
+	da.On("GasMultiplier", mock.Anything).Return(2.0, nil).Times(3)
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			t.Logf("DA SubmitWithOptions call 1: args=%#v", args)
+		}).Once().Return([]coreda.ID{[]byte("id2")}, nil)
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			t.Logf("DA SubmitWithOptions call 2: args=%#v", args)
+		}).Once().Return([]coreda.ID{[]byte("id3")}, nil)
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			t.Logf("DA SubmitWithOptions call 3: args=%#v", args)
+		}).Once().Return([]coreda.ID{[]byte("id4")}, nil)
+
+	err = tc.submitToDA(m, ctx, items)
+	assert.NoError(t, err)
+
+	// After all succeed, lastSubmitted should be 3
+	assert.Equal(t, uint64(3), tc.getLastSubmitted(m))
+}
+
 func TestSubmitToDA_RetryPartialFailures_Generic(t *testing.T) {
-	cases := []retryPartialFailuresCase{
-		{
-			name:    "Data",
-			metaKey: "last-submitted-data-height",
-			fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
-				fillPendingData(ctx, t, m.pendingData, "Test", 3)
-			},
-			submitToDA: func(m *Manager, ctx context.Context, items interface{}) error {
-				return m.submitDataToDA(ctx, items.([]*types.SignedData))
-			},
-			getLastSubmitted: func(m *Manager) uint64 {
-				return m.pendingData.getLastSubmittedDataHeight()
-			},
-			getPendingToSubmit: func(m *Manager, ctx context.Context) (interface{}, error) {
-				return m.createSignedDataToSubmit(ctx)
-			},
-			setupStoreAndDA: func(m *Manager, mockStore *mocks.Store, da *mocks.DA) {
-				lastSubmittedBytes := make([]byte, 8)
-				lastHeight := uint64(0)
-				binary.LittleEndian.PutUint64(lastSubmittedBytes, lastHeight)
-				mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(lastSubmittedBytes, nil).Maybe()
-				mockStore.On("SetMetadata", mock.Anything, "last-submitted-data-height", mock.Anything).Return(nil).Maybe()
-				mockStore.On("Height", mock.Anything).Return(uint64(4), nil).Maybe()
-				for h := uint64(2); h <= 4; h++ {
-					mockStore.On("GetBlockData", mock.Anything, h).Return(nil, &types.Data{
-						Txs:      types.Txs{types.Tx(fmt.Sprintf("tx%d", h))},
-						Metadata: &types.Metadata{Height: h},
-					}, nil).Maybe()
-				}
-			},
+	casesData := retryPartialFailuresCase[*types.SignedData]{
+		name:    "Data",
+		metaKey: "last-submitted-data-height",
+		fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
+			fillPendingData(ctx, t, m.pendingData, "Test", 3)
 		},
-		{
-			name:    "Header",
-			metaKey: "last-submitted-header-height",
-			fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
-				fillPendingHeaders(ctx, t, m.pendingHeaders, "Test", 3)
-			},
-			submitToDA: func(m *Manager, ctx context.Context, items interface{}) error {
-				return m.submitHeadersToDA(ctx, items.([]*types.SignedHeader))
-			},
-			getLastSubmitted: func(m *Manager) uint64 {
-				return m.pendingHeaders.getLastSubmittedHeaderHeight()
-			},
-			getPendingToSubmit: func(m *Manager, ctx context.Context) (interface{}, error) {
-				return m.pendingHeaders.getPendingHeaders(ctx)
-			},
-			setupStoreAndDA: func(m *Manager, mockStore *mocks.Store, da *mocks.DA) {
-				lastSubmittedBytes := make([]byte, 8)
-				lastHeight := uint64(0)
-				binary.LittleEndian.PutUint64(lastSubmittedBytes, lastHeight)
-				mockStore.On("GetMetadata", mock.Anything, "last-submitted-header-height").Return(lastSubmittedBytes, nil).Maybe()
-				mockStore.On("SetMetadata", mock.Anything, "last-submitted-header-height", mock.Anything).Return(nil).Maybe()
-				mockStore.On("Height", mock.Anything).Return(uint64(4), nil).Maybe()
-				for h := uint64(2); h <= 4; h++ {
-					header := &types.SignedHeader{Header: types.Header{BaseHeader: types.BaseHeader{Height: h}}}
-					mockStore.On("GetBlockData", mock.Anything, h).Return(header, nil, nil).Maybe()
-				}
-			},
+		submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedData) error {
+			return m.submitDataToDA(ctx, items)
 		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			m := newTestManagerWithDA(t, nil)
-			mockStore := mocks.NewStore(t)
-			m.store = mockStore
-			m.logger = log.NewTestLogger(t)
-			da := &mocks.DA{}
-			m.da = da
-			m.gasPrice = 1.0
-			m.gasMultiplier = 2.0
-			tc.setupStoreAndDA(m, mockStore, da)
-			ctx := t.Context()
-			tc.fillPending(ctx, t, m)
-
-			// Prepare items to submit
-			items, err := tc.getPendingToSubmit(m, ctx)
-			require.NoError(t, err)
-			if tc.name == "Data" {
-				require.Len(t, items.([]*types.SignedData), 3)
-			} else {
-				require.Len(t, items.([]*types.SignedHeader), 3)
+		getLastSubmitted: func(m *Manager) uint64 {
+			return m.pendingData.getLastSubmittedDataHeight()
+		},
+		getPendingToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedData, error) {
+			return m.createSignedDataToSubmit(ctx)
+		},
+		setupStoreAndDA: func(m *Manager, mockStore *mocks.Store, da *mocks.DA) {
+			lastSubmittedBytes := make([]byte, 8)
+			lastHeight := uint64(0)
+			binary.LittleEndian.PutUint64(lastSubmittedBytes, lastHeight)
+			mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(lastSubmittedBytes, nil).Maybe()
+			mockStore.On("SetMetadata", mock.Anything, "last-submitted-data-height", mock.Anything).Return(nil).Maybe()
+			mockStore.On("Height", mock.Anything).Return(uint64(4), nil).Maybe()
+			for h := uint64(2); h <= 4; h++ {
+				mockStore.On("GetBlockData", mock.Anything, h).Return(nil, &types.Data{
+					Txs:      types.Txs{types.Tx(fmt.Sprintf("tx%d", h))},
+					Metadata: &types.Metadata{Height: h},
+				}, nil).Maybe()
 			}
-
-			// Set up DA mock: three calls, each time only one item is accepted
-			da.On("GasMultiplier", mock.Anything).Return(2.0, nil).Times(3)
-			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Run(func(args mock.Arguments) {
-					t.Logf("DA SubmitWithOptions call 1: args=%#v", args)
-				}).Once().Return([]coreda.ID{[]byte("id2")}, nil)
-			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Run(func(args mock.Arguments) {
-					t.Logf("DA SubmitWithOptions call 2: args=%#v", args)
-				}).Once().Return([]coreda.ID{[]byte("id3")}, nil)
-			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Run(func(args mock.Arguments) {
-					t.Logf("DA SubmitWithOptions call 3: args=%#v", args)
-				}).Once().Return([]coreda.ID{[]byte("id4")}, nil)
-
-			err = tc.submitToDA(m, ctx, items)
-			assert.NoError(t, err)
-
-			// After all succeed, lastSubmitted should be 3
-			assert.Equal(t, uint64(3), tc.getLastSubmitted(m))
-		})
+		},
 	}
+
+	casesHeader := retryPartialFailuresCase[*types.SignedHeader]{
+		name:    "Header",
+		metaKey: "last-submitted-header-height",
+		fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
+			fillPendingHeaders(ctx, t, m.pendingHeaders, "Test", 3)
+		},
+		submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedHeader) error {
+			return m.submitHeadersToDA(ctx, items)
+		},
+		getLastSubmitted: func(m *Manager) uint64 {
+			return m.pendingHeaders.getLastSubmittedHeaderHeight()
+		},
+		getPendingToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedHeader, error) {
+			return m.pendingHeaders.getPendingHeaders(ctx)
+		},
+		setupStoreAndDA: func(m *Manager, mockStore *mocks.Store, da *mocks.DA) {
+			lastSubmittedBytes := make([]byte, 8)
+			lastHeight := uint64(0)
+			binary.LittleEndian.PutUint64(lastSubmittedBytes, lastHeight)
+			mockStore.On("GetMetadata", mock.Anything, "last-submitted-header-height").Return(lastSubmittedBytes, nil).Maybe()
+			mockStore.On("SetMetadata", mock.Anything, "last-submitted-header-height", mock.Anything).Return(nil).Maybe()
+			mockStore.On("Height", mock.Anything).Return(uint64(4), nil).Maybe()
+			for h := uint64(2); h <= 4; h++ {
+				header := &types.SignedHeader{Header: types.Header{BaseHeader: types.BaseHeader{Height: h}}}
+				mockStore.On("GetBlockData", mock.Anything, h).Return(header, nil, nil).Maybe()
+			}
+		},
+	}
+
+	t.Run(casesData.name, func(t *testing.T) {
+		runRetryPartialFailuresCase(t, casesData)
+	})
+
+	t.Run(casesHeader.name, func(t *testing.T) {
+		runRetryPartialFailuresCase(t, casesHeader)
+	})
 }
 
 // TestCreateSignedDataToSubmit tests createSignedDataToSubmit for normal, empty, and error cases.

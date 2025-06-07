@@ -69,12 +69,13 @@ func (m *Manager) DataSubmissionLoop(ctx context.Context) {
 // submitToDA is a generic helper for submitting items to the DA layer with retry, backoff, and gas price logic.
 // marshalFn marshals an item to []byte.
 // postSubmit is called after a successful submission to update caches, pending lists, etc.
-func submitToDA(
+func submitToDA[T any](
 	m *Manager,
 	ctx context.Context,
-	items interface{},
-	marshalFn interface{},
-	postSubmit interface{},
+	items []T,
+	marshalFn func(T) ([]byte, error),
+	postSubmit func([]T, *coreda.ResultSubmit),
+	itemType string,
 ) error {
 	submittedAll := false
 	var backoff time.Duration
@@ -85,33 +86,15 @@ func submitToDA(
 	numSubmitted := 0
 
 	// Marshal all items once before the loop
-	var marshaled [][]byte
-	var remLen int
-	var itemType string
-	switch v := items.(type) {
-	case []*types.SignedHeader:
-		marshaled = make([][]byte, len(v))
-		for i, item := range v {
-			bz, err := marshalFn.(func(*types.SignedHeader) ([]byte, error))(item)
-			if err != nil {
-				return fmt.Errorf("failed to marshal item: %w", err)
-			}
-			marshaled[i] = bz
+	marshaled := make([][]byte, len(items))
+	for i, item := range items {
+		bz, err := marshalFn(item)
+		if err != nil {
+			return fmt.Errorf("failed to marshal item: %w", err)
 		}
-		remLen = len(v)
-		itemType = "header"
-	case []*types.SignedData:
-		marshaled = make([][]byte, len(v))
-		for i, item := range v {
-			bz, err := marshalFn.(func(*types.SignedData) ([]byte, error))(item)
-			if err != nil {
-				return fmt.Errorf("failed to marshal item: %w", err)
-			}
-			marshaled[i] = bz
-		}
-		remLen = len(v)
-		itemType = "data"
+		marshaled[i] = bz
 	}
+	remLen := len(items)
 
 	for !submittedAll && attempt < maxSubmitAttempts {
 		select {
@@ -123,12 +106,7 @@ func submitToDA(
 
 		// Use the current remaining items and marshaled bytes
 		currMarshaled := marshaled
-		switch currItems := remaining.(type) {
-		case []*types.SignedHeader:
-			remLen = len(currItems)
-		case []*types.SignedData:
-			remLen = len(currItems)
-		}
+		remLen = len(remaining)
 
 		submitctx, submitCtxCancel := context.WithTimeout(ctx, 60*time.Second)
 		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, currMarshaled, gasPrice, nil)
@@ -140,25 +118,13 @@ func submitToDA(
 			if res.SubmittedCount == uint64(remLen) {
 				submittedAll = true
 			}
-			var notSubmittedMarshaled [][]byte
-			switch currItems := remaining.(type) {
-			case []*types.SignedHeader:
-				submitted := currItems[:res.SubmittedCount]
-				notSubmitted := currItems[res.SubmittedCount:]
-				notSubmittedMarshaled = currMarshaled[res.SubmittedCount:]
-				numSubmitted += int(res.SubmittedCount)
-				postSubmit.(func([]*types.SignedHeader, *coreda.ResultSubmit))(submitted, &res)
-				remaining = notSubmitted
-				marshaled = notSubmittedMarshaled
-			case []*types.SignedData:
-				submitted := currItems[:res.SubmittedCount]
-				notSubmitted := currItems[res.SubmittedCount:]
-				notSubmittedMarshaled = currMarshaled[res.SubmittedCount:]
-				numSubmitted += int(res.SubmittedCount)
-				postSubmit.(func([]*types.SignedData, *coreda.ResultSubmit))(submitted, &res)
-				remaining = notSubmitted
-				marshaled = notSubmittedMarshaled
-			}
+			submitted := remaining[:res.SubmittedCount]
+			notSubmitted := remaining[res.SubmittedCount:]
+			notSubmittedMarshaled := currMarshaled[res.SubmittedCount:]
+			numSubmitted += int(res.SubmittedCount)
+			postSubmit(submitted, &res)
+			remaining = notSubmitted
+			marshaled = notSubmittedMarshaled
 			backoff = 0
 			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice / m.gasMultiplier
@@ -211,6 +177,7 @@ func (m *Manager) submitHeadersToDA(ctx context.Context, headersToSubmit []*type
 			m.pendingHeaders.setLastSubmittedHeaderHeight(ctx, lastSubmittedHeaderHeight)
 			m.sendNonBlockingSignalToDAIncluderCh()
 		},
+		"header",
 	)
 }
 
@@ -231,6 +198,7 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedDataToSubmit []*type
 			m.pendingData.setLastSubmittedDataHeight(ctx, lastSubmittedDataHeight)
 			m.sendNonBlockingSignalToDAIncluderCh()
 		},
+		"data",
 	)
 }
 
