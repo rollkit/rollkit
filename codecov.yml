@@ -13,3 +13,4 @@ ignore:
   - "pkg/rpc/example/"
   - "da/internal/mocks"
   - "da/cmd"
+  - "execution/evm" # EVM is covered in e2e/integration tests
