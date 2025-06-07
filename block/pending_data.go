@@ -30,13 +30,7 @@ type PendingData struct {
 
 func fetchData(ctx context.Context, store store.Store, height uint64) (*types.Data, error) {
 	_, data, err := store.GetBlockData(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-	if data == nil {
-		return nil, nil
-	}
-	return data, nil
+	return data, err
 }
 
 // NewPendingData returns a new PendingData struct

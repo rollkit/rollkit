@@ -24,6 +24,8 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+const numItemsToSubmit = 3
+
 // newTestManagerWithDA creates a Manager instance with a mocked DA layer for testing.
 func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 	logger := log.NewNopLogger()
@@ -87,7 +89,7 @@ func TestSubmitDataToDA_Success(t *testing.T) {
 	runSubmitToDASuccessCase(t, submitToDASuccessCase[*types.SignedData]{
 		name: "Data",
 		fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
-			fillPendingData(ctx, t, m.pendingData, "Test Submitting Data", 3)
+			fillPendingData(ctx, t, m.pendingData, "Test Submitting Data", numItemsToSubmit)
 		},
 		getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedData, error) {
 			return m.createSignedDataToSubmit(ctx)
@@ -106,7 +108,7 @@ func TestSubmitHeadersToDA_Success(t *testing.T) {
 	runSubmitToDASuccessCase(t, submitToDASuccessCase[*types.SignedHeader]{
 		name: "Headers",
 		fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
-			fillPendingHeaders(ctx, t, m.pendingHeaders, "Test Submitting Headers", 3)
+			fillPendingHeaders(ctx, t, m.pendingHeaders, "Test Submitting Headers", numItemsToSubmit)
 		},
 		getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedHeader, error) {
 			return m.pendingHeaders.getPendingHeaders(ctx)
@@ -173,7 +175,7 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 			runSubmitToDAFailureCase(t, submitToDAFailureCase[*types.SignedData]{
 				name: "Data",
 				fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
-					fillPendingData(ctx, t, m.pendingData, "Test Submitting Data", 3)
+					fillPendingData(ctx, t, m.pendingData, "Test Submitting Data", numItemsToSubmit)
 				},
 				getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedData, error) {
 					return m.createSignedDataToSubmit(ctx)
@@ -208,7 +210,7 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 			runSubmitToDAFailureCase(t, submitToDAFailureCase[*types.SignedHeader]{
 				name: "Headers",
 				fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
-					fillPendingHeaders(ctx, t, m.pendingHeaders, "Test Submitting Headers", 3)
+					fillPendingHeaders(ctx, t, m.pendingHeaders, "Test Submitting Headers", numItemsToSubmit)
 				},
 				getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedHeader, error) {
 					return m.pendingHeaders.getPendingHeaders(ctx)
@@ -285,7 +287,7 @@ func TestSubmitToDA_RetryPartialFailures_Generic(t *testing.T) {
 		name:    "Data",
 		metaKey: "last-submitted-data-height",
 		fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
-			fillPendingData(ctx, t, m.pendingData, "Test", 3)
+			fillPendingData(ctx, t, m.pendingData, "Test", numItemsToSubmit)
 		},
 		submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedData) error {
 			return m.submitDataToDA(ctx, items)
@@ -316,7 +318,7 @@ func TestSubmitToDA_RetryPartialFailures_Generic(t *testing.T) {
 		name:    "Header",
 		metaKey: "last-submitted-header-height",
 		fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
-			fillPendingHeaders(ctx, t, m.pendingHeaders, "Test", 3)
+			fillPendingHeaders(ctx, t, m.pendingHeaders, "Test", numItemsToSubmit)
 		},
 		submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedHeader) error {
 			return m.submitHeadersToDA(ctx, items)
@@ -355,14 +357,14 @@ func TestCreateSignedDataToSubmit(t *testing.T) {
 	// Normal case: pending data exists and is signed correctly
 	t.Run("normal case", func(t *testing.T) {
 		m := newTestManagerWithDA(t, nil)
-		fillPendingData(t.Context(), t, m.pendingData, "Test Creating Signed Data", 2)
+		fillPendingData(t.Context(), t, m.pendingData, "Test Creating Signed Data", numItemsToSubmit)
 		pubKey, err := m.signer.GetPublic()
 		require.NoError(t, err)
 		proposerAddr, err := m.signer.GetAddress()
 		require.NoError(t, err)
 		signedDataList, err := m.createSignedDataToSubmit(t.Context())
 		require.NoError(t, err)
-		require.Len(t, signedDataList, 2)
+		require.Len(t, signedDataList, numItemsToSubmit)
 		assert.Equal(t, types.Tx("tx1"), signedDataList[0].Txs[0])
 		assert.Equal(t, types.Tx("tx2"), signedDataList[0].Txs[1])
 		assert.Equal(t, pubKey, signedDataList[0].Signer.PubKey)
