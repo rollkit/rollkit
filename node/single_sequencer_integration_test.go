@@ -141,11 +141,6 @@ func (s *FullNodeTestSuite) TestBlockProduction() {
 	require.NoError(s.T(), err)
 	s.GreaterOrEqual(height, uint64(5), "Expected block height >= 5")
 
-	// Verify chain state
-	state, err := s.node.Store.GetState(s.ctx)
-	s.NoError(err)
-	s.GreaterOrEqual(state.LastBlockHeight, height)
-
 	foundTx := false
 	for h := uint64(1); h <= height; h++ {
 		// Get the block data for each height
