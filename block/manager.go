@@ -136,6 +136,7 @@ type Manager struct {
 	txsAvailable bool
 
 	pendingHeaders *PendingHeaders
+	pendingData    *PendingData
 
 	// for reporting metrics
 	metrics *Metrics
@@ -158,13 +159,6 @@ type Manager struct {
 
 	// txNotifyCh is used to signal when new transactions are available
 	txNotifyCh chan struct{}
-
-	// batchSubmissionChan is used to submit batches to the sequencer
-	batchSubmissionChan chan coresequencer.Batch
-
-	// dataCommitmentToHeight tracks the height a data commitment (data hash) has been seen on.
-	// Key: data commitment (string), Value: uint64 (height)
-	dataCommitmentToHeight sync.Map
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -315,6 +309,11 @@ func NewManager(
 		return nil, err
 	}
 
+	pendingData, err := NewPendingData(store, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	// If lastBatchHash is not set, retrieve the last batch hash from store
 	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
 	if err != nil && s.LastBlockHeight > 0 {
@@ -339,29 +338,29 @@ func NewManager(
 		headerBroadcaster: headerBroadcaster,
 		dataBroadcaster:   dataBroadcaster,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		headerInCh:          make(chan NewHeaderEvent, eventInChLength),
-		dataInCh:            make(chan NewDataEvent, eventInChLength),
-		headerStoreCh:       make(chan struct{}, 1),
-		dataStoreCh:         make(chan struct{}, 1),
-		headerStore:         headerStore,
-		dataStore:           dataStore,
-		lastStateMtx:        new(sync.RWMutex),
-		lastBatchData:       lastBatchData,
-		headerCache:         cache.NewCache[types.SignedHeader](),
-		dataCache:           cache.NewCache[types.Data](),
-		retrieveCh:          make(chan struct{}, 1),
-		daIncluderCh:        make(chan struct{}, 1),
-		logger:              logger,
-		txsAvailable:        false,
-		pendingHeaders:      pendingHeaders,
-		metrics:             seqMetrics,
-		sequencer:           sequencer,
-		exec:                exec,
-		da:                  da,
-		gasPrice:            gasPrice,
-		gasMultiplier:       gasMultiplier,
-		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
-		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
+		headerInCh:     make(chan NewHeaderEvent, eventInChLength),
+		dataInCh:       make(chan NewDataEvent, eventInChLength),
+		headerStoreCh:  make(chan struct{}, 1),
+		dataStoreCh:    make(chan struct{}, 1),
+		headerStore:    headerStore,
+		dataStore:      dataStore,
+		lastStateMtx:   new(sync.RWMutex),
+		lastBatchData:  lastBatchData,
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		retrieveCh:     make(chan struct{}, 1),
+		daIncluderCh:   make(chan struct{}, 1),
+		logger:         logger,
+		txsAvailable:   false,
+		pendingHeaders: pendingHeaders,
+		pendingData:    pendingData,
+		metrics:        seqMetrics,
+		sequencer:      sequencer,
+		exec:           exec,
+		da:             da,
+		gasPrice:       gasPrice,
+		gasMultiplier:  gasMultiplier,
+		txNotifyCh:     make(chan struct{}, 1), // Non-blocking channel
 	}
 
 	// initialize da included height
@@ -371,11 +370,6 @@ func NewManager(
 
 	// Set the default publishBlock implementation
 	m.publishBlock = m.publishBlockInternal
-	if s, ok := m.sequencer.(interface {
-		SetBatchSubmissionChan(chan coresequencer.Batch)
-	}); ok {
-		s.SetBatchSubmissionChan(m.batchSubmissionChan)
-	}
 
 	// fetch caches from disks
 	if err := m.LoadCache(); err != nil {
@@ -522,8 +516,8 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	default:
 	}
 
-	if m.config.Node.MaxPendingHeaders != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeaders {
-		m.logger.Warn(fmt.Sprintf("refusing to create block: pending blocks [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders))
+	if m.config.Node.MaxPendingHeadersAndData != 0 && (m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeadersAndData || m.pendingData.numPendingData() >= m.config.Node.MaxPendingHeadersAndData) {
+		m.logger.Warn(fmt.Sprintf("refusing to create block: pending headers [%d] or data [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.pendingData.numPendingData(), m.config.Node.MaxPendingHeadersAndData))
 		return nil
 	}
 
@@ -922,6 +916,7 @@ func (m *Manager) getDataSignature(data *types.Data) (types.Signature, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if m.signer == nil {
 		return nil, fmt.Errorf("signer is nil; cannot sign data")
 	}

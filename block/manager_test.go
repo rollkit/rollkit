@@ -216,7 +216,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header1)
-	store.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
+	store.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
 	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
 	store.On("GetBlockData", mock.Anything, uint64(3)).Return(header3, data3, nil)
@@ -228,7 +228,9 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	m.pendingHeaders, err = NewPendingHeaders(store, m.logger)
 	require.NoError(err)
 
-	err = m.submitHeadersToDA(ctx)
+	headers, err := m.pendingHeaders.getPendingHeaders(ctx)
+	require.NoError(err)
+	err = m.submitHeadersToDA(ctx, headers)
 	assert.ErrorContains(err, "failed to transform header to proto")
 	blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
 	assert.NoError(err)
@@ -252,7 +254,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header3)
-	store.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
+	store.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
 	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
 	store.On("GetBlockData", mock.Anything, uint64(3)).Return(header3, data3, nil)
@@ -263,7 +265,10 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	var err error
 	m.pendingHeaders, err = NewPendingHeaders(store, m.logger)
 	require.NoError(err)
-	err = m.submitHeadersToDA(ctx)
+
+	headers, err := m.pendingHeaders.getPendingHeaders(ctx)
+	require.NoError(err)
+	err = m.submitHeadersToDA(ctx, headers)
 	assert.ErrorContains(err, "failed to transform header to proto")
 	blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
 	assert.NoError(err)
