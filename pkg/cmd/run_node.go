@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
@@ -121,7 +122,7 @@ func StartNode(
 		return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 	}
 
-	metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
+	metrics := node.DefaultMetricsProvider(nodeConfig.Instrumentation)
 
 	genesisPath := filepath.Join(filepath.Dir(nodeConfig.ConfigPath()), "genesis.json")
 	genesis, err := genesispkg.LoadGenesis(genesisPath)
@@ -173,7 +174,7 @@ func StartNode(
 
 	// Wait for interrupt signal to gracefully shut down the server
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	select {
 	case <-quit:
