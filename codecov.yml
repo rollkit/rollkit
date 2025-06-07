@@ -13,3 +13,4 @@ ignore:
   - "pkg/rpc/example/"
   - "da/internal/mocks"
   - "apps"
+  - "**/metrics.go"
