@@ -12,4 +12,4 @@ ignore:
   - "scripts/"
   - "pkg/rpc/example/"
   - "da/internal/mocks"
-  - "da/cmd/*"
+  - "da/cmd"
