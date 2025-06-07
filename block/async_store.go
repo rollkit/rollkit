@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"cosmossdk.io/log"
 	"github.com/rollkit/rollkit/pkg/store"
 )
 
@@ -14,13 +15,15 @@ type AsyncPruner struct {
 	ps store.PruningStore
 
 	flushInterval time.Duration
+	logger        log.Logger
 }
 
-func NewAsyncPruner(pruningStore store.PruningStore, flushInterval time.Duration) *AsyncPruner {
+func NewAsyncPruner(pruningStore store.PruningStore, flushInterval time.Duration, logger log.Logger) *AsyncPruner {
 	return &AsyncPruner{
 		ps: pruningStore,
 
 		flushInterval: flushInterval,
+		logger:        logger,
 	}
 }
 
@@ -29,13 +32,15 @@ func (s *AsyncPruner) Start(ctx context.Context) {
 	ticker := time.NewTicker(s.flushInterval)
 	defer ticker.Stop()
 
+	s.logger.Info("AsyncPruner started", "interval", s.flushInterval)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			// Currently PruneBlockData only returns nil.
-			_ = s.ps.PruneBlockData(ctx)
+			err := s.ps.PruneBlockData(ctx)
+			s.logger.Error("Failed to prune block data", "error", err)
 		}
 	}
 }
