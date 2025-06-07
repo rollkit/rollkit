@@ -24,25 +24,6 @@ func NewCache[T any]() *Cache[T] {
 	}
 }
 
-// GetItemByHash returns an item from the cache by hash
-func (c *Cache[T]) GetItemByHash(hash string) *T {
-	item, ok := c.items.Load(hash)
-	if !ok {
-		return nil
-	}
-	return item.(*T)
-}
-
-// SetItemByHash sets an item in the cache by hash
-func (c *Cache[T]) SetItemByHash(hash string, item *T) {
-	c.items.Store(hash, item)
-}
-
-// DeleteItemByHash deletes an item from the cache by hash
-func (c *Cache[T]) DeleteItemByHash(hash string) {
-	c.items.Delete(hash)
-}
-
 // GetItem returns an item from the cache by height
 func (c *Cache[T]) GetItem(height uint64) *T {
 	item, ok := c.items.Load(height)
