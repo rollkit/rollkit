@@ -37,6 +37,7 @@ func (s *AsyncPruner) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			s.logger.Info("AsyncPruner stopped")
 			return
 		case <-ticker.C:
 			err := s.ps.PruneBlockData(ctx)
