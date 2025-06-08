@@ -88,7 +88,8 @@ func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 		RPC: rollkitconfig.RPCConfig{
 			Address: fmt.Sprintf("127.0.0.1:%d", 8000+n),
 		},
-		ChainID: "test-chain",
+		ChainID:         "test-chain",
+		Instrumentation: &rollkitconfig.InstrumentationConfig{},
 	}
 }
 
