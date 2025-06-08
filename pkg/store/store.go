@@ -209,11 +209,11 @@ func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.
 func (s *DefaultStore) UpdateState(ctx context.Context, state types.State) error {
 	pbState, err := state.ToProto()
 	if err != nil {
-		return fmt.Errorf("failed to marshal state to JSON: %w", err)
+		return fmt.Errorf("failed to convert type state to protobuf type: %w", err)
 	}
 	data, err := proto.Marshal(pbState)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal state to protobuf: %w", err)
 	}
 	return s.db.Put(ctx, ds.NewKey(getStateKey()), data)
 }
@@ -227,7 +227,7 @@ func (s *DefaultStore) GetState(ctx context.Context) (types.State, error) {
 	var pbState pb.State
 	err = proto.Unmarshal(blob, &pbState)
 	if err != nil {
-		return types.State{}, fmt.Errorf("failed to unmarshal state from JSON: %w", err)
+		return types.State{}, fmt.Errorf("failed to unmarshal state from protobuf: %w", err)
 	}
 
 	var state types.State
