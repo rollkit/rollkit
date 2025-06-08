@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
@@ -40,6 +41,11 @@ type EngineClient struct {
 	genesisHash   common.Hash       // Hash of the genesis block
 	initialHeight uint64
 	feeRecipient  common.Address // Address to receive transaction fees
+
+	mu                        sync.Mutex  // Mutex to protect concurrent access to block hashes
+	currentHeadBlockHash      common.Hash // Store last non-finalized HeadBlockHash
+	currentSafeBlockHash      common.Hash // Store last non-finalized SafeBlockHash
+	currentFinalizedBlockHash common.Hash // Store last finalized block hash
 }
 
 // NewEngineExecutionClient creates a new instance of EngineAPIExecutionClient
@@ -168,7 +174,8 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		}
 		err = c.ethClient.SendTransaction(context.Background(), ethTxs[i])
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to send transaction: %w", err)
+			// Ignore the error if the transaction fails to be sent since transactions can be invalid and an invalid transaction sent by a client should not crash the node.
+			continue
 		}
 	}
 
@@ -264,13 +271,22 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 }
 
 func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFinal bool) error {
-	args := engine.ForkchoiceStateV1{
-		HeadBlockHash: blockHash,
-		SafeBlockHash: blockHash,
-	}
+	c.mu.Lock()
+	// Update block hashes based on finalization status
 	if isFinal {
-		args.FinalizedBlockHash = blockHash
+		c.currentFinalizedBlockHash = blockHash
+	} else {
+		c.currentHeadBlockHash = blockHash
+		c.currentSafeBlockHash = blockHash
 	}
+
+	// Construct forkchoice state
+	args := engine.ForkchoiceStateV1{
+		HeadBlockHash:      c.currentHeadBlockHash,
+		SafeBlockHash:      c.currentSafeBlockHash,
+		FinalizedBlockHash: c.currentFinalizedBlockHash,
+	}
+	c.mu.Unlock()
 
 	var forkchoiceResult engine.ForkChoiceResponse
 	err := c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
@@ -311,6 +327,7 @@ func (c *EngineClient) getBlockInfo(ctx context.Context, height uint64) (common.
 	return header.Hash(), header.Root, header.GasLimit, header.Time, nil
 }
 
+// decodeSecret decodes a hex-encoded JWT secret string into a byte slice.
 func decodeSecret(jwtSecret string) ([]byte, error) {
 	secret, err := hex.DecodeString(strings.TrimPrefix(jwtSecret, "0x"))
 	if err != nil {
@@ -319,6 +336,7 @@ func decodeSecret(jwtSecret string) ([]byte, error) {
 	return secret, nil
 }
 
+// getAuthToken creates a JWT token signed with the provided secret, valid for 1 hour.
 func getAuthToken(jwtSecret []byte) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"exp": time.Now().Add(time.Hour * 1).Unix(), // Expires in 1 hour
