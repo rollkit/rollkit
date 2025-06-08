@@ -272,10 +272,6 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 
 func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFinal bool) error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	var args engine.ForkchoiceStateV1
-
 	// Update block hashes based on finalization status
 	if isFinal {
 		c.currentFinalizedBlockHash = blockHash
@@ -285,11 +281,12 @@ func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFi
 	}
 
 	// Construct forkchoice state
-	args = engine.ForkchoiceStateV1{
+	args := engine.ForkchoiceStateV1{
 		HeadBlockHash:      c.currentHeadBlockHash,
 		SafeBlockHash:      c.currentSafeBlockHash,
 		FinalizedBlockHash: c.currentFinalizedBlockHash,
 	}
+	c.mu.Unlock()
 
 	var forkchoiceResult engine.ForkChoiceResponse
 	err := c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
