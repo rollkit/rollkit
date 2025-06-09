@@ -17,7 +17,7 @@ func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			m.logger.Info("data submission loop stopped")
+			m.logger.Info("header submission loop stopped")
 			return
 		case <-timer.C:
 		}
