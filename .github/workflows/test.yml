@@ -11,6 +11,8 @@ on:
 jobs:
   build-docker-image:
     name: Build Docker Image
+    # skip building images for merge groups as they are already built on PRs and main
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
