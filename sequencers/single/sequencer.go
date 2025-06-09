@@ -110,7 +110,11 @@ func (c *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.Submit
 	}
 
 	// check if the batch is bigger than the max blob size
-	if uint64(len(batch.Transactions)) > DefaultMaxBlobSize {
+	totalSize := uint64(0)
+	for _, tx := range batch.Transactions {
+		totalSize += uint64(len(tx))
+	}
+	if totalSize > DefaultMaxBlobSize {
 		// creates smaller batches and add them to the queue
 		subTransactions := [][]byte{}
 		subBatchSize := uint64(0)
