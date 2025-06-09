@@ -750,7 +750,7 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 	return nil
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, _ types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	// Use when batchData is set to data IDs from the DA layer
 	// batchDataIDs := convertBatchDataToBytes(batchData.Data)
 
@@ -818,12 +818,19 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	return header, blockData, nil
 }
 
+type headerContextKey struct{}
+
+// HeaderContextKey is used to store the header in the context.
+// This is useful if the execution client needs to access the header during transaction execution.
+var HeaderContextKey = headerContextKey{}
+
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
 	rawTxs := make([][]byte, len(data.Txs))
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
 
+	ctx = context.WithValue(ctx, HeaderContextKey, header)
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
 		return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)
