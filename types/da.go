@@ -11,7 +11,7 @@ import (
 )
 
 // TODO: remove this after we modify the da interfaces
-var nameSpacePlaceholder = []byte("placeholder")
+var NameSpacePlaceholder = []byte("placeholder")
 
 // SubmitWithHelpers performs blob submission using the underlying DA layer,
 // handling error mapping to produce a ResultSubmit.
@@ -25,7 +25,7 @@ func SubmitWithHelpers(
 	gasPrice float64,
 	options []byte,
 ) coreda.ResultSubmit { // Return core ResultSubmit type
-	ids, err := da.SubmitWithOptions(ctx, data, gasPrice, nameSpacePlaceholder, options)
+	ids, err := da.SubmitWithOptions(ctx, data, gasPrice, NameSpacePlaceholder, options)
 
 	// Handle errors returned by SubmitWithOptions
 	if err != nil {
@@ -96,7 +96,7 @@ func RetrieveWithHelpers(
 ) coreda.ResultRetrieve {
 
 	// 1. Get IDs
-	idsResult, err := da.GetIDs(ctx, dataLayerHeight, nameSpacePlaceholder)
+	idsResult, err := da.GetIDs(ctx, dataLayerHeight, NameSpacePlaceholder)
 	if err != nil {
 		// Handle specific "not found" error
 		if errors.Is(err, coreda.ErrBlobNotFound) {
