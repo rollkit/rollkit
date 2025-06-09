@@ -14,6 +14,10 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 )
 
+const (
+	DefaultMaxBlobSize uint64 = 1_500_000
+)
+
 // ErrInvalidId is returned when the chain id is invalid
 var (
 	ErrInvalidId = errors.New("invalid chain id")
@@ -74,6 +78,20 @@ func NewSequencer(
 	return s, nil
 }
 
+// sendAndQueueBatch sends a batch to the batchSubmissionChan and adds it to the queue.
+func (c *Sequencer) sendAndQueueBatch(ctx context.Context, batch coresequencer.Batch) error {
+	select {
+	case c.batchSubmissionChan <- batch:
+	default:
+		return fmt.Errorf("DA submission queue full, please retry later")
+	}
+	err := c.queue.AddBatch(ctx, batch)
+	if err != nil {
+		return fmt.Errorf("failed to add batch: %w", err)
+	}
+	return nil
+}
+
 // SubmitBatchTxs implements sequencing.Sequencer.
 func (c *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.SubmitBatchTxsRequest) (*coresequencer.SubmitBatchTxsResponse, error) {
 	if !c.isValid(req.Id) {
@@ -91,17 +109,35 @@ func (c *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.Submit
 		return nil, fmt.Errorf("sequencer mis-configured: batch submission channel is nil")
 	}
 
-	select {
-	case c.batchSubmissionChan <- batch:
-	default:
-		return nil, fmt.Errorf("DA submission queue full, please retry later")
+	// check if the batch is bigger than the max blob size
+	if uint64(len(batch.Transactions)) > DefaultMaxBlobSize {
+		// creates smaller batches and add them to the queue
+		subTransactions := [][]byte{}
+		subBatchSize := uint64(0)
+		for _, tx := range batch.Transactions {
+			txSize := uint64(len(tx))
+			if subBatchSize+txSize > DefaultMaxBlobSize && len(subTransactions) > 0 {
+				newBatch := coresequencer.Batch{Transactions: subTransactions}
+				if err := c.sendAndQueueBatch(ctx, newBatch); err != nil {
+					return nil, err
+				}
+				subTransactions = [][]byte{}
+				subBatchSize = 0
+			}
+			subTransactions = append(subTransactions, tx)
+			subBatchSize += txSize
+		}
+		if len(subTransactions) > 0 {
+			newBatch := coresequencer.Batch{Transactions: subTransactions}
+			if err := c.sendAndQueueBatch(ctx, newBatch); err != nil {
+				return nil, err
+			}
+		}
+		return &coresequencer.SubmitBatchTxsResponse{}, nil
 	}
-
-	err := c.queue.AddBatch(ctx, batch)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add batch: %w", err)
+	if err := c.sendAndQueueBatch(ctx, batch); err != nil {
+		return nil, err
 	}
-
 	return &coresequencer.SubmitBatchTxsResponse{}, nil
 }
 

@@ -431,3 +431,50 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	// Verify all mock expectations were met
 	mockDA.AssertExpectations(t)
 }
+
+func TestSequencer_SubmitBatchTxs_SplitsLargeBatch(t *testing.T) {
+	metrics, _ := NopMetrics()
+	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0, 10*time.Second)
+	db := ds.NewMapDatastore()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	Id := []byte("test1")
+	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, Id, 10*time.Second, metrics, false)
+	seq.SetBatchSubmissionChan(make(chan coresequencer.Batch, 100))
+	require.NoError(t, err, "Failed to create sequencer")
+	defer func() {
+		err := db.Close()
+		require.NoError(t, err, "Failed to close sequencer")
+	}()
+
+	// Create a batch with transactions that will exceed DefaultMaxBlobSize
+	// Each tx is 600,000 bytes, so 3 txs = 1,800,000 > 1,500,000
+	txSize := 600_000
+	numTxs := 3
+	txs := make([][]byte, numTxs)
+	for i := 0; i < numTxs; i++ {
+		txs[i] = bytes.Repeat([]byte{byte(i)}, txSize)
+	}
+	batch := &coresequencer.Batch{Transactions: txs}
+
+	res, err := seq.SubmitBatchTxs(context.Background(), coresequencer.SubmitBatchTxsRequest{Id: Id, Batch: batch})
+	require.NoError(t, err, "Failed to submit large batch")
+	require.NotNil(t, res, "Response should not be nil")
+
+	// Now, retrieve the batches from the queue and check their sizes
+	var allTxs [][]byte
+	for i := 0; i < 2; i++ { // Should be 2 batches: 2 txs in first, 1 in second
+		nextBatchResp, err := seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{Id: Id})
+		require.NoError(t, err, "Failed to get next batch")
+		allTxs = append(allTxs, nextBatchResp.Batch.Transactions...)
+		if i == 0 {
+			// First batch should have 2 txs (2*600,000 = 1,200,000 < 1,500,000)
+			require.Len(t, nextBatchResp.Batch.Transactions, 2, "First sub-batch should have 2 txs")
+		} else {
+			// Second batch should have 1 tx
+			require.Len(t, nextBatchResp.Batch.Transactions, 1, "Second sub-batch should have 1 tx")
+		}
+	}
+	// All txs should be present and in order
+	require.Equal(t, txs, allTxs, "All transactions should be present and in order after splitting")
+}
