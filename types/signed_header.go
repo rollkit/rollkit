@@ -16,6 +16,12 @@ var (
 	ErrLastCommitHashMismatch = errors.New("last commit hash mismatch")
 )
 
+var _ header.Header[*SignedHeader] = &SignedHeader{}
+
+// SignatureVerified is a custom signature verifiers.
+// If set, ValidateBasic will use this function to verify the signature.
+type SignatureVerifier func(header *Header) ([]byte, error)
+
 // SignedHeader combines Header and its signature.
 //
 // Used mostly for gossiping.
@@ -24,6 +30,8 @@ type SignedHeader struct {
 	// Note: This is backwards compatible as ABCI exported types are not affected.
 	Signature Signature
 	Signer    Signer
+
+	verifier SignatureVerifier
 }
 
 // New creates a new SignedHeader.
@@ -34,6 +42,15 @@ func (sh *SignedHeader) New() *SignedHeader {
 // IsZero returns true if the SignedHeader is nil
 func (sh *SignedHeader) IsZero() bool {
 	return sh == nil
+}
+
+// SetCustomVerifier sets a custom signature verifier for the SignedHeader.
+func (sh *SignedHeader) SetCustomVerifier(verifier SignatureVerifier) error {
+	if sh.verifier != nil {
+		return errors.New("custom verifier already set")
+	}
+	sh.verifier = verifier
+	return nil
 }
 
 // Verify verifies the signed header.
@@ -106,9 +123,20 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return ErrProposerAddressMismatch
 	}
 
-	bz, err := sh.Header.MarshalBinary()
-	if err != nil {
-		return err
+	var (
+		bz  []byte
+		err error
+	)
+	if sh.verifier == nil {
+		bz, err = sh.Header.MarshalBinary()
+		if err != nil {
+			return err
+		}
+	} else {
+		bz, err = sh.verifier(&sh.Header)
+		if err != nil {
+			return fmt.Errorf("custom signature verification failed: %w", err)
+		}
 	}
 
 	verified, err := sh.Signer.PubKey.Verify(bz, sh.Signature)
@@ -120,10 +148,3 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 	return nil
 }
-
-// Validate performs basic validation of a signed header.
-func (sh *SignedHeader) Validate() error {
-	return sh.ValidateBasic()
-}
-
-var _ header.Header[*SignedHeader] = &SignedHeader{}

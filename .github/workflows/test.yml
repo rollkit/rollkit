@@ -3,8 +3,42 @@
 name: Tests / Code Coverage
 on:
   workflow_call:
+    inputs:
+      image-tag:
+        required: true
+        type: string
 
 jobs:
+  build-docker-image:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image with PR tag
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/rollkit:${{ inputs.image-tag }}
+
+  upgrade-tests:
+    needs: build-docker-image
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 0 # TODO: add upgrade test uses the image built in the build-docker-image step
+
   build_all-apps:
     name: Build All Rollkit Binaries
     runs-on: ubuntu-latest
