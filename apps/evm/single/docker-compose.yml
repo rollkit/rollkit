@@ -6,10 +6,11 @@ services:
     restart: unless-stopped
     image: ghcr.io/paradigmxyz/reth:v1.4.6
     ports:
-      - "9001:9001"
-      - "30303:30303"
-      - "8545:8545"
-      - "8551:8551"
+      - "9001:9001" # metrics
+      - "30303:30303" # eth/66 peering
+      - "8545:8545" # rpc
+      - "8551:8551" # engine
+      - "8546:8546" # ws
     volumes:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
@@ -26,9 +27,10 @@ services:
           --authrpc.jwtsecret /root/jwt/jwt.hex \
           --http --http.addr 0.0.0.0 --http.port 8545 \
           --http.api "eth,net,web3,txpool" \
+          --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.api eth,net,web3 \
           --engine.persistence-threshold 0 \
           --engine.memory-block-buffer-target 0 \
-          --disable-discovery
+          --disable-discovery \
           --txpool.pending-max-count 200000 \
           --txpool.pending-max-size 200 \
           --txpool.queued-max-count 200000 \
@@ -48,7 +50,7 @@ services:
       - rollkit-network
 
   rollkit-evm-single:
-    image: ghcr.io/rollkit/rollkit-evm-single:v0.1.4
+    image: ghcr.io/rollkit/rollkit-evm-single:v0.1.5
     depends_on:
       reth:
         condition: service_started
@@ -61,7 +63,7 @@ services:
       - EVM_ENGINE_URL=http://reth:8551
       - EVM_ETH_URL=http://reth:8545
       - EVM_JWT_SECRET=f747494bb0fb338a0d71f5f9fe5b5034c17cc988c229b59fd71e005ee692e9bf
-      - EVM_GENESIS_HASH=0xe720f8ec96a43a741b1ab34819acfeb029ce4f083fe73c5a08c1f6a7b17a8568
+      - EVM_GENESIS_HASH=0x2b8bbb1ea1e04f9c9809b4b278a8687806edc061a356c7dbc491930d8e922503
       - EVM_BLOCK_TIME=1s
       - EVM_SIGNER_PASSPHRASE=secret
       - DA_ADDRESS=http://local-da:7980 # http://localhost:26658 (Use if not using local-da)
