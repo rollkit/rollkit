@@ -127,6 +127,7 @@ func (c *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.Submit
 			subTransactions = append(subTransactions, tx)
 			subBatchSize += txSize
 		}
+		// send the leftover transactions
 		if len(subTransactions) > 0 {
 			newBatch := coresequencer.Batch{Transactions: subTransactions}
 			if err := c.sendAndQueueBatch(ctx, newBatch); err != nil {
