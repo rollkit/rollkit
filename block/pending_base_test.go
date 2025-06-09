@@ -73,7 +73,14 @@ func runPendingBase_GetPending_AllCases[T any](t *testing.T, tc pendingBaseTestC
 		assert.Len(t, pending, 2)
 		// Use reflection to call Height() for both types
 		getHeight := func(item any) uint64 {
-			return item.(interface{ Height() uint64 }).Height()
+			switch v := item.(type) {
+			case *types.Data:
+				return v.Height()
+			case *types.SignedHeader:
+				return v.Height()
+			default:
+				panic("unexpected type")
+			}
 		}
 		assert.Equal(t, uint64(3), getHeight(pending[0]))
 		assert.Equal(t, uint64(4), getHeight(pending[1]))
@@ -136,79 +143,52 @@ func runPendingBase_setLastSubmittedHeight[T any](t *testing.T, tc pendingBaseTe
 	})
 }
 
-func runPendingBase_init_with_existing_metadata[T any](t *testing.T, tc pendingBaseTestCase[T]) {
-	t.Run(tc.name+"/init_with_existing_metadata", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
-		logger := log.NewNopLogger()
-		val := make([]byte, 8)
-		binary.LittleEndian.PutUint64(val, 7)
-		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(val, nil).Once()
-		pb := &pendingBase[T]{store: mockStore, logger: logger, metaKey: tc.key, fetch: tc.fetch}
-		err := pb.init()
-		assert.NoError(t, err)
-		assert.Equal(t, uint64(7), pb.lastHeight.Load())
-	})
-}
-
-func runPendingBase_init_invalid_length[T any](t *testing.T, tc pendingBaseTestCase[T]) {
-	t.Run(tc.name+"/init_invalid_length", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
-		logger := log.NewNopLogger()
-		mockStore.On("GetMetadata", mock.Anything, tc.key).Return([]byte{1, 2}, nil).Once()
-		pb := &pendingBase[T]{store: mockStore, logger: logger, metaKey: tc.key, fetch: tc.fetch}
-		err := pb.init()
-		assert.Error(t, err)
-	})
-}
-
-func runPendingBase_isEmpty_and_init[T any](t *testing.T, tc pendingBaseTestCase[T]) {
-	t.Run(tc.name+"/isEmpty", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
-		logger := log.NewNopLogger()
-		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
-		pb, err := newPendingBase(mockStore, logger, tc.key, tc.fetch)
-		require.NoError(t, err)
-
-		// isEmpty true
-		pb.lastHeight.Store(10)
-		mockStore.On("Height", mock.Anything).Return(uint64(10), nil).Once()
-		assert.True(t, pb.isEmpty())
-
-		// isEmpty false
-		pb.lastHeight.Store(5)
-		mockStore.On("Height", mock.Anything).Return(uint64(10), nil).Once()
-		assert.False(t, pb.isEmpty())
-	})
-
-	t.Run(tc.name+"/init_missing_metadata", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
-		logger := log.NewNopLogger()
-		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
-		pb := &pendingBase[T]{store: mockStore, logger: logger, metaKey: tc.key, fetch: tc.fetch}
-		err := pb.init()
-		assert.NoError(t, err)
-		assert.Equal(t, uint64(0), pb.lastHeight.Load())
-	})
-
-	t.Run(tc.name+"/init_valid_metadata", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
-		logger := log.NewNopLogger()
-		val := make([]byte, 8)
-		binary.LittleEndian.PutUint64(val, 7)
-		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(val, nil).Once()
-		pb := &pendingBase[T]{store: mockStore, logger: logger, metaKey: tc.key, fetch: tc.fetch}
-		err := pb.init()
-		assert.NoError(t, err)
-		assert.Equal(t, uint64(7), pb.lastHeight.Load())
-	})
-
-	t.Run(tc.name+"/init_invalid_metadata_length", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
-		logger := log.NewNopLogger()
-		mockStore.On("GetMetadata", mock.Anything, tc.key).Return([]byte{1, 2}, nil).Once()
-		pb := &pendingBase[T]{store: mockStore, logger: logger, metaKey: tc.key, fetch: tc.fetch}
-		err := pb.init()
-		assert.Error(t, err)
+func runPendingBase_init_cases[T any](t *testing.T, tc pendingBaseTestCase[T]) {
+	t.Run(tc.name+"/init_cases", func(t *testing.T) {
+		cases := []struct {
+			name      string
+			metaValue []byte
+			metaErr   error
+			expectErr bool
+			expectVal uint64
+		}{
+			{
+				name:      "missing_metadata",
+				metaValue: nil,
+				metaErr:   ds.ErrNotFound,
+				expectErr: false,
+				expectVal: 0,
+			},
+			{
+				name:      "valid_metadata",
+				metaValue: func() []byte { v := make([]byte, 8); binary.LittleEndian.PutUint64(v, 7); return v }(),
+				metaErr:   nil,
+				expectErr: false,
+				expectVal: 7,
+			},
+			{
+				name:      "invalid_metadata_length",
+				metaValue: []byte{1, 2},
+				metaErr:   nil,
+				expectErr: true,
+				expectVal: 0,
+			},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				mockStore := mocksStore.NewStore(t)
+				logger := log.NewNopLogger()
+				mockStore.On("GetMetadata", mock.Anything, tc.key).Return(c.metaValue, c.metaErr).Once()
+				pb := &pendingBase[T]{store: mockStore, logger: logger, metaKey: tc.key, fetch: tc.fetch}
+				err := pb.init()
+				if c.expectErr {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+					assert.Equal(t, c.expectVal, pb.lastHeight.Load())
+				}
+			})
+		}
 	})
 }
 
@@ -293,9 +273,7 @@ func TestPendingBase_Generic(t *testing.T) {
 			runPendingBase_GetPending_AllCases(t, tc)
 			runPendingBase_isEmpty_numPending(t, tc)
 			runPendingBase_setLastSubmittedHeight(t, tc)
-			runPendingBase_init_with_existing_metadata(t, tc)
-			runPendingBase_init_invalid_length(t, tc)
-			runPendingBase_isEmpty_and_init(t, tc)
+			runPendingBase_init_cases(t, tc)
 			runPendingBase_Fetch(t, tc)
 			runPendingBase_NewPending(t, tc, func(store store.Store, logger log.Logger) (any, error) { return NewPendingData(store, logger) })
 		case pendingBaseTestCase[*types.SignedHeader]:
@@ -303,9 +281,7 @@ func TestPendingBase_Generic(t *testing.T) {
 			runPendingBase_GetPending_AllCases(t, tc)
 			runPendingBase_isEmpty_numPending(t, tc)
 			runPendingBase_setLastSubmittedHeight(t, tc)
-			runPendingBase_init_with_existing_metadata(t, tc)
-			runPendingBase_init_invalid_length(t, tc)
-			runPendingBase_isEmpty_and_init(t, tc)
+			runPendingBase_init_cases(t, tc)
 			runPendingBase_Fetch(t, tc)
 			runPendingBase_NewPending(t, tc, func(store store.Store, logger log.Logger) (any, error) { return NewPendingHeaders(store, logger) })
 		}

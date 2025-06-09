@@ -9,7 +9,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// LastSubmittedHeaderHeightKey is the key used for persisting the last submitted height in store.
+// LastSubmittedHeaderHeightKey is the key used for persisting the last submitted header height in store.
 const LastSubmittedHeaderHeightKey = "last-submitted-header-height"
 
 // PendingHeaders maintains headers that need to be published to DA layer
