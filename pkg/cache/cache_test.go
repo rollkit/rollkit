@@ -77,7 +77,7 @@ func TestCacheDAIncludedOperations(t *testing.T) {
 	}
 
 	// Test setting and checking DA-included status
-	cache.SetDAIncluded(testHash)
+	cache.SetDAIncluded(testHash, 1)
 	if !cache.IsDAIncluded(testHash) {
 		t.Error("Hash should be DA-included after SetDAIncluded")
 	}
@@ -113,7 +113,7 @@ func TestCacheConcurrency(t *testing.T) {
 				_ = cache.IsSeen(hash)
 
 				// Test concurrent DA-included operations
-				cache.SetDAIncluded(hash)
+				cache.SetDAIncluded(hash, 1)
 				_ = cache.IsDAIncluded(hash)
 			}
 		}(i)
@@ -145,7 +145,7 @@ func TestCachePersistence(t *testing.T) {
 	cache1.SetItem(100, &val1)
 	cache1.SetItem(200, &val2)
 	cache1.SetSeen(hash1)
-	cache1.SetDAIncluded(hash2)
+	cache1.SetDAIncluded(hash2, 1)
 
 	// save cache1 to disk
 	err := cache1.SaveToDisk(tempDir)
@@ -227,7 +227,7 @@ func TestCachePersistence_Overwrite(t *testing.T) {
 	cache2 := NewCache[int]()
 	val2 := 456
 	cache2.SetItem(2, &val2)
-	cache2.SetDAIncluded("hash2")
+	cache2.SetDAIncluded("hash2", 1)
 	err = cache2.SaveToDisk(tempDir) // save to the same directory
 	require.NoError(t, err)
 

@@ -528,9 +528,9 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 
 	// Mark both header and data as seen and DA included
 	headerCache.SetSeen(headerHash)
-	headerCache.SetDAIncluded(headerHash)
+	headerCache.SetDAIncluded(headerHash, uint64(10))
 	dataCache.SetSeen(dataHash)
-	dataCache.SetDAIncluded(dataHash)
+	dataCache.SetDAIncluded(dataHash, uint64(10))
 
 	// Set up mocks with explicit logging
 	mockDAClient.On("GetIDs", mock.Anything, daHeight, mock.Anything).Return(&coreda.GetIDsResult{
