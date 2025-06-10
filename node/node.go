@@ -6,6 +6,7 @@ import (
 	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 
+	"github.com/rollkit/rollkit/block"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -38,6 +39,7 @@ func NewNode(
 	database ds.Batching,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
+	opts ...block.ManagerOption,
 ) (Node, error) {
 	if conf.Node.Light {
 		return newLightNode(conf, genesis, p2pClient, database, logger)
@@ -55,5 +57,6 @@ func NewNode(
 		da,
 		metricsProvider,
 		logger,
+		opts...,
 	)
 }
