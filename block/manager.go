@@ -55,6 +55,9 @@ const (
 
 	// LastBatchDataKey is the key used for persisting the last batch data in store.
 	LastBatchDataKey = "l"
+
+	// RollkitHeightToDAHeightKey is the key used for persisting the mapping rollkit height to da height in store.
+	RollkitHeightToDAHeightKey = "rhb"
 )
 
 var (
@@ -454,6 +457,33 @@ func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error)
 	headerHash, dataHash := header.Hash(), data.DACommitment()
 	isIncluded := m.headerCache.IsDAIncluded(headerHash.String()) && (bytes.Equal(dataHash, dataHashForEmptyTxs) || m.dataCache.IsDAIncluded(dataHash.String()))
 	return isIncluded, nil
+}
+
+func (m *Manager) SetRollkitHeightToDAHeight(ctx context.Context, height uint64) error {
+	header, data, err := m.store.GetBlockData(ctx, height)
+	if err != nil {
+		return err
+	}
+	headerHash, dataHash := header.Hash(), data.DACommitment()
+	headerHeightBytes := make([]byte, 8)
+	daHeightForHeader, ok := m.headerCache.GetDAIncludedHeight(headerHash.String())
+	if !ok {
+		return fmt.Errorf("header hash %s not found in cache", headerHash)
+	}
+	binary.LittleEndian.PutUint64(headerHeightBytes, daHeightForHeader)
+	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, height), headerHeightBytes); err != nil {
+		return err
+	}
+	dataHeightBytes := make([]byte, 8)
+	daHeightForData, ok := m.dataCache.GetDAIncludedHeight(dataHash.String())
+	if !ok {
+		return fmt.Errorf("data hash %s not found in cache", dataHash.String())
+	}
+	binary.LittleEndian.PutUint64(dataHeightBytes, daHeightForData)
+	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/d", RollkitHeightToDAHeightKey, height), dataHeightBytes); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetExecutor returns the executor used by the manager.

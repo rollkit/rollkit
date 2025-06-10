@@ -192,11 +192,11 @@ func TestIsDAIncluded(t *testing.T) {
 	require.False(m.IsDAIncluded(ctx, height))
 
 	// Set the hash as DAIncluded and verify IsDAIncluded returns true
-	m.headerCache.SetDAIncluded(header.Hash().String())
+	m.headerCache.SetDAIncluded(header.Hash().String(), uint64(1))
 	require.False(m.IsDAIncluded(ctx, height))
 
 	// Set the data as DAIncluded and verify IsDAIncluded returns true
-	m.dataCache.SetDAIncluded(data.DACommitment().String())
+	m.dataCache.SetDAIncluded(data.DACommitment().String(), uint64(1))
 	require.True(m.IsDAIncluded(ctx, height))
 }
 
