@@ -3,9 +3,9 @@ package jsonrpc
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"cosmossdk.io/log"
 	"github.com/filecoin-project/go-jsonrpc"
@@ -42,7 +42,7 @@ func (api *API) Get(ctx context.Context, ids []da.ID, _ []byte) ([]da.Blob, erro
 	api.Logger.Debug("Making RPC call", "method", "Get", "num_ids", len(ids), "namespace", string(api.Namespace))
 	res, err := api.Internal.Get(ctx, ids, api.Namespace)
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
+		if strings.Contains(err.Error(), context.Canceled.Error()) {
 			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Get")
 			return res, context.Canceled
 		}
@@ -60,15 +60,15 @@ func (api *API) GetIDs(ctx context.Context, height uint64, _ []byte) (*da.GetIDs
 	res, err := api.Internal.GetIDs(ctx, height, api.Namespace)
 	if err != nil {
 		// Check if the error is specifically BlobNotFound, otherwise log and return
-		if errors.Is(err, da.ErrBlobNotFound) { // Use the error variable directly
+		if strings.Contains(err.Error(), da.ErrBlobNotFound.Error()) { // Use the error variable directly
 			api.Logger.Debug("RPC call indicates blobs not found", "method", "GetIDs", "height", height)
 			return nil, err // Return the specific ErrBlobNotFound
 		}
-		if errors.Is(err, da.ErrHeightFromFuture) {
+		if strings.Contains(err.Error(), da.ErrHeightFromFuture.Error()) {
 			api.Logger.Debug("RPC call indicates height from future", "method", "GetIDs", "height", height)
 			return nil, err // Return the specific ErrHeightFromFuture
 		}
-		if errors.Is(err, context.Canceled) {
+		if strings.Contains(err.Error(), context.Canceled.Error()) {
 			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "GetIDs")
 			return res, context.Canceled
 		}
@@ -127,7 +127,7 @@ func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, _
 	api.Logger.Debug("Making RPC call", "method", "Submit", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(api.Namespace))
 	res, err := api.Internal.Submit(ctx, blobs, gasPrice, api.Namespace)
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
+		if strings.Contains(err.Error(), context.Canceled.Error()) {
 			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Submit")
 			return res, context.Canceled
 		}
@@ -180,7 +180,7 @@ func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gas
 	api.Logger.Debug("Making RPC call", "method", "SubmitWithOptions", "num_blobs_original", len(inputBlobs), "num_blobs_to_submit", len(blobsToSubmit), "gas_price", gasPrice, "namespace", string(api.Namespace))
 	res, err := api.Internal.SubmitWithOptions(ctx, blobsToSubmit, gasPrice, api.Namespace, options)
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
+		if strings.Contains(err.Error(), context.Canceled.Error()) {
 			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "SubmitWithOptions")
 			return res, context.Canceled
 		}

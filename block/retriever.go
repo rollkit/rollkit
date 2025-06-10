@@ -88,6 +88,9 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 				m.handlePotentialData(ctx, bz, daHeight)
 			}
 			return nil
+		} else if strings.Contains(fetchErr.Error(), coreda.ErrHeightFromFuture.Error()) {
+			m.logger.Debug("height from future", "daHeight", daHeight, "reason", fetchErr.Error())
+			return fetchErr
 		}
 
 		// Track the error
@@ -212,6 +215,8 @@ func (m *Manager) fetchBlobs(ctx context.Context, daHeight uint64) (coreda.Resul
 	blobsRes := types.RetrieveWithHelpers(ctx, m.da, m.logger, daHeight)
 	if blobsRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", blobsRes.Message)
+	} else if blobsRes.Code == coreda.StatusHeightFromFuture {
+		err = fmt.Errorf("height from future: %s", blobsRes.Message)
 	}
 	return blobsRes, err
 }
