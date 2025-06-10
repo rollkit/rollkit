@@ -310,7 +310,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 
 	// We should also expect ExecuteTxs to be called with an empty transaction list
 	newAppHash := []byte("newAppHash")
-	mockExec.On("ExecuteTxs", ctx, mock.Anything, currentHeight+1, mock.AnythingOfType("time.Time"), m.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
+	mockExec.On("ExecuteTxs", mock.Anything, mock.Anything, currentHeight+1, mock.AnythingOfType("time.Time"), m.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
 
 	// SetHeight should be called
 	mockStore.On("SetHeight", ctx, currentHeight+1).Return(nil).Once()
@@ -380,7 +380,7 @@ func Test_publishBlock_Success(t *testing.T) {
 	sampleTxs := [][]byte{[]byte("tx1"), []byte("tx2")}
 	// No longer mocking GetTxs since it's handled by reaper.go
 	newAppHash := []byte("newAppHash")
-	mockExec.On("ExecuteTxs", t.Context(), mock.Anything, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
+	mockExec.On("ExecuteTxs", mock.Anything, mock.Anything, newHeight, mock.AnythingOfType("time.Time"), manager.lastState.AppHash).Return(newAppHash, uint64(100), nil).Once()
 
 	// No longer mocking SubmitBatchTxs since it's handled by reaper.go
 	batchTimestamp := lastHeader.Time().Add(1 * time.Second)

@@ -12,7 +12,7 @@ import (
 // The Consensus.App version will be set during the Handshake, once
 // we hear from the app what protocol version it is running.
 var InitStateVersion = Version{
-	Block: 1,
+	Block: 11, // Block version is set to 11, to be compatible with CometBFT blocks for IBC.
 	App:   0,
 }
 
