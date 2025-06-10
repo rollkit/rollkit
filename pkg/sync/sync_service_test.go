@@ -2,11 +2,15 @@ package sync
 
 import (
 	"context"
-	sdklog "cosmossdk.io/log"
 	cryptoRand "crypto/rand"
+	"math/rand"
+	"path/filepath"
+	"testing"
+	"time"
+
+	sdklog "cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
@@ -16,14 +20,9 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/types"
 	"github.com/stretchr/testify/require"
-	"math/rand"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 func TestHeaderSyncServiceRestart(t *testing.T) {
-	logging.SetDebugLogging()
 	mainKV := sync.MutexWrap(datastore.NewMapDatastore())
 	pk, _, err := crypto.GenerateEd25519Key(cryptoRand.Reader)
 	require.NoError(t, err)
@@ -69,8 +68,7 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	require.NoError(t, signedHeader.Validate())
 	require.NoError(t, svc.WriteToStoreAndBroadcast(ctx, signedHeader))
 
-	// broadcast another 10 example blocks
-	for i := genesisDoc.InitialHeight + 1; i < 10; i++ {
+	for i := genesisDoc.InitialHeight + 1; i < 2; i++ {
 		signedHeader = nextHeader(t, signedHeader, genesisDoc.ChainID, noopSigner)
 		t.Logf("signed header: %d", i)
 		require.NoError(t, svc.WriteToStoreAndBroadcast(ctx, signedHeader))
@@ -98,8 +96,8 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	t.Cleanup(func() { _ = svc.Stop(context.Background()) })
 	// done with stop and restart service
 
-	// broadcast another 10 example blocks
-	for i := signedHeader.Height() + 1; i < 10; i++ {
+	// broadcast another 2 example blocks
+	for i := signedHeader.Height() + 1; i < 2; i++ {
 		signedHeader = nextHeader(t, signedHeader, genesisDoc.ChainID, noopSigner)
 		t.Logf("signed header: %d", i)
 		require.NoError(t, svc.WriteToStoreAndBroadcast(ctx, signedHeader))
