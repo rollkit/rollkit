@@ -415,12 +415,6 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 
 	var multiErr error // Use a multierror variable
 
-	// Stop P2P Client
-	err = n.p2pClient.Close()
-	if err != nil {
-		multiErr = errors.Join(multiErr, fmt.Errorf("closing P2P client: %w", err))
-	}
-
 	// Stop Header Sync Service
 	err = n.hSyncService.Stop(shutdownCtx)
 	if err != nil {
@@ -443,6 +437,12 @@ func (n *FullNode) Run(parentCtx context.Context) error {
 		} else {
 			n.Logger.Debug("data sync service stop context ended", "reason", err) // Log cancellation as debug
 		}
+	}
+
+	// Stop P2P Client
+	err = n.p2pClient.Close()
+	if err != nil {
+		multiErr = errors.Join(multiErr, fmt.Errorf("closing P2P client: %w", err))
 	}
 
 	// Shutdown Prometheus Server
