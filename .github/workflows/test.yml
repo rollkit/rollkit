@@ -11,6 +11,8 @@ on:
 jobs:
   build-docker-image:
     name: Build Docker Image
+    # skip building images for merge groups as they are already built on PRs and main
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -27,7 +29,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image with PR tag
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
