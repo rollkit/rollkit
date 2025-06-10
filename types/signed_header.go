@@ -80,7 +80,7 @@ func (sh *SignedHeader) verifyHeaderHash(untrstH *SignedHeader) error {
 	return nil
 }
 
-// isAdjacent checks if the height of headers is adjacent.
+// isAdjacent checks if the height of headers are adjacent.
 func (sh *SignedHeader) isAdjacent(untrstH *SignedHeader) bool {
 	return sh.Height()+1 == untrstH.Height()
 }

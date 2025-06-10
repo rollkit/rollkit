@@ -287,22 +287,13 @@ func NewManager(
 	seqMetrics *Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
-	opts ...ManagerOption,
+	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (*Manager, error) {
-	// Create a temporary manager instance to apply options and get the signature payload provider
-	tempManager := &Manager{
-		signaturePayloadProvider: defaultSignaturePayloadProvider,
+	if signaturePayloadProvider == nil {
+		signaturePayloadProvider = defaultSignaturePayloadProvider
 	}
 
-	for _, opt := range opts {
-		opt(tempManager)
-	}
-
-	if tempManager.signaturePayloadProvider == nil {
-		tempManager.signaturePayloadProvider = defaultSignaturePayloadProvider
-	}
-
-	s, err := getInitialState(ctx, genesis, signer, store, exec, logger, tempManager.signaturePayloadProvider)
+	s, err := getInitialState(ctx, genesis, signer, store, exec, logger, signaturePayloadProvider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get initial state: %w", err)
 	}
@@ -365,35 +356,30 @@ func NewManager(
 		headerBroadcaster: headerBroadcaster,
 		dataBroadcaster:   dataBroadcaster,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		headerInCh:          make(chan NewHeaderEvent, eventInChLength),
-		dataInCh:            make(chan NewDataEvent, eventInChLength),
-		headerStoreCh:       make(chan struct{}, 1),
-		dataStoreCh:         make(chan struct{}, 1),
-		headerStore:         headerStore,
-		dataStore:           dataStore,
-		lastStateMtx:        new(sync.RWMutex),
-		lastBatchData:       lastBatchData,
-		headerCache:         cache.NewCache[types.SignedHeader](),
-		dataCache:           cache.NewCache[types.Data](),
-		retrieveCh:          make(chan struct{}, 1),
-		daIncluderCh:        make(chan struct{}, 1),
-		logger:              logger,
-		txsAvailable:        false,
-		pendingHeaders:      pendingHeaders,
-		metrics:             seqMetrics,
-		sequencer:           sequencer,
-		exec:                exec,
-		da:                  da,
-		gasPrice:            gasPrice,
-		gasMultiplier:       gasMultiplier,
-		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
-		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
-	}
-
-	// Apply remaining options (signaturePayloadProvider already set from tempManager)
-	m.signaturePayloadProvider = tempManager.signaturePayloadProvider
-	for _, opt := range opts {
-		opt(m)
+		headerInCh:               make(chan NewHeaderEvent, eventInChLength),
+		dataInCh:                 make(chan NewDataEvent, eventInChLength),
+		headerStoreCh:            make(chan struct{}, 1),
+		dataStoreCh:              make(chan struct{}, 1),
+		headerStore:              headerStore,
+		dataStore:                dataStore,
+		lastStateMtx:             new(sync.RWMutex),
+		lastBatchData:            lastBatchData,
+		headerCache:              cache.NewCache[types.SignedHeader](),
+		dataCache:                cache.NewCache[types.Data](),
+		retrieveCh:               make(chan struct{}, 1),
+		daIncluderCh:             make(chan struct{}, 1),
+		logger:                   logger,
+		txsAvailable:             false,
+		pendingHeaders:           pendingHeaders,
+		metrics:                  seqMetrics,
+		sequencer:                sequencer,
+		exec:                     exec,
+		da:                       da,
+		gasPrice:                 gasPrice,
+		gasMultiplier:            gasMultiplier,
+		txNotifyCh:               make(chan struct{}, 1), // Non-blocking channel
+		batchSubmissionChan:      make(chan coresequencer.Batch, eventInChLength),
+		signaturePayloadProvider: signaturePayloadProvider,
 	}
 
 	// initialize da included height
