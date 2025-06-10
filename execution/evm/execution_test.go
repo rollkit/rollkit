@@ -240,7 +240,7 @@ func checkLatestBlock(t *testing.T, ctx context.Context) (uint64, common.Hash, i
 }
 
 func TestSubmitTransaction(t *testing.T) {
-	t.Skip("Use this test to submit a transaction manually to the Ethereum client")
+	//t.Skip("Use this test to submit a transaction manually to the Ethereum client")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	rpcClient, err := ethclient.Dial(TEST_ETH_URL)
@@ -262,8 +262,8 @@ func TestSubmitTransaction(t *testing.T) {
 			SubmitTransaction(t, tx)
 		}
 		elapsed := time.Since(startTime)
-		if elapsed < time.Second {
-			time.Sleep(time.Second - elapsed)
+		if elapsed < 10*time.Second {
+			time.Sleep(10*time.Second - elapsed)
 		}
 	}
 }

@@ -70,6 +70,7 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 				"daHeight", daHeight,
 				"hash", dataHash,
 				"height", dataHeight,
+				"txs", len(data.Txs),
 			)
 
 			if m.dataCache.IsSeen(dataHash) {

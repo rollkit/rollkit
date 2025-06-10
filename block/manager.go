@@ -734,6 +734,9 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return m.headerBroadcaster.WriteToStoreAndBroadcast(ctx, header) })
+	if len(data.Txs) > 0 {
+		m.logger.Debug("broadcasting data", "height", data.Metadata.Height, "txs", len(data.Txs))
+	}
 	g.Go(func() error { return m.dataBroadcaster.WriteToStoreAndBroadcast(ctx, data) })
 	if err := g.Wait(); err != nil {
 		return err
