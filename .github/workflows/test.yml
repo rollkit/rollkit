@@ -148,8 +148,8 @@ jobs:
           path: ./integration-coverage
       - name: Combine coverage reports
         run: |
-          ls -R
-          go tool cover -mode=set -o combined-coverage.txt unit-coverage/coverage.txt integration-coverage/coverage.txt
+          go install github.com/wadey/gocovmerge@latest
+          gocovmerge ./coverage.txt ./node/coverage.txt > combined-coverage.txt
       - name: Upload combined coverage report
         uses: codecov/codecov-action@v5.4.3
         with:
