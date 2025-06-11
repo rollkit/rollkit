@@ -10,14 +10,76 @@ import (
 	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
+	libp2p "github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 )
+
+func TestNewClientWithHost(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	// Common setup
+	conf := config.DefaultConfig
+	conf.RootDir = t.TempDir()
+	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(conf.RootDir, "config", "node_key.json"))
+	require.NoError(err)
+	ds := dssync.MutexWrap(datastore.NewMapDatastore())
+	logger := log.NewTestLogger(t)
+	metrics := NopMetrics()
+
+	// Ensure config directory exists for nodeKey loading
+	ClientInitFiles(t, conf.RootDir)
+
+	t.Run("successful client creation with injected host", func(t *testing.T) {
+		// First, create a client to get its expected gater
+		baseClient, err := NewClient(conf, nodeKey, ds, logger, metrics)
+		require.NoError(err)
+		require.NotNil(baseClient)
+
+		mn := mocknet.New()
+		defer mn.Close()
+
+		h, err := libp2p.New(
+			libp2p.Identity(nodeKey.PrivKey),
+			libp2p.ListenAddrs(multiaddr.StringCast("/ip4/127.0.0.1/tcp/0")),
+			libp2p.ConnectionGater(baseClient.ConnectionGater()), // Use the gater from baseClient
+		)
+		require.NoError(err)
+		defer h.Close()
+
+		client, err := NewClientWithHost(conf, nodeKey, ds, logger, metrics, h)
+		assert.NoError(err)
+		assert.NotNil(client)
+		assert.Equal(h, client.Host())
+	})
+
+	t.Run("error when injected host ID does not match node key ID", func(t *testing.T) {
+		mn := mocknet.New()
+		defer mn.Close()
+
+		// Generate a different node key for the host
+		otherNodeKey, err := key.GenerateNodeKey()
+		require.NoError(err)
+
+		h, err := mn.AddPeer(otherNodeKey.PrivKey, multiaddr.StringCast("/ip4/127.0.0.1/tcp/0"))
+		require.NoError(err)
+
+		client, err := NewClientWithHost(conf, nodeKey, ds, logger, metrics, h)
+		assert.Error(err)
+		assert.Nil(client)
+		assert.Contains(err.Error(), "injected host ID")
+		assert.Contains(err.Error(), "does not match node key ID")
+	})
+
+}
 
 func TestClientStartup(t *testing.T) {
 	assert := assert.New(t)

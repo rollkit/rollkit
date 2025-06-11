@@ -173,6 +173,13 @@ func TestRetrieveWithHelpers(t *testing.T) {
 			expectedHeight: dataLayerHeight,
 		},
 		{
+			name:           "height from future error during GetIDs",
+			getIDsErr:      coreda.ErrHeightFromFuture,
+			expectedCode:   coreda.StatusHeightFromFuture,
+			expectedErrMsg: coreda.ErrHeightFromFuture.Error(),
+			expectedHeight: dataLayerHeight,
+		},
+		{
 			name:           "generic error during GetIDs",
 			getIDsErr:      errors.New("failed to connect to DA"),
 			expectedCode:   coreda.StatusError,

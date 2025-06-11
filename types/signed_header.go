@@ -2,11 +2,27 @@ package types
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
 )
+
+type signedHeaderContextKey struct{}
+
+// SignedHeaderContextKey is used to store the signed header in the context.
+// This is useful if the execution client needs to access the signed header during transaction execution.
+var SignedHeaderContextKey = signedHeaderContextKey{}
+
+func SignedHeaderFromContext(ctx context.Context) (*SignedHeader, bool) {
+	sh, ok := ctx.Value(SignedHeaderContextKey).(*SignedHeader)
+	if !ok {
+		return nil, false
+	}
+
+	return sh, true
+}
 
 var (
 	// ErrLastHeaderHashMismatch is returned when the last header hash doesn't match.
@@ -14,6 +30,9 @@ var (
 
 	// ErrLastCommitHashMismatch is returned when the last commit hash doesn't match.
 	ErrLastCommitHashMismatch = errors.New("last commit hash mismatch")
+
+	// ErrCustomVerifierAlreadySet is returned when a custom signature verifier is already set.
+	ErrCustomVerifierAlreadySet = errors.New("custom signature verifier already set")
 )
 
 var _ header.Header[*SignedHeader] = &SignedHeader{}
@@ -47,7 +66,7 @@ func (sh *SignedHeader) IsZero() bool {
 // SetCustomVerifier sets a custom signature verifier for the SignedHeader.
 func (sh *SignedHeader) SetCustomVerifier(verifier SignatureVerifier) error {
 	if sh.verifier != nil {
-		return errors.New("custom verifier already set")
+		return ErrCustomVerifierAlreadySet
 	}
 	sh.verifier = verifier
 	return nil
@@ -80,7 +99,7 @@ func (sh *SignedHeader) verifyHeaderHash(untrstH *SignedHeader) error {
 	return nil
 }
 
-// isAdjacent checks if the height of headers is adjacent.
+// isAdjacent checks if the height of headers are adjacent.
 func (sh *SignedHeader) isAdjacent(untrstH *SignedHeader) bool {
 	return sh.Height()+1 == untrstH.Height()
 }
