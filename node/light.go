@@ -59,8 +59,17 @@ func newLightNode(
 	return node, nil
 }
 
-// OnStart starts the P2P and HeaderSync services
-func (ln *LightNode) OnStart(ctx context.Context) error {
+// IsRunning returns true if the node is running.
+func (ln *LightNode) IsRunning() bool {
+	return ln.hSyncService != nil
+}
+
+// Run implements the Service interface.
+// It starts all subservices and manages the node's lifecycle.
+func (ln *LightNode) Run(parentCtx context.Context) error {
+	ctx, cancelNode := context.WithCancel(parentCtx)
+	defer cancelNode()
+
 	// Start RPC server
 	handler, err := rpcserver.NewServiceHandler(ln.Store, ln.P2P)
 	if err != nil {
@@ -76,44 +85,78 @@ func (ln *LightNode) OnStart(ctx context.Context) error {
 	}
 
 	go func() {
-		if err := ln.rpcServer.ListenAndServe(); err != http.ErrServerClosed {
+		ln.Logger.Info("started RPC server", "addr", ln.nodeConfig.RPC.Address)
+		if err := ln.rpcServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			ln.Logger.Error("RPC server error", "err", err)
 		}
 	}()
 
-	ln.Logger.Info("Started RPC server", "addr", ln.nodeConfig.RPC.Address)
-
+	ln.Logger.Info("starting P2P client")
 	if err := ln.P2P.Start(ctx); err != nil {
-		return err
+		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
 
 	if err := ln.hSyncService.Start(ctx); err != nil {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
-	return nil
-}
-
-// OnStop stops the light node
-func (ln *LightNode) OnStop(ctx context.Context) {
-	ln.Logger.Info("halting light node...")
-
-	// Use a timeout context to ensure shutdown doesn't hang
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	err := ln.P2P.Close()
-	err = errors.Join(err, ln.hSyncService.Stop(shutdownCtx))
-
-	if ln.rpcServer != nil {
-		err = errors.Join(err, ln.rpcServer.Shutdown(shutdownCtx))
+	select {
+	case <-parentCtx.Done():
+		ln.Logger.Info("context canceled, stopping node")
+		cancelNode()
 	}
 
-	err = errors.Join(err, ln.Store.Close())
-	ln.Logger.Error("errors while stopping node:", "errors", err)
-}
+	ln.Logger.Info("halting light node and its sub services...")
 
-// IsRunning returns true if the node is running.
-func (ln *LightNode) IsRunning() bool {
-	return ln.P2P != nil && ln.hSyncService != nil
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 9*time.Second)
+	defer cancel()
+
+	var multiErr error
+
+	// Stop Header Sync Service
+	err = ln.hSyncService.Stop(shutdownCtx)
+	if err != nil {
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			ln.Logger.Error("error stopping header sync service", "error", err)
+			multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
+		} else {
+			ln.Logger.Debug("header sync service stop context ended", "reason", err)
+		}
+	}
+
+	// Shutdown RPC Server
+	if ln.rpcServer != nil {
+		err = ln.rpcServer.Shutdown(shutdownCtx)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down RPC server: %w", err))
+		} else {
+			ln.Logger.Debug("RPC server shutdown context ended", "reason", err)
+		}
+	}
+
+	// Stop P2P Client
+	err = ln.P2P.Close()
+	if err != nil {
+		multiErr = errors.Join(multiErr, fmt.Errorf("closing P2P client: %w", err))
+	}
+
+	if err = ln.Store.Close(); err != nil {
+		multiErr = errors.Join(multiErr, fmt.Errorf("closing store: %w", err))
+	} else {
+		ln.Logger.Debug("store closed")
+	}
+
+	if multiErr != nil {
+		for _, err := range multiErr.(interface{ Unwrap() []error }).Unwrap() {
+			ln.Logger.Error("error during shutdown", "error", err)
+		}
+	} else {
+		ln.Logger.Info("light node halted successfully")
+	}
+
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
+	return multiErr
 }

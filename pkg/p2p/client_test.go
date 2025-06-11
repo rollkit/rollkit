@@ -252,11 +252,10 @@ func ClientInitFiles(t *testing.T, tempDir string) {
 }
 
 func TestClientInfoMethods(t *testing.T) {
-	require := require.New(t) // Reintroduce require
+	require := require.New(t)
 	assert := assert.New(t)
 	logger := log.NewTestLogger(t)
 
-	// Common setup for all sub-tests
 	tempDir := t.TempDir()
 	ClientInitFiles(t, tempDir)
 	conf := config.DefaultConfig
@@ -266,13 +265,12 @@ func TestClientInfoMethods(t *testing.T) {
 	mn := mocknet.New()
 	defer mn.Close()
 
-	// Create 3 clients
 	var clients []*Client
 	var hosts []host.Host
-	var err error // Declare err once here
+	var err error
 
 	for i := 0; i < 3; i++ {
-		nodeKey, e := key.GenerateNodeKey() // Use a different variable for loop errors
+		nodeKey, e := key.GenerateNodeKey()
 		require.NoError(e)
 		h, e := mn.AddPeer(nodeKey.PrivKey, multiaddr.StringCast("/ip4/127.0.0.1/tcp/0"))
 		require.NoError(e)
@@ -288,16 +286,16 @@ func TestClientInfoMethods(t *testing.T) {
 	client2 := clients[2]
 
 	// Link all peers in the mocknet
-	err = mn.LinkAll() // Now use =
+	err = mn.LinkAll()
 	require.NoError(err)
-	err = mn.ConnectAllButSelf() // Now use =
+	err = mn.ConnectAllButSelf()
 	require.NoError(err)
 
 	// Start clients
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for _, c := range clients {
-		err = c.Start(ctx) // Now use =
+		err = c.Start(ctx)
 		require.NoError(err)
 	}
 
@@ -325,7 +323,7 @@ func TestClientInfoMethods(t *testing.T) {
 
 	t.Run("Peers", func(t *testing.T) {
 		connectedPeers := client0.Peers()
-		assert.Len(connectedPeers, 2) // client0 connected to client1 and client2
+		assert.Len(connectedPeers, 2)
 
 		foundClient1 := false
 		foundClient2 := false
@@ -351,12 +349,8 @@ func TestClientInfoMethods(t *testing.T) {
 	t.Run("Info", func(t *testing.T) {
 		nodeID, listenAddr, chainID, err := client0.Info()
 		assert.NoError(err)
-		assert.NotEmpty(nodeID) // Node ID is a hex encoded truncated hash of public key
+		assert.NotEmpty(nodeID)
 		assert.Equal(client0.conf.ListenAddress, listenAddr)
 		assert.Equal(client0.chainID, chainID)
-
-		// Test error case for Info (difficult to mock privKey.GetPublic().Raw() error)
-		// This would require a custom mock for crypto.PrivKey, which is out of scope for a simple test addition.
-		// Assuming libp2p's crypto implementation is robust.
 	})
 }
