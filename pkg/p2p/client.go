@@ -115,15 +115,6 @@ func NewClientWithHost(
 		)
 	}
 
-	// Ensure the same connection-gater instance is wired into the host
-	if hg, ok := h.ConnManager().(interface {
-		GetGater() *conngater.BasicConnectionGater
-	}); !ok || hg.GetGater() != c.gater {
-		return nil, fmt.Errorf(
-			"injected host must be created with the client’s connection-gater",
-		)
-	}
-
 	c.host = h
 	return c, nil
 }
