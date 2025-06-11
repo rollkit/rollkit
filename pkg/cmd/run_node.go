@@ -16,7 +16,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
-	"github.com/rollkit/rollkit/block"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -26,6 +25,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
+	"github.com/rollkit/rollkit/types"
 )
 
 // ParseConfig is an helpers that loads the node configuration and validates it.
@@ -96,7 +96,7 @@ func StartNode(
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
 	nodeConfig rollconf.Config,
-	opts ...block.ManagerOption,
+	signaturePayloadProvider types.SignaturePayloadProvider,
 ) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
@@ -140,7 +140,7 @@ func StartNode(
 		datastore,
 		metrics,
 		logger,
-		opts...,
+		signaturePayloadProvider,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create node: %w", err)

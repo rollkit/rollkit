@@ -176,6 +176,10 @@ type Manager struct {
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
 func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
+	if signaturePayloadProvider == nil {
+		signaturePayloadProvider = defaultSignaturePayloadProvider
+	}
+
 	// Load the state from store.
 	s, err := store.GetState(ctx)
 
@@ -639,7 +643,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return m.signaturePayloadProvider(pubKey, h)
 	}); err != nil {
 		// If custom verifier is already set, that's expected behavior from the executor
-		if err.Error() != "custom verifier already set" {
+		if errors.Is(err, types.ErrCustomVerifierAlreadySet) {
 			return fmt.Errorf("failed to set custom verifier: %w", err)
 		}
 		// Verifier already set by executor, which is fine
