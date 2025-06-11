@@ -94,7 +94,7 @@ jobs:
         with:
           go-version-file: ./go.mod
       - name: Run integration test
-        run: make test-integration
+        run: make test-integration-cover
       - name: Upload integration test coverage report
         uses: actions/upload-artifact@v4
         with:
