@@ -100,11 +100,9 @@ func (ln *LightNode) Run(parentCtx context.Context) error {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
-	select {
-	case <-parentCtx.Done():
-		ln.Logger.Info("context canceled, stopping node")
-		cancelNode()
-	}
+	<-parentCtx.Done()
+	ln.Logger.Info("context canceled, stopping node")
+	cancelNode()
 
 	ln.Logger.Info("halting light node and its sub services...")
 
