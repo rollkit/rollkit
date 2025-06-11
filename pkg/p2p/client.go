@@ -104,6 +104,26 @@ func NewClientWithHost(
 	if err != nil {
 		return nil, err
 	}
+
+	// Reject hosts whose identity does not match the supplied node key
+	expectedID, _ := peer.IDFromPrivateKey(nodeKey.PrivKey)
+	if h.ID() != expectedID {
+		return nil, fmt.Errorf(
+			"injected host ID %s does not match node key ID %s",
+			h.ID(),
+			expectedID,
+		)
+	}
+
+	// Ensure the same connection-gater instance is wired into the host
+	if hg, ok := h.ConnManager().(interface {
+		GetGater() *conngater.BasicConnectionGater
+	}); !ok || hg.GetGater() != c.gater {
+		return nil, fmt.Errorf(
+			"injected host must be created with the client’s connection-gater",
+		)
+	}
+
 	c.host = h
 	return c, nil
 }
