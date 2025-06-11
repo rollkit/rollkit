@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	libp2p "github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
@@ -248,4 +249,114 @@ func ClientInitFiles(t *testing.T, tempDir string) {
 		t.Fatalf("failed to create config directory: %v", err)
 	}
 
+}
+
+func TestClientInfoMethods(t *testing.T) {
+	require := require.New(t) // Reintroduce require
+	assert := assert.New(t)
+	logger := log.NewTestLogger(t)
+
+	// Common setup for all sub-tests
+	tempDir := t.TempDir()
+	ClientInitFiles(t, tempDir)
+	conf := config.DefaultConfig
+	conf.RootDir = tempDir
+	conf.ChainID = "test-chain"
+
+	mn := mocknet.New()
+	defer mn.Close()
+
+	// Create 3 clients
+	var clients []*Client
+	var hosts []host.Host
+	var err error // Declare err once here
+
+	for i := 0; i < 3; i++ {
+		nodeKey, e := key.GenerateNodeKey() // Use a different variable for loop errors
+		require.NoError(e)
+		h, e := mn.AddPeer(nodeKey.PrivKey, multiaddr.StringCast("/ip4/127.0.0.1/tcp/0"))
+		require.NoError(e)
+		c, e := NewClientWithHost(conf, nodeKey, dssync.MutexWrap(datastore.NewMapDatastore()), logger, NopMetrics(), h)
+		require.NoError(e)
+		clients = append(clients, c)
+		hosts = append(hosts, h)
+		defer c.Close()
+	}
+
+	client0 := clients[0]
+	client1 := clients[1]
+	client2 := clients[2]
+
+	// Link all peers in the mocknet
+	err = mn.LinkAll() // Now use =
+	require.NoError(err)
+	err = mn.ConnectAllButSelf() // Now use =
+	require.NoError(err)
+
+	// Start clients
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for _, c := range clients {
+		err = c.Start(ctx) // Now use =
+		require.NoError(err)
+	}
+
+	// Give time for connections to establish and DHT to settle
+	time.Sleep(1 * time.Second)
+
+	t.Run("GetNetworkInfo", func(t *testing.T) {
+		netInfo, err := client0.GetNetworkInfo()
+		assert.NoError(err)
+		assert.Equal(client0.host.ID().String(), netInfo.ID)
+		assert.Contains(netInfo.ListenAddress[0], hosts[0].Addrs()[0].String()) // Use h0.Addrs()[0].String()
+		assert.ElementsMatch([]peer.ID{client1.host.ID(), client2.host.ID()}, netInfo.ConnectedPeers)
+	})
+
+	t.Run("GetPeers", func(t *testing.T) {
+		peers, err := client0.GetPeers()
+		assert.NoError(err)
+		expectedPeerIDs := []peer.ID{client1.host.ID(), client2.host.ID()}
+		actualPeerIDs := make([]peer.ID, len(peers))
+		for i, p := range peers {
+			actualPeerIDs[i] = p.ID
+		}
+		assert.ElementsMatch(expectedPeerIDs, actualPeerIDs)
+	})
+
+	t.Run("Peers", func(t *testing.T) {
+		connectedPeers := client0.Peers()
+		assert.Len(connectedPeers, 2) // client0 connected to client1 and client2
+
+		foundClient1 := false
+		foundClient2 := false
+		for _, p := range connectedPeers {
+			if p.NodeInfo.NodeID == client1.host.ID().String() {
+				foundClient1 = true
+			} else if p.NodeInfo.NodeID == client2.host.ID().String() {
+				foundClient2 = true
+			}
+			assert.Equal(client0.conf.ListenAddress, p.NodeInfo.ListenAddr)
+			assert.Equal(client0.chainID, p.NodeInfo.Network)
+			assert.NotEmpty(p.RemoteIP)
+		}
+		assert.True(foundClient1, "client1 not found in connected peers")
+		assert.True(foundClient2, "client2 not found in connected peers")
+	})
+
+	t.Run("PeerIDs", func(t *testing.T) {
+		peerIDs := client0.PeerIDs()
+		assert.ElementsMatch([]peer.ID{client1.host.ID(), client2.host.ID()}, peerIDs)
+	})
+
+	t.Run("Info", func(t *testing.T) {
+		nodeID, listenAddr, chainID, err := client0.Info()
+		assert.NoError(err)
+		assert.NotEmpty(nodeID) // Node ID is a hex encoded truncated hash of public key
+		assert.Equal(client0.conf.ListenAddress, listenAddr)
+		assert.Equal(client0.chainID, chainID)
+
+		// Test error case for Info (difficult to mock privKey.GetPublic().Raw() error)
+		// This would require a custom mock for crypto.PrivKey, which is out of scope for a simple test addition.
+		// Assuming libp2p's crypto implementation is robust.
+	})
 }
