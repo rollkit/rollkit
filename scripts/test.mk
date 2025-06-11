@@ -22,12 +22,6 @@ test-e2e: build build-da build-evm-single
 	@cd test/e2e && go test -mod=readonly -failfast -timeout=15m -tags='e2e evm' ./... --binary=$(CURDIR)/build/testapp --evm-binary=$(CURDIR)/build/evm-single
 .PHONY: test-e2e
 
-## cover: generate to code coverage report.
-cover:
-	@echo "--> Generating Code Coverage"
-	@go tool cover -mode=set -o coverage.txt ./...
-.PHONY: cover
-
 ## test-integration-cover: generate code coverage report for integration tests.
 test-integration-cover:
 	@echo "--> Running integration tests with coverage"
