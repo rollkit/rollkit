@@ -44,8 +44,11 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Dir(conf.ConfigPath()))
 	require.NoError(t, err)
 	logger := sdklog.NewTestLogger(t)
-	h, err := mn.GenPeer()
+	// use the existing nodeKey so host ID matches the client key
+	priv := nodeKey.PrivKey
+	h, err := mn.AddPeer(priv, nil) // mocknet helper that honours the supplied key
 	require.NoError(t, err)
+
 	p2pClient, err := p2p.NewClientWithHost(conf, nodeKey, mainKV, logger, p2p.NopMetrics(), h)
 	require.NoError(t, err)
 
