@@ -84,7 +84,7 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	_ = svc.Stop(ctx)
 	cancel()
 
-	h2, err := mn.GenPeer()
+	h2, err := mn.AddPeer(priv, nil)
 	require.NoError(t, err)
 	p2pClient, err = p2p.NewClientWithHost(conf, nodeKey, mainKV, logger, p2p.NopMetrics(), h2)
 	require.NoError(t, err)
