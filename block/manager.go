@@ -643,11 +643,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 		return m.signaturePayloadProvider(pubKey, h)
 	}); err != nil {
-		// If custom verifier is already set, that's expected behavior from the executor
-		if errors.Is(err, types.ErrCustomVerifierAlreadySet) {
-			return fmt.Errorf("failed to set custom verifier: %w", err)
-		}
-		// Verifier already set by executor, which is fine
+		return fmt.Errorf("failed to set custom verifier: %w", err)
 	}
 
 	if err := header.ValidateBasic(); err != nil {
