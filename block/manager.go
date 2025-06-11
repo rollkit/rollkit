@@ -69,7 +69,7 @@ var (
 // This allows for overriding the behavior in tests.
 type publishBlockFunc func(ctx context.Context) error
 
-func defaultSignaturePayloadProvider(_ crypto.PubKey, header *types.Header) ([]byte, error) {
+func defaultSignaturePayloadProvider(header *types.Header) ([]byte, error) {
 	return header.MarshalBinary()
 }
 
@@ -218,7 +218,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
 			}
 
-			b, err := signaturePayloadProvider(pubKey, &header)
+			b, err := signaturePayloadProvider(&header)
 			if err != nil {
 				return types.State{}, fmt.Errorf("failed to get signature payload: %w", err)
 			}
@@ -239,7 +239,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 
 		// Set the same custom verifier used during normal block validation
 		if err := genesisHeader.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-			return signaturePayloadProvider(pubKey, h)
+			return signaturePayloadProvider(h)
 		}); err != nil {
 			return types.State{}, fmt.Errorf("failed to set custom verifier for genesis header: %w", err)
 		}
@@ -637,11 +637,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// Set the custom verifier to ensure proper signature validation (if not already set by executor)
 	// Note: The executor may have already set a custom verifier during transaction execution
 	if err := header.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-		pubKey, err := m.signer.GetPublic()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get public key: %w", err)
-		}
-		return m.signaturePayloadProvider(pubKey, h)
+		return m.signaturePayloadProvider(h)
 	}); err != nil {
 		return fmt.Errorf("failed to set custom verifier: %w", err)
 	}
@@ -949,11 +945,7 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 }
 
 func (m *Manager) getHeaderSignature(header types.Header) (types.Signature, error) {
-	pubKey, err := m.signer.GetPublic()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get public key: %w", err)
-	}
-	b, err := m.signaturePayloadProvider(pubKey, &header)
+	b, err := m.signaturePayloadProvider(&header)
 	if err != nil {
 		return nil, err
 	}
