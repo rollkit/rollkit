@@ -216,7 +216,8 @@ func (m *Manager) fetchBlobs(ctx context.Context, daHeight uint64) (coreda.Resul
 	if blobsRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", blobsRes.Message)
 	} else if blobsRes.Code == coreda.StatusHeightFromFuture {
-		err = fmt.Errorf("height from future: %s", blobsRes.Message)
+		// Keep the root cause intact for callers that may rely on errors.Is/As.
+		err = fmt.Errorf("%w: %s", coreda.ErrHeightFromFuture, blobsRes.Message)
 	}
 	return blobsRes, err
 }
