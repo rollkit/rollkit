@@ -14,6 +14,9 @@ var (
 
 	// ErrLastCommitHashMismatch is returned when the last commit hash doesn't match.
 	ErrLastCommitHashMismatch = errors.New("last commit hash mismatch")
+
+	// ErrCustomVerifierAlreadySet is returned when a custom signature verifier is already set.
+	ErrCustomVerifierAlreadySet = errors.New("custom signature verifier already set")
 )
 
 var _ header.Header[*SignedHeader] = &SignedHeader{}
@@ -47,7 +50,7 @@ func (sh *SignedHeader) IsZero() bool {
 // SetCustomVerifier sets a custom signature verifier for the SignedHeader.
 func (sh *SignedHeader) SetCustomVerifier(verifier SignatureVerifier) error {
 	if sh.verifier != nil {
-		return errors.New("custom verifier already set")
+		return ErrCustomVerifierAlreadySet
 	}
 	sh.verifier = verifier
 	return nil
@@ -80,7 +83,7 @@ func (sh *SignedHeader) verifyHeaderHash(untrstH *SignedHeader) error {
 	return nil
 }
 
-// isAdjacent checks if the height of headers is adjacent.
+// isAdjacent checks if the height of headers are adjacent.
 func (sh *SignedHeader) isAdjacent(untrstH *SignedHeader) bool {
 	return sh.Height()+1 == untrstH.Height()
 }
