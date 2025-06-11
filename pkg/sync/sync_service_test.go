@@ -12,6 +12,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
@@ -29,6 +30,7 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	noopSigner, err := noop.NewNoopSigner(pk)
 	require.NoError(t, err)
 	rnd := rand.New(rand.NewSource(1)) // nolint:gosec // test code only
+	mn := mocknet.New()
 
 	proposerAddr := []byte("test")
 	genesisDoc := genesispkg.Genesis{
@@ -42,14 +44,15 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Dir(conf.ConfigPath()))
 	require.NoError(t, err)
 	logger := sdklog.NewTestLogger(t)
-	p2pClient, err := p2p.NewClient(conf, nodeKey, mainKV, logger, p2p.NopMetrics())
+	h, err := mn.GenPeer()
+	require.NoError(t, err)
+	p2pClient, err := p2p.NewClientWithHost(conf, nodeKey, mainKV, logger, p2p.NopMetrics(), h)
 	require.NoError(t, err)
 
 	// Start p2p client before creating sync service
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	err = p2pClient.Start(ctx)
-	require.NoError(t, err)
+	require.NoError(t, p2pClient.Start(ctx))
 
 	svc, err := NewHeaderSyncService(mainKV, conf, genesisDoc, p2pClient, logger)
 	require.NoError(t, err)
@@ -79,7 +82,9 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	_ = svc.Stop(ctx)
 	cancel()
 
-	p2pClient, err = p2p.NewClient(conf, nodeKey, mainKV, logger, p2p.NopMetrics())
+	h2, err := mn.GenPeer()
+	require.NoError(t, err)
+	p2pClient, err = p2p.NewClientWithHost(conf, nodeKey, mainKV, logger, p2p.NopMetrics(), h2)
 	require.NoError(t, err)
 
 	// Start p2p client again
