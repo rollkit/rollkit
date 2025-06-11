@@ -578,7 +578,7 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 	// Mock GetIDs to return future error for all retries
 	mockDAClient.On("GetIDs", mock.Anything, startDAHeight, []byte("placeholder")).Return(
 		nil, futureErr,
-	).Times(dAFetcherRetries)
+	).Once()
 
 	// Optional: Mock for the next height if needed
 	mockDAClient.On("GetIDs", mock.Anything, startDAHeight+1, []byte("placeholder")).Return(
