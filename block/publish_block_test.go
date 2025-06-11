@@ -78,14 +78,15 @@ func setupManagerForPublishBlockTest(
 		dataBroadcaster: broadcasterFn[*types.Data](func(ctx context.Context, payload *types.Data) error {
 			return nil
 		}),
-		headerStore:    headerStore,
-		daHeight:       &atomic.Uint64{},
-		dataStore:      dataStore,
-		headerCache:    cache.NewCache[types.SignedHeader](),
-		dataCache:      cache.NewCache[types.Data](),
-		lastStateMtx:   &sync.RWMutex{},
-		metrics:        NopMetrics(),
-		pendingHeaders: nil,
+		headerStore:              headerStore,
+		daHeight:                 &atomic.Uint64{},
+		dataStore:                dataStore,
+		headerCache:              cache.NewCache[types.SignedHeader](),
+		dataCache:                cache.NewCache[types.Data](),
+		lastStateMtx:             &sync.RWMutex{},
+		metrics:                  NopMetrics(),
+		pendingHeaders:           nil,
+		signaturePayloadProvider: defaultSignaturePayloadProvider,
 	}
 	manager.publishBlock = manager.publishBlockInternal
 
@@ -168,8 +169,9 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 			store:  mockStore,
 			logger: logger,
 		},
-		lastStateMtx: &sync.RWMutex{},
-		metrics:      NopMetrics(),
+		lastStateMtx:             &sync.RWMutex{},
+		metrics:                  NopMetrics(),
+		signaturePayloadProvider: defaultSignaturePayloadProvider,
 	}
 
 	m.publishBlock = m.publishBlockInternal
@@ -267,7 +269,8 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		dataBroadcaster: broadcasterFn[*types.Data](func(ctx context.Context, payload *types.Data) error {
 			return nil
 		}),
-		daHeight: &daH,
+		daHeight:                 &daH,
+		signaturePayloadProvider: defaultSignaturePayloadProvider,
 	}
 
 	m.publishBlock = m.publishBlockInternal

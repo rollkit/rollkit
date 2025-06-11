@@ -69,6 +69,10 @@ var (
 // This allows for overriding the behavior in tests.
 type publishBlockFunc func(ctx context.Context) error
 
+func defaultSignaturePayloadProvider(header *types.Header) ([]byte, error) {
+	return header.MarshalBinary()
+}
+
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
 	Header   *types.SignedHeader
@@ -165,10 +169,18 @@ type Manager struct {
 	// dataCommitmentToHeight tracks the height a data commitment (data hash) has been seen on.
 	// Key: data commitment (string), Value: uint64 (height)
 	dataCommitmentToHeight sync.Map
+
+	// signaturePayloadProvider is used to provide a signature payload for the header.
+	// It is used to sign the header with the provided signer.
+	signaturePayloadProvider types.SignaturePayloadProvider
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
-func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
+func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
+	if signaturePayloadProvider == nil {
+		signaturePayloadProvider = defaultSignaturePayloadProvider
+	}
+
 	// Load the state from store.
 	s, err := store.GetState(ctx)
 
@@ -206,9 +218,9 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
 			}
 
-			b, err := header.MarshalBinary()
+			b, err := signaturePayloadProvider(&header)
 			if err != nil {
-				return types.State{}, err
+				return types.State{}, fmt.Errorf("failed to get signature payload: %w", err)
 			}
 			signature, err = signer.Sign(b)
 			if err != nil {
@@ -216,18 +228,23 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			}
 		}
 
-		err = store.SaveBlockData(ctx,
-			&types.SignedHeader{
-				Header: header,
-				Signer: types.Signer{
-					PubKey:  pubKey,
-					Address: genesis.ProposerAddress,
-				},
-				Signature: signature,
+		genesisHeader := &types.SignedHeader{
+			Header: header,
+			Signer: types.Signer{
+				PubKey:  pubKey,
+				Address: genesis.ProposerAddress,
 			},
-			&types.Data{},
-			&signature,
-		)
+			Signature: signature,
+		}
+
+		// Set the same custom verifier used during normal block validation
+		if err := genesisHeader.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
+			return signaturePayloadProvider(h)
+		}); err != nil {
+			return types.State{}, fmt.Errorf("failed to set custom verifier for genesis header: %w", err)
+		}
+
+		err = store.SaveBlockData(ctx, genesisHeader, &types.Data{}, &signature)
 		if err != nil {
 			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
 		}
@@ -275,8 +292,13 @@ func NewManager(
 	seqMetrics *Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
+	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (*Manager, error) {
-	s, err := getInitialState(ctx, genesis, signer, store, exec, logger)
+	if signaturePayloadProvider == nil {
+		signaturePayloadProvider = defaultSignaturePayloadProvider
+	}
+
+	s, err := getInitialState(ctx, genesis, signer, store, exec, logger, signaturePayloadProvider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get initial state: %w", err)
 	}
@@ -339,29 +361,30 @@ func NewManager(
 		headerBroadcaster: headerBroadcaster,
 		dataBroadcaster:   dataBroadcaster,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		headerInCh:          make(chan NewHeaderEvent, eventInChLength),
-		dataInCh:            make(chan NewDataEvent, eventInChLength),
-		headerStoreCh:       make(chan struct{}, 1),
-		dataStoreCh:         make(chan struct{}, 1),
-		headerStore:         headerStore,
-		dataStore:           dataStore,
-		lastStateMtx:        new(sync.RWMutex),
-		lastBatchData:       lastBatchData,
-		headerCache:         cache.NewCache[types.SignedHeader](),
-		dataCache:           cache.NewCache[types.Data](),
-		retrieveCh:          make(chan struct{}, 1),
-		daIncluderCh:        make(chan struct{}, 1),
-		logger:              logger,
-		txsAvailable:        false,
-		pendingHeaders:      pendingHeaders,
-		metrics:             seqMetrics,
-		sequencer:           sequencer,
-		exec:                exec,
-		da:                  da,
-		gasPrice:            gasPrice,
-		gasMultiplier:       gasMultiplier,
-		txNotifyCh:          make(chan struct{}, 1), // Non-blocking channel
-		batchSubmissionChan: make(chan coresequencer.Batch, eventInChLength),
+		headerInCh:               make(chan NewHeaderEvent, eventInChLength),
+		dataInCh:                 make(chan NewDataEvent, eventInChLength),
+		headerStoreCh:            make(chan struct{}, 1),
+		dataStoreCh:              make(chan struct{}, 1),
+		headerStore:              headerStore,
+		dataStore:                dataStore,
+		lastStateMtx:             new(sync.RWMutex),
+		lastBatchData:            lastBatchData,
+		headerCache:              cache.NewCache[types.SignedHeader](),
+		dataCache:                cache.NewCache[types.Data](),
+		retrieveCh:               make(chan struct{}, 1),
+		daIncluderCh:             make(chan struct{}, 1),
+		logger:                   logger,
+		txsAvailable:             false,
+		pendingHeaders:           pendingHeaders,
+		metrics:                  seqMetrics,
+		sequencer:                sequencer,
+		exec:                     exec,
+		da:                       da,
+		gasPrice:                 gasPrice,
+		gasMultiplier:            gasMultiplier,
+		txNotifyCh:               make(chan struct{}, 1), // Non-blocking channel
+		batchSubmissionChan:      make(chan coresequencer.Batch, eventInChLength),
+		signaturePayloadProvider: signaturePayloadProvider,
 	}
 
 	// initialize da included height
@@ -611,6 +634,14 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// set the signature to current block's signed header
 	header.Signature = signature
 
+	// Set the custom verifier to ensure proper signature validation (if not already set by executor)
+	// Note: The executor may have already set a custom verifier during transaction execution
+	if err := header.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
+		return m.signaturePayloadProvider(h)
+	}); err != nil {
+		return fmt.Errorf("failed to set custom verifier: %w", err)
+	}
+
 	if err := header.ValidateBasic(); err != nil {
 		// If this ever happens, for recovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
 		return fmt.Errorf("header validation error: %w", err)
@@ -818,19 +849,13 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	return header, blockData, nil
 }
 
-type headerContextKey struct{}
-
-// HeaderContextKey is used to store the header in the context.
-// This is useful if the execution client needs to access the header during transaction execution.
-var HeaderContextKey = headerContextKey{}
-
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
 	rawTxs := make([][]byte, len(data.Txs))
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
 
-	ctx = context.WithValue(ctx, HeaderContextKey, header)
+	ctx = context.WithValue(ctx, types.SignedHeaderContextKey, header)
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
 		return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)
@@ -914,7 +939,7 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 }
 
 func (m *Manager) getHeaderSignature(header types.Header) (types.Signature, error) {
-	b, err := header.MarshalBinary()
+	b, err := m.signaturePayloadProvider(&header)
 	if err != nil {
 		return nil, err
 	}

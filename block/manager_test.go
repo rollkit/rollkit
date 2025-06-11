@@ -74,7 +74,7 @@ func TestInitialStateClean(t *testing.T) {
 	mockExecutor.On("InitChain", ctx, genesisData.GenesisDAStartTime, genesisData.InitialHeight, genesisData.ChainID).
 		Return([]byte("mockAppHash"), uint64(1000), nil).Once()
 
-	s, err := getInitialState(ctx, genesisData, nil, emptyStore, mockExecutor, logger)
+	s, err := getInitialState(ctx, genesisData, nil, emptyStore, mockExecutor, logger, nil /* uses default signature verification */)
 	require.NoError(err)
 	initialHeight := genesisData.InitialHeight
 	require.Equal(initialHeight-1, s.LastBlockHeight)
@@ -105,7 +105,7 @@ func TestInitialStateStored(t *testing.T) {
 	mockExecutor := mocks.NewExecutor(t)
 
 	// getInitialState should not call InitChain if state exists
-	s, err := getInitialState(ctx, genesisData, nil, store, mockExecutor, logger)
+	s, err := getInitialState(ctx, genesisData, nil, store, mockExecutor, logger, nil /* uses default signature verification */)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -140,7 +140,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require.NoError(err)
 	mockExecutor := mocks.NewExecutor(t)
 
-	_, err = getInitialState(ctx, genesis, nil, store, mockExecutor, logger)
+	_, err = getInitialState(ctx, genesis, nil, store, mockExecutor, logger, nil /* uses default signature verification */)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 
 	// Assert mock expectations (InitChain should not have been called)
@@ -499,4 +499,94 @@ func TestIsValidSignedData(t *testing.T) {
 		}
 		assert.False(t, m.isValidSignedData(signedData))
 	})
+}
+
+// TestManager_execValidate tests the execValidate method for various header/data/state conditions.
+func TestManager_execValidate(t *testing.T) {
+	require := require.New(t)
+	genesis, _, _ := types.GetGenesisWithPrivkey("TestChain")
+	m, _ := getManager(t, nil, -1, -1)
+
+	// Helper to create a valid state/header/data triplet
+	makeValid := func() (types.State, *types.SignedHeader, *types.Data, crypto.PrivKey) {
+		state := types.State{
+			Version:         types.Version{Block: 1, App: 1},
+			ChainID:         genesis.ChainID,
+			InitialHeight:   genesis.InitialHeight,
+			LastBlockHeight: genesis.InitialHeight - 1,
+			LastBlockTime:   time.Now().Add(-time.Minute),
+			AppHash:         []byte("apphash"),
+		}
+		newHeight := state.LastBlockHeight + 1
+		// Build header and data
+		header, data, privKey := types.GenerateRandomBlockCustomWithAppHash(&types.BlockConfig{Height: newHeight, NTxs: 1}, state.ChainID, state.AppHash)
+		require.NotNil(header)
+		require.NotNil(data)
+		require.NotNil(privKey)
+		return state, header, data, privKey
+	}
+
+	t.Run("valid header and data", func(t *testing.T) {
+		state, header, data, _ := makeValid()
+		err := m.execValidate(state, header, data)
+		require.NoError(err)
+	})
+
+	t.Run("invalid header (ValidateBasic fails)", func(t *testing.T) {
+		state, header, data, _ := makeValid()
+		header.ProposerAddress = []byte("bad") // breaks proposer address check
+		err := m.execValidate(state, header, data)
+		require.ErrorContains(err, "invalid header")
+	})
+
+	t.Run("header/data mismatch (types.Validate fails)", func(t *testing.T) {
+		state, header, data, _ := makeValid()
+		data.Metadata.ChainID = "otherchain" // breaks types.Validate
+		err := m.execValidate(state, header, data)
+		require.ErrorContains(err, "validation failed")
+	})
+
+	t.Run("chain ID mismatch", func(t *testing.T) {
+		state, header, data, _ := makeValid()
+		state.ChainID = "wrongchain"
+		err := m.execValidate(state, header, data)
+		require.ErrorContains(err, "chain ID mismatch")
+	})
+
+	t.Run("height mismatch", func(t *testing.T) {
+		state, header, data, _ := makeValid()
+		state.LastBlockHeight += 2
+		err := m.execValidate(state, header, data)
+		require.ErrorContains(err, "invalid height")
+	})
+
+	t.Run("non-monotonic block time at height 1 does not error", func(t *testing.T) {
+		state, header, data, _ := makeValid()
+		state.LastBlockTime = header.Time()
+		err := m.execValidate(state, header, data)
+		require.NoError(err)
+	})
+
+	// TODO: https://github.com/rollkit/rollkit/issues/2250
+
+	// t.Run("non-monotonic block time with height > 1", func(t *testing.T) {
+	// 	state, header, data, privKey := makeValid()
+	// 	state.LastBlockTime = time.Now().Add(time.Minute)
+	// 	state.LastBlockHeight = 1
+	// 	header.BaseHeader.Height = state.LastBlockHeight + 1
+	// 	data.Metadata.Height = state.LastBlockHeight + 1
+	// 	signer, err := noopsigner.NewNoopSigner(privKey)
+	// 	require.NoError(err)
+	// 	header.Signature, err = types.GetSignature(header.Header, signer)
+	// 	require.NoError(err)
+	// 	err = m.execValidate(state, header, data)
+	// 	require.ErrorContains(err, "block time must be strictly increasing")
+	// })
+
+	// t.Run("app hash mismatch", func(t *testing.T) {
+	// 	state, header, data, _ := makeValid()
+	// 	state.AppHash = []byte("different")
+	// 	err := m.execValidate(state, header, data)
+	// 	require.ErrorContains(err, "app hash mismatch")
+	// })
 }

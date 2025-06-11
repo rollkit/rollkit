@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"cosmossdk.io/log"
 
@@ -99,12 +100,22 @@ func RetrieveWithHelpers(
 	idsResult, err := da.GetIDs(ctx, dataLayerHeight, NameSpacePlaceholder)
 	if err != nil {
 		// Handle specific "not found" error
-		if errors.Is(err, coreda.ErrBlobNotFound) {
+		if strings.Contains(err.Error(), coreda.ErrBlobNotFound.Error()) {
 			logger.Debug("Retrieve helper: Blobs not found at height", "height", dataLayerHeight)
 			return coreda.ResultRetrieve{
 				BaseResult: coreda.BaseResult{
 					Code:    coreda.StatusNotFound,
 					Message: coreda.ErrBlobNotFound.Error(),
+					Height:  dataLayerHeight,
+				},
+			}
+		}
+		if strings.Contains(err.Error(), coreda.ErrHeightFromFuture.Error()) {
+			logger.Debug("Retrieve helper: Blobs not found at height", "height", dataLayerHeight)
+			return coreda.ResultRetrieve{
+				BaseResult: coreda.BaseResult{
+					Code:    coreda.StatusHeightFromFuture,
+					Message: coreda.ErrHeightFromFuture.Error(),
 					Height:  dataLayerHeight,
 				},
 			}

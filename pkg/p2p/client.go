@@ -92,6 +92,33 @@ func NewClient(
 	}, nil
 }
 
+func NewClientWithHost(
+	conf config.Config,
+	nodeKey *key.NodeKey,
+	ds datastore.Datastore,
+	logger log.Logger,
+	metrics *Metrics,
+	h host.Host, // injected host (mocknet or custom)
+) (*Client, error) {
+	c, err := NewClient(conf, nodeKey, ds, logger, metrics)
+	if err != nil {
+		return nil, err
+	}
+
+	// Reject hosts whose identity does not match the supplied node key
+	expectedID, _ := peer.IDFromPrivateKey(nodeKey.PrivKey)
+	if h.ID() != expectedID {
+		return nil, fmt.Errorf(
+			"injected host ID %s does not match node key ID %s",
+			h.ID(),
+			expectedID,
+		)
+	}
+
+	c.host = h
+	return c, nil
+}
+
 // Start establish Client's P2P connectivity.
 //
 // Following steps are taken:
@@ -101,11 +128,16 @@ func NewClient(
 // 4. Use active peer discovery to look for peers from same ORU network.
 func (c *Client) Start(ctx context.Context) error {
 	c.logger.Debug("starting P2P client")
-	host, err := c.listen()
+
+	if c.host != nil {
+		return c.startWithHost(ctx, c.host)
+	}
+
+	h, err := c.listen()
 	if err != nil {
 		return err
 	}
-	return c.startWithHost(ctx, host)
+	return c.startWithHost(ctx, h)
 }
 
 func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
@@ -144,10 +176,14 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 
 // Close gently stops Client.
 func (c *Client) Close() error {
-	return errors.Join(
-		c.dht.Close(),
-		c.host.Close(),
-	)
+	var dhtErr, hostErr error
+	if c.dht != nil {
+		dhtErr = c.dht.Close()
+	}
+	if c.host != nil {
+		hostErr = c.host.Close()
+	}
+	return errors.Join(dhtErr, hostErr)
 }
 
 // Addrs returns listen addresses of Client.
@@ -310,6 +346,10 @@ func (c *Client) findPeers(ctx context.Context) error {
 
 // tryConnect attempts to connect to a peer and logs error if necessary
 func (c *Client) tryConnect(ctx context.Context, peer peer.AddrInfo) {
+	if peer.ID == c.host.ID() {
+		return
+	}
+
 	err := c.host.Connect(ctx, peer)
 	if err != nil && ctx.Err() == nil {
 		c.logger.Error("failed to connect to peer", "peer", peer, "error", err)
