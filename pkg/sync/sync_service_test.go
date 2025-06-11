@@ -79,7 +79,8 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	_ = svc.Stop(ctx)
 	cancel()
 
-	p2pClient, err = p2p.NewClient(conf, nodeKey, mainKV, logger, p2p.NopMetrics())
+	restartedKV := sync.MutexWrap(datastore.NewMapDatastore())
+	p2pClient, err = p2p.NewClient(conf, nodeKey, restartedKV, logger, p2p.NopMetrics())
 	require.NoError(t, err)
 
 	// Start p2p client again
@@ -89,7 +90,7 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = p2pClient.Close() })
 
-	svc, err = NewHeaderSyncService(mainKV, conf, genesisDoc, p2pClient, logger)
+	svc, err = NewHeaderSyncService(restartedKV, conf, genesisDoc, p2pClient, logger)
 	require.NoError(t, err)
 	err = svc.Start(ctx)
 	require.NoError(t, err)
