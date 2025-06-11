@@ -59,6 +59,7 @@ func (api *API) GetIDs(ctx context.Context, height uint64, _ []byte) (*da.GetIDs
 	api.Logger.Debug("Making RPC call", "method", "GetIDs", "height", height, "namespace", string(api.Namespace))
 	res, err := api.Internal.GetIDs(ctx, height, api.Namespace)
 	if err != nil {
+		// Using strings.contains since JSON RPC serialization doesn't preserve error wrapping
 		// Check if the error is specifically BlobNotFound, otherwise log and return
 		if strings.Contains(err.Error(), da.ErrBlobNotFound.Error()) { // Use the error variable directly
 			api.Logger.Debug("RPC call indicates blobs not found", "method", "GetIDs", "height", height)
