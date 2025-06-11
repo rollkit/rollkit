@@ -7,8 +7,14 @@ clean-testcache:
 ## test: Running unit tests for all go.mods
 test:
 	@echo "--> Running unit tests"
-	@go run -tags=run scripts/test.go
+	@go run -tags='run integration' scripts/test.go
 .PHONY: test
+
+## test-e2e: Running e2e tests
+test-integration: 
+	@echo "--> Running e2e tests"
+	@cd node && go test -mod=readonly -failfast -timeout=15m -tags='integration' ./... 
+.PHONY: test-integration
 
 ## test-e2e: Running e2e tests
 test-e2e: build build-da build-evm-single
@@ -16,12 +22,11 @@ test-e2e: build build-da build-evm-single
 	@cd test/e2e && go test -mod=readonly -failfast -timeout=15m -tags='e2e evm' ./... --binary=$(CURDIR)/build/testapp --evm-binary=$(CURDIR)/build/evm-single
 .PHONY: test-e2e
 
-## cover: generate to code coverage report.
-cover:
-	@echo "--> Generating Code Coverage"
-	@go install github.com/ory/go-acc@latest
-	@go-acc -o coverage.txt ./...
-.PHONY: cover
+## test-integration-cover: generate code coverage report for integration tests.
+test-integration-cover:
+	@echo "--> Running integration tests with coverage"
+	@cd node && go test -mod=readonly -failfast -timeout=15m -tags='integration' -coverprofile=coverage.txt -covermode=atomic ./...
+.PHONY: test-integration-cover
 
 ## test-cover: generate code coverage report.
 test-cover:

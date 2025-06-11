@@ -76,14 +76,34 @@ jobs:
           go-version-file: ./go.mod
       - name: Run unit test
         run: make test-cover
-      - name: upload coverage report
-        uses: codecov/codecov-action@v5.4.3
+      - name: Upload unit test coverage report
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage.txt
+          name: unit-test-coverage-report-${{ github.sha }}
+          path: ./coverage.txt
+
+  integration_test:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+      - name: Run integration test
+        run: make test-integration-cover
+      - name: Upload integration test coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-coverage-report-${{ github.sha }}
+          path: ./node/coverage.txt
 
   e2e-tests:
     name: Run E2E System Tests
+    needs: build_all-apps
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -96,6 +116,7 @@ jobs:
 
   evm-tests:
     name: Run EVM Execution Tests
+    needs: build_all-apps
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -105,3 +126,29 @@ jobs:
           go-version-file: ./go.mod
       - name: EVM Tests
         run: make test-evm
+
+  combine_and_upload_coverage:
+    name: Combine and Upload Coverage
+    needs: [unit_test, integration_test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download unit test coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test-coverage-report-${{ github.sha }}
+          path: ./unit-coverage
+      - name: Download integration test coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-test-coverage-report-${{ github.sha }}
+          path: ./integration-coverage
+      - name: Upload combined coverage report
+        uses: codecov/codecov-action@v5.4.3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./unit-coverage/coverage.txt,./integration-coverage/coverage.txt
+          flags: combined
