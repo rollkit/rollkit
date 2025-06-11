@@ -849,19 +849,13 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	return header, blockData, nil
 }
 
-type headerContextKey struct{}
-
-// HeaderContextKey is used to store the header in the context.
-// This is useful if the execution client needs to access the header during transaction execution.
-var HeaderContextKey = headerContextKey{}
-
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
 	rawTxs := make([][]byte, len(data.Txs))
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
 
-	ctx = context.WithValue(ctx, HeaderContextKey, header)
+	ctx = context.WithValue(ctx, types.SignedHeaderContextKey, header)
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
 		return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)
