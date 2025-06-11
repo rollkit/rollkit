@@ -7,8 +7,14 @@ clean-testcache:
 ## test: Running unit tests for all go.mods
 test:
 	@echo "--> Running unit tests"
-	@go run -tags=run scripts/test.go
+	@go run -tags='run integration' scripts/test.go
 .PHONY: test
+
+## test-e2e: Running e2e tests
+test-integration: 
+	@echo "--> Running e2e tests"
+	@cd node && go test -mod=readonly -failfast -timeout=15m -tags='integration' ./... -cover
+.PHONY: test-integration
 
 ## test-e2e: Running e2e tests
 test-e2e: build build-da build-evm-single
