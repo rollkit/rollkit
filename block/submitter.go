@@ -27,6 +27,10 @@ func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
 		headersToSubmit, err := m.pendingHeaders.getPendingHeaders(ctx)
 		if err != nil {
 			m.logger.Error("error while fetching headers pending DA", "err", err)
+			continue
+		}
+		if len(headersToSubmit) == 0 {
+			continue
 		}
 		err = m.submitHeadersToDA(ctx, headersToSubmit)
 		if err != nil {
