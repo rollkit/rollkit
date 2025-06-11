@@ -65,6 +65,7 @@ var (
 	initialBackoff = 100 * time.Millisecond
 )
 
+// publishBlockFunc defines the function signature for publishing a block.
 // This allows for overriding the behavior in tests.
 type publishBlockFunc func(ctx context.Context) error
 
