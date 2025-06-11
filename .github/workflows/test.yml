@@ -97,7 +97,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: integration-test-coverage-report-${{ github.sha }}
-          path: ./coverage.txt
+          path: ./node/coverage.txt
 
   e2e-tests:
     name: Run E2E System Tests
@@ -144,8 +144,7 @@ jobs:
       - name: Combine coverage reports
         run: |
           ls -R
-          go install github.com/ory/go-acc@latest
-          go-acc merge ./unit-coverage/coverage.txt ./integration-coverage/coverage.txt > combined-coverage.txt
+          go tool cover -mode=set -o combined-coverage.txt unit-coverage/coverage.txt integration-coverage/coverage.txt
       - name: Upload combined coverage report
         uses: codecov/codecov-action@v5.4.3
         with:
