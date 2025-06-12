@@ -151,11 +151,14 @@ func (ln *LightNode) Run(parentCtx context.Context) error {
 	}
 
 	if multiErr != nil {
-		for _, err := range multiErr.(interface{ Unwrap() []error }).Unwrap() {
-			ln.Logger.Error("error during shutdown", "error", err)
+		if unwrapper, ok := multiErr.(interface{ Unwrap() []error }); ok {
+			for _, err := range unwrapper.Unwrap() {
+				ln.Logger.Error("error during shutdown", "error", err)
+			}
+		} else {
+			ln.Logger.Error("error during shutdown", "error", multiErr)
 		}
-	} else {
-		ln.Logger.Info("light node halted successfully")
+		ln.Logger.Error("error during shutdown", "error", err)
 	}
 
 	if ctx.Err() != nil {
