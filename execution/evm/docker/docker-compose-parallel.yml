@@ -1,8 +1,8 @@
-name: "reth"
+name: "reth-parallel"
 
 services:
-  jwt-init:
-    container_name: jwt-init
+  jwt-init-parallel:
+    container_name: jwt-init-parallel
     image: alpine:3.19
     volumes:
       - ./jwttoken:/jwt
@@ -18,23 +18,23 @@ services:
         openssl rand -hex 32 | tr -d '\n' > /jwt/jwt.hex;
       fi"
 
-  reth:
-    container_name: op-reth
+  reth-parallel:
+    container_name: op-reth-parallel
     restart: unless-stopped
     image: ghcr.io/paradigmxyz/op-reth:v1.4.6
     depends_on:
-      jwt-init:
+      jwt-init-parallel:
         condition: service_completed_successfully
     ports:
-      - "9001:9001" # metrics
-      - "30303:30303" # eth/66 peering
-      - "8545:8545" # rpc
-      - "8551:8551" # engine
-      - "8546:8546" # ws
+      - "9011:9001" # metrics
+      - "30313:30303" # eth/66 peering
+      - "8555:8545" # rpc
+      - "8561:8551" # engine
+      - "8556:8546" # ws
     volumes:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
-      - logs:/root/logs
+      - logs-parallel:/root/logs
     entrypoint: /bin/sh -c
     command:
       - |
@@ -62,5 +62,5 @@ services:
           --txpool.additional-validation-tasks 16
 
 volumes:
-  logs:
-    driver: local
+  logs-parallel:
+    driver: local 

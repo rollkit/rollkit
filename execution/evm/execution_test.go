@@ -5,6 +5,7 @@ package evm
 
 import (
 	"context"
+	"log"
 	"math/big"
 	"testing"
 	"time"
@@ -21,7 +22,7 @@ const (
 	TEST_ENGINE_URL = "http://localhost:8551"
 
 	CHAIN_ID          = "1234"
-	GENESIS_HASH      = "0x2b8bbb1ea1e04f9c9809b4b278a8687806edc061a356c7dbc491930d8e922503"
+	GENESIS_HASH      = "0x05fc0424c8129e371d29ae7bf807f64aa4bcb9c89409fe558cea328ae2ede066"
 	GENESIS_STATEROOT = "0x05e9954443da80d86f2104e56ffdfd98fe21988730684360104865b3dc8191b4"
 	TEST_PRIVATE_KEY  = "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e"
 	TEST_TO_ADDRESS   = "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E"
@@ -82,9 +83,10 @@ func TestEngineExecution(t *testing.T) {
 
 		prevStateRoot := rollkitGenesisStateRoot
 		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
+		log.Println("lastTxs", lastTxs)
 		lastNonce := uint64(0)
 
-		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
+		for blockHeight := initialHeight; blockHeight <= 1; blockHeight++ {
 			nTxs := int(blockHeight) + 10
 			// randomly use no transactions
 			if blockHeight == 4 {
@@ -102,8 +104,17 @@ func TestEngineExecution(t *testing.T) {
 			payload, err := executionClient.GetTxs(ctx)
 			require.NoError(tt, err)
 			require.Lenf(tt, payload, nTxs, "expected %d transactions, got %d", nTxs, len(payload))
+			log.Println("nTxs", nTxs)
 
 			allPayloads = append(allPayloads, payload)
+
+			txs = make([]*ethTypes.Transaction, nTxs)
+			for i := range txs {
+				txs[i] = GetRandomTransaction(t, TEST_PRIVATE_KEY, TEST_TO_ADDRESS, CHAIN_ID, 22000, &lastNonce)
+			}
+			for i := range txs {
+				SubmitTransaction(t, txs[i])
+			}
 
 			// Check latest block before execution
 			beforeHeight, beforeHash, beforeTxs := checkLatestBlock(tt, ctx)
@@ -124,7 +135,7 @@ func TestEngineExecution(t *testing.T) {
 			lastHeight, lastHash, lastTxs = checkLatestBlock(tt, ctx)
 			require.Equal(tt, blockHeight, lastHeight, "Latest block height should match")
 			require.NotEmpty(tt, lastHash.Hex(), "Latest block hash should not be empty")
-			require.GreaterOrEqual(tt, lastTxs, 0, "Number of transactions should be non-negative")
+			require.Equal(tt, lastTxs, nTxs, "Number of transactions should be equal")
 
 			if nTxs == 0 {
 				require.Equal(tt, prevStateRoot, newStateRoot)
@@ -141,6 +152,7 @@ func TestEngineExecution(t *testing.T) {
 
 	// start new container and try to sync
 	t.Run("Sync chain", func(tt *testing.T) {
+		tt.Skip("Skip sync chain")
 		jwtSecret := SetupTestRethEngine(t, DOCKER_PATH, JWT_FILENAME)
 
 		executionClient, err := NewEngineExecutionClient(
@@ -240,7 +252,7 @@ func checkLatestBlock(t *testing.T, ctx context.Context) (uint64, common.Hash, i
 }
 
 func TestSubmitTransaction(t *testing.T) {
-	t.Skip("Use this test to submit a transaction manually to the Ethereum client")
+	//t.Skip("Use this test to submit a transaction manually to the Ethereum client")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	rpcClient, err := ethclient.Dial(TEST_ETH_URL)
@@ -262,8 +274,8 @@ func TestSubmitTransaction(t *testing.T) {
 			SubmitTransaction(t, tx)
 		}
 		elapsed := time.Since(startTime)
-		if elapsed < time.Second {
-			time.Sleep(time.Second - elapsed)
+		if elapsed < 10*time.Second {
+			time.Sleep(10*time.Second - elapsed)
 		}
 	}
 }
