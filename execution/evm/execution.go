@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"net/http"
 	"strings"
@@ -194,44 +193,25 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		txsPayload[i] = buf.Bytes()
 	}
 
-	var (
-		prevBlockHash common.Hash
-		prevTimestamp uint64
-		prevGasLimit  uint64
-	)
-
-	// fetch previous block hash to update forkchoice for the next payload id
-	// if blockHeight == c.initialHeight {
-	// 	prevBlockHash = c.genesisHash
-	// } else {
-	prevBlockHash, _, prevGasLimit, prevTimestamp, err = c.getBlockInfo(ctx, blockHeight-1)
+	_, _, prevGasLimit, _, err := c.getBlockInfo(ctx, blockHeight-1)
 	if err != nil {
-		return nil, 0, err
-	}
-	// }
-
-	// make sure that the timestamp is increasing
-	ts := uint64(timestamp.Unix())
-	log.Println("ts", ts)
-	if ts <= prevTimestamp {
-		ts = prevTimestamp + 1 // Subsequent blocks must have a higher timestamp.
+		return nil, 0, fmt.Errorf("failed to get block info: %w", err)
 	}
 
-	// get current finalized block hash
 	c.mu.Lock()
-	finalizedBlockHash := c.currentFinalizedBlockHash
+	args := engine.ForkchoiceStateV1{
+		HeadBlockHash:      c.currentHeadBlockHash,
+		SafeBlockHash:      c.currentSafeBlockHash,
+		FinalizedBlockHash: c.currentFinalizedBlockHash,
+	}
 	c.mu.Unlock()
 
 	// update forkchoice to get the next payload id
 	var forkchoiceResult engine.ForkChoiceResponse
 	err = c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
-		engine.ForkchoiceStateV1{
-			HeadBlockHash:      prevBlockHash,
-			SafeBlockHash:      prevBlockHash,
-			FinalizedBlockHash: finalizedBlockHash,
-		},
+		args,
 		&engine.PayloadAttributes{
-			Timestamp:             ts,
+			Timestamp:             uint64(timestamp.Unix()),
 			Random:                c.derivePrevRandao(blockHeight),
 			SuggestedFeeRecipient: c.feeRecipient,
 			Withdrawals:           nil,
