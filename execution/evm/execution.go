@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net/http"
 	"strings"
@@ -83,10 +84,13 @@ func NewEngineExecutionClient(
 	}
 
 	return &EngineClient{
-		engineClient: engineClient,
-		ethClient:    ethClient,
-		genesisHash:  genesisHash,
-		feeRecipient: feeRecipient,
+		engineClient:              engineClient,
+		ethClient:                 ethClient,
+		genesisHash:               genesisHash,
+		feeRecipient:              feeRecipient,
+		currentHeadBlockHash:      genesisHash,
+		currentSafeBlockHash:      genesisHash,
+		currentFinalizedBlockHash: genesisHash,
 	}, nil
 }
 
@@ -193,13 +197,14 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	var (
 		prevBlockHash common.Hash
 		prevTimestamp uint64
+		prevGasLimit  uint64
 	)
 
 	// fetch previous block hash to update forkchoice for the next payload id
 	// if blockHeight == c.initialHeight {
 	// 	prevBlockHash = c.genesisHash
 	// } else {
-	prevBlockHash, _, _, prevTimestamp, err = c.getBlockInfo(ctx, blockHeight-1)
+	prevBlockHash, _, prevGasLimit, prevTimestamp, err = c.getBlockInfo(ctx, blockHeight-1)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -207,6 +212,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 
 	// make sure that the timestamp is increasing
 	ts := uint64(timestamp.Unix())
+	log.Println("ts", ts)
 	if ts <= prevTimestamp {
 		ts = prevTimestamp + 1 // Subsequent blocks must have a higher timestamp.
 	}
@@ -226,12 +232,13 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		},
 		&engine.PayloadAttributes{
 			Timestamp:             ts,
-			Random:                prevBlockHash, //c.derivePrevRandao(height),
+			Random:                c.derivePrevRandao(blockHeight),
 			SuggestedFeeRecipient: c.feeRecipient,
-			Withdrawals:           []*types.Withdrawal{},
-			BeaconRoot:            &c.genesisHash,
+			Withdrawals:           nil,
+			BeaconRoot:            &common.Hash{},
 			Transactions:          txsPayload,
 			NoTxPool:              true,
+			GasLimit:              &prevGasLimit,
 		},
 	)
 	if err != nil {
