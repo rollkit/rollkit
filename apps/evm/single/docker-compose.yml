@@ -63,7 +63,7 @@ services:
       - EVM_ENGINE_URL=http://reth:8551
       - EVM_ETH_URL=http://reth:8545
       - EVM_JWT_SECRET=f747494bb0fb338a0d71f5f9fe5b5034c17cc988c229b59fd71e005ee692e9bf
-      - EVM_GENESIS_HASH=0x2b8bbb1ea1e04f9c9809b4b278a8687806edc061a356c7dbc491930d8e922503
+      - EVM_GENESIS_HASH=0x593cca87d359c3d0fdc9b67a43f92e1c8eb0da113620225f476eee31a3920e46
       - EVM_BLOCK_TIME=1s
       - EVM_SIGNER_PASSPHRASE=secret
       - DA_ADDRESS=http://local-da:7980 # http://localhost:26658 (Use if not using local-da)

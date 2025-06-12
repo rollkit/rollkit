@@ -31,7 +31,7 @@ This directory contains the implementation of a single EVM sequencer using Rollk
     ```bash
     ./evm-single start \
       --evm.jwt-secret $(cat <path_to>/execution/evm/docker/jwttoken/jwt.hex) \
-      --evm.genesis-hash 0x2b8bbb1ea1e04f9c9809b4b278a8687806edc061a356c7dbc491930d8e922503 \
+      --evm.genesis-hash 0x593cca87d359c3d0fdc9b67a43f92e1c8eb0da113620225f476eee31a3920e46 \
       --rollkit.node.block_time 1s \
       --rollkit.node.aggregator=true \
       --rollkit.signer.passphrase secret
@@ -51,4 +51,4 @@ The sequencer can be configured using various command-line flags. The most impor
 
 # Rollkit EVM Full Node
 
-./evm-single start --home /Users/manav/.evm-single-full-node --evm.jwt-secret $(cat ../../../execution/evm/docker/jwttoken/jwt.hex)       --evm.genesis-hash 0x2b8bbb1ea1e04f9c9809b4b278a8687806edc061a356c7dbc491930d8e922503 --rollkit.rpc.address=127.0.0.1:46657 --rollkit.p2p.listen_address=/ip4/127.0.0.1/tcp/7677 --rollkit.p2p.peers=/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWHDaqNYmQHGDCkbjUNwmGA8fVJKnRzpXfBq4gwPktHrcT --evm.engine-url http://localhost:8561 --evm.eth-url http://localhost:8555
+./evm-single start --home /Users/manav/.evm-single-full-node --evm.jwt-secret $(cat ../../../execution/evm/docker/jwttoken/jwt.hex)       --evm.genesis-hash 0x593cca87d359c3d0fdc9b67a43f92e1c8eb0da113620225f476eee31a3920e46 --rollkit.rpc.address=127.0.0.1:46657 --rollkit.p2p.listen_address=/ip4/127.0.0.1/tcp/7677 --rollkit.p2p.peers=/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWHDaqNYmQHGDCkbjUNwmGA8fVJKnRzpXfBq4gwPktHrcT --evm.engine-url http://localhost:8561 --evm.eth-url http://localhost:8555

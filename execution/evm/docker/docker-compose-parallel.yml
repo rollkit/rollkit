@@ -19,9 +19,9 @@ services:
       fi"
 
   reth-parallel:
-    container_name: reth-parallel
+    container_name: op-reth-parallel
     restart: unless-stopped
-    image: ghcr.io/paradigmxyz/reth:v1.4.6
+    image: ghcr.io/paradigmxyz/op-reth:v1.4.6
     depends_on:
       jwt-init-parallel:
         condition: service_completed_successfully
@@ -38,8 +38,10 @@ services:
     entrypoint: /bin/sh -c
     command:
       - |
-          reth node \
+          op-reth node \
           --chain /root/chain/genesis.json \
+          --rollup.disable-tx-pool-gossip \
+          --rollup.discovery.v4 \
           --metrics 0.0.0.0:9001 \
           --log.file.directory /root/logs \
           --authrpc.addr 0.0.0.0 \
