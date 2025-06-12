@@ -14,9 +14,15 @@
     "mergeNetsplitBlock": 0,
     "terminalTotalDifficulty": 0,
     "terminalTotalDifficultyPassed": true,
+    "ecotoneTime": 0,
     "shanghaiTime": 0,
     "cancunTime": 0,
-    "pragueTime": 0
+    "pragueTime": 0,
+    "optimism": {
+      "eip1559Elasticity": 6,
+      "eip1559Denominator": 50,
+      "eip1559DenominatorCanyon": 250
+    }
   },
   "nonce": "0x0",
   "timestamp": "0x0",
