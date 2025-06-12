@@ -299,9 +299,12 @@ func TestClientInfoMethods(t *testing.T) {
 		require.NoError(err)
 	}
 
-	// Give time for connections to establish and DHT to settle
-	time.Sleep(1 * time.Second)
-
+	// Wait for connections to establish and DHT to settle
+	err = waitForCondition(5*time.Second, func() bool {
+		connectedPeers := client0.Peers()
+		return len(connectedPeers) == 2
+	})
+	require.NoError(err)
 	t.Run("GetNetworkInfo", func(t *testing.T) {
 		netInfo, err := client0.GetNetworkInfo()
 		assert.NoError(err)
