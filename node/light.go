@@ -61,15 +61,19 @@ func newLightNode(
 
 // IsRunning returns true if the node is running.
 func (ln *LightNode) IsRunning() bool {
-	return ln.hSyncService != nil
+	return ln.running
 }
 
 // Run implements the Service interface.
 // It starts all subservices and manages the node's lifecycle.
 func (ln *LightNode) Run(parentCtx context.Context) error {
 	ctx, cancelNode := context.WithCancel(parentCtx)
-	defer cancelNode()
+	defer func() {
+		ln.running = false
+		cancelNode()
+	}()
 
+	ln.running = true
 	// Start RPC server
 	handler, err := rpcserver.NewServiceHandler(ln.Store, ln.P2P)
 	if err != nil {
