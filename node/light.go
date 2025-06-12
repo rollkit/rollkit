@@ -97,7 +97,6 @@ func (ln *LightNode) Run(parentCtx context.Context) error {
 		}
 	}()
 
-	ln.Logger.Info("starting P2P client")
 	if err := ln.P2P.Start(ctx); err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
@@ -121,7 +120,6 @@ func (ln *LightNode) Run(parentCtx context.Context) error {
 	err = ln.hSyncService.Stop(shutdownCtx)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-			ln.Logger.Error("error stopping header sync service", "error", err)
 			multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
 		} else {
 			ln.Logger.Debug("header sync service stop context ended", "reason", err)
