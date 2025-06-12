@@ -219,7 +219,9 @@ func (c *Client) Info() (string, string, string, error) {
 func (c *Client) PeerIDs() []peer.ID {
 	peerIDs := make([]peer.ID, 0)
 	for _, conn := range c.host.Network().Conns() {
-		peerIDs = append(peerIDs, conn.RemotePeer())
+		if conn.RemotePeer() != c.host.ID() {
+			peerIDs = append(peerIDs, conn.RemotePeer())
+		}
 	}
 	return peerIDs
 }
@@ -403,8 +405,11 @@ func (c *Client) GetPeers() ([]peer.AddrInfo, error) {
 	}
 
 	var peers []peer.AddrInfo
-	for peer := range peerCh {
-		peers = append(peers, peer)
+	for p := range peerCh {
+		if p.ID == c.host.ID() {
+			continue
+		}
+		peers = append(peers, p)
 	}
 	return peers, nil
 }

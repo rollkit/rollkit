@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	libp2p "github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
@@ -248,4 +250,139 @@ func ClientInitFiles(t *testing.T, tempDir string) {
 		t.Fatalf("failed to create config directory: %v", err)
 	}
 
+}
+
+// waitForCondition waits for a condition to be true or a timeout to occur.
+// It checks the condition immediately, then polls at a regular interval.
+func waitForCondition(timeout time.Duration, conditionFunc func() bool) error {
+	// Check immediately
+	if conditionFunc() {
+		return nil
+	}
+
+	// Poll
+	ticker := time.NewTicker(100 * time.Millisecond) // Adjust poll interval as needed
+	defer ticker.Stop()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if conditionFunc() {
+				return nil
+			}
+		case <-timer.C:
+			return fmt.Errorf("timed out after %v waiting for condition", timeout)
+		}
+	}
+}
+
+func TestClientInfoMethods(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	logger := log.NewTestLogger(t)
+
+	tempDir := t.TempDir()
+	ClientInitFiles(t, tempDir)
+	conf := config.DefaultConfig
+	conf.RootDir = tempDir
+	conf.ChainID = "test-chain"
+
+	mn := mocknet.New()
+	defer mn.Close()
+
+	var clients []*Client
+	var hosts []host.Host
+	var err error
+
+	for i := 0; i < 3; i++ {
+		nodeKey, e := key.GenerateNodeKey()
+		require.NoError(e)
+		h, e := mn.AddPeer(nodeKey.PrivKey, multiaddr.StringCast("/ip4/127.0.0.1/tcp/0"))
+		require.NoError(e)
+		c, e := NewClientWithHost(conf, nodeKey, dssync.MutexWrap(datastore.NewMapDatastore()), logger, NopMetrics(), h)
+		require.NoError(e)
+		clients = append(clients, c)
+		hosts = append(hosts, h)
+		defer c.Close()
+	}
+
+	client0 := clients[0]
+	client1 := clients[1]
+	client2 := clients[2]
+
+	// Link all peers in the mocknet
+	err = mn.LinkAll()
+	require.NoError(err)
+	err = mn.ConnectAllButSelf()
+	require.NoError(err)
+
+	// Start clients
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for _, c := range clients {
+		err = c.Start(ctx)
+		require.NoError(err)
+	}
+
+	// Wait for connections to establish and DHT to settle
+	err = waitForCondition(5*time.Second, func() bool {
+		connectedPeers := client0.Peers()
+		return len(connectedPeers) == 2
+	})
+
+	require.NoError(err)
+	t.Run("GetNetworkInfo", func(t *testing.T) {
+		netInfo, err := client0.GetNetworkInfo()
+		assert.NoError(err)
+		assert.Equal(client0.host.ID().String(), netInfo.ID)
+		assert.Contains(netInfo.ListenAddress[0], hosts[0].Addrs()[0].String()) // Use h0.Addrs()[0].String()
+		assert.ElementsMatch([]peer.ID{client1.host.ID(), client2.host.ID()}, netInfo.ConnectedPeers)
+	})
+
+	t.Run("GetPeers", func(t *testing.T) {
+		peers, err := client0.GetPeers()
+		assert.NoError(err)
+		expectedPeerIDs := []peer.ID{client1.host.ID(), client2.host.ID()}
+		actualPeerIDs := make([]peer.ID, len(peers))
+		for i, p := range peers {
+			actualPeerIDs[i] = p.ID
+		}
+		assert.ElementsMatch(expectedPeerIDs, actualPeerIDs)
+	})
+
+	t.Run("Peers", func(t *testing.T) {
+		connectedPeers := client0.Peers()
+		assert.Len(connectedPeers, 2)
+
+		foundClient1 := false
+		foundClient2 := false
+		for _, p := range connectedPeers {
+			if p.NodeInfo.NodeID == client1.host.ID().String() {
+				foundClient1 = true
+			} else if p.NodeInfo.NodeID == client2.host.ID().String() {
+				foundClient2 = true
+			}
+			assert.Equal(client0.conf.ListenAddress, p.NodeInfo.ListenAddr)
+			assert.Equal(client0.chainID, p.NodeInfo.Network)
+			assert.NotEmpty(p.RemoteIP)
+		}
+		assert.True(foundClient1, "client1 not found in connected peers")
+		assert.True(foundClient2, "client2 not found in connected peers")
+	})
+
+	t.Run("PeerIDs", func(t *testing.T) {
+		peerIDs := client0.PeerIDs()
+		assert.ElementsMatch([]peer.ID{client1.host.ID(), client2.host.ID()}, peerIDs)
+	})
+
+	t.Run("Info", func(t *testing.T) {
+		nodeID, listenAddr, chainID, err := client0.Info()
+		assert.NoError(err)
+		assert.NotEmpty(nodeID)
+		assert.Equal(client0.conf.ListenAddress, listenAddr)
+		assert.Equal(client0.chainID, chainID)
+	})
 }
