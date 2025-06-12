@@ -145,8 +145,6 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	t.Logf("Sending header event for height %d", newHeight)
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: daHeight}
 
-	time.Sleep(10 * time.Millisecond)
-
 	t.Logf("Sending data event for height %d", newHeight)
 	dataInCh <- NewDataEvent{Data: data, DAHeight: daHeight}
 
@@ -231,7 +229,6 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 
 	t.Logf("Sending data event for height %d", newHeight)
 	dataInCh <- NewDataEvent{Data: data, DAHeight: daHeight}
-	time.Sleep(10 * time.Millisecond)
 	t.Logf("Sending header event for height %d", newHeight)
 	headerInCh <- NewHeaderEvent{Header: header, DAHeight: daHeight}
 
@@ -357,7 +354,6 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 
 	// --- Process H+1 ---
 	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
-	time.Sleep(10 * time.Millisecond)
 	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
 
 	t.Log("Waiting for Sync H+1 to complete...")
@@ -371,7 +367,6 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 
 	// --- Process H+2 ---
 	headerInCh <- NewHeaderEvent{Header: headerH2, DAHeight: daHeight}
-	time.Sleep(10 * time.Millisecond)
 	dataInCh <- NewDataEvent{Data: dataH2, DAHeight: daHeight}
 
 	select {
@@ -504,17 +499,19 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 
 	// --- Send H+2 Events First ---
 	headerInCh <- NewHeaderEvent{Header: headerH2, DAHeight: daHeight}
-	time.Sleep(10 * time.Millisecond)
 	dataInCh <- NewDataEvent{Data: dataH2, DAHeight: daHeight}
 
-	time.Sleep(50 * time.Millisecond)
+	// Wait for H+2 to be cached (but not processed since H+1 is missing)
+	require.Eventually(func() bool {
+		return m.headerCache.GetItem(heightH2) != nil && m.dataCache.GetItem(heightH2) != nil
+	}, 1*time.Second, 10*time.Millisecond, "H+2 header and data should be cached")
+
 	assert.Equal(initialHeight, m.GetLastState().LastBlockHeight, "Height should not have advanced yet")
 	assert.NotNil(m.headerCache.GetItem(heightH2), "Header H+2 should be in cache")
 	assert.NotNil(m.dataCache.GetItem(heightH2), "Data H+2 should be in cache")
 
 	// --- Send H+1 Events Second ---
 	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
-	time.Sleep(10 * time.Millisecond)
 	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
 
 	t.Log("Waiting for Sync H+1 to complete...")
@@ -611,7 +608,6 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 
 	// --- Send First Set of Events ---
 	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
-	time.Sleep(10 * time.Millisecond)
 	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
 
 	t.Log("Waiting for first sync to complete...")
@@ -624,11 +620,11 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 
 	// --- Send Duplicate Events ---
 	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
-	time.Sleep(10 * time.Millisecond)
 	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
 
-	// Wait a bit to ensure duplicates are not processed
-	time.Sleep(100 * time.Millisecond)
+	// Give the sync loop a chance to process duplicates (if it would)
+	// Since we expect no processing, we just wait for the context timeout
+	// The mock expectations will fail if duplicates are processed
 
 	wg.Wait()
 
@@ -703,7 +699,6 @@ func TestSyncLoop_ErrorOnApplyError(t *testing.T) {
 	// --- Send Events ---
 	t.Logf("Sending header event for height %d", heightH1)
 	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
-	time.Sleep(10 * time.Millisecond)
 	t.Logf("Sending data event for height %d", heightH1)
 	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
 
@@ -827,7 +822,7 @@ func TestSyncLoop_MultipleHeadersArriveFirst_ThenData(t *testing.T) {
 	require.NoError(store.SetHeight(context.Background(), initialHeight))
 
 	for i := 0; i < numBlocks; i++ {
-		// Make blocks 2 and 3 (H+3 and H+4) and block 7 (H+8) empty
+		// Make blocks 2 and 3 (H+3 and H+4) empty
 		var nTxs int
 		if i == 2 || i == 3 {
 			nTxs = 0
@@ -895,8 +890,33 @@ func TestSyncLoop_MultipleHeadersArriveFirst_ThenData(t *testing.T) {
 		headerInCh <- NewHeaderEvent{Header: headers[i], DAHeight: daHeight}
 	}
 
-	// 2. Wait briefly to ensure state has not advanced
-	time.Sleep(50 * time.Millisecond)
+	// 2. Wait for headers to be processed and cached by polling the cache state
+	// This replaces the flaky time.Sleep(50 * time.Millisecond)
+	require.Eventually(func() bool {
+		// Check that all headers are cached
+		for i := 0; i < numBlocks; i++ {
+			if m.headerCache.GetItem(blockHeights[i]) == nil {
+				return false
+			}
+		}
+		// Check that empty blocks have data cached, non-empty blocks don't yet
+		for i := 0; i < numBlocks; i++ {
+			dataInCache := m.dataCache.GetItem(blockHeights[i]) != nil
+			if i == 2 || i == 3 {
+				// Empty blocks should have data in cache
+				if !dataInCache {
+					return false
+				}
+			} else {
+				// Non-empty blocks should not have data in cache yet
+				if dataInCache {
+					return false
+				}
+			}
+		}
+		return true
+	}, 1*time.Second, 10*time.Millisecond, "Headers should be cached and empty blocks should have data cached")
+
 	assert.Equal(initialHeight, m.GetLastState().LastBlockHeight, "Height should not have advanced yet after only headers")
 	for i := 0; i < numBlocks; i++ {
 		if i == 2 || i == 3 {
