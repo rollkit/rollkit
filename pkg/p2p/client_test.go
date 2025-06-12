@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -251,6 +252,33 @@ func ClientInitFiles(t *testing.T, tempDir string) {
 
 }
 
+// waitForCondition waits for a condition to be true or a timeout to occur.
+// It checks the condition immediately, then polls at a regular interval.
+func waitForCondition(timeout time.Duration, conditionFunc func() bool) error {
+	// Check immediately
+	if conditionFunc() {
+		return nil
+	}
+
+	// Poll
+	ticker := time.NewTicker(100 * time.Millisecond) // Adjust poll interval as needed
+	defer ticker.Stop()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if conditionFunc() {
+				return nil
+			}
+		case <-timer.C:
+			return fmt.Errorf("timed out after %v waiting for condition", timeout)
+		}
+	}
+}
+
 func TestClientInfoMethods(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
@@ -304,6 +332,7 @@ func TestClientInfoMethods(t *testing.T) {
 		connectedPeers := client0.Peers()
 		return len(connectedPeers) == 2
 	})
+
 	require.NoError(err)
 	t.Run("GetNetworkInfo", func(t *testing.T) {
 		netInfo, err := client0.GetNetworkInfo()

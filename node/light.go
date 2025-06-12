@@ -31,6 +31,8 @@ type LightNode struct {
 	Store        store.Store
 	rpcServer    *http.Server
 	nodeConfig   config.Config
+
+	running bool
 }
 
 func newLightNode(
@@ -110,7 +112,7 @@ func (ln *LightNode) Run(parentCtx context.Context) error {
 
 	ln.Logger.Info("halting light node and its sub services...")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	var multiErr error
