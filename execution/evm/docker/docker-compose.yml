@@ -40,8 +40,6 @@ services:
       - |
           op-reth node \
           --chain /root/chain/genesis.json \
-          --rollup.disable-tx-pool-gossip \
-          --rollup.discovery.v4 \
           --metrics 0.0.0.0:9001 \
           --log.file.directory /root/logs \
           --authrpc.addr 0.0.0.0 \

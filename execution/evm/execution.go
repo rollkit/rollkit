@@ -146,51 +146,25 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 			txs = append(txs, txBytes)
 		}
 	}
-
-	// add queued txs
-	for _, accountTxs := range result.Queued {
-		for _, tx := range accountTxs {
-			txBytes, err := tx.MarshalBinary()
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal transaction: %w", err)
-			}
-			txs = append(txs, txBytes)
-		}
-	}
 	return txs, nil
 }
 
 // ExecuteTxs executes the given transactions at the specified block height and timestamp
 func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (updatedStateRoot []byte, maxBytes uint64, err error) {
-	// convert rollkit tx to eth tx
-	ethTxs := make([]*types.Transaction, len(txs))
+	// convert rollkit tx to hex strings for rollkit-reth
+	txsPayload := make([]string, len(txs))
 	for i, tx := range txs {
-		ethTxs[i] = new(types.Transaction)
-		err := ethTxs[i].UnmarshalBinary(tx)
+		ethTx := new(types.Transaction)
+		err := ethTx.UnmarshalBinary(tx)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to unmarshal transaction: %w", err)
 		}
-		txHash := ethTxs[i].Hash()
-		_, isPending, err := c.ethClient.TransactionByHash(context.Background(), txHash)
-		if err == nil && isPending {
-			continue // skip SendTransaction
-		}
-		err = c.ethClient.SendTransaction(context.Background(), ethTxs[i])
-		if err != nil {
-			// Ignore the error if the transaction fails to be sent since transactions can be invalid and an invalid transaction sent by a client should not crash the node.
-			continue
-		}
-	}
-
-	// encode
-	txsPayload := make([][]byte, len(txs))
-	for i, tx := range ethTxs {
 		buf := bytes.Buffer{}
-		err := tx.EncodeRLP(&buf)
+		err = ethTx.EncodeRLP(&buf)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to RLP encode tx: %w", err)
 		}
-		txsPayload[i] = buf.Bytes()
+		txsPayload[i] = "0x" + hex.EncodeToString(buf.Bytes())
 	}
 
 	_, _, prevGasLimit, _, err := c.getBlockInfo(ctx, blockHeight-1)
@@ -208,18 +182,24 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 
 	// update forkchoice to get the next payload id
 	var forkchoiceResult engine.ForkChoiceResponse
+
+	// Create rollkit-compatible payload attributes with flattened structure
+	rollkitPayloadAttrs := map[string]interface{}{
+		// Standard Ethereum payload attributes (flattened) - using camelCase as expected by JSON
+		"timestamp":             uint64(timestamp.Unix()),
+		"prevRandao":            c.derivePrevRandao(blockHeight),
+		"suggestedFeeRecipient": c.feeRecipient,
+		"withdrawals":           []*types.Withdrawal{},
+		// V3 requires parentBeaconBlockRoot
+		"parentBeaconBlockRoot": common.Hash{}.Hex(), // Use zero hash for rollkit
+		// Rollkit-specific fields
+		"transactions": txsPayload,
+		"gas_limit":    prevGasLimit,
+	}
+
 	err = c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
 		args,
-		&engine.PayloadAttributes{
-			Timestamp:             uint64(timestamp.Unix()),
-			Random:                c.derivePrevRandao(blockHeight),
-			SuggestedFeeRecipient: c.feeRecipient,
-			Withdrawals:           nil,
-			BeaconRoot:            &common.Hash{},
-			Transactions:          txsPayload,
-			NoTxPool:              true,
-			GasLimit:              &prevGasLimit,
-		},
+		rollkitPayloadAttrs,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("forkchoice update failed: %w", err)
@@ -228,6 +208,9 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	if forkchoiceResult.PayloadID == nil {
 		return nil, 0, ErrNilPayloadStatus
 	}
+
+	// Small delay to allow payload building to complete
+	time.Sleep(100 * time.Millisecond)
 
 	// get payload
 	var payloadResult engine.ExecutionPayloadEnvelope
