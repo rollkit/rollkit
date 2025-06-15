@@ -96,23 +96,15 @@ func TestEngineExecution(t *testing.T) {
 				nTxs = 0
 			}
 
-			// Create transactions but don't submit to mempool for rollkit-reth
-			// Rollkit handles transaction inclusion via Engine API payload attributes
-			var payload [][]byte
-			if nTxs > 0 {
-				txs := make([]*ethTypes.Transaction, nTxs)
-				for i := range txs {
-					txs[i] = GetRandomTransaction(t, TEST_PRIVATE_KEY, TEST_TO_ADDRESS, CHAIN_ID, 22000, &lastNonce)
-				}
-
-				// Convert transactions to payload format (raw bytes)
-				payload = make([][]byte, len(txs))
-				for i, tx := range txs {
-					txBytes, err := tx.MarshalBinary()
-					require.NoError(tt, err)
-					payload[i] = txBytes
-				}
+			txs := make([]*ethTypes.Transaction, nTxs)
+			for i := range txs {
+				txs[i] = GetRandomTransaction(t, TEST_PRIVATE_KEY, TEST_TO_ADDRESS, CHAIN_ID, 22000, &lastNonce)
+				SubmitTransaction(tt, txs[i])
 			}
+
+			payload, err := executionClient.GetTxs(ctx)
+			require.NoError(tt, err)
+
 			if nTxs > 0 {
 				require.Lenf(tt, payload, nTxs, "expected %d transactions, got %d", nTxs, len(payload))
 			} else {
