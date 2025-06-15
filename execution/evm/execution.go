@@ -1,7 +1,6 @@
 package evm
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -154,17 +153,8 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	// convert rollkit tx to hex strings for rollkit-reth
 	txsPayload := make([]string, len(txs))
 	for i, tx := range txs {
-		ethTx := new(types.Transaction)
-		err := ethTx.UnmarshalBinary(tx)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to unmarshal transaction: %w", err)
-		}
-		buf := bytes.Buffer{}
-		err = ethTx.EncodeRLP(&buf)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to RLP encode tx: %w", err)
-		}
-		txsPayload[i] = "0x" + hex.EncodeToString(buf.Bytes())
+		// Use the raw transaction bytes directly instead of re-encoding
+		txsPayload[i] = "0x" + hex.EncodeToString(tx)
 	}
 
 	_, _, prevGasLimit, _, err := c.getBlockInfo(ctx, blockHeight-1)
@@ -194,7 +184,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		"parentBeaconBlockRoot": common.Hash{}.Hex(), // Use zero hash for rollkit
 		// Rollkit-specific fields
 		"transactions": txsPayload,
-		"gas_limit":    prevGasLimit,
+		"gasLimit":     prevGasLimit, // Use camelCase to match JSON conventions
 	}
 
 	err = c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
@@ -223,9 +213,9 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	var newPayloadResult engine.PayloadStatusV1
 	err = c.engineClient.CallContext(ctx, &newPayloadResult, "engine_newPayloadV4",
 		payloadResult.ExecutionPayload,
-		[]string{}, // No blob hashes
-		c.genesisHash.Hex(),
-		[][]byte{}, // No execution requests
+		[]string{},          // No blob hashes
+		common.Hash{}.Hex(), // Use zero hash for parentBeaconBlockRoot (same as in payload attributes)
+		[][]byte{},          // No execution requests
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("new payload submission failed: %w", err)
