@@ -60,7 +60,7 @@ func TestEngineExecution(t *testing.T) {
 	rollkitGenesisStateRoot := genesisStateRoot[:]
 
 	t.Run("Build chain", func(tt *testing.T) {
-		jwtSecret := "227e499441326da59262ee0268413dff658038cf942b11f0764a9b9f5b7e81c9"
+		jwtSecret := SetupTestRethEngine(tt, DOCKER_PATH, JWT_FILENAME)
 
 		executionClient, err := NewEngineExecutionClient(
 			TEST_ETH_URL,
@@ -160,7 +160,8 @@ func TestEngineExecution(t *testing.T) {
 
 	// start new container and try to sync
 	t.Run("Sync chain", func(tt *testing.T) {
-		tt.Skip("Skip sync chain")
+		//tt.Skip("Skip sync chain")
+		tt.Logf("Starting Sync_chain test...")
 		jwtSecret := SetupTestRethEngine(t, DOCKER_PATH, JWT_FILENAME)
 
 		executionClient, err := NewEngineExecutionClient(
