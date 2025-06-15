@@ -3,7 +3,6 @@ package evm
 import (
 	"context"
 	"log"
-	"math/big"
 	"testing"
 	"time"
 
@@ -51,7 +50,8 @@ const (
 // Validates the engine can process transactions, maintain state,
 // handle empty blocks, and support chain replication.
 func TestEngineExecution(t *testing.T) {
-	allPayloads := make([][][]byte, 0, 10) // Slice to store payloads from build to sync phase
+	allPayloads := make([][][]byte, 0, 10)        // Slice to store payloads from build to sync phase
+	buildPhaseStateRoots := make([][]byte, 0, 10) // Slice to store state roots from build phase
 
 	initialHeight := uint64(1)
 	genesisHash := common.HexToHash(GENESIS_HASH)
@@ -150,6 +150,11 @@ func TestEngineExecution(t *testing.T) {
 			} else {
 				require.NotEqual(tt, prevStateRoot, newStateRoot)
 			}
+
+			// Store the state root from build phase for later comparison in sync phase
+			buildPhaseStateRoots = append(buildPhaseStateRoots, newStateRoot)
+			tt.Logf("Build phase block %d: stored state root %x", blockHeight, newStateRoot)
+
 			prevStateRoot = newStateRoot
 		}
 	})
@@ -207,6 +212,13 @@ func TestEngineExecution(t *testing.T) {
 			} else {
 				require.NotEqual(tt, prevStateRoot, newStateRoot)
 			}
+
+			// Verify that the sync phase state root matches the build phase state root
+			expectedStateRoot := buildPhaseStateRoots[blockHeight-1]
+			require.Equal(tt, expectedStateRoot, newStateRoot,
+				"Sync phase state root for block %d should match build phase state root. Expected: %x, Got: %x",
+				blockHeight, expectedStateRoot, newStateRoot)
+			tt.Logf("Sync phase block %d: state root %x matches build phase ✓", blockHeight, newStateRoot)
 
 			err = executionClient.SetFinal(ctx, blockHeight)
 			require.NoError(tt, err)
@@ -267,29 +279,57 @@ func checkLatestBlock(t *testing.T, ctx context.Context) (uint64, common.Hash, i
 
 func TestSubmitTransaction(t *testing.T) {
 	//t.Skip("Use this test to submit a transaction manually to the Ethereum client")
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second) // Increased timeout
 	defer cancel()
 	rpcClient, err := ethclient.Dial(TEST_ETH_URL)
 	require.NoError(t, err)
-	height, err := rpcClient.BlockNumber(ctx)
-	require.NoError(t, err)
+	defer rpcClient.Close()
 
 	privateKey, err := crypto.HexToECDSA(TEST_PRIVATE_KEY)
 	require.NoError(t, err)
 
 	address := crypto.PubkeyToAddress(privateKey.PublicKey)
-	lastNonce, err := rpcClient.NonceAt(ctx, address, new(big.Int).SetUint64(height))
-	require.NoError(t, err)
+
+	// Clear transaction pool and get proper starting nonce
+	lastNonce := ClearTransactionPool(t, TEST_PRIVATE_KEY)
+	t.Logf("Starting with nonce: %d", lastNonce)
 
 	for s := 0; s < 30; s++ {
 		startTime := time.Now()
-		for i := 0; i < 5000; i++ {
+		batchSize := 100 // Reduced batch size for better nonce management
+
+		for i := 0; i < batchSize; i++ {
+			// Check nonce every 10 transactions to avoid getting too far ahead
+			if i%10 == 0 {
+				currentNonce, err := rpcClient.NonceAt(ctx, address, nil)
+				if err != nil {
+					t.Logf("Warning: Failed to get current nonce: %v", err)
+				} else {
+					// Only update if the blockchain nonce is higher (transactions were processed)
+					if currentNonce > lastNonce {
+						lastNonce = currentNonce
+						t.Logf("Updated nonce to blockchain state: %d", lastNonce)
+					}
+				}
+			}
+
 			tx := GetRandomTransaction(t, TEST_PRIVATE_KEY, TEST_TO_ADDRESS, CHAIN_ID, 22000, &lastNonce)
 			SubmitTransaction(t, tx)
+
+			// Small delay between transactions to allow processing
+			time.Sleep(10 * time.Millisecond)
 		}
+
 		elapsed := time.Since(startTime)
-		if elapsed < 10*time.Second {
-			time.Sleep(10*time.Second - elapsed)
+		t.Logf("Batch %d completed in %v, final nonce: %d", s+1, elapsed, lastNonce)
+
+		// Wait for remaining time in the 10-second window, minimum 1 second
+		minWait := 1 * time.Second
+		targetWait := 10 * time.Second
+		waitTime := targetWait - elapsed
+		if waitTime < minWait {
+			waitTime = minWait
 		}
+		time.Sleep(waitTime)
 	}
 }
