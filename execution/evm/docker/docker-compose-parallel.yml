@@ -21,7 +21,7 @@ services:
   rollkit-reth-parallel:
     container_name: rollkit-reth-parallel
     restart: unless-stopped
-    image: ghcr.io/rollkit/rollkit-reth:latest
+    image: rollkit-reth
     depends_on:
       jwt-init-parallel:
         condition: service_completed_successfully
