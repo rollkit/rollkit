@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -137,7 +139,29 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 
 	// add pending txs
 	for _, accountTxs := range result.Pending {
-		for _, tx := range accountTxs {
+		// Extract and sort keys to iterate in ordered fashion
+		keys := make([]string, 0, len(accountTxs))
+		for key := range accountTxs {
+			keys = append(keys, key)
+		}
+
+		// Sort keys as integers (they represent nonces)
+		sort.Slice(keys, func(i, j int) bool {
+			// Parse as integers for proper numerical sorting
+			a, errA := strconv.Atoi(keys[i])
+			b, errB := strconv.Atoi(keys[j])
+
+			// If parsing fails, fall back to string comparison
+			if errA != nil || errB != nil {
+				return keys[i] < keys[j]
+			}
+
+			return a < b
+		})
+
+		// Iterate over sorted keys
+		for _, key := range keys {
+			tx := accountTxs[key]
 			txBytes, err := tx.MarshalBinary()
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal transaction: %w", err)
