@@ -21,7 +21,7 @@ services:
   rollkit-reth:
     container_name: rollkit-reth
     restart: unless-stopped
-    image: rollkit-reth:latest
+    image: ghcr.io/rollkit/rollkit-reth:latest
     depends_on:
       jwt-init:
         condition: service_completed_successfully
