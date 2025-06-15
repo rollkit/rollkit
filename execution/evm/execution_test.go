@@ -86,7 +86,10 @@ func TestEngineExecution(t *testing.T) {
 		lastNonce := ClearTransactionPool(tt, TEST_PRIVATE_KEY)
 		tt.Logf("Starting with nonce: %d", lastNonce)
 
-		for blockHeight := initialHeight; blockHeight <= 1; blockHeight++ {
+		// Use a base timestamp and increment for each block to ensure proper ordering
+		baseTimestamp := time.Now()
+
+		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
 			nTxs := int(blockHeight) + 10
 			// randomly use no transactions
 			if blockHeight == 4 {
@@ -119,16 +122,15 @@ func TestEngineExecution(t *testing.T) {
 
 			allPayloads = append(allPayloads, payload)
 
-			// Note: No need to submit more transactions here - we already have them in the mempool
-			// The transactions were submitted above and retrieved via GetTxs()
-
 			// Check latest block before execution
 			beforeHeight, beforeHash, beforeTxs := checkLatestBlock(tt, ctx)
 			require.Equal(tt, lastHeight, beforeHeight, "Latest block height should match")
 			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
 			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
 
-			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
+			// Use incremented timestamp for each block to ensure proper ordering
+			blockTimestamp := baseTimestamp.Add(time.Duration(blockHeight-initialHeight) * time.Second)
+			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, blockTimestamp, prevStateRoot)
 			require.NoError(tt, err)
 			if nTxs > 0 {
 				require.NotZero(tt, maxBytes)
@@ -180,6 +182,9 @@ func TestEngineExecution(t *testing.T) {
 		prevStateRoot := rollkitGenesisStateRoot
 		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
 
+		// Use a base timestamp and increment for each block to ensure proper ordering
+		syncBaseTimestamp := time.Now()
+
 		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
 			payload := allPayloads[blockHeight-1]
 
@@ -189,7 +194,9 @@ func TestEngineExecution(t *testing.T) {
 			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
 			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
 
-			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
+			// Use incremented timestamp for each block to ensure proper ordering
+			blockTimestamp := syncBaseTimestamp.Add(time.Duration(blockHeight-initialHeight) * time.Second)
+			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, blockTimestamp, prevStateRoot)
 			require.NoError(t, err)
 			if len(payload) > 0 {
 				require.NotZero(tt, maxBytes)
