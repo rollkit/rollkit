@@ -48,3 +48,7 @@ The sequencer can be configured using various command-line flags. The most impor
 - `--evm.jwt-secret`: JWT secret for EVM communication
 - `--evm.genesis-hash`: Genesis hash of the EVM chain
 - `--rollkit.node.block_time`: Block time for the Rollkit node
+
+# Rollkit EVM Full Node
+
+./evm-single start --home /Users/manav/.evm-single-full-node --evm.jwt-secret $(cat ../../../execution/evm/docker/jwttoken/jwt.hex)       --evm.genesis-hash 0x2b8bbb1ea1e04f9c9809b4b278a8687806edc061a356c7dbc491930d8e922503 --rollkit.rpc.address=127.0.0.1:46657 --rollkit.p2p.listen_address=/ip4/127.0.0.1/tcp/7677 --rollkit.p2p.peers=/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWHDaqNYmQHGDCkbjUNwmGA8fVJKnRzpXfBq4gwPktHrcT --evm.engine-url http://localhost:8561 --evm.eth-url http://localhost:8555

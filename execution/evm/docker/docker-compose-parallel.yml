@@ -1,8 +1,8 @@
-name: "rollkit-reth"
+name: "rollkit-reth-parallel"
 
 services:
-  jwt-init:
-    container_name: jwt-init
+  jwt-init-parallel:
+    container_name: jwt-init-parallel
     image: alpine:3.19
     volumes:
       - ./jwttoken:/jwt
@@ -18,31 +18,30 @@ services:
         openssl rand -hex 32 | tr -d '\n' > /jwt/jwt.hex;
       fi"
 
-  rollkit-reth:
-    container_name: rollkit-reth
+  rollkit-reth-parallel:
+    container_name: rollkit-reth-parallel
     restart: unless-stopped
     image: rollkit-reth
     depends_on:
-      jwt-init:
+      jwt-init-parallel:
         condition: service_completed_successfully
     ports:
-      - "9001:9001"   # metrics
-      - "30303:30303" # eth/66 peering
-      - "8545:8545"   # HTTP RPC
-      - "8551:8551"   # Engine API (authenticated)
-      - "8546:8546"   # WebSocket RPC
+      - "9011:9001" # metrics
+      - "30313:30303" # eth/66 peering
+      - "8555:8545" # rpc
+      - "8561:8551" # engine
+      - "8556:8546" # ws
     volumes:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
-      - logs:/root/logs
-    environment:
-      - RUST_LOG=info,rollkit_reth=debug,rollkit_payload_builder=debug
-      - RUST_BACKTRACE=1
+      - logs-parallel:/root/logs
     entrypoint: /bin/sh -c
     command:
       - |
           rollkit-reth node \
           --chain /root/chain/genesis.json \
+          --rollup.disable-tx-pool-gossip \
+          --rollup.discovery.v4 \
           --metrics 0.0.0.0:9001 \
           --log.file.directory /root/logs \
           --authrpc.addr 0.0.0.0 \
@@ -63,5 +62,5 @@ services:
           --txpool.additional-validation-tasks 16
 
 volumes:
-  logs:
+  logs-parallel:
     driver: local 
