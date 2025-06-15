@@ -1,4 +1,4 @@
-name: "reth-parallel"
+name: "rollkit-reth-parallel"
 
 services:
   jwt-init-parallel:
@@ -18,10 +18,10 @@ services:
         openssl rand -hex 32 | tr -d '\n' > /jwt/jwt.hex;
       fi"
 
-  reth-parallel:
-    container_name: op-reth-parallel
+  rollkit-reth-parallel:
+    container_name: rollkit-reth-parallel
     restart: unless-stopped
-    image: ghcr.io/paradigmxyz/op-reth:v1.4.6
+    image: rollkit-reth:latest
     depends_on:
       jwt-init-parallel:
         condition: service_completed_successfully
@@ -38,7 +38,7 @@ services:
     entrypoint: /bin/sh -c
     command:
       - |
-          op-reth node \
+          rollkit-reth node \
           --chain /root/chain/genesis.json \
           --rollup.disable-tx-pool-gossip \
           --rollup.discovery.v4 \
