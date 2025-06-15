@@ -126,7 +126,7 @@ func GetRandomTransaction(t *testing.T, privateKeyHex, toAddressHex, chainID str
 	chainId, ok := new(big.Int).SetString(chainID, 10)
 	require.True(t, ok)
 	txValue := big.NewInt(1000000000000000000)
-	gasPrice := big.NewInt(30000000000)
+	gasPrice := big.NewInt(100000000000) // Increased to 100 Gwei to handle replacement scenarios and ensure acceptance
 	toAddress := common.HexToAddress(toAddressHex)
 	data := make([]byte, 16)
 	_, err = rand.Read(data)
@@ -154,6 +154,25 @@ func SubmitTransaction(t *testing.T, tx *types.Transaction) {
 
 	err = rpcClient.SendTransaction(context.Background(), tx)
 	require.NoError(t, err)
+}
+
+// ClearTransactionPool attempts to clear the transaction pool by getting current nonce from blockchain
+func ClearTransactionPool(t *testing.T, privateKeyHex string) uint64 {
+	t.Helper()
+	rpcClient, err := ethclient.Dial("http://localhost:8545")
+	require.NoError(t, err)
+	defer rpcClient.Close()
+
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	require.NoError(t, err)
+	address := crypto.PubkeyToAddress(privateKey.PublicKey)
+
+	// Get the current nonce from the latest block (not pending)
+	nonce, err := rpcClient.NonceAt(context.Background(), address, nil)
+	require.NoError(t, err)
+
+	t.Logf("Current nonce for address %s: %d", address.Hex(), nonce)
+	return nonce
 }
 
 // CheckTxIncluded checks if a transaction with the given hash was included in a block and succeeded.
