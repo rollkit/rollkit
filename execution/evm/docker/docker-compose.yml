@@ -21,7 +21,7 @@ services:
   rollkit-reth:
     container_name: rollkit-reth
     restart: unless-stopped
-    image: ghcr.io/rollkit/rollkit-reth:latest
+    image: rollkit-reth
     depends_on:
       jwt-init:
         condition: service_completed_successfully
@@ -43,9 +43,6 @@ services:
       - |
           rollkit-reth node \
           --chain /root/chain/genesis.json \
-          --rollkit \
-          --rollkit-gas-limit=50000000 \
-          --engine-tx-passthrough \
           --metrics 0.0.0.0:9001 \
           --log.file.directory /root/logs \
           --authrpc.addr 0.0.0.0 \
