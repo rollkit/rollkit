@@ -1,3 +1,6 @@
+//go:build evm
+// +build evm
+
 package evm
 
 import (
@@ -83,9 +86,7 @@ func TestEngineExecution(t *testing.T) {
 		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
 		log.Println("lastTxs", lastTxs)
 
-		// Clear transaction pool and get proper starting nonce
-		lastNonce := ClearTransactionPool(tt, TEST_PRIVATE_KEY)
-		tt.Logf("Starting with nonce: %d", lastNonce)
+		lastNonce := uint64(0)
 
 		// Use a base timestamp and increment for each block to ensure proper ordering
 		baseTimestamp := time.Now()
@@ -158,8 +159,6 @@ func TestEngineExecution(t *testing.T) {
 
 	// start new container and try to sync
 	t.Run("Sync chain", func(tt *testing.T) {
-		//tt.Skip("Skip sync chain")
-		tt.Logf("Starting Sync_chain test...")
 		jwtSecret := SetupTestRethEngine(t, DOCKER_PATH, JWT_FILENAME)
 
 		executionClient, err := NewEngineExecutionClient(
