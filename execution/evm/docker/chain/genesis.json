@@ -12,22 +12,11 @@
     "berlinBlock": 0,
     "londonBlock": 0,
     "mergeNetsplitBlock": 0,
-    "bedrockBlock":0,
-    "regolithTime":0,
-    "canyonTime":0,
     "terminalTotalDifficulty": 0,
     "terminalTotalDifficultyPassed": true,
-    "ecotoneTime": 0,
-    "fjordTime": 0,
-    "graniteTime": 0,
     "shanghaiTime": 0,
     "cancunTime": 0,
-    "pragueTime": 0,
-    "optimism": {
-      "eip1559Elasticity": 6,
-      "eip1559Denominator": 50,
-      "eip1559DenominatorCanyon": 250
-    }
+    "pragueTime": 0
   },
   "nonce": "0x0",
   "timestamp": "0x0",
