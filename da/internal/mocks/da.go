@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	da "command-line-arguments"
+	da "github.com/rollkit/rollkit/core/da"
 	context "context"
 
 	mock "github.com/stretchr/testify/mock"
