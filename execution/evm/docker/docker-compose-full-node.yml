@@ -1,8 +1,8 @@
-name: "rollkit-reth-parallel"
+name: "rollkit-reth-full-node"
 
 services:
-  jwt-init-parallel:
-    container_name: jwt-init-parallel
+  jwt-init-full-node:
+    container_name: jwt-init-full-node
     image: alpine:3.19
     volumes:
       - ./jwttoken:/jwt
@@ -18,12 +18,12 @@ services:
         openssl rand -hex 32 | tr -d '\n' > /jwt/jwt.hex;
       fi"
 
-  rollkit-reth-parallel:
-    container_name: rollkit-reth-parallel
+  rollkit-reth-full-node:
+    container_name: rollkit-reth-full-node
     restart: unless-stopped
-    image: rollkit-reth
+    image: ghcr.io/rollkit/rollkit-reth:v0.1.1
     depends_on:
-      jwt-init-parallel:
+      jwt-init-full-node:
         condition: service_completed_successfully
     ports:
       - "9011:9001" # metrics
@@ -34,14 +34,12 @@ services:
     volumes:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
-      - logs-parallel:/root/logs
+      - logs-full-node:/root/logs
     entrypoint: /bin/sh -c
     command:
       - |
           rollkit-reth node \
           --chain /root/chain/genesis.json \
-          --rollup.disable-tx-pool-gossip \
-          --rollup.discovery.v4 \
           --metrics 0.0.0.0:9001 \
           --log.file.directory /root/logs \
           --authrpc.addr 0.0.0.0 \

@@ -21,7 +21,7 @@ services:
   rollkit-reth:
     container_name: rollkit-reth
     restart: unless-stopped
-    image: rollkit-reth
+    image: ghcr.io/rollkit/rollkit-reth:v0.1.1
     depends_on:
       jwt-init:
         condition: service_completed_successfully
@@ -35,9 +35,9 @@ services:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
       - logs:/root/logs
-    environment:
-      - RUST_LOG=info,rollkit_reth=debug,rollkit_payload_builder=debug
-      - RUST_BACKTRACE=1
+    # environment:
+      # - RUST_LOG=info,rollkit_reth=debug,rollkit_payload_builder=debug
+      # - RUST_BACKTRACE=1
     entrypoint: /bin/sh -c
     command:
       - |

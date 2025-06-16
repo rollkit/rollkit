@@ -3,6 +3,7 @@ package evm
 import (
 	"context"
 	"log"
+	"math/big"
 	"testing"
 	"time"
 
@@ -271,57 +272,30 @@ func checkLatestBlock(t *testing.T, ctx context.Context) (uint64, common.Hash, i
 
 func TestSubmitTransaction(t *testing.T) {
 	//t.Skip("Use this test to submit a transaction manually to the Ethereum client")
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second) // Increased timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	rpcClient, err := ethclient.Dial(TEST_ETH_URL)
 	require.NoError(t, err)
 	defer rpcClient.Close()
+	height, err := rpcClient.BlockNumber(ctx)
+	require.NoError(t, err)
 
 	privateKey, err := crypto.HexToECDSA(TEST_PRIVATE_KEY)
 	require.NoError(t, err)
 
 	address := crypto.PubkeyToAddress(privateKey.PublicKey)
-
-	// Clear transaction pool and get proper starting nonce
-	lastNonce := ClearTransactionPool(t, TEST_PRIVATE_KEY)
-	t.Logf("Starting with nonce: %d", lastNonce)
+	lastNonce, err := rpcClient.NonceAt(ctx, address, new(big.Int).SetUint64(height))
+	require.NoError(t, err)
 
 	for s := 0; s < 30; s++ {
 		startTime := time.Now()
-		batchSize := 100 // Reduced batch size for better nonce management
-
-		for i := 0; i < batchSize; i++ {
-			// Check nonce every 10 transactions to avoid getting too far ahead
-			if i%10 == 0 {
-				currentNonce, err := rpcClient.NonceAt(ctx, address, nil)
-				if err != nil {
-					t.Logf("Warning: Failed to get current nonce: %v", err)
-				} else {
-					// Only update if the blockchain nonce is higher (transactions were processed)
-					if currentNonce > lastNonce {
-						lastNonce = currentNonce
-						t.Logf("Updated nonce to blockchain state: %d", lastNonce)
-					}
-				}
-			}
-
+		for i := 0; i < 100; i++ {
 			tx := GetRandomTransaction(t, TEST_PRIVATE_KEY, TEST_TO_ADDRESS, CHAIN_ID, 22000, &lastNonce)
 			SubmitTransaction(t, tx)
-
-			// Small delay between transactions to allow processing
-			time.Sleep(10 * time.Millisecond)
 		}
-
 		elapsed := time.Since(startTime)
-		t.Logf("Batch %d completed in %v, final nonce: %d", s+1, elapsed, lastNonce)
-
-		// Wait for remaining time in the 10-second window, minimum 1 second
-		minWait := 1 * time.Second
-		targetWait := 10 * time.Second
-		waitTime := targetWait - elapsed
-		if waitTime < minWait {
-			waitTime = minWait
+		if elapsed < time.Second {
+			time.Sleep(time.Second - elapsed)
 		}
-		time.Sleep(waitTime)
 	}
 }
