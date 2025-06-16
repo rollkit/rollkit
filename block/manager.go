@@ -887,11 +887,46 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 
 	// Check if we need to execute transactions
 	if m.executionMode == coreexecutor.ExecutionModeImmediate {
-		// For immediate mode, transactions were already executed during block creation
-		// The AppHash in the header is the new state root
-		newStateRoot = header.AppHash
+		// For immediate mode, the aggregator already executed during block creation
+		// But syncing nodes need to execute to verify the AppHash
+		// Check if we're the block creator by verifying we signed this block
+		isBlockCreator := false
+		if m.signer != nil {
+			myAddress, err := m.signer.GetAddress()
+			if err == nil && bytes.Equal(header.ProposerAddress, myAddress) {
+				// Also verify this is the current height we're producing
+				currentHeight, err := m.store.Height(ctx)
+				if err == nil && header.Height() == currentHeight+1 {
+					isBlockCreator = true
+				}
+			}
+		}
+		
+		if isBlockCreator {
+			// We created this block, so we already executed transactions in execCreateBlock
+			// Just use the AppHash from the header
+			newStateRoot = header.AppHash
+		} else {
+			// We're syncing this block, need to execute to verify AppHash
+			rawTxs := make([][]byte, len(data.Txs))
+			for i := range data.Txs {
+				rawTxs[i] = data.Txs[i]
+			}
+
+			ctx = context.WithValue(ctx, types.SignedHeaderContextKey, header)
+			computedStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
+			if err != nil {
+				return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)
+			}
+
+			// Verify the AppHash matches
+			if !bytes.Equal(header.AppHash, computedStateRoot) {
+				return types.State{}, fmt.Errorf("AppHash mismatch in immediate mode: expected %x, got %x", computedStateRoot, header.AppHash)
+			}
+			newStateRoot = computedStateRoot
+		}
 	} else {
-		// For delayed mode, execute transactions now
+		// For delayed mode, always execute transactions
 		rawTxs := make([][]byte, len(data.Txs))
 		for i := range data.Txs {
 			rawTxs[i] = data.Txs[i]
