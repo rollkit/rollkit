@@ -224,7 +224,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	}
 
 	// Small delay to allow payload building to complete
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// get payload
 	var payloadResult engine.ExecutionPayloadEnvelope
