@@ -60,5 +60,5 @@ services:
           --txpool.additional-validation-tasks 16
 
 volumes:
-  logs-parallel:
-    driver: local 
+  logs-full-node:
+    driver: local
