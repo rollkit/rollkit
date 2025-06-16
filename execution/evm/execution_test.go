@@ -5,7 +5,6 @@ package evm
 
 import (
 	"context"
-	"log"
 	"math/big"
 	"testing"
 	"time"
@@ -55,6 +54,7 @@ const (
 // handle empty blocks, and support chain replication.
 func TestEngineExecution(t *testing.T) {
 	allPayloads := make([][][]byte, 0, 10)        // Slice to store payloads from build to sync phase
+	allTimestamps := make([]time.Time, 0, 10)     // Slice to store timestamps from build phase
 	buildPhaseStateRoots := make([][]byte, 0, 10) // Slice to store state roots from build phase
 
 	initialHeight := uint64(1)
@@ -84,8 +84,6 @@ func TestEngineExecution(t *testing.T) {
 
 		prevStateRoot := rollkitGenesisStateRoot
 		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
-		log.Println("lastTxs", lastTxs)
-
 		lastNonce := uint64(0)
 
 		// Use a base timestamp and increment for each block to ensure proper ordering
@@ -106,13 +104,7 @@ func TestEngineExecution(t *testing.T) {
 
 			payload, err := executionClient.GetTxs(ctx)
 			require.NoError(tt, err)
-
-			if nTxs > 0 {
-				require.Lenf(tt, payload, nTxs, "expected %d transactions, got %d", nTxs, len(payload))
-			} else {
-				require.Empty(tt, payload, "expected no transactions when nTxs=0")
-			}
-			log.Println("nTxs", nTxs, "payload length", len(payload))
+			require.Lenf(tt, payload, nTxs, "expected %d transactions, got %d", nTxs, len(payload))
 
 			allPayloads = append(allPayloads, payload)
 
@@ -124,6 +116,9 @@ func TestEngineExecution(t *testing.T) {
 
 			// Use incremented timestamp for each block to ensure proper ordering
 			blockTimestamp := baseTimestamp.Add(time.Duration(blockHeight-initialHeight) * time.Second)
+			allTimestamps = append(allTimestamps, blockTimestamp)
+
+			// Execute transactions and get the new state root
 			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, blockTimestamp, prevStateRoot)
 			require.NoError(tt, err)
 			if nTxs > 0 {
@@ -180,9 +175,6 @@ func TestEngineExecution(t *testing.T) {
 		prevStateRoot := rollkitGenesisStateRoot
 		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
 
-		// Use a base timestamp and increment for each block to ensure proper ordering
-		syncBaseTimestamp := time.Now()
-
 		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
 			payload := allPayloads[blockHeight-1]
 
@@ -192,8 +184,8 @@ func TestEngineExecution(t *testing.T) {
 			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
 			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
 
-			// Use incremented timestamp for each block to ensure proper ordering
-			blockTimestamp := syncBaseTimestamp.Add(time.Duration(blockHeight-initialHeight) * time.Second)
+			// Use timestamp from build phase for each block to ensure proper ordering
+			blockTimestamp := allTimestamps[blockHeight-1]
 			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, blockTimestamp, prevStateRoot)
 			require.NoError(t, err)
 			if len(payload) > 0 {
