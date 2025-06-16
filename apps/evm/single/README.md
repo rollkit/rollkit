@@ -48,7 +48,7 @@ The sequencer can be configured using various command-line flags. The most impor
 - `--evm.genesis-hash`: Genesis hash of the EVM chain
 - `--rollkit.node.block_time`: Block time for the Rollkit node
 
-# Rollkit EVM Full Node
+## Rollkit EVM Full Node
 
 1. The sequencer must be running before starting any Full Node. You can run the EVM layer of the Full Node using `docker-compose -f docker-compose-full-node.yml` from <path_to>/execution/evm/docker.
 

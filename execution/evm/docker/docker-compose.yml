@@ -64,4 +64,4 @@ services:
 
 volumes:
   logs:
-    driver: local 
+    driver: local
