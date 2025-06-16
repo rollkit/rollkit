@@ -16,6 +16,10 @@ const (
 	// ExecutionModeImmediate means the AppHash in block N represents the state after executing block N
 	// Transactions are executed during block creation and the resulting state root is included
 	ExecutionModeImmediate
+
+	// ExecutionModeOptimistic means transactions are executed optimistically and finalized later
+	// This allows for faster block creation but requires a finalization step to confirm state
+	// ExecutionModeOptimistic
 )
 
 // Executor defines the interface that execution clients must implement to be compatible with Rollkit.
