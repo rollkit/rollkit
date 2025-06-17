@@ -19,8 +19,6 @@ func defaultRollkitProvider(t *testing.T) tastoratypes.Provider {
 	numFullNodes := 1
 	client, network := tastoradocker.DockerSetup(t)
 
-	aggregatorPass := "12345678"
-
 	cfg := tastoradocker.Config{
 		Logger:          zaptest.NewLogger(t),
 		DockerClient:    client,
@@ -30,52 +28,57 @@ func defaultRollkitProvider(t *testing.T) tastoratypes.Provider {
 				"config/app.toml":    appOverrides(),
 				"config/config.toml": configOverrides(),
 			},
-			Type:          "rollkit",
+			Type:          "celestia",
 			Name:          "celestia",
-			Version:       "latest",
+			Version:       "v4.0.0-rc6",
 			NumValidators: &numValidators,
 			NumFullNodes:  &numFullNodes,
-			ChainID:       "testing",
+			ChainID:       "test",
 			Images: []tastoradocker.DockerImage{
 				{
-					Repository: "rollkit",
-					Version:    "latest",
+					Repository: "ghcr.io/celestiaorg/celestia-app",
+					Version:    "v4.0.0-rc6",
 					UIDGID:     "10001:10001",
 				},
 			},
-			Bin:            "testapp",
+			Bin:            "celestia-appd",
 			Bech32Prefix:   "celestia",
 			Denom:          "utia",
 			CoinType:       "118",
 			GasPrices:      "0.025utia",
 			GasAdjustment:  1.3,
 			EncodingConfig: &encConfig,
-			ChainNodeConfig: []tastoradocker.ChainNodeConfig{
-				{
-					AdditionalStartArgs: []string{},
-					AdditionalInitArgs:  []string{},
-				},
-				{
-
-					AdditionalStartArgs: []string{
-						"--rollkit.node.aggregator",
-						"--rollkit.signer.passphrase=" + aggregatorPass,
-						"--rollkit.node.block_time=5ms",
-						"--rollkit.da.block_time=15ms",
-						"--kv-endpoint=0.0.0.0:9090",
-					},
-					AdditionalInitArgs: []string{
-						"--rollkit.node.aggregator",
-						"--rollkit.signer.passphrase=" + aggregatorPass,
-					},
-				},
-				//{
-				//	AdditionalStartArgs: nil,
-				//	AdditionalInitArgs:  nil,
-				//},
+			AdditionalStartArgs: []string{
+				"--force-no-bbr",
+				"--grpc.enable",
+				"--grpc.address",
+				"0.0.0.0:9090",
+				"--rpc.grpc_laddr=tcp://0.0.0.0:9098",
+				"--timeout-commit", "1s", // shorter block time.
+			},
+		},
+		DataAvailabilityNetworkConfig: &tastoradocker.DataAvailabilityNetworkConfig{
+			BridgeNodeCount: 1,
+			Image: tastoradocker.DockerImage{
+				Repository: "ghcr.io/celestiaorg/celestia-node",
+				// TODO: includes fix for signer which enables the funding of accounts mid test.
+				Version: "pr-4283",
+				UIDGID:  "10001:10001",
+			},
+		},
+		RollkitChainConfig: &tastoradocker.RollkitChainConfig{
+			ChainID:              "rollkit-test",
+			Bin:                  "testapp",
+			AggregatorPassphrase: "12345678",
+			NumNodes:             1,
+			Image: tastoradocker.DockerImage{
+				Repository: "ghcr.io/rollkit/rollkit",
+				Version:    "latest",
+				UIDGID:     "10001:10001",
 			},
 		},
 	}
+
 	return tastoradocker.NewProvider(cfg, t)
 }
 
