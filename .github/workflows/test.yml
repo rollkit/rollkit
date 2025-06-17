@@ -36,6 +36,7 @@ jobs:
           tags: ghcr.io/${{ github.repository_owner }}/rollkit:${{ inputs.image-tag }}
 
   docker-tests:
+    name: Docker E2E Tests
     needs: build-docker-image
     runs-on: ubuntu-latest
     steps:
