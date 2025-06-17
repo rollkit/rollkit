@@ -17,6 +17,9 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap/zaptest"
+	"os"
+	"strings"
+	"testing"
 )
 
 const (
@@ -24,6 +27,19 @@ const (
 	// it must be the string "test" as it is handled explicitly in app/node.
 	testChainID = "test"
 )
+
+func init() {
+	sdkConf := sdk.GetConfig()
+	sdkConf.SetBech32PrefixForAccount("celestia", "celestiapub")
+	sdkConf.Seal()
+}
+
+func TestDockerSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping due to short mode")
+	}
+	suite.Run(t, new(DockerTestSuite))
+}
 
 type DockerTestSuite struct {
 	suite.Suite
@@ -33,17 +49,11 @@ type DockerTestSuite struct {
 	rollkitChain tastoratypes.RollkitChain
 }
 
-func (s *DockerTestSuite) SetupSuite() {
-	sdkConf := sdk.GetConfig()
-	sdkConf.SetBech32PrefixForAccount("celestia", "celestiapub")
-	sdkConf.Seal()
-}
-
 // ConfigOption is a function type for modifying tastoradocker.Config
 type ConfigOption func(*tastoradocker.Config)
 
-// CreateProvider creates a new tastoratypes.Provider with optional configuration modifications
-func (s *DockerTestSuite) CreateProvider(opts ...ConfigOption) tastoratypes.Provider {
+// CreateDockerProvider creates a new tastoratypes.Provider with optional configuration modifications
+func (s *DockerTestSuite) CreateDockerProvider(opts ...ConfigOption) tastoratypes.Provider {
 	t := s.T()
 	encConfig := testutil.MakeTestEncodingConfig(auth.AppModuleBasic{}, bank.AppModuleBasic{})
 	numValidators := 1
@@ -101,12 +111,7 @@ func (s *DockerTestSuite) CreateProvider(opts ...ConfigOption) tastoratypes.Prov
 			Bin:                  "testapp",
 			AggregatorPassphrase: "12345678",
 			NumNodes:             1,
-			Image: tastoradocker.DockerImage{
-				//Repository: "ghcr.io/rollkit/rollkit",
-				Repository: "rollkit",
-				Version:    "latest",
-				UIDGID:     "10001:10001",
-			},
+			Image:                getRollkitImage(),
 		},
 	}
 
@@ -135,7 +140,7 @@ func (s *DockerTestSuite) getGenesisHash(ctx context.Context) string {
 // SetupDockerResources creates a new provider and chain using the given configuration options.
 // none of the resources are started.
 func (s *DockerTestSuite) SetupDockerResources(opts ...ConfigOption) {
-	s.provider = s.CreateProvider(opts...)
+	s.provider = s.CreateDockerProvider(opts...)
 	s.celestia = s.CreateChain()
 	s.daNetwork = s.CreateDANetwork()
 	s.rollkitChain = s.CreateRollkitChain()
@@ -222,23 +227,44 @@ func (s *DockerTestSuite) StartRollkitNode(ctx context.Context, bridgeNode tasto
 	s.Require().NoError(err)
 }
 
+// getRollkitImage returns the Docker image configuration for Rollkit
+// Uses ROLLKIT_IMAGE_REPO and ROLLKIT_IMAGE_TAG environment variables if set
+func getRollkitImage() tastoradocker.DockerImage {
+	repo := strings.TrimSpace(os.Getenv("ROLLKIT_IMAGE_REPO"))
+	if repo == "" {
+		repo = "ghcr.io/rollkit/rollkit"
+	}
+
+	tag := strings.TrimSpace(os.Getenv("ROLLKIT_IMAGE_TAG"))
+	if tag == "" {
+		tag = "latest"
+	}
+
+	return tastoradocker.DockerImage{
+		Repository: repo,
+		Version:    tag,
+		UIDGID:     "10001:10001",
+	}
+}
+
 func generateValidNamespaceHex() string {
 	return hex.EncodeToString(share.RandomBlobNamespaceID())
 }
 
 // appOverrides enables indexing of transactions so Broadcasting of transactions works
 func appOverrides() toml.Toml {
-	tomlCfg := make(toml.Toml)
-	txIndex := make(toml.Toml)
-	txIndex["indexer"] = "kv"
-	tomlCfg["tx-index"] = txIndex
-	return tomlCfg
+	return toml.Toml{
+		"tx-index": toml.Toml{
+			"indexer": "kv",
+		},
+	}
 }
 
+// configOverrides enables indexing of transactions so Broadcasting of transactions works
 func configOverrides() toml.Toml {
-	tomlCfg := make(toml.Toml)
-	txIndex := make(toml.Toml)
-	txIndex["indexer"] = "kv"
-	tomlCfg["tx_index"] = txIndex
-	return tomlCfg
+	return toml.Toml{
+		"tx_index": toml.Toml{
+			"indexer": "kv",
+		},
+	}
 }

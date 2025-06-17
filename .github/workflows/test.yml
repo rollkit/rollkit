@@ -35,11 +35,19 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/rollkit:${{ inputs.image-tag }}
 
-  upgrade-tests:
+  docker-tests:
     needs: build-docker-image
     runs-on: ubuntu-latest
     steps:
-      - run: exit 0 # TODO: add upgrade test uses the image built in the build-docker-image step
+      - uses: actions/checkout@v4
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./test/docker-e2e/go.mod
+      - name: Run Docker E2E Tests
+        run: make test-docker-e2e
+        env:
+          ROLLKIT_IMAGE_TAG: ${{ inputs.image-tag }}
 
   build_all-apps:
     name: Build All Rollkit Binaries

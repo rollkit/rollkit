@@ -38,3 +38,8 @@ test-cover:
 test-evm:
 	@echo "--> Running EVM tests"
 	@cd execution/evm && go test -mod=readonly -failfast -timeout=15m ./... -tags=evm
+
+## test-docker-e2e: Running Docker E2E tests
+test-docker-e2e:
+	@echo "--> Running Docker E2E tests"
+	@cd test/docker-e2e && go test -mod=readonly -failfast -timeout=30m ./...
