@@ -24,9 +24,12 @@ func main() {
 	ctx := context.Background()
 	rootCmd.AddCommand(
 		cmd.NewExtendedRunNodeCmd(ctx),
-		rollcmd.VersionCmd,
 		cmd.InitCmd(),
+
+		rollcmd.VersionCmd,
 		rollcmd.NetInfoCmd,
+		rollcmd.StoreUnsafeCleanCmd,
+		rollcmd.KeysCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

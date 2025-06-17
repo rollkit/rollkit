@@ -96,7 +96,6 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-
 			nodeConfig, err := rollcmd.ParseConfig(cmd)
 			if err != nil {
 				return fmt.Errorf("failed to parse config: %w", err)
@@ -173,7 +172,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			// StartNode might need adjustment if it strictly requires coreda.Client methods.
 			// For now, assume it can work with coreda.DA or will be adjusted later.
 			// We also need to pass the namespace config for rollDA.
-			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, p2pClient, datastore, nodeConfig)
+			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, p2pClient, datastore, nodeConfig, nil)
 		},
 	}
 

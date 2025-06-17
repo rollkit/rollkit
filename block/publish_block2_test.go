@@ -70,8 +70,8 @@ func TestSlowConsumers(t *testing.T) {
 			manager, headerSync, dataSync := setupBlockManager(t, ctx, workDir, dbm, blockTime, noopSigner)
 			var lastCapturedDataPayload *types.Data
 			var lastCapturedHeaderPayload *types.SignedHeader
-			manager.dataBroadcaster = capturingTailBroadcaster[*types.Data](spec.dataConsumerDelay, &lastCapturedDataPayload, dataSync)
-			manager.headerBroadcaster = capturingTailBroadcaster[*types.SignedHeader](spec.headerConsumerDelay, &lastCapturedHeaderPayload, headerSync)
+			manager.dataBroadcaster = capturingTailBroadcaster(spec.dataConsumerDelay, &lastCapturedDataPayload, dataSync)
+			manager.headerBroadcaster = capturingTailBroadcaster(spec.headerConsumerDelay, &lastCapturedHeaderPayload, headerSync)
 
 			blockTime := manager.config.Node.BlockTime.Duration
 			aggCtx, aggCancel := context.WithCancel(ctx)
@@ -104,8 +104,8 @@ func TestSlowConsumers(t *testing.T) {
 
 			var firstCapturedDataPayload *types.Data
 			var firstCapturedHeaderPayload *types.SignedHeader
-			manager.dataBroadcaster = capturingHeadBroadcaster[*types.Data](0, &firstCapturedDataPayload, dataSync)
-			manager.headerBroadcaster = capturingHeadBroadcaster[*types.SignedHeader](0, &firstCapturedHeaderPayload, headerSync)
+			manager.dataBroadcaster = capturingHeadBroadcaster(0, &firstCapturedDataPayload, dataSync)
+			manager.headerBroadcaster = capturingHeadBroadcaster(0, &firstCapturedHeaderPayload, headerSync)
 			go manager.AggregationLoop(ctx, errChan)
 			select {
 			case err := <-errChan:
@@ -212,6 +212,7 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		NopMetrics(),
 		1.,
 		1.,
+		nil, // using default signature verification
 	)
 	require.NoError(t, err)
 	return result, headerSyncService, dataSyncService
@@ -229,7 +230,6 @@ func (m mockExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
 
 func (m mockExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (updatedStateRoot []byte, maxBytes uint64, err error) {
 	return bytesN(32), 10_000, nil
-
 }
 
 func (m mockExecutor) SetFinal(ctx context.Context, blockHeight uint64) error {

@@ -88,6 +88,9 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 				m.handlePotentialData(ctx, bz, daHeight)
 			}
 			return nil
+		} else if strings.Contains(fetchErr.Error(), coreda.ErrHeightFromFuture.Error()) {
+			m.logger.Debug("height from future", "daHeight", daHeight, "reason", fetchErr.Error())
+			return fetchErr
 		}
 
 		// Track the error
@@ -210,8 +213,12 @@ func (m *Manager) fetchBlobs(ctx context.Context, daHeight uint64) (coreda.Resul
 	defer cancel()
 	// TODO: we should maintain the original error instead of creating a new one as we lose context by creating a new error.
 	blobsRes := types.RetrieveWithHelpers(ctx, m.da, m.logger, daHeight)
-	if blobsRes.Code == coreda.StatusError {
+	switch blobsRes.Code {
+	case coreda.StatusError:
 		err = fmt.Errorf("failed to retrieve block: %s", blobsRes.Message)
+	case coreda.StatusHeightFromFuture:
+		// Keep the root cause intact for callers that may rely on errors.Is/As.
+		err = fmt.Errorf("%w: %s", coreda.ErrHeightFromFuture, blobsRes.Message)
 	}
 	return blobsRes, err
 }

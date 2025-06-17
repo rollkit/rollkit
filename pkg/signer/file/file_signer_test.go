@@ -450,6 +450,75 @@ loop:
 	assert.Empty(t, errs, "Concurrent operations should not produce errors")
 }
 
+func TestImportExportPrivateKey(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	keyPath := tempDir
+	passphrase := []byte("secure-test-passphrase")
+
+	// 1. Create a signer to have a key to export
+	signer, err := CreateFileSystemSigner(keyPath, passphrase)
+	require.NoError(t, err)
+	require.NotNil(t, signer)
+
+	fsSigner := signer.(*FileSystemSigner)
+	originalPrivKeyBytes, err := fsSigner.privateKey.Raw()
+	require.NoError(t, err)
+
+	// 2. Export the private key
+	passphrase = []byte("secure-test-passphrase") // re-init since it's zeroed
+	exportedKeyBytes, err := ExportPrivateKey(keyPath, passphrase)
+	require.NoError(t, err)
+	require.NotEmpty(t, exportedKeyBytes)
+
+	// 3. Verify that the exported key matches the original
+	assert.Equal(t, originalPrivKeyBytes, exportedKeyBytes)
+
+	// 4. Import the key into a new location
+	importDir := t.TempDir()
+	importKeyPath := importDir
+	importPassphrase := []byte("new-secure-passphrase")
+	err = ImportPrivateKey(importKeyPath, exportedKeyBytes, importPassphrase)
+	require.NoError(t, err)
+
+	// 5. Load the imported key and verify it
+	importPassphrase = []byte("new-secure-passphrase") // re-init
+	loadedSigner, err := LoadFileSystemSigner(importKeyPath, importPassphrase)
+	require.NoError(t, err)
+
+	loadedFsSigner := loadedSigner.(*FileSystemSigner)
+	loadedPrivKeyBytes, err := loadedFsSigner.privateKey.Raw()
+	require.NoError(t, err)
+
+	// 6. Verify the loaded key from the imported file matches the original
+	assert.Equal(t, originalPrivKeyBytes, loadedPrivKeyBytes)
+
+	// 7. Test error cases for Export
+	t.Run("Export with wrong passphrase", func(t *testing.T) {
+		wrongPassphrase := []byte("wrong-passphrase")
+		_, err := ExportPrivateKey(keyPath, wrongPassphrase)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "wrong passphrase")
+	})
+
+	t.Run("Export from non-existent path", func(t *testing.T) {
+		passphrase = []byte("secure-test-passphrase")
+		_, err := ExportPrivateKey(t.TempDir(), passphrase)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read key file")
+	})
+
+	// 8. Test error cases for Import
+	t.Run("Import with invalid key bytes", func(t *testing.T) {
+		invalidKeyBytes := []byte("not-a-key")
+		passphrase = []byte("secure-test-passphrase")
+		err := ImportPrivateKey(t.TempDir(), invalidKeyBytes, passphrase)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to unmarshal private key")
+	})
+}
+
 func TestHelperFunctions(t *testing.T) {
 	t.Run("zeroBytes", func(t *testing.T) {
 		data := []byte{1, 2, 3, 4, 5}
