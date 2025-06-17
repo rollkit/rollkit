@@ -901,7 +901,7 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 				}
 			}
 		}
-		
+
 		if isBlockCreator {
 			// We created this block, so we already executed transactions in execCreateBlock
 			// Just use the AppHash from the header
