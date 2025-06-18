@@ -17,7 +17,7 @@ import (
 func main() {
 	rootDir := "."
 
-	excludeDirs := []string{"test/docker-e2e"}
+	excludeDirs := []string{filepath.ToSlash("test/docker-e2e")}
 
 	var coverFiles []string
 	var testFailures bool
