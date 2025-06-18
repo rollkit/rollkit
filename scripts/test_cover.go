@@ -43,7 +43,7 @@ func main() {
 
 			if slices.Contains(excludeDirs, modDir) {
 				fmt.Printf("--> Skipping tests in: %s\n as they are marked as excluded", modDir)
-				continue
+				return nil
 			}
 
 			fmt.Printf("--> Running tests with coverage in: %s (profile: %s)\n", modDir, relativeCoverProfileArg)
