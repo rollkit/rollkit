@@ -2,7 +2,7 @@ module github.com/rollkit/rollkit/test/docker-e2e
 
 go 1.24.2
 
-require github.com/celestiaorg/tastora v0.0.2-0.20250617095014-73aa18594859
+require github.com/celestiaorg/tastora v0.0.3
 
 require (
 	github.com/golang/mock v1.6.0 // indirect
