@@ -239,7 +239,6 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	}()
 
 	Id := []byte("test")
-	namespace := []byte("placeholder")
 	batchData := [][]byte{[]byte("batch1"), []byte("batch2")}
 	proofs := [][]byte{[]byte("proof1"), []byte("proof2")}
 
