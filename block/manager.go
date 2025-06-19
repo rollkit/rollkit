@@ -781,7 +781,7 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 	if m.executionMode == coreexecutor.ExecutionModeDelayed {
 		// In delayed mode, AppHash should match the last state's AppHash
 		if !bytes.Equal(header.AppHash, lastState.AppHash) {
-			return fmt.Errorf("AppHash mismatch in delayed mode: expected %x, got %x", lastState.AppHash, header.AppHash)
+			return fmt.Errorf("appHash mismatch in delayed mode: expected %x, got %x", lastState.AppHash, header.AppHash)
 		}
 	}
 	// Note: For immediate mode, we can't validate AppHash against lastState because
