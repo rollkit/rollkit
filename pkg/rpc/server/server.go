@@ -237,6 +237,9 @@ func NewServiceHandler(store store.Store, peerManager p2p.P2PRPC) (http.Handler,
 	healthPath, healthHandler := rpc.NewHealthServiceHandler(healthServer)
 	mux.Handle(healthPath, healthHandler)
 
+	// Register custom HTTP endpoints
+	RegisterCustomHTTPEndpoints(mux)
+
 	// Use h2c to support HTTP/2 without TLS
 	return h2c.NewHandler(mux, &http2.Server{
 		IdleTimeout:          120 * time.Second,
