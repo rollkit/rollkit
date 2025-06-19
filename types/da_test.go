@@ -117,7 +117,7 @@ func TestSubmitWithHelpers(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDA := mocks.NewDA(t)
-			mockDA.On("SubmitWithOptions", mock.Anything, tc.data, tc.gasPrice, types.NameSpacePlaceholder, tc.options).Return(tc.submitIDs, tc.submitErr)
+			mockDA.On("SubmitWithOptions", mock.Anything, tc.data, tc.gasPrice, tc.options).Return(tc.submitIDs, tc.submitErr)
 
 			result := types.SubmitWithHelpers(context.Background(), mockDA, logger, tc.data, tc.gasPrice, tc.options)
 
@@ -220,7 +220,7 @@ func TestRetrieveWithHelpers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDA := mocks.NewDA(t)
 
-			mockDA.On("GetIDs", mock.Anything, dataLayerHeight, types.NameSpacePlaceholder).Return(tc.getIDsResult, tc.getIDsErr)
+			mockDA.On("GetIDs", mock.Anything, dataLayerHeight).Return(tc.getIDsResult, tc.getIDsErr)
 
 			if tc.getIDsErr == nil && tc.getIDsResult != nil && len(tc.getIDsResult.IDs) > 0 {
 				mockDA.On("Get", mock.Anything, tc.getIDsResult.IDs, []byte("placeholder")).Return(mockBlobs, tc.getBlobsErr)
