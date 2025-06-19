@@ -4,12 +4,13 @@ services:
   reth:
     container_name: reth
     restart: unless-stopped
-    image: ghcr.io/paradigmxyz/reth:v1.2.1
+    image: ghcr.io/paradigmxyz/reth:v1.4.6
     ports:
-      - "9001:9001"
-      - "30303:30303"
-      - "8545:8545"
-      - "8551:8551"
+      - "9001:9001" # metrics
+      - "30303:30303" # eth/66 peering
+      - "8545:8545" # rpc
+      - "8551:8551" # engine
+      - "8546:8546" # ws
     volumes:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
@@ -26,7 +27,17 @@ services:
           --authrpc.jwtsecret /root/jwt/jwt.hex \
           --http --http.addr 0.0.0.0 --http.port 8545 \
           --http.api "eth,net,web3,txpool" \
-          --disable-discovery
+          --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.api eth,net,web3 \
+          --engine.persistence-threshold 0 \
+          --engine.memory-block-buffer-target 0 \
+          --disable-discovery \
+          --txpool.pending-max-count 200000 \
+          --txpool.pending-max-size 200 \
+          --txpool.queued-max-count 200000 \
+          --txpool.queued-max-size 200 \
+          --txpool.max-account-slots 2048 \
+          --txpool.max-new-txns 2048 \
+          --txpool.additional-validation-tasks 16
     networks:
       - rollkit-network
 
@@ -39,7 +50,7 @@ services:
       - rollkit-network
 
   rollkit-evm-single:
-    image: ghcr.io/rollkit/rollkit-evm-single:v0.1.3
+    image: ghcr.io/rollkit/rollkit-evm-single:v0.1.5
     depends_on:
       reth:
         condition: service_started
@@ -52,10 +63,10 @@ services:
       - EVM_ENGINE_URL=http://reth:8551
       - EVM_ETH_URL=http://reth:8545
       - EVM_JWT_SECRET=f747494bb0fb338a0d71f5f9fe5b5034c17cc988c229b59fd71e005ee692e9bf
-      - EVM_GENESIS_HASH=0x0a962a0d163416829894c89cb604ae422323bcdf02d7ea08b94d68d3e026a380
+      - EVM_GENESIS_HASH=0x2b8bbb1ea1e04f9c9809b4b278a8687806edc061a356c7dbc491930d8e922503
       - EVM_BLOCK_TIME=1s
       - EVM_SIGNER_PASSPHRASE=secret
-      # - DA_ADDRESS=http://localhost:26658
+      - DA_ADDRESS=http://local-da:7980 # http://localhost:26658 (Use if not using local-da)
       # - DA_AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiXSwiTm9uY2UiOiJQcEswTmhyWi9IY05NWkVtUG9sSXNpRTRDcUpMdE9mbWtBMW0zMWFUaEswPSIsIkV4cGlyZXNBdCI6IjAwMDEtMDEtMDFUMDA6MDA6MDBaIn0.gaWh6tS6Rel1XFYclDkapNnZlaZVjrikCRNBxSDkCGk
       # - DA_NAMESPACE=00000000000000000000000000000000000000000008e5f679bf7116c1
     networks:

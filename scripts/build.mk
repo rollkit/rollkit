@@ -5,8 +5,17 @@ LDFLAGS := \
 	-X github.com/rollkit/rollkit/pkg/cmd.Version=$(VERSION) \
 	-X github.com/rollkit/rollkit/pkg/cmd.GitSHA=$(GITSHA)
 
+## build: build Testapp CLI
+build:
+	@echo "--> Building Testapp CLI"
+	@mkdir -p $(CURDIR)/build
+	@cd apps/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp .
+	@echo "--> Testapp CLI Built!"
+	@echo "    Check the version with: build/testapp version"
+        @echo "    Check the binary with: $(CURDIR)/build/testapp"
+.PHONY: build
 
-## install: Install rollkit CLI
+## install: Install Testapp CLI
 install:
 	@echo "--> Installing Testapp CLI"
 	@cd apps/testapp && go install -ldflags "$(LDFLAGS)" .
@@ -28,22 +37,12 @@ build-all:
 	@cd da && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/local-da ./cmd/local-da
 	@echo "--> All rollkit binaries built!"
 
-## build: build rollkit CLI
-build:
-	@echo "--> Building Testapp CLI"
-	@mkdir -p $(CURDIR)/build
-	@cd apps/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp .
-	@echo "--> Testapp CLI Built!"
-	@echo "    Check the version with: apps/testapp version"
-        @echo "    Check the binary with: $(CURDIR)/build/testapp"
-.PHONY: build
-
 ## build-testapp-bench:
 build-testapp-bench:
 	@echo "--> Building Testapp Bench"
 	@mkdir -p $(CURDIR)/build
 	@cd apps/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp-bench ./kv/bench
-	@echo "    Check the binary with: $(CURDIR)/apps/testapp/bench"
+	@echo "    Check the binary with: $(CURDIR)/build/testapp-bench"
 .PHONY: build-testapp-bench
 
 ## build-evm-single: build evm single

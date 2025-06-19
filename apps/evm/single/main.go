@@ -27,6 +27,7 @@ func main() {
 		rollcmd.VersionCmd,
 		rollcmd.NetInfoCmd,
 		rollcmd.StoreUnsafeCleanCmd,
+		rollcmd.KeysCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

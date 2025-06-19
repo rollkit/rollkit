@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
@@ -24,6 +25,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
+	"github.com/rollkit/rollkit/types"
 )
 
 // ParseConfig is an helpers that loads the node configuration and validates it.
@@ -94,6 +96,7 @@ func StartNode(
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
 	nodeConfig rollconf.Config,
+	signaturePayloadProvider types.SignaturePayloadProvider,
 ) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
@@ -116,7 +119,7 @@ func StartNode(
 		return fmt.Errorf("unknown remote signer type: %s", nodeConfig.Signer.SignerType)
 	}
 
-	metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
+	metrics := node.DefaultMetricsProvider(nodeConfig.Instrumentation)
 
 	genesisPath := filepath.Join(filepath.Dir(nodeConfig.ConfigPath()), "genesis.json")
 	genesis, err := genesispkg.LoadGenesis(genesisPath)
@@ -137,6 +140,7 @@ func StartNode(
 		datastore,
 		metrics,
 		logger,
+		signaturePayloadProvider,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create node: %w", err)
@@ -168,7 +172,7 @@ func StartNode(
 
 	// Wait for interrupt signal to gracefully shut down the server
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	select {
 	case <-quit:

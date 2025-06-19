@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"cosmossdk.io/log"
 
@@ -26,6 +27,16 @@ func SubmitWithHelpers(
 
 	// Handle errors returned by Submit
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			logger.Debug("DA submission canceled via helper due to context cancellation")
+			return coreda.ResultSubmit{
+				BaseResult: coreda.BaseResult{
+					Code:    coreda.StatusContextCanceled,
+					Message: "submission canceled",
+					IDs:     ids,
+				},
+			}
+		}
 		status := coreda.StatusError
 		switch {
 		case errors.Is(err, coreda.ErrTxTimedOut):
@@ -86,12 +97,22 @@ func RetrieveWithHelpers(
 	idsResult, err := da.GetIDs(ctx, dataLayerHeight)
 	if err != nil {
 		// Handle specific "not found" error
-		if errors.Is(err, coreda.ErrBlobNotFound) {
+		if strings.Contains(err.Error(), coreda.ErrBlobNotFound.Error()) {
 			logger.Debug("Retrieve helper: Blobs not found at height", "height", dataLayerHeight)
 			return coreda.ResultRetrieve{
 				BaseResult: coreda.BaseResult{
 					Code:    coreda.StatusNotFound,
 					Message: coreda.ErrBlobNotFound.Error(),
+					Height:  dataLayerHeight,
+				},
+			}
+		}
+		if strings.Contains(err.Error(), coreda.ErrHeightFromFuture.Error()) {
+			logger.Debug("Retrieve helper: Blobs not found at height", "height", dataLayerHeight)
+			return coreda.ResultRetrieve{
+				BaseResult: coreda.BaseResult{
+					Code:    coreda.StatusHeightFromFuture,
+					Message: coreda.ErrHeightFromFuture.Error(),
 					Height:  dataLayerHeight,
 				},
 			}

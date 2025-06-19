@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -33,11 +34,16 @@ const (
 var testNamespace = []byte("test")
 var emptyOptions = []byte{}
 
+func getTestDABlockTime() time.Duration {
+	return 100 * time.Millisecond
+}
+
 // setupTestProxy initializes a DA server and client for testing.
 func setupTestProxy(t *testing.T) (coreda.DA, func()) {
 	t.Helper()
 
-	dummy := coreda.NewDummyDA(100_000, 0, 0)
+	dummy := coreda.NewDummyDA(100_000, 0, 0, getTestDABlockTime())
+	dummy.StartHeightTicker()
 	logger := log.NewTestLogger(t)
 	server := proxy.NewServer(logger, ServerHost, ServerPort, dummy)
 	err := server.Start(context.Background())
@@ -47,6 +53,7 @@ func setupTestProxy(t *testing.T) (coreda.DA, func()) {
 	require.NoError(t, err)
 
 	cleanup := func() {
+		dummy.StopHeightTicker()
 		if err := server.Stop(context.Background()); err != nil {
 			require.NoError(t, err)
 		}
@@ -70,6 +77,8 @@ func TestProxyBasicDATest(t *testing.T) {
 	id2, err := d.Submit(ctx, []coreda.Blob{msg2}, 0, nil)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, id2)
+
+	time.Sleep(getTestDABlockTime())
 
 	id3, err := d.Submit(ctx, []coreda.Blob{msg1}, 0, []byte("random options"))
 	assert.NoError(t, err)
@@ -123,6 +132,7 @@ func TestProxyGetIDsTest(t *testing.T) {
 
 	ctx := context.TODO()
 	ids, err := d.Submit(ctx, msgs, 0, nil)
+	time.Sleep(getTestDABlockTime())
 	assert.NoError(t, err)
 	assert.Len(t, ids, len(msgs))
 	found := false
@@ -138,6 +148,9 @@ func TestProxyGetIDsTest(t *testing.T) {
 				// It's okay to not find blobs at a particular height, continue scanning
 				continue
 			}
+			if strings.Contains(err.Error(), coreda.ErrHeightFromFuture.Error()) {
+				break
+			}
 			t.Logf("failed to get IDs at height %d: %v", i, err) // Log other errors
 			continue                                             // Continue to avoid nil pointer dereference on ret
 		}
@@ -149,11 +162,19 @@ func TestProxyGetIDsTest(t *testing.T) {
 
 			// Submit ensures atomicity of batch, so it makes sense to compare actual blobs (bodies) only when lengths
 			// of slices is the same.
-			if len(blobs) == len(msgs) {
+			if len(blobs) >= len(msgs) {
 				found = true
-				for b := 0; b < len(blobs); b++ {
-					if !bytes.Equal(blobs[b], msgs[b]) {
+				for _, msg := range msgs {
+					msgFound := false
+					for _, blob := range blobs {
+						if bytes.Equal(blob, msg) {
+							msgFound = true
+							break
+						}
+					}
+					if !msgFound {
 						found = false
+						break
 					}
 				}
 			}
@@ -169,7 +190,7 @@ func TestProxyConcurrentReadWriteTest(t *testing.T) {
 	defer cleanup()
 
 	var wg sync.WaitGroup
-	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	writeDone := make(chan struct{})
@@ -178,7 +199,7 @@ func TestProxyConcurrentReadWriteTest(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := uint64(1); i <= 50; i++ {
-			_, err := d.Submit(ctx, []coreda.Blob{[]byte(fmt.Sprintf("test-%d", i))}, 0, []byte{})
+			_, err := d.Submit(ctx, []coreda.Blob{[]byte(fmt.Sprintf("test-%d", i))}, 0, []byte("test"))
 			assert.NoError(t, err)
 		}
 		close(writeDone)
@@ -216,8 +237,8 @@ func TestProxyHeightFromFutureTest(t *testing.T) {
 	ctx := context.TODO()
 	_, err := d.GetIDs(ctx, 999999999)
 	assert.Error(t, err)
-	// Specifically check if the error is ErrBlobNotFound (or contains its message)
-	assert.ErrorContains(t, err, coreda.ErrBlobNotFound.Error())
+	// Specifically check if the error contains the error message ErrHeightFromFuture
+	assert.ErrorContains(t, err, coreda.ErrHeightFromFuture.Error())
 }
 
 // TestSubmitWithOptions tests the SubmitWithOptions method with various scenarios

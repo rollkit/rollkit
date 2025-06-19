@@ -1,3 +1,5 @@
+//go:build !integration
+
 package node
 
 import (
@@ -18,7 +20,7 @@ func TestBasicExecutionFlow(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	node, cleanup := setupTestNodeWithCleanup(t, getTestConfig(t, 1))
+	node, cleanup := createNodeWithCleanup(t, getTestConfig(t, 1))
 	defer cleanup()
 
 	// Wait for node initialization

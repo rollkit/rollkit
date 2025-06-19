@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -20,10 +21,14 @@ type DummyDA struct {
 	gasPrice           float64
 	gasMultiplier      float64
 	height             uint64
+	blockTime          time.Duration
+	stopCh             chan struct{}
 }
 
-// NewDummyDA creates a new instance of DummyDA with the specified maximum blob size.
-func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64) *DummyDA {
+var ErrHeightFromFutureStr = fmt.Errorf("given height is from the future")
+
+// NewDummyDA creates a new instance of DummyDA with the specified maximum blob size and block time.
+func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64, blockTime time.Duration) *DummyDA {
 	return &DummyDA{
 		blobs:              make(map[string]Blob),
 		commitments:        make(map[string]Commitment),
@@ -34,7 +39,32 @@ func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64) *Du
 		gasPrice:           gasPrice,
 		gasMultiplier:      gasMultiplier,
 		height:             1,
+		blockTime:          blockTime,
+		stopCh:             make(chan struct{}),
 	}
+}
+
+// StartHeightTicker starts a goroutine that increments currentHeight every blockTime.
+func (d *DummyDA) StartHeightTicker() {
+	go func() {
+		ticker := time.NewTicker(d.blockTime)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				d.mu.Lock()
+				d.height++
+				d.mu.Unlock()
+			case <-d.stopCh:
+				return
+			}
+		}
+	}()
+}
+
+// StopHeightTicker stops the height ticker goroutine.
+func (d *DummyDA) StopHeightTicker() {
+	close(d.stopCh)
 }
 
 // MaxBlobSize returns the maximum blob size.
@@ -72,6 +102,10 @@ func (d *DummyDA) Get(ctx context.Context, ids []ID) ([]Blob, error) {
 func (d *DummyDA) GetIDs(ctx context.Context, height uint64) (*GetIDsResult, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
+
+	if height > d.height {
+		return nil, fmt.Errorf("%w: requested %d, current %d", ErrHeightFromFutureStr, height, d.height)
+	}
 
 	ids, exists := d.blobsByHeight[height]
 	if !exists {

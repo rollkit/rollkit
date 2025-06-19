@@ -112,7 +112,7 @@ func (d *LocalDA) GetIDs(ctx context.Context, height uint64) (*coreda.GetIDsResu
 
 	if height > d.height {
 		d.logger.Error("GetIDs: height in future", "requested", height, "current", d.height)
-		return nil, fmt.Errorf("height %d is in the future: %w", height, coreda.ErrFutureHeight)
+		return nil, fmt.Errorf("height %d is in the future: %w", height, coreda.ErrHeightFromFuture)
 	}
 
 	kvps, ok := d.data[height]

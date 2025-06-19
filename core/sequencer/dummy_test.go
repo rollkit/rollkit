@@ -302,7 +302,7 @@ func TestDummySequencer_BatchOverwrite(t *testing.T) {
 		t.Fatalf("SubmitBatchTxs should not return an error: %v", err)
 	}
 
-	// Get the batch and verify it's the second one
+	// Get the first batch and verify it's batch1
 	getResp, err := seq.GetNextBatch(ctx, GetNextBatchRequest{
 		Id: ID,
 	})
@@ -310,10 +310,19 @@ func TestDummySequencer_BatchOverwrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetNextBatch should not return an error: %v", err)
 	}
-	if !reflect.DeepEqual(batch2, getResp.Batch) {
-		t.Fatal("Retrieved batch should be the most recently submitted one")
+	if !reflect.DeepEqual(batch1, getResp.Batch) {
+		t.Fatal("Retrieved batch should be the first submitted one (batch1)")
 	}
-	if reflect.DeepEqual(batch1, getResp.Batch) {
-		t.Fatal("Retrieved batch should not be the first submitted one")
+
+	// Get the second batch and verify it's batch2
+	getResp, err = seq.GetNextBatch(ctx, GetNextBatchRequest{
+		Id: ID,
+	})
+
+	if err != nil {
+		t.Fatalf("GetNextBatch should not return an error: %v", err)
+	}
+	if !reflect.DeepEqual(batch2, getResp.Batch) {
+		t.Fatal("Retrieved batch should be the second submitted one (batch2)")
 	}
 }

@@ -88,6 +88,8 @@ const (
 	StatusContextDeadline
 	StatusError
 	StatusIncorrectAccountSequence
+	StatusContextCanceled
+	StatusHeightFromFuture
 )
 
 // BaseResult contains basic information returned by DA layer.

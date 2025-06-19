@@ -3,8 +3,54 @@
 name: Tests / Code Coverage
 on:
   workflow_call:
+    inputs:
+      image-tag:
+        required: true
+        type: string
 
 jobs:
+  build-docker-image:
+    name: Build Docker Image
+    # skip building images for merge groups as they are already built on PRs and main
+    if: github.event_name != 'merge_group'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image with PR tag
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ghcr.io/${{ github.repository_owner }}/rollkit:${{ inputs.image-tag }}
+
+  docker-tests:
+    name: Docker E2E Tests
+    needs: build-docker-image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./test/docker-e2e/go.mod
+      - name: Run Docker E2E Tests
+        run: make test-docker-e2e
+        env:
+          ROLLKIT_IMAGE_TAG: ${{ inputs.image-tag }}
+
   build_all-apps:
     name: Build All Rollkit Binaries
     runs-on: ubuntu-latest
@@ -40,14 +86,34 @@ jobs:
           go-version-file: ./go.mod
       - name: Run unit test
         run: make test-cover
-      - name: upload coverage report
-        uses: codecov/codecov-action@v5.4.3
+      - name: Upload unit test coverage report
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage.txt
+          name: unit-test-coverage-report-${{ github.sha }}
+          path: ./coverage.txt
+
+  integration_test:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+      - name: Run integration test
+        run: make test-integration-cover
+      - name: Upload integration test coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-coverage-report-${{ github.sha }}
+          path: ./node/coverage.txt
 
   e2e-tests:
     name: Run E2E System Tests
+    needs: build_all-apps
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,3 +123,42 @@ jobs:
           go-version-file: ./go.mod
       - name: E2E Tests
         run: make test-e2e
+
+  evm-tests:
+    name: Run EVM Execution Tests
+    needs: build_all-apps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+      - name: EVM Tests
+        run: make test-evm
+
+  combine_and_upload_coverage:
+    name: Combine and Upload Coverage
+    needs: [unit_test, integration_test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download unit test coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test-coverage-report-${{ github.sha }}
+          path: ./unit-coverage
+      - name: Download integration test coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-test-coverage-report-${{ github.sha }}
+          path: ./integration-coverage
+      - name: Upload combined coverage report
+        uses: codecov/codecov-action@v5.4.3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./unit-coverage/coverage.txt,./integration-coverage/coverage.txt
+          flags: combined
