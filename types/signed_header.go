@@ -37,7 +37,7 @@ var (
 
 var _ header.Header[*SignedHeader] = &SignedHeader{}
 
-// SignatureVerified is a custom signature verifiers.
+// SignatureVerifier is a custom signature verifiers.
 // If set, ValidateBasic will use this function to verify the signature.
 type SignatureVerifier func(header *Header) ([]byte, error)
 
