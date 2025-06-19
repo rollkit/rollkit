@@ -113,7 +113,7 @@ func waitForFirstDAHeight(ctx context.Context, da *DummyDA) error {
 func waitForAtLeastDAHeight(ctx context.Context, da *DummyDA, targetHeight uint64) error {
 	// Read current height at the start
 	da.mu.RLock()
-	current := da.currentHeight
+	current := da.height
 	da.mu.RUnlock()
 
 	if current >= targetHeight {
