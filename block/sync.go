@@ -11,9 +11,8 @@ import (
 
 // SyncLoop is responsible for syncing blocks.
 //
-// SyncLoop processes headers gossiped in P2P network to know what's the latest block height,
-// block data is retrieved from DA layer.
-func (m *Manager) SyncLoop(ctx context.Context) {
+// SyncLoop processes headers gossiped in P2P network to know what's the latest block height, block data is retrieved from DA layer.
+func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 	daTicker := time.NewTicker(m.config.DA.BlockTime.Duration)
 	defer daTicker.Stop()
 	blockTicker := time.NewTicker(m.config.Node.BlockTime.Duration)
@@ -47,9 +46,6 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			}
 			m.headerCache.SetItem(headerHeight, header)
 
-			m.sendNonBlockingSignalToHeaderStoreCh()
-			m.sendNonBlockingSignalToRetrieveCh()
-
 			// check if the dataHash is dataHashForEmptyTxs
 			// no need to wait for syncing Data, instead prepare now and set
 			// so that trySyncNextBlock can progress
@@ -63,20 +59,30 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				}
 			}
 
-			err = m.trySyncNextBlock(ctx, daHeight)
-			if err != nil {
-				m.logger.Info("failed to sync next block", "error", err)
-				continue
+			if err = m.trySyncNextBlock(ctx, daHeight); err != nil {
+				errCh <- fmt.Errorf("failed to sync next block: %w", err)
+				return
 			}
+
 			m.headerCache.SetSeen(headerHash)
 		case dataEvent := <-m.dataInCh:
 			data := dataEvent.Data
+			if len(data.Txs) == 0 {
+				continue
+			}
+
 			daHeight := dataEvent.DAHeight
 			dataHash := data.DACommitment().String()
+			dataHeight := uint64(0)
+			if data.Metadata != nil {
+				dataHeight = data.Metadata.Height
+			}
 			m.logger.Debug("data retrieved",
 				"daHeight", daHeight,
 				"hash", dataHash,
+				"height", dataHeight,
 			)
+
 			if m.dataCache.IsSeen(dataHash) {
 				m.logger.Debug("data already seen", "data hash", dataHash)
 				continue
@@ -88,13 +94,12 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			}
 			if data.Metadata != nil {
 				// Data was sent via the P2P network
-				dataHeight := data.Metadata.Height
+				dataHeight = data.Metadata.Height
 				if dataHeight <= height {
 					m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 					continue
 				}
 				m.dataCache.SetItem(dataHeight, data)
-				m.dataCache.SetItemByHash(dataHash, data)
 			}
 			// If the header is synced already, the data commitment should be associated with a height
 			if val, ok := m.dataCommitmentToHeight.Load(dataHash); ok {
@@ -110,13 +115,10 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 
 			m.dataCache.SetItemByHash(dataHash, data)
 
-			m.sendNonBlockingSignalToDataStoreCh()
-			m.sendNonBlockingSignalToRetrieveCh()
-
 			err = m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
-				m.logger.Info("failed to sync next block", "error", err)
-				continue
+				errCh <- fmt.Errorf("failed to sync next block: %w", err)
+				return
 			}
 			m.dataCache.SetSeen(dataHash)
 		case <-ctx.Done():
@@ -154,37 +156,34 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 
 		hHeight := h.Height()
-		m.logger.Info("Syncing header and data", "height", hHeight)
+		m.logger.Info("syncing header and data", "height", hHeight)
 		// Validate the received block before applying
 		if err := m.Validate(ctx, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
+
 		newState, err := m.applyBlock(ctx, h, d)
 		if err != nil {
-			if ctx.Err() != nil {
-				return err
-			}
-			// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
-			panic(fmt.Errorf("failed to ApplyBlock: %w", err))
+			return fmt.Errorf("failed to apply block: %w", err)
 		}
-		err = m.store.SaveBlockData(ctx, h, d, &h.Signature)
-		if err != nil {
-			return SaveBlockError{err}
+
+		if err = m.updateState(ctx, newState); err != nil {
+			return fmt.Errorf("failed to save updated state: %w", err)
+		}
+
+		if err = m.store.SaveBlockData(ctx, h, d, &h.Signature); err != nil {
+			return fmt.Errorf("failed to save block: %w", err)
 		}
 
 		// Height gets updated
-		err = m.store.SetHeight(ctx, hHeight)
-		if err != nil {
+		if err = m.store.SetHeight(ctx, hHeight); err != nil {
 			return err
 		}
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
-		err = m.updateState(ctx, newState)
-		if err != nil {
-			m.logger.Error("failed to save updated state", "error", err)
-		}
+
 		m.headerCache.DeleteItem(currentHeight + 1)
 		m.dataCache.DeleteItem(currentHeight + 1)
 		m.dataCache.DeleteItemByHash(h.DataHash.String())

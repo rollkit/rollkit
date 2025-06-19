@@ -3,6 +3,7 @@ package single
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"sync"
 	"testing"
 
@@ -226,19 +227,21 @@ func TestLoad_WithMixedData(t *testing.T) {
 	validBatch1 := createTestBatch(t, 3)
 	hash1, err := validBatch1.Hash()
 	require.NoError(err)
+	hexHash1 := hex.EncodeToString(hash1)
 	pbBatch1 := &pb.Batch{Txs: validBatch1.Transactions}
 	encodedBatch1, err := proto.Marshal(pbBatch1)
 	require.NoError(err)
-	err = rawDB.Put(ctx, ds.NewKey(queuePrefix+string(hash1)), encodedBatch1)
+	err = rawDB.Put(ctx, ds.NewKey(queuePrefix+hexHash1), encodedBatch1)
 	require.NoError(err)
 
 	validBatch2 := createTestBatch(t, 5)
 	hash2, err := validBatch2.Hash()
 	require.NoError(err)
+	hexHash2 := hex.EncodeToString(hash2)
 	pbBatch2 := &pb.Batch{Txs: validBatch2.Transactions}
 	encodedBatch2, err := proto.Marshal(pbBatch2)
 	require.NoError(err)
-	err = rawDB.Put(ctx, ds.NewKey(queuePrefix+string(hash2)), encodedBatch2)
+	err = rawDB.Put(ctx, ds.NewKey(queuePrefix+hexHash2), encodedBatch2)
 	require.NoError(err)
 
 	// 3. Add data outside the queue's prefix
@@ -251,10 +254,10 @@ func TestLoad_WithMixedData(t *testing.T) {
 
 	// Ensure all data is initially present in the raw DB
 	initialKeys := map[string]bool{
-		queuePrefix + string(hash1): true,
-		queuePrefix + string(hash2): true,
-		otherDataKey1.String():      true,
-		otherDataKey2.String():      true,
+		queuePrefix + hexHash1: true,
+		queuePrefix + hexHash2: true,
+		otherDataKey1.String(): true,
+		otherDataKey2.String(): true,
 	}
 	q := query.Query{}
 	results, err := rawDB.Query(ctx, q)
@@ -280,10 +283,10 @@ func TestLoad_WithMixedData(t *testing.T) {
 	loadedHashes := make(map[string]bool)
 	for _, batch := range bq.queue {
 		h, _ := batch.Hash()
-		loadedHashes[string(h)] = true
+		loadedHashes[hex.EncodeToString(h)] = true
 	}
-	require.True(loadedHashes[string(hash1)], "Valid batch 1 not found in queue")
-	require.True(loadedHashes[string(hash2)], "Valid batch 2 not found in queue")
+	require.True(loadedHashes[hexHash1], "Valid batch 1 not found in queue")
+	require.True(loadedHashes[hexHash2], "Valid batch 2 not found in queue")
 
 	// Verify data outside the prefix remains untouched in the raw DB
 	val, err := rawDB.Get(ctx, otherDataKey1)

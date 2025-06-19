@@ -13,7 +13,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
 	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/pkg/store"
@@ -22,7 +21,7 @@ import (
 
 var _ Node = &LightNode{}
 
-// LightNode is a rollup node that only needs the header service
+// LightNode is a chain node that only needs the header service
 type LightNode struct {
 	service.BaseService
 
@@ -32,13 +31,14 @@ type LightNode struct {
 	Store        store.Store
 	rpcServer    *http.Server
 	nodeConfig   config.Config
+
+	running bool
 }
 
 func newLightNode(
 	conf config.Config,
 	genesis genesis.Genesis,
 	p2pClient *p2p.Client,
-	nodeKey key.NodeKey,
 	database ds.Batching,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
@@ -61,8 +61,21 @@ func newLightNode(
 	return node, nil
 }
 
-// OnStart starts the P2P and HeaderSync services
-func (ln *LightNode) OnStart(ctx context.Context) error {
+// IsRunning returns true if the node is running.
+func (ln *LightNode) IsRunning() bool {
+	return ln.running
+}
+
+// Run implements the Service interface.
+// It starts all subservices and manages the node's lifecycle.
+func (ln *LightNode) Run(parentCtx context.Context) error {
+	ctx, cancelNode := context.WithCancel(parentCtx)
+	defer func() {
+		ln.running = false
+		cancelNode()
+	}()
+
+	ln.running = true
 	// Start RPC server
 	handler, err := rpcserver.NewServiceHandler(ln.Store, ln.P2P)
 	if err != nil {
@@ -78,44 +91,77 @@ func (ln *LightNode) OnStart(ctx context.Context) error {
 	}
 
 	go func() {
-		if err := ln.rpcServer.ListenAndServe(); err != http.ErrServerClosed {
+		ln.Logger.Info("started RPC server", "addr", ln.nodeConfig.RPC.Address)
+		if err := ln.rpcServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			ln.Logger.Error("RPC server error", "err", err)
 		}
 	}()
 
-	ln.Logger.Info("Started RPC server", "addr", ln.nodeConfig.RPC.Address)
-
 	if err := ln.P2P.Start(ctx); err != nil {
-		return err
+		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
 
 	if err := ln.hSyncService.Start(ctx); err != nil {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
-	return nil
-}
+	<-parentCtx.Done()
+	ln.Logger.Info("context canceled, stopping node")
+	cancelNode()
 
-// OnStop stops the light node
-func (ln *LightNode) OnStop(ctx context.Context) {
-	ln.Logger.Info("halting light node...")
+	ln.Logger.Info("halting light node and its sub services...")
 
-	// Use a timeout context to ensure shutdown doesn't hang
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	err := ln.P2P.Close()
-	err = errors.Join(err, ln.hSyncService.Stop(shutdownCtx))
+	var multiErr error
 
-	if ln.rpcServer != nil {
-		err = errors.Join(err, ln.rpcServer.Shutdown(shutdownCtx))
+	// Stop Header Sync Service
+	err = ln.hSyncService.Stop(shutdownCtx)
+	if err != nil {
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			multiErr = errors.Join(multiErr, fmt.Errorf("stopping header sync service: %w", err))
+		} else {
+			ln.Logger.Debug("header sync service stop context ended", "reason", err)
+		}
 	}
 
-	err = errors.Join(err, ln.Store.Close())
-	ln.Logger.Error("errors while stopping node:", "errors", err)
-}
+	// Shutdown RPC Server
+	if ln.rpcServer != nil {
+		err = ln.rpcServer.Shutdown(shutdownCtx)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			multiErr = errors.Join(multiErr, fmt.Errorf("shutting down RPC server: %w", err))
+		} else {
+			ln.Logger.Debug("RPC server shutdown context ended", "reason", err)
+		}
+	}
 
-// IsRunning returns true if the node is running.
-func (ln *LightNode) IsRunning() bool {
-	return ln.P2P != nil && ln.hSyncService != nil
+	// Stop P2P Client
+	err = ln.P2P.Close()
+	if err != nil {
+		multiErr = errors.Join(multiErr, fmt.Errorf("closing P2P client: %w", err))
+	}
+
+	if err = ln.Store.Close(); err != nil {
+		multiErr = errors.Join(multiErr, fmt.Errorf("closing store: %w", err))
+	} else {
+		ln.Logger.Debug("store closed")
+	}
+
+	if multiErr != nil {
+		if unwrapper, ok := multiErr.(interface{ Unwrap() []error }); ok {
+			for _, err := range unwrapper.Unwrap() {
+				ln.Logger.Error("error during shutdown", "error", err)
+			}
+		} else {
+			ln.Logger.Error("error during shutdown", "error", multiErr)
+		}
+		ln.Logger.Error("error during shutdown", "error", err)
+	}
+
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
+	return multiErr
 }

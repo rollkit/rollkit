@@ -1,51 +1,80 @@
+//go:build !integration
+
 package node
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"net/http"
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rollkit/rollkit/pkg/service"
 )
 
-// Test that node can start and be shutdown properly using context cancellation
-func TestStartup(t *testing.T) {
-	// Get the node and cleanup function
-	node, cleanup := setupTestNodeWithCleanup(t, getTestConfig(t, 1))
-	require.IsType(t, new(FullNode), node)
+func TestStartInstrumentationServer(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	assert := assert.New(t)
 
-	// Create a context with cancel function for node operation
-	ctx, cancel := context.WithCancel(context.Background())
+	var config = getTestConfig(t, 1)
+	config.Instrumentation.Prometheus = true
+	config.Instrumentation.PrometheusListenAddr = "127.0.0.1:26660"
+	config.Instrumentation.Pprof = true
+	config.Instrumentation.PprofListenAddr = "127.0.0.1:26661"
 
-	// Start the node in a goroutine
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- node.Run(ctx)
-	}()
+	node := &FullNode{
+		nodeConfig:  config,
+		BaseService: *service.NewBaseService(log.NewTestLogger(t), "TestNode", nil),
+	}
 
-	// Allow some time for the node to start
+	prometheusSrv, pprofSrv := node.startInstrumentationServer()
+
+	require.NotNil(prometheusSrv, "Prometheus server should be initialized")
+	require.NotNil(pprofSrv, "Pprof server should be initialized")
+
 	time.Sleep(100 * time.Millisecond)
 
-	// Node should be running (no error received yet)
-	select {
-	case err := <-errChan:
-		t.Fatalf("Node stopped unexpectedly with error: %v", err)
-	default:
-		// This is expected - node is still running
+	resp, err := http.Get(fmt.Sprintf("http://%s/metrics", config.Instrumentation.PrometheusListenAddr))
+	require.NoError(err, "Failed to get Prometheus metrics")
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			t.Logf("Error closing response body: %v", err)
+		}
+	}()
+	assert.Equal(http.StatusOK, resp.StatusCode, "Prometheus metrics endpoint should return 200 OK")
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(err)
+	assert.Contains(string(body), "# HELP", "Prometheus metrics body should contain HELP lines") // Check for typical metrics content
+
+	resp, err = http.Get(fmt.Sprintf("http://%s/debug/pprof/", config.Instrumentation.PprofListenAddr))
+	require.NoError(err, "Failed to get Pprof index")
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			t.Logf("Error closing response body: %v", err)
+		}
+	}()
+	assert.Equal(http.StatusOK, resp.StatusCode, "Pprof index endpoint should return 200 OK")
+	body, err = io.ReadAll(resp.Body)
+	require.NoError(err)
+	assert.Contains(string(body), "Types of profiles available", "Pprof index body should contain expected text")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	if prometheusSrv != nil {
+		err = prometheusSrv.Shutdown(shutdownCtx)
+		assert.NoError(err, "Prometheus server shutdown should not return error")
 	}
-
-	// Cancel the context to stop the node
-	cancel()
-
-	// Allow some time for the node to stop and check for errors
-	select {
-	case err := <-errChan:
-		// Context cancellation should result in context.Canceled error
-		require.ErrorIs(t, err, context.Canceled)
-	case <-time.After(500 * time.Millisecond):
-		t.Fatal("Node did not stop after context cancellation")
+	if pprofSrv != nil {
+		err = pprofSrv.Shutdown(shutdownCtx)
+		assert.NoError(err, "Pprof server shutdown should not return error")
 	}
-
-	// Run the cleanup function from setupTestNodeWithCleanup
-	cleanup()
 }

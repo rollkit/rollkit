@@ -3,10 +3,11 @@ go 1.23
 use (
 	.
 	./core
-	./rollups/abci/based
-	./rollups/abci/single
-	./rollups/evm/based
-	./rollups/evm/single
+	./apps/abci/based
+	./apps/abci/single
+	./apps/evm/based
+	./apps/evm/single
+	./execution/evm
 	./sequencers/based
 	./sequencers/single
 )

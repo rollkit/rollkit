@@ -3,9 +3,9 @@ package jsonrpc
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"cosmossdk.io/log"
 	"github.com/filecoin-project/go-jsonrpc"
@@ -42,6 +42,10 @@ func (api *API) Get(ctx context.Context, ids []da.ID, _ []byte) ([]da.Blob, erro
 	api.Logger.Debug("Making RPC call", "method", "Get", "num_ids", len(ids), "namespace", string(api.Namespace))
 	res, err := api.Internal.Get(ctx, ids, api.Namespace)
 	if err != nil {
+		if strings.Contains(err.Error(), context.Canceled.Error()) {
+			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Get")
+			return res, context.Canceled
+		}
 		api.Logger.Error("RPC call failed", "method", "Get", "error", err)
 		// Wrap error for context, potentially using the translated error from the RPC library
 		return nil, fmt.Errorf("failed to get blobs: %w", err)
@@ -55,10 +59,19 @@ func (api *API) GetIDs(ctx context.Context, height uint64, _ []byte) (*da.GetIDs
 	api.Logger.Debug("Making RPC call", "method", "GetIDs", "height", height, "namespace", string(api.Namespace))
 	res, err := api.Internal.GetIDs(ctx, height, api.Namespace)
 	if err != nil {
+		// Using strings.contains since JSON RPC serialization doesn't preserve error wrapping
 		// Check if the error is specifically BlobNotFound, otherwise log and return
-		if errors.Is(err, da.ErrBlobNotFound) { // Use the error variable directly
+		if strings.Contains(err.Error(), da.ErrBlobNotFound.Error()) { // Use the error variable directly
 			api.Logger.Debug("RPC call indicates blobs not found", "method", "GetIDs", "height", height)
 			return nil, err // Return the specific ErrBlobNotFound
+		}
+		if strings.Contains(err.Error(), da.ErrHeightFromFuture.Error()) {
+			api.Logger.Debug("RPC call indicates height from future", "method", "GetIDs", "height", height)
+			return nil, err // Return the specific ErrHeightFromFuture
+		}
+		if strings.Contains(err.Error(), context.Canceled.Error()) {
+			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "GetIDs")
+			return res, context.Canceled
 		}
 		api.Logger.Error("RPC call failed", "method", "GetIDs", "error", err)
 		return nil, err
@@ -115,6 +128,10 @@ func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, _
 	api.Logger.Debug("Making RPC call", "method", "Submit", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(api.Namespace))
 	res, err := api.Internal.Submit(ctx, blobs, gasPrice, api.Namespace)
 	if err != nil {
+		if strings.Contains(err.Error(), context.Canceled.Error()) {
+			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Submit")
+			return res, context.Canceled
+		}
 		api.Logger.Error("RPC call failed", "method", "Submit", "error", err)
 	} else {
 		api.Logger.Debug("RPC call successful", "method", "Submit", "num_ids_returned", len(res))
@@ -164,6 +181,10 @@ func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gas
 	api.Logger.Debug("Making RPC call", "method", "SubmitWithOptions", "num_blobs_original", len(inputBlobs), "num_blobs_to_submit", len(blobsToSubmit), "gas_price", gasPrice, "namespace", string(api.Namespace))
 	res, err := api.Internal.SubmitWithOptions(ctx, blobsToSubmit, gasPrice, api.Namespace, options)
 	if err != nil {
+		if strings.Contains(err.Error(), context.Canceled.Error()) {
+			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "SubmitWithOptions")
+			return res, context.Canceled
+		}
 		api.Logger.Error("RPC call failed", "method", "SubmitWithOptions", "error", err)
 	} else {
 		api.Logger.Debug("RPC call successful", "method", "SubmitWithOptions", "num_ids_returned", len(res))
@@ -239,7 +260,7 @@ func newClient(ctx context.Context, logger log.Logger, addr string, authHeader h
 		return nil, fmt.Errorf("failed to decode namespace: %w", err)
 	}
 	client.DA.Namespace = namespaceBytes
-	logger.Info("Creating new client", "namespace", namespace)
+	logger.Info("creating new client", "namespace", namespace)
 	errs := getKnownErrorsMapping()
 	for name, module := range moduleMap(&client) {
 		closer, err := jsonrpc.NewMergeClient(ctx, addr, name, []interface{}{module}, authHeader, jsonrpc.WithErrors(errs))

@@ -10,3 +10,9 @@ ignore:
   - "test"
   - "types/pb"
   - "scripts/"
+  - "pkg/rpc/example/"
+  - "apps"
+  - "da/internal/mocks"
+  - "da/cmd"
+  - "execution/evm" # EVM is covered in e2e/integration tests
+  - "**/metrics.go"

@@ -4,6 +4,7 @@ proto/tendermint
 types/pb/tendermint
 .vscode/launch.json
 .vscode/settings.json
+vendor
 */**.html
 *.idea
 *.env
@@ -12,3 +13,4 @@ build
 .aider*
 .DS_Store
 coverage.out
+execution/evm/jwttoken

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -17,10 +18,19 @@ type DummyDA struct {
 	blobsByHeight      map[uint64][]ID
 	timestampsByHeight map[uint64]time.Time
 	maxBlobSize        uint64
+	gasPrice           float64
+	gasMultiplier      float64
+
+	// DA height simulation
+	currentHeight uint64
+	blockTime     time.Duration
+	stopCh        chan struct{}
 }
 
-// NewDummyDA creates a new instance of DummyDA with the specified maximum blob size.
-func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64) *DummyDA {
+var ErrHeightFromFutureStr = fmt.Errorf("given height is from the future")
+
+// NewDummyDA creates a new instance of DummyDA with the specified maximum blob size and block time.
+func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64, blockTime time.Duration) *DummyDA {
 	return &DummyDA{
 		blobs:              make(map[string]Blob),
 		commitments:        make(map[string]Commitment),
@@ -28,7 +38,35 @@ func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64) *Du
 		blobsByHeight:      make(map[uint64][]ID),
 		timestampsByHeight: make(map[uint64]time.Time),
 		maxBlobSize:        maxBlobSize,
+		gasPrice:           gasPrice,
+		gasMultiplier:      gasMultiplier,
+		blockTime:          blockTime,
+		stopCh:             make(chan struct{}),
+		currentHeight:      0,
 	}
+}
+
+// StartHeightTicker starts a goroutine that increments currentHeight every blockTime.
+func (d *DummyDA) StartHeightTicker() {
+	go func() {
+		ticker := time.NewTicker(d.blockTime)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				d.mu.Lock()
+				d.currentHeight++
+				d.mu.Unlock()
+			case <-d.stopCh:
+				return
+			}
+		}
+	}()
+}
+
+// StopHeightTicker stops the height ticker goroutine.
+func (d *DummyDA) StopHeightTicker() {
+	close(d.stopCh)
 }
 
 // MaxBlobSize returns the maximum blob size.
@@ -56,6 +94,10 @@ func (d *DummyDA) Get(ctx context.Context, ids []ID, namespace []byte) ([]Blob, 
 func (d *DummyDA) GetIDs(ctx context.Context, height uint64, namespace []byte) (*GetIDsResult, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
+
+	if height > d.currentHeight {
+		return nil, fmt.Errorf("%w: requested %d, current %d", ErrHeightFromFutureStr, height, d.currentHeight)
+	}
 
 	ids, exists := d.blobsByHeight[height]
 	if !exists {
@@ -111,7 +153,7 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, options [
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	height := uint64(len(d.blobsByHeight))
+	height := d.currentHeight + 1
 	ids := make([]ID, 0, len(blobs))
 	var currentSize uint64
 
@@ -150,7 +192,12 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, options [
 		ids = append(ids, id)
 	}
 
-	d.blobsByHeight[height] = ids
+	// Add the IDs to the blobsByHeight map if they don't already exist
+	if existingIDs, exists := d.blobsByHeight[height]; exists {
+		d.blobsByHeight[height] = append(existingIDs, ids...)
+	} else {
+		d.blobsByHeight[height] = ids
+	}
 	d.timestampsByHeight[height] = time.Now()
 
 	return ids, nil
