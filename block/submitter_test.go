@@ -32,14 +32,12 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 	require.NoError(t, err)
 
 	return &Manager{
-		da:            da,
-		logger:        logger,
-		config:        nodeConf,
-		gasPrice:      1.0,
-		gasMultiplier: 2.0,
-		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
-		signer:        testSigner,
+		da:          da,
+		logger:      logger,
+		config:      nodeConf,
+		headerCache: cache.NewCache[types.SignedHeader](),
+		dataCache:   cache.NewCache[types.Data](),
+		signer:      testSigner,
 	}
 }
 
@@ -136,13 +134,6 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 			err = m.submitDataToDA(context.Background(), &signedData)
 			assert.Error(t, err, "expected error")
 
-			// Validate that gas price increased according to gas multiplier
-			previousGasPrice := m.gasPrice
-			assert.Equal(t, gasPriceHistory[0], m.gasPrice) // verify that the first call is done with the right price
-			for _, gasPrice := range gasPriceHistory[1:] {
-				assert.Equal(t, gasPrice, previousGasPrice*m.gasMultiplier)
-				previousGasPrice = gasPrice
-			}
 		})
 	}
 }
@@ -199,12 +190,6 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 			assert.Contains(t, err.Error(), "failed to submit all headers to DA layer")
 
 			// Validate that gas price increased according to gas multiplier
-			previousGasPrice := m.gasPrice
-			assert.Equal(t, gasPriceHistory[0], m.gasPrice) // verify that the first call is done with the right price
-			for _, gasPrice := range gasPriceHistory[1:] {
-				assert.Equal(t, gasPrice, previousGasPrice*m.gasMultiplier)
-				previousGasPrice = gasPrice
-			}
 		})
 	}
 }

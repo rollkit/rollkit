@@ -21,7 +21,6 @@ func TestSubmitWithHelpers(t *testing.T) {
 	testCases := []struct {
 		name           string
 		data           [][]byte
-		gasPrice       float64
 		options        []byte
 		submitErr      error
 		submitIDs      [][]byte
@@ -33,7 +32,6 @@ func TestSubmitWithHelpers(t *testing.T) {
 		{
 			name:          "successful submission",
 			data:          [][]byte{[]byte("blob1"), []byte("blob2")},
-			gasPrice:      1.0,
 			options:       []byte("opts"),
 			submitIDs:     [][]byte{[]byte("id1"), []byte("id2")},
 			expectedCode:  coreda.StatusSuccess,
@@ -43,7 +41,6 @@ func TestSubmitWithHelpers(t *testing.T) {
 		{
 			name:           "context canceled error",
 			data:           [][]byte{[]byte("blob1")},
-			gasPrice:       1.0,
 			options:        []byte("opts"),
 			submitErr:      context.Canceled,
 			expectedCode:   coreda.StatusContextCanceled,
@@ -52,7 +49,6 @@ func TestSubmitWithHelpers(t *testing.T) {
 		{
 			name:           "tx timed out error",
 			data:           [][]byte{[]byte("blob1")},
-			gasPrice:       1.0,
 			options:        []byte("opts"),
 			submitErr:      coreda.ErrTxTimedOut,
 			expectedCode:   coreda.StatusNotIncludedInBlock,
@@ -61,7 +57,6 @@ func TestSubmitWithHelpers(t *testing.T) {
 		{
 			name:           "tx already in mempool error",
 			data:           [][]byte{[]byte("blob1")},
-			gasPrice:       1.0,
 			options:        []byte("opts"),
 			submitErr:      coreda.ErrTxAlreadyInMempool,
 			expectedCode:   coreda.StatusAlreadyInMempool,
@@ -70,7 +65,6 @@ func TestSubmitWithHelpers(t *testing.T) {
 		{
 			name:           "incorrect account sequence error",
 			data:           [][]byte{[]byte("blob1")},
-			gasPrice:       1.0,
 			options:        []byte("opts"),
 			submitErr:      coreda.ErrTxIncorrectAccountSequence,
 			expectedCode:   coreda.StatusIncorrectAccountSequence,
@@ -79,7 +73,6 @@ func TestSubmitWithHelpers(t *testing.T) {
 		{
 			name:           "blob size over limit error",
 			data:           [][]byte{[]byte("blob1")},
-			gasPrice:       1.0,
 			options:        []byte("opts"),
 			submitErr:      coreda.ErrBlobSizeOverLimit,
 			expectedCode:   coreda.StatusTooBig,
@@ -88,7 +81,6 @@ func TestSubmitWithHelpers(t *testing.T) {
 		{
 			name:           "context deadline error",
 			data:           [][]byte{[]byte("blob1")},
-			gasPrice:       1.0,
 			options:        []byte("opts"),
 			submitErr:      coreda.ErrContextDeadline,
 			expectedCode:   coreda.StatusContextDeadline,
@@ -97,7 +89,6 @@ func TestSubmitWithHelpers(t *testing.T) {
 		{
 			name:           "generic submission error",
 			data:           [][]byte{[]byte("blob1")},
-			gasPrice:       1.0,
 			options:        []byte("opts"),
 			submitErr:      errors.New("some generic error"),
 			expectedCode:   coreda.StatusError,
@@ -106,7 +97,6 @@ func TestSubmitWithHelpers(t *testing.T) {
 		{
 			name:           "no IDs returned for non-empty data",
 			data:           [][]byte{[]byte("blob1")},
-			gasPrice:       1.0,
 			options:        []byte("opts"),
 			submitIDs:      [][]byte{},
 			expectedCode:   coreda.StatusError,
@@ -117,9 +107,9 @@ func TestSubmitWithHelpers(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDA := mocks.NewDA(t)
-			mockDA.On("SubmitWithOptions", mock.Anything, tc.data, tc.gasPrice, types.NameSpacePlaceholder, tc.options).Return(tc.submitIDs, tc.submitErr)
+			mockDA.On("SubmitWithOptions", mock.Anything, tc.data, types.NameSpacePlaceholder, tc.options).Return(tc.submitIDs, tc.submitErr)
 
-			result := types.SubmitWithHelpers(context.Background(), mockDA, logger, tc.data, tc.gasPrice, tc.options)
+			result := types.SubmitWithHelpers(context.Background(), mockDA, logger, tc.data, tc.options)
 
 			assert.Equal(t, tc.expectedCode, result.Code)
 			if tc.expectedErrMsg != "" {
