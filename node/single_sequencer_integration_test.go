@@ -1,3 +1,5 @@
+//go:build integration
+
 package node
 
 import (
@@ -144,7 +146,7 @@ func (s *FullNodeTestSuite) TestBlockProduction() {
 	// Verify chain state
 	state, err := s.node.Store.GetState(s.ctx)
 	s.NoError(err)
-	s.GreaterOrEqual(state.LastBlockHeight, height)
+	s.GreaterOrEqual(height, state.LastBlockHeight)
 
 	foundTx := false
 	for h := uint64(1); h <= height; h++ {

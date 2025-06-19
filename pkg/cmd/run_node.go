@@ -25,6 +25,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/signer/file"
+	"github.com/rollkit/rollkit/types"
 )
 
 // ParseConfig is an helpers that loads the node configuration and validates it.
@@ -100,6 +101,7 @@ func StartNode(
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
 	nodeConfig rollconf.Config,
+	signaturePayloadProvider types.SignaturePayloadProvider,
 ) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
@@ -143,6 +145,7 @@ func StartNode(
 		datastore,
 		metrics,
 		logger,
+		signaturePayloadProvider,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create node: %w", err)

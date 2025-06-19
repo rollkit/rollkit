@@ -30,6 +30,7 @@ services:
       - "30303:30303" # eth/66 peering
       - "8545:8545" # rpc
       - "8551:8551" # engine
+      - "8546:8546" # ws
     volumes:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
@@ -46,6 +47,7 @@ services:
           --authrpc.jwtsecret /root/jwt/jwt.hex \
           --http --http.addr 0.0.0.0 --http.port 8545 \
           --http.api "eth,net,web3,txpool" \
+          --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.api eth,net,web3 \
           --engine.persistence-threshold 0 \
           --engine.memory-block-buffer-target 0 \
           --disable-discovery \

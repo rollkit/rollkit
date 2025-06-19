@@ -3,6 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -219,4 +222,34 @@ func TestHealthServer_Livez(t *testing.T) {
 	resp, err := h.Livez(context.Background(), connect.NewRequest(&emptypb.Empty{}))
 	require.NoError(t, err)
 	require.Equal(t, pb.HealthStatus_PASS, resp.Msg.Status)
+}
+
+func TestHealthLiveEndpoint(t *testing.T) {
+	assert := require.New(t)
+
+	// Create mock dependencies
+	mockStore := mocks.NewStore(t)
+	mockP2PManager := &mocks.P2PRPC{} // Assuming this mock is sufficient or can be adapted
+
+	// Create the service handler
+	handler, err := NewServiceHandler(mockStore, mockP2PManager)
+	assert.NoError(err)
+	assert.NotNil(handler)
+
+	// Create a new HTTP test server
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	// Make a GET request to the /health/live endpoint
+	resp, err := http.Get(server.URL + "/health/live")
+	assert.NoError(err)
+	defer resp.Body.Close()
+
+	// Check the status code
+	assert.Equal(http.StatusOK, resp.StatusCode)
+
+	// Check the response body
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(err)
+	assert.Equal("OK\n", string(body)) // fmt.Fprintln adds a newline
 }
