@@ -11,7 +11,7 @@ func RegisterCustomHTTPEndpoints(mux *http.ServeMux) {
 	mux.HandleFunc("/health/live", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "OK")
+		fmt.Fprintln(w, "{ status: OK }")
 	})
 
 	// Example for adding more custom endpoints:
