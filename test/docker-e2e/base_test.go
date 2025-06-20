@@ -1,9 +1,12 @@
+//go:build docker_e2e
+
 package docker_e2e
 
 import (
 	"context"
-	"github.com/celestiaorg/tastora/framework/types"
 	"testing"
+
+	"github.com/celestiaorg/tastora/framework/types"
 )
 
 func (s *DockerTestSuite) TestBasicDockerE2E() {

@@ -10,14 +10,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 )
 
 func main() {
 	rootDir := "."
-
-	excludeDirs := []string{filepath.ToSlash("test/docker-e2e")}
 
 	var coverFiles []string
 	var testFailures bool
@@ -40,11 +37,6 @@ func main() {
 
 			fullCoverProfilePath := filepath.Join(modDir, "cover.out")
 			relativeCoverProfileArg := "cover.out"
-
-			if slices.Contains(excludeDirs, modDir) {
-				fmt.Printf("--> Skipping tests in: %s\n as they are marked as excluded", modDir)
-				return nil
-			}
 
 			fmt.Printf("--> Running tests with coverage in: %s (profile: %s)\n", modDir, relativeCoverProfileArg)
 			cmd := exec.Command("go", "test", "./...", "-race", "-coverprofile="+relativeCoverProfileArg, "-covermode=atomic")

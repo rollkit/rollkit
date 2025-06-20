@@ -1,10 +1,16 @@
+//go:build docker_e2e
+
 package docker_e2e
 
 import (
 	"context"
-	"cosmossdk.io/math"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"strings"
+	"testing"
+
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/go-square/v2/share"
 	tastoradocker "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
@@ -17,9 +23,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap/zaptest"
-	"os"
-	"strings"
-	"testing"
 )
 
 const (
