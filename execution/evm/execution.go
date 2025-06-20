@@ -313,6 +313,13 @@ func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
 	return c.setFinal(ctx, blockHash, true)
 }
 
+// GetExecutionMode returns the execution mode for this executor.
+// EngineClient uses immediate execution mode since it calculates the state root
+// during transaction execution via engine_getPayloadV4.
+func (c *EngineClient) GetExecutionMode() execution.ExecutionMode {
+	return execution.ExecutionModeImmediate
+}
+
 func (c *EngineClient) derivePrevRandao(blockHeight uint64) common.Hash {
 	return common.BigToHash(new(big.Int).SetUint64(blockHeight))
 }
