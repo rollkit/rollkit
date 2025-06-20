@@ -268,14 +268,6 @@ func (s *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Bat
 	submittedTxCount := 0
 	attempt := 0
 
-	// Store initial values to be able to reset or compare later
-	initialGasPrice, err := s.DA.GasPrice(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get initial gas price: %w", err)
-	}
-
-	gasPrice := initialGasPrice
-
 daSubmitRetryLoop:
 	for !submittedAllTxs && attempt < maxSubmitAttempts {
 		// Wait for backoff duration or exit if context is done
@@ -286,19 +278,13 @@ daSubmitRetryLoop:
 		}
 
 		// Attempt to submit the batch to the DA layer
-		res := types.SubmitWithHelpers(ctx, s.DA, s.logger, currentBatch.Transactions, gasPrice, nil)
-
-		gasMultiplier, err := s.DA.GasMultiplier(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get gas multiplier: %w", err)
-		}
+		res := types.SubmitWithHelpers(ctx, s.DA, s.logger, currentBatch.Transactions, nil)
 
 		switch res.Code {
 		case coreda.StatusSuccess:
 			// Count submitted transactions for this attempt
 			submittedTxs := int(res.SubmittedCount)
 			s.logger.Info("[based] successfully submitted transactions to DA layer",
-				"gasPrice", gasPrice,
 				"height", res.Height,
 				"submittedTxs", submittedTxs,
 				"remainingTxs", len(currentBatch.Transactions)-submittedTxs)
@@ -317,25 +303,14 @@ daSubmitRetryLoop:
 			// Reset submission parameters after success
 			backoff = 0
 
-			// Gradually reduce gas price on success, but not below initial price
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice / gasMultiplier
-				if gasPrice < initialGasPrice {
-					gasPrice = initialGasPrice
-				}
-			}
-			s.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
+			s.logger.Debug("resetting DA layer submission options", "backoff", backoff)
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			// For mempool-related issues, use a longer backoff and increase gas price
 			s.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = batchTime * time.Duration(defaultMempoolTTL)
 
-			// Increase gas price to prioritize the transaction
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice * gasMultiplier
-			}
-			s.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
+			s.logger.Info("retrying DA layer submission with", "backoff", backoff)
 
 		default:
 			// For other errors, use exponential backoff

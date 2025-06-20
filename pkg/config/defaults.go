@@ -53,10 +53,8 @@ var DefaultConfig = Config{
 		TrustedHash:       "",
 	},
 	DA: DAConfig{
-		Address:       "http://localhost:7980",
-		BlockTime:     DurationWrapper{6 * time.Second},
-		GasPrice:      -1,
-		GasMultiplier: 0,
+		Address:   "http://localhost:7980",
+		BlockTime: DurationWrapper{6 * time.Second},
 	},
 	Instrumentation: DefaultInstrumentationConfig(),
 	Log: LogConfig{

@@ -30,8 +30,8 @@ type API struct {
 		GetProofs         func(ctx context.Context, ids []da.ID, ns []byte) ([]da.Proof, error)          `perm:"read"`
 		Commit            func(ctx context.Context, blobs []da.Blob, ns []byte) ([]da.Commitment, error) `perm:"read"`
 		Validate          func(context.Context, []da.ID, []da.Proof, []byte) ([]bool, error)             `perm:"read"`
-		Submit            func(context.Context, []da.Blob, float64, []byte) ([]da.ID, error)             `perm:"write"`
-		SubmitWithOptions func(context.Context, []da.Blob, float64, []byte, []byte) ([]da.ID, error)     `perm:"write"`
+		Submit            func(context.Context, []da.Blob, []byte) ([]da.ID, error)                      `perm:"write"`
+		SubmitWithOptions func(context.Context, [][]byte, []byte, []byte) ([]da.ID, error)               `perm:"write"`
 		GasMultiplier     func(context.Context) (float64, error)                                         `perm:"read"`
 		GasPrice          func(context.Context) (float64, error)                                         `perm:"read"`
 	}
@@ -124,9 +124,9 @@ func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, _ 
 }
 
 // Submit submits the Blobs to Data Availability layer.
-func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, _ []byte) ([]da.ID, error) {
-	api.Logger.Debug("Making RPC call", "method", "Submit", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(api.Namespace))
-	res, err := api.Internal.Submit(ctx, blobs, gasPrice, api.Namespace)
+func (api *API) Submit(ctx context.Context, blobs []da.Blob) ([]da.ID, error) {
+	api.Logger.Debug("Making RPC call", "method", "Submit", "num_blobs", len(blobs), "namespace", string(api.Namespace))
+	res, err := api.Internal.Submit(ctx, blobs, api.Namespace)
 	if err != nil {
 		if strings.Contains(err.Error(), context.Canceled.Error()) {
 			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Submit")
@@ -141,7 +141,7 @@ func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, _
 
 // SubmitWithOptions submits the Blobs to Data Availability layer with additional options.
 // It checks blobs against MaxBlobSize and submits only those that fit.
-func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gasPrice float64, _ []byte, options []byte) ([]da.ID, error) {
+func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, options []byte) ([]da.ID, error) {
 	maxBlobSize := api.MaxBlobSize
 
 	var (
@@ -178,8 +178,8 @@ func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gas
 		return []da.ID{}, nil
 	}
 
-	api.Logger.Debug("Making RPC call", "method", "SubmitWithOptions", "num_blobs_original", len(inputBlobs), "num_blobs_to_submit", len(blobsToSubmit), "gas_price", gasPrice, "namespace", string(api.Namespace))
-	res, err := api.Internal.SubmitWithOptions(ctx, blobsToSubmit, gasPrice, api.Namespace, options)
+	api.Logger.Debug("Making RPC call", "method", "SubmitWithOptions", "num_blobs_original", len(inputBlobs), "num_blobs_to_submit", len(blobsToSubmit), "namespace", string(api.Namespace))
+	res, err := api.Internal.SubmitWithOptions(ctx, blobsToSubmit, api.Namespace, options)
 	if err != nil {
 		if strings.Contains(err.Error(), context.Canceled.Error()) {
 			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "SubmitWithOptions")
@@ -190,28 +190,6 @@ func (api *API) SubmitWithOptions(ctx context.Context, inputBlobs []da.Blob, gas
 		api.Logger.Debug("RPC call successful", "method", "SubmitWithOptions", "num_ids_returned", len(res))
 	}
 
-	return res, err
-}
-
-func (api *API) GasMultiplier(ctx context.Context) (float64, error) {
-	api.Logger.Debug("Making RPC call", "method", "GasMultiplier")
-	res, err := api.Internal.GasMultiplier(ctx)
-	if err != nil {
-		api.Logger.Error("RPC call failed", "method", "GasMultiplier", "error", err)
-	} else {
-		api.Logger.Debug("RPC call successful", "method", "GasMultiplier", "result", res)
-	}
-	return res, err
-}
-
-func (api *API) GasPrice(ctx context.Context) (float64, error) {
-	api.Logger.Debug("Making RPC call", "method", "GasPrice")
-	res, err := api.Internal.GasPrice(ctx)
-	if err != nil {
-		api.Logger.Error("RPC call failed", "method", "GasPrice", "error", err)
-	} else {
-		api.Logger.Debug("RPC call successful", "method", "GasPrice", "result", res)
-	}
 	return res, err
 }
 

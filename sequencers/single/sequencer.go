@@ -122,9 +122,8 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 	}, nil
 }
 
-func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
+func (c *Sequencer) recordMetrics(blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
 	if c.metrics != nil {
-		c.metrics.GasPrice.Set(gasPrice)
 		c.metrics.LastBlobSize.Set(float64(blobSize))
 		c.metrics.TransactionStatus.With("status", fmt.Sprintf("%d", statusCode)).Add(1)
 		c.metrics.NumPendingBlocks.Set(float64(numPendingBlocks))

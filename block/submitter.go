@@ -51,9 +51,7 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	numSubmittedHeaders := 0
 	attempt := 0
 
-	gasPrice := m.gasPrice
-	initialGasPrice := gasPrice
-
+daSubmitRetryLoop:
 	for !submittedAllHeaders && attempt < maxSubmitAttempts {
 		select {
 		case <-ctx.Done():
@@ -77,12 +75,12 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 		}
 
 		submitctx, submitCtxCancel := context.WithTimeout(ctx, 60*time.Second) // TODO: make this configurable
-		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, headersBz, gasPrice, nil)
+		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, headersBz, nil)
 		submitCtxCancel()
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount)
+			m.logger.Info("successfully submitted Rollkit headers to DA layer", "daHeight", res.Height, "headerCount", res.SubmittedCount)
 			if res.SubmittedCount == uint64(len(headersToSubmit)) {
 				submittedAllHeaders = true
 			}
@@ -101,21 +99,18 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 			// reset submission options when successful
 			// scale back gasPrice gradually
 			backoff = 0
-			if m.gasMultiplier > 0 && gasPrice != -1 {
-				gasPrice = gasPrice / m.gasMultiplier
-				gasPrice = max(gasPrice, initialGasPrice)
-			}
-			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
+
+			m.logger.Debug("resetting DA layer submission options", "backoff", backoff)
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL) //nolint:gosec
-			if m.gasMultiplier > 0 && gasPrice != -1 {
-				gasPrice = gasPrice * m.gasMultiplier
-			}
-			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
+			m.logger.Info("retrying DA layer submission with", "backoff", backoff)
 		case coreda.StatusContextCanceled:
 			m.logger.Info("DA layer submission canceled", "attempt", attempt)
 			return nil
+		case coreda.StatusTooBig:
+			m.logger.Info("failed to submit header to DA layer because header is too big")
+			break daSubmitRetryLoop
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.exponentialBackoff(backoff)
@@ -209,10 +204,6 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedData *types.SignedDa
 	var backoff time.Duration
 	attempt := 0
 
-	// Store initial values to be able to reset or compare later
-	initialGasPrice := m.gasPrice
-	gasPrice := initialGasPrice
-
 	for attempt < maxSubmitAttempts {
 		// Wait for backoff duration or exit if context is done
 		select {
@@ -228,31 +219,17 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedData *types.SignedDa
 		}
 
 		// Attempt to submit the signed data to the DA layer using the helper function
-		res := types.SubmitWithHelpers(ctx, m.da, m.logger, [][]byte{signedDataBz}, gasPrice, nil)
-
-		gasMultiplier, multErr := m.da.GasMultiplier(ctx)
-		if multErr != nil {
-			m.logger.Error("failed to get gas multiplier", "error", multErr)
-			gasMultiplier = 0
-		}
+		res := types.SubmitWithHelpers(ctx, m.da, m.logger, [][]byte{signedDataBz}, nil)
 
 		switch res.Code {
 		case coreda.StatusSuccess:
 			m.logger.Info("successfully submitted data to DA layer",
-				"gasPrice", gasPrice,
 				"height", res.Height)
 
 			// Reset submission parameters after success
 			backoff = 0
 
-			// Gradually reduce gas price on success, but not below initial price
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice / gasMultiplier
-				if gasPrice < initialGasPrice {
-					gasPrice = initialGasPrice
-				}
-			}
-			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
+			m.logger.Debug("resetting DA layer submission options", "backoff", backoff)
 
 			m.DataCache().SetDAIncluded(signedData.DACommitment().String())
 			m.sendNonBlockingSignalToDAIncluderCh()
@@ -261,10 +238,7 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedData *types.SignedDa
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL)
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice * gasMultiplier
-			}
-			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
+			m.logger.Info("retrying DA layer submission with", "backoff", backoff)
 		case coreda.StatusContextCanceled:
 			m.logger.Info("DA layer submission canceled due to context cancellation", "attempt", attempt)
 			return nil
