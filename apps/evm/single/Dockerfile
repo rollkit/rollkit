@@ -2,10 +2,15 @@ FROM golang:1.24-alpine AS build-env
 
 WORKDIR /src
 
+ADD core core
+
+COPY go.mod go.sum ./
+RUN go mod download
+
 COPY . .
 
 WORKDIR /src/apps/evm/single
-RUN CGO_ENABLED=0 GOOS=linux go build -o evm-single .
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -o evm-single .
 
 FROM alpine:3.18.3
 
