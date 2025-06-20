@@ -73,10 +73,10 @@ func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 	return rollkitconfig.Config{
 		RootDir: t.TempDir(),
 		Node: rollkitconfig.NodeConfig{
-			Aggregator:        true,
-			BlockTime:         rollkitconfig.DurationWrapper{Duration: 100 * time.Millisecond},
-			MaxPendingHeaders: 100,
-			LazyBlockInterval: rollkitconfig.DurationWrapper{Duration: 5 * time.Second},
+			Aggregator:               true,
+			BlockTime:                rollkitconfig.DurationWrapper{Duration: 100 * time.Millisecond},
+			MaxPendingHeadersAndData: 100,
+			LazyBlockInterval:        rollkitconfig.DurationWrapper{Duration: 5 * time.Second},
 		},
 		DA: rollkitconfig.DAConfig{
 			BlockTime: rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond},
