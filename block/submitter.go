@@ -106,6 +106,11 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 				gasPrice = max(gasPrice, initialGasPrice)
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
+
+			// Update sequencer metrics if the sequencer supports it
+			if seq, ok := m.sequencer.(MetricsRecorder); ok {
+				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeight)
+			}
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL) //nolint:gosec
@@ -256,6 +261,13 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedData *types.SignedDa
 
 			m.DataCache().SetDAIncluded(signedData.DACommitment().String())
 			m.sendNonBlockingSignalToDAIncluderCh()
+
+			// Update sequencer metrics if the sequencer supports it
+			if seq, ok := m.sequencer.(MetricsRecorder); ok {
+				daIncludedHeight := m.GetDAIncludedHeight()
+				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), daIncludedHeight)
+			}
+
 			return nil
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:

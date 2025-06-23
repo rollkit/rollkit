@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+
+	coreda "github.com/rollkit/rollkit/core/da"
 )
 
 // DAIncluderLoop is responsible for advancing the DAIncludedHeight by checking if blocks after the current height
@@ -63,5 +65,11 @@ func (m *Manager) incrementDAIncludedHeight(ctx context.Context) error {
 	if !m.daIncludedHeight.CompareAndSwap(currentHeight, newHeight) {
 		return fmt.Errorf("failed to set DA included height: %d", newHeight)
 	}
+
+	// Update sequencer metrics if the sequencer supports it
+	if seq, ok := m.sequencer.(MetricsRecorder); ok {
+		seq.RecordMetrics(m.gasPrice, 0, coreda.StatusSuccess, m.pendingHeaders.numPendingHeaders(), newHeight)
+	}
+
 	return nil
 }
