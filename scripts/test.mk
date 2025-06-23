@@ -48,7 +48,10 @@ test-evm:
 test-docker-e2e: docker-build-if-local
 	@echo "--> Running Docker E2E tests"
 	@echo "--> Verifying Docker image exists locally..."
-	@docker images rollkit:local-dev | grep rollkit || (echo "ERROR: rollkit:local-dev image not found. Run 'make docker-build' first." && exit 1)
+	@if [ -z "$(ROLLKIT_IMAGE_REPO)" ] || [ "$(ROLLKIT_IMAGE_REPO)" = "rollkit" ]; then \
+		echo "--> Verifying Docker image exists locally..."; \
+		docker image inspect rollkit:local-dev >/dev/null 2>&1 || (echo "ERROR: rollkit:local-dev image not found. Run 'make docker-build' first." && exit 1); \
+	fi
 	@cd test/docker-e2e && go test -mod=readonly -failfast -timeout=30m ./...
 	@$(MAKE) docker-cleanup-if-local
 
