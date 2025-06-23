@@ -250,7 +250,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	err = c.engineClient.CallContext(ctx, &newPayloadResult, "engine_newPayloadV4",
 		payloadResult.ExecutionPayload,
 		[]string{}, // No blob hashes
-		prevBlockHash.Hex(),
+		c.genesisHash.Hex(),
 		[][]byte{}, // No execution requests
 	)
 	if err != nil {
