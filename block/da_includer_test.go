@@ -419,7 +419,7 @@ func TestIncrementDAIncludedHeight_WithMetricsRecorder(t *testing.T) {
 	binary.LittleEndian.PutUint64(lastSubmittedBytes, startDAIncludedHeight)
 
 	store.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(lastSubmittedBytes, nil).Maybe() // For pendingHeaders init
-	store.On("Height", mock.Anything).Return(uint64(7), nil).Maybe() // 7 - 4 = 3 pending headers
+	store.On("Height", mock.Anything).Return(uint64(7), nil).Maybe()                                       // 7 - 4 = 3 pending headers
 
 	// Initialize pendingHeaders properly
 	pendingHeaders, err := NewPendingHeaders(store, logger)
@@ -433,11 +433,11 @@ func TestIncrementDAIncludedHeight_WithMetricsRecorder(t *testing.T) {
 
 	// Expect RecordMetrics to be called with the correct parameters
 	mockSequencer.On("RecordMetrics",
-		float64(1.5),                    // gasPrice
-		uint64(0),                       // blobSize
-		coreda.StatusSuccess,            // statusCode
-		uint64(3),                       // numPendingBlocks (7 - 4 = 3)
-		expectedDAIncludedHeight,        // includedBlockHeight
+		float64(1.5),             // gasPrice
+		uint64(0),                // blobSize
+		coreda.StatusSuccess,     // statusCode
+		uint64(3),                // numPendingBlocks (7 - 4 = 3)
+		expectedDAIncludedHeight, // includedBlockHeight
 	).Once()
 
 	err = m.incrementDAIncludedHeight(context.Background())

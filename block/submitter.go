@@ -109,7 +109,7 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 
 			// Update sequencer metrics if the sequencer supports it
 			if seq, ok := m.sequencer.(MetricsRecorder); ok {
-				seq.RecordMetrics(gasPrice, uint64(res.BlobSize), res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeight)
+				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeight)
 			}
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
@@ -265,7 +265,7 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedData *types.SignedDa
 			// Update sequencer metrics if the sequencer supports it
 			if seq, ok := m.sequencer.(MetricsRecorder); ok {
 				daIncludedHeight := m.GetDAIncludedHeight()
-				seq.RecordMetrics(gasPrice, uint64(res.BlobSize), res.Code, m.pendingHeaders.numPendingHeaders(), daIncludedHeight)
+				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), daIncludedHeight)
 			}
 
 			return nil
