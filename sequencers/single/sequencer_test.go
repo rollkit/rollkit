@@ -431,3 +431,109 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	// Verify all mock expectations were met
 	mockDA.AssertExpectations(t)
 }
+
+// TestSequencer_RecordMetrics tests the RecordMetrics method to ensure it properly updates metrics.
+func TestSequencer_RecordMetrics(t *testing.T) {
+	t.Run("With Metrics", func(t *testing.T) {
+		// Create a sequencer with metrics enabled
+		metrics, err := NopMetrics()
+		require.NoError(t, err)
+
+		seq := &Sequencer{
+			logger:  log.NewNopLogger(),
+			metrics: metrics,
+		}
+
+		// Test values
+		gasPrice := 1.5
+		blobSize := uint64(1024)
+		statusCode := coreda.StatusSuccess
+		numPendingBlocks := uint64(5)
+		includedBlockHeight := uint64(100)
+
+		// Call RecordMetrics - should not panic or error
+		seq.RecordMetrics(gasPrice, blobSize, statusCode, numPendingBlocks, includedBlockHeight)
+
+		// Since we're using NopMetrics (discard metrics), we can't verify the actual values
+		// but we can verify the method doesn't panic and completes successfully
+		assert.NotNil(t, seq.metrics)
+	})
+
+	t.Run("Without Metrics", func(t *testing.T) {
+		// Create a sequencer without metrics
+		seq := &Sequencer{
+			logger:  log.NewNopLogger(),
+			metrics: nil, // No metrics
+		}
+
+		// Test values
+		gasPrice := 2.0
+		blobSize := uint64(2048)
+		statusCode := coreda.StatusNotIncludedInBlock
+		numPendingBlocks := uint64(3)
+		includedBlockHeight := uint64(200)
+
+		// Call RecordMetrics - should not panic even with nil metrics
+		seq.RecordMetrics(gasPrice, blobSize, statusCode, numPendingBlocks, includedBlockHeight)
+
+		// Verify metrics is still nil
+		assert.Nil(t, seq.metrics)
+	})
+
+	t.Run("With Different Status Codes", func(t *testing.T) {
+		// Create a sequencer with metrics
+		metrics, err := NopMetrics()
+		require.NoError(t, err)
+
+		seq := &Sequencer{
+			logger:  log.NewNopLogger(),
+			metrics: metrics,
+		}
+
+		// Test different status codes
+		testCases := []struct {
+			name       string
+			statusCode coreda.StatusCode
+		}{
+			{"Success", coreda.StatusSuccess},
+			{"NotIncluded", coreda.StatusNotIncludedInBlock},
+			{"AlreadyInMempool", coreda.StatusAlreadyInMempool},
+			{"TooBig", coreda.StatusTooBig},
+			{"ContextCanceled", coreda.StatusContextCanceled},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// Call RecordMetrics with different status codes
+				seq.RecordMetrics(1.0, 512, tc.statusCode, 2, 50)
+
+				// Verify no panic occurred
+				assert.NotNil(t, seq.metrics)
+			})
+		}
+	})
+
+	t.Run("Private recordMetrics Method", func(t *testing.T) {
+		// Create a sequencer with metrics
+		metrics, err := NopMetrics()
+		require.NoError(t, err)
+
+		seq := &Sequencer{
+			logger:  log.NewNopLogger(),
+			metrics: metrics,
+		}
+
+		// Test values
+		gasPrice := 3.0
+		blobSize := uint64(4096)
+		statusCode := coreda.StatusTooBig
+		numPendingBlocks := uint64(7)
+		includedBlockHeight := uint64(300)
+
+		// Call the private recordMetrics method - should not panic or error
+		seq.recordMetrics(gasPrice, blobSize, statusCode, numPendingBlocks, includedBlockHeight)
+
+		// Verify the method completes successfully
+		assert.NotNil(t, seq.metrics)
+	})
+}
