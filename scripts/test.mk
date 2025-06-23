@@ -68,8 +68,8 @@ docker-build-if-local:
 ## docker-cleanup-if-local: Clean up local Docker image if using local repository
 docker-cleanup-if-local:
 	@if [ -z "$(ROLLKIT_IMAGE_REPO)" ] || [ "$(ROLLKIT_IMAGE_REPO)" = "rollkit" ]; then \
-		echo "--> Cleaning up local Docker image..."; \
-		docker rmi rollkit:local-dev 2>/dev/null || echo "Image rollkit:local-dev not found or already removed"; \
+		echo "--> Untagging local Docker image (preserving layers for faster rebuilds)..."; \
+		docker rmi rollkit:local-dev --no-prune 2>/dev/null || echo "Image rollkit:local-dev not found or already removed"; \
 	else \
 		echo "--> Using remote repository, no cleanup needed"; \
 	fi
