@@ -513,27 +513,4 @@ func TestSequencer_RecordMetrics(t *testing.T) {
 		}
 	})
 
-	t.Run("Private recordMetrics Method", func(t *testing.T) {
-		// Create a sequencer with metrics
-		metrics, err := NopMetrics()
-		require.NoError(t, err)
-
-		seq := &Sequencer{
-			logger:  log.NewNopLogger(),
-			metrics: metrics,
-		}
-
-		// Test values
-		gasPrice := 3.0
-		blobSize := uint64(4096)
-		statusCode := coreda.StatusTooBig
-		numPendingBlocks := uint64(7)
-		includedBlockHeight := uint64(300)
-
-		// Call the private recordMetrics method - should not panic or error
-		seq.recordMetrics(gasPrice, blobSize, statusCode, numPendingBlocks, includedBlockHeight)
-
-		// Verify the method completes successfully
-		assert.NotNil(t, seq.metrics)
-	})
 }

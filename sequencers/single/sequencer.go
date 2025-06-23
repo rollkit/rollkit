@@ -134,11 +134,6 @@ func (c *Sequencer) RecordMetrics(gasPrice float64, blobSize uint64, statusCode 
 	}
 }
 
-// recordMetrics is a private method that updates the metrics with the given values.
-func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64) {
-	c.RecordMetrics(gasPrice, blobSize, statusCode, numPendingBlocks, includedBlockHeight)
-}
-
 func (c *Sequencer) exponentialBackoff(backoff time.Duration) time.Duration {
 	backoff *= 2
 	if backoff == 0 {

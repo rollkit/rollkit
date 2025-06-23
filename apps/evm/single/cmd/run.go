@@ -60,7 +60,7 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-	singleMetrics, err := single.DefaultMetricsProvider(nodeConfig.Instrumentation.IsPrometheusEnabled())(nodeConfig.ChainID)
+	singleMetrics, err := single.NewMetrics(nodeConfig.Instrumentation.IsPrometheusEnabled())()
 	if err != nil {
 		return err
 	}
