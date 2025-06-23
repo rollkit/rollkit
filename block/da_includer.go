@@ -67,9 +67,7 @@ func (m *Manager) incrementDAIncludedHeight(ctx context.Context) error {
 	}
 
 	// Update sequencer metrics if the sequencer supports it
-	if seq, ok := m.sequencer.(interface {
-		RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64)
-	}); ok {
+	if seq, ok := m.sequencer.(MetricsRecorder); ok {
 		seq.RecordMetrics(m.gasPrice, 0, coreda.StatusSuccess, m.pendingHeaders.numPendingHeaders(), newHeight)
 	}
 

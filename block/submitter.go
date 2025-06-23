@@ -108,9 +108,7 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 
 			// Update sequencer metrics if the sequencer supports it
-			if seq, ok := m.sequencer.(interface {
-				RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64)
-			}); ok {
+			if seq, ok := m.sequencer.(MetricsRecorder); ok {
 				seq.RecordMetrics(gasPrice, uint64(res.BlobSize), res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeight)
 			}
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
@@ -265,9 +263,7 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedData *types.SignedDa
 			m.sendNonBlockingSignalToDAIncluderCh()
 
 			// Update sequencer metrics if the sequencer supports it
-			if seq, ok := m.sequencer.(interface {
-				RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64)
-			}); ok {
+			if seq, ok := m.sequencer.(MetricsRecorder); ok {
 				daIncludedHeight := m.GetDAIncludedHeight()
 				seq.RecordMetrics(gasPrice, uint64(res.BlobSize), res.Code, m.pendingHeaders.numPendingHeaders(), daIncludedHeight)
 			}
