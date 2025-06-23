@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	coreda "github.com/rollkit/rollkit/core/da"
+	"github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -367,6 +369,83 @@ func TestDAIncluderLoop_DoesNotAdvanceWhenDataHashIsEmptyAndHeaderNotDAIncluded(
 
 	assert.Equal(t, startDAIncludedHeight, m.GetDAIncludedHeight())
 	store.AssertExpectations(t)
+}
+
+// MockSequencerWithMetrics is a mock sequencer that implements MetricsRecorder interface
+type MockSequencerWithMetrics struct {
+	mock.Mock
+}
+
+func (m *MockSequencerWithMetrics) RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64) {
+	m.Called(gasPrice, blobSize, statusCode, numPendingBlocks, includedBlockHeight)
+}
+
+// Implement the Sequencer interface methods
+func (m *MockSequencerWithMetrics) SubmitBatchTxs(ctx context.Context, req sequencer.SubmitBatchTxsRequest) (*sequencer.SubmitBatchTxsResponse, error) {
+	args := m.Called(ctx, req)
+	return args.Get(0).(*sequencer.SubmitBatchTxsResponse), args.Error(1)
+}
+
+func (m *MockSequencerWithMetrics) GetNextBatch(ctx context.Context, req sequencer.GetNextBatchRequest) (*sequencer.GetNextBatchResponse, error) {
+	args := m.Called(ctx, req)
+	return args.Get(0).(*sequencer.GetNextBatchResponse), args.Error(1)
+}
+
+func (m *MockSequencerWithMetrics) VerifyBatch(ctx context.Context, req sequencer.VerifyBatchRequest) (*sequencer.VerifyBatchResponse, error) {
+	args := m.Called(ctx, req)
+	return args.Get(0).(*sequencer.VerifyBatchResponse), args.Error(1)
+}
+
+// TestIncrementDAIncludedHeight_WithMetricsRecorder verifies that incrementDAIncludedHeight calls RecordMetrics
+// when the sequencer implements the MetricsRecorder interface (covers lines 73-74).
+func TestIncrementDAIncludedHeight_WithMetricsRecorder(t *testing.T) {
+	t.Parallel()
+	m, store, exec, logger := newTestManager(t)
+	startDAIncludedHeight := uint64(4)
+	expectedDAIncludedHeight := startDAIncludedHeight + 1
+	m.daIncludedHeight.Store(startDAIncludedHeight)
+
+	// Set up mock sequencer with metrics
+	mockSequencer := new(MockSequencerWithMetrics)
+	m.sequencer = mockSequencer
+	m.gasPrice = 1.5 // Set a test gas price
+
+	// Mock the store calls needed for PendingHeaders initialization
+	// First, clear the existing Height mock from newTestManager
+	store.ExpectedCalls = nil
+
+	// Create a byte array representing lastSubmittedHeight = 4
+	lastSubmittedBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lastSubmittedBytes, startDAIncludedHeight)
+
+	store.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(lastSubmittedBytes, nil).Maybe() // For pendingHeaders init
+	store.On("Height", mock.Anything).Return(uint64(7), nil).Maybe() // 7 - 4 = 3 pending headers
+
+	// Initialize pendingHeaders properly
+	pendingHeaders, err := NewPendingHeaders(store, logger)
+	assert.NoError(t, err)
+	m.pendingHeaders = pendingHeaders
+
+	heightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
+	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(nil).Once()
+	exec.On("SetFinal", mock.Anything, expectedDAIncludedHeight).Return(nil).Once()
+
+	// Expect RecordMetrics to be called with the correct parameters
+	mockSequencer.On("RecordMetrics",
+		float64(1.5),                    // gasPrice
+		uint64(0),                       // blobSize
+		coreda.StatusSuccess,            // statusCode
+		uint64(3),                       // numPendingBlocks (7 - 4 = 3)
+		expectedDAIncludedHeight,        // includedBlockHeight
+	).Once()
+
+	err = m.incrementDAIncludedHeight(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDAIncludedHeight, m.GetDAIncludedHeight())
+	store.AssertExpectations(t)
+	exec.AssertExpectations(t)
+	mockSequencer.AssertExpectations(t)
 }
 
 // Note: It is not practical to unit test a CompareAndSwap failure for incrementDAIncludedHeight
