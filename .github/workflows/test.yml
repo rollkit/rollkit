@@ -81,6 +81,7 @@ jobs:
       - name: Run Docker E2E Tests
         run: make test-docker-e2e
         env:
+          ROLLKIT_IMAGE_REPO: ghcr.io/${{ github.repository }}
           ROLLKIT_IMAGE_TAG: ${{ inputs.image-tag }}
 
   build_all-apps:
