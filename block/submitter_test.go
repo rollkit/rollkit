@@ -209,6 +209,103 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 	}
 }
 
+// TestSubmitHeadersToDA_WithMetricsRecorder verifies that submitHeadersToDA calls RecordMetrics
+// when the sequencer implements the MetricsRecorder interface.
+func TestSubmitHeadersToDA_WithMetricsRecorder(t *testing.T) {
+	da := &mocks.DA{}
+	m := newTestManagerWithDA(t, da)
+
+	// Set up mock sequencer with metrics
+	mockSequencer := new(MockSequencerWithMetrics)
+	m.sequencer = mockSequencer
+
+	// Prepare a mock PendingHeaders with test data
+	m.pendingHeaders = newPendingBlocks(t)
+
+	// Fill the pending headers with mock block data
+	fillWithBlockData(context.Background(), t, m.pendingHeaders, "Test Submitting Headers")
+
+	// Simulate DA layer successfully accepting the header submission
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return([]coreda.ID{[]byte("id")}, nil)
+
+	// Expect RecordMetrics to be called with the correct parameters
+	// Allow multiple calls since fillWithBlockData might create multiple headers
+	mockSequencer.On("RecordMetrics",
+		float64(1.0),                  // gasPrice (from newTestManagerWithDA)
+		uint64(0),                     // blobSize (mocked as 0)
+		coreda.StatusSuccess,          // statusCode
+		mock.AnythingOfType("uint64"), // numPendingBlocks (varies based on test data)
+		mock.AnythingOfType("uint64"), // lastSubmittedHeight
+	).Maybe()
+
+	// Call submitHeadersToDA and expect no error
+	err := m.submitHeadersToDA(context.Background())
+	assert.NoError(t, err)
+
+	// Verify that RecordMetrics was called at least once
+	mockSequencer.AssertExpectations(t)
+}
+
+// TestSubmitDataToDA_WithMetricsRecorder verifies that submitDataToDA calls RecordMetrics
+// when the sequencer implements the MetricsRecorder interface.
+func TestSubmitDataToDA_WithMetricsRecorder(t *testing.T) {
+	da := &mocks.DA{}
+	m := newTestManagerWithDA(t, da)
+
+	// Set up mock sequencer with metrics
+	mockSequencer := new(MockSequencerWithMetrics)
+	m.sequencer = mockSequencer
+
+	// Initialize pendingHeaders to avoid nil pointer dereference
+	m.pendingHeaders = newPendingBlocks(t)
+
+	// Simulate DA success
+	da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return([]coreda.ID{[]byte("id")}, nil)
+
+	// Expect RecordMetrics to be called with the correct parameters
+	mockSequencer.On("RecordMetrics",
+		float64(1.0),                  // gasPrice (from newTestManagerWithDA)
+		uint64(0),                     // blobSize (mocked as 0)
+		coreda.StatusSuccess,          // statusCode
+		mock.AnythingOfType("uint64"), // numPendingBlocks (varies based on test data)
+		mock.AnythingOfType("uint64"), // daIncludedHeight
+	).Once()
+
+	pubKey, err := m.signer.GetPublic()
+	require.NoError(t, err)
+	addr, err := m.signer.GetAddress()
+	require.NoError(t, err)
+
+	transactions := [][]byte{[]byte("tx1"), []byte("tx2")}
+
+	signedData := types.SignedData{
+		Data: types.Data{
+			Txs: make(types.Txs, len(transactions)),
+		},
+		Signer: types.Signer{
+			Address: addr,
+			PubKey:  pubKey,
+		},
+	}
+
+	for i, tx := range transactions {
+		signedData.Txs[i] = types.Tx(tx)
+	}
+
+	signature, err := m.getDataSignature(&signedData.Data)
+	require.NoError(t, err)
+	signedData.Signature = signature
+
+	err = m.submitDataToDA(context.Background(), &signedData)
+	assert.NoError(t, err)
+
+	// Verify that RecordMetrics was called
+	mockSequencer.AssertExpectations(t)
+}
+
 // TestCreateSignedDataFromBatch tests createSignedDataFromBatch for normal, empty, and error cases.
 func TestCreateSignedDataFromBatch(t *testing.T) {
 	// Setup: create a Manager with a valid signer and genesis proposer address
