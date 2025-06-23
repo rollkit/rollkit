@@ -60,10 +60,10 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		singleMetrics, err := single.NopMetrics()
-		if err != nil {
-			return err
-		}
+	singleMetrics, err := single.DefaultMetricsProvider(nodeConfig.Instrumentation.IsPrometheusEnabled())(nodeConfig.ChainID)
+	if err != nil {
+		return err
+	}
 
 		sequencer, err := single.NewSequencer(
 			context.Background(),
