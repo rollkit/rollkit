@@ -2,7 +2,11 @@ package client
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -11,11 +15,31 @@ import (
 	rpc "github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
 )
 
+// MetadataEntry represents a metadata key-value pair with description
+type MetadataEntry struct {
+	Key         string
+	Value       []byte
+	Description string
+}
+
+// MetadataEndpointResponse represents the JSON response from the metadata endpoint
+type MetadataEndpointResponse struct {
+	Metadata []MetadataEntryJSON `json:"metadata"`
+}
+
+// MetadataEntryJSON represents a single metadata entry in JSON format
+type MetadataEntryJSON struct {
+	Key         string `json:"key"`
+	Value       string `json:"value"` // hex encoded
+	Description string `json:"description"`
+}
+
 // Client is the client for StoreService, P2PService, and HealthService
 type Client struct {
 	storeClient  rpc.StoreServiceClient
 	p2pClient    rpc.P2PServiceClient
 	healthClient rpc.HealthServiceClient
+	baseURL      string
 }
 
 // NewClient creates a new RPC client
@@ -29,6 +53,7 @@ func NewClient(baseURL string) *Client {
 		storeClient:  storeClient,
 		p2pClient:    p2pClient,
 		healthClient: healthClient,
+		baseURL:      baseURL,
 	}
 }
 
@@ -119,4 +144,47 @@ func (c *Client) GetHealth(ctx context.Context) (pb.HealthStatus, error) {
 		return pb.HealthStatus_UNKNOWN, err
 	}
 	return resp.Msg.Status, nil
+}
+
+// GetAllMetadata returns all available metadata from the server via HTTP endpoint
+func (c *Client) GetAllMetadata(ctx context.Context) ([]MetadataEntry, error) {
+	// Use HTTP client to call the /metadata endpoint
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/metadata", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned status %d", resp.StatusCode)
+	}
+
+	var response MetadataEndpointResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Convert from JSON format to our format
+	entries := make([]MetadataEntry, len(response.Metadata))
+	for i, jsonEntry := range response.Metadata {
+		// Decode hex-encoded value
+		value, err := hex.DecodeString(jsonEntry.Value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode hex value for key %s: %w", jsonEntry.Key, err)
+		}
+		
+		entries[i] = MetadataEntry{
+			Key:         jsonEntry.Key,
+			Value:       value,
+			Description: jsonEntry.Description,
+		}
+	}
+
+	return entries, nil
 }

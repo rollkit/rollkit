@@ -7,6 +7,7 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	store "github.com/rollkit/rollkit/pkg/store"
 	types "github.com/rollkit/rollkit/types"
 )
 
@@ -309,6 +310,36 @@ func (_m *Store) SetMetadata(ctx context.Context, key string, value []byte) erro
 	}
 
 	return r0
+}
+
+// GetAllMetadata provides a mock function with given fields: ctx
+func (_m *Store) GetAllMetadata(ctx context.Context) ([]store.MetadataEntry, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllMetadata")
+	}
+
+	var r0 []store.MetadataEntry
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]store.MetadataEntry, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []store.MetadataEntry); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]store.MetadataEntry)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // UpdateState provides a mock function with given fields: ctx, state

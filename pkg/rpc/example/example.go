@@ -60,6 +60,18 @@ func ExampleClient() {
 		log.Printf("Metadata value: %s", string(metadataValue))
 	}
 
+	// Get all available metadata
+	allMetadata, err := client.GetAllMetadata(ctx)
+	if err != nil {
+		log.Printf("Failed to get all metadata: %v", err)
+	} else {
+		log.Printf("Found %d metadata entries:", len(allMetadata))
+		for _, entry := range allMetadata {
+			log.Printf("  - Key: %s, Value: %x, Description: %s", 
+				entry.Key, entry.Value, entry.Description)
+		}
+	}
+
 	// Get a block by height
 	height := uint64(10)
 	block, err := client.GetBlockByHeight(ctx, height)
