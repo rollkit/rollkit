@@ -55,9 +55,6 @@ const (
 
 	// LastBatchDataKey is the key used for persisting the last batch data in store.
 	LastBatchDataKey = "l"
-
-	// RollkitHeightToDAHeightKey is the key used for persisting the mapping rollkit height to da height in store.
-	RollkitHeightToDAHeightKey = "rhb"
 )
 
 var (
@@ -508,7 +505,7 @@ func (m *Manager) SetRollkitHeightToDAHeight(ctx context.Context, height uint64)
 		return fmt.Errorf("header hash %s not found in cache", headerHash)
 	}
 	binary.LittleEndian.PutUint64(headerHeightBytes, daHeightForHeader)
-	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, height), headerHeightBytes); err != nil {
+	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height), headerHeightBytes); err != nil {
 		return err
 	}
 	dataHeightBytes := make([]byte, 8)
@@ -522,7 +519,7 @@ func (m *Manager) SetRollkitHeightToDAHeight(ctx context.Context, height uint64)
 		}
 		binary.LittleEndian.PutUint64(dataHeightBytes, daHeightForData)
 	}
-	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/d", RollkitHeightToDAHeightKey, height), dataHeightBytes); err != nil {
+	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, height), dataHeightBytes); err != nil {
 		return err
 	}
 	return nil

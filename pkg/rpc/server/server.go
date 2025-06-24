@@ -6,8 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"encoding/binary"
+	"errors"
+
 	"connectrpc.com/connect"
 	"connectrpc.com/grpcreflect"
+	ds "github.com/ipfs/go-datastore"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -79,12 +83,37 @@ func (s *StoreServer) GetBlock(
 	pbData := data.ToProto() // Assuming data.ToProto() exists and doesn't return an error
 
 	// Return the successful response
-	return connect.NewResponse(&pb.GetBlockResponse{
+	resp := &pb.GetBlockResponse{
 		Block: &pb.Block{
 			Header: pbHeader,
 			Data:   pbData,
 		},
-	}), nil
+	}
+
+	// Fetch and set DA heights
+	rollkitBlockHeight := header.Height()
+	if rollkitBlockHeight > 0 { // DA heights are not stored for genesis/height 0 in the current impl
+		headerDAHeightKey := fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, rollkitBlockHeight)
+		headerDAHeightBytes, err := s.store.GetMetadata(ctx, headerDAHeightKey)
+		if err == nil && len(headerDAHeightBytes) == 8 {
+			resp.HeaderDaHeight = binary.LittleEndian.Uint64(headerDAHeightBytes)
+		} else if err != nil && !errors.Is(err, ds.ErrNotFound) {
+			// Log error if it's not a simple case of not found
+			// Consider how to best log this, e.g., using a logger passed to StoreServer
+			fmt.Printf("Error fetching header DA height for block %d: %v\n", rollkitBlockHeight, err)
+		}
+
+		dataDAHeightKey := fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, rollkitBlockHeight)
+		dataDAHeightBytes, err := s.store.GetMetadata(ctx, dataDAHeightKey)
+		if err == nil && len(dataDAHeightBytes) == 8 {
+			resp.DataDaHeight = binary.LittleEndian.Uint64(dataDAHeightBytes)
+		} else if err != nil && !errors.Is(err, ds.ErrNotFound) {
+			// Log error
+			fmt.Printf("Error fetching data DA height for block %d: %v\n", rollkitBlockHeight, err)
+		}
+	}
+
+	return connect.NewResponse(resp), nil
 }
 
 // GetState implements the GetState RPC method

@@ -6,10 +6,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"encoding/binary"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/mock"
@@ -20,6 +22,7 @@ import (
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	"github.com/rollkit/rollkit/pkg/store"
 )
 
 func TestGetBlock(t *testing.T) {
@@ -28,17 +31,27 @@ func TestGetBlock(t *testing.T) {
 
 	// Create test data
 	height := uint64(10)
-	header := &types.SignedHeader{}
+	// Ensure the header has the correct height for key generation
+	header := &types.SignedHeader{Header: types.Header{BaseHeader: types.BaseHeader{Height: height}}}
 	data := &types.Data{}
+	expectedHeaderDAHeight := uint64(100)
+	expectedDataDAHeight := uint64(101)
 
-	// Setup mock expectations
-	mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil)
+	headerDAHeightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(headerDAHeightBytes, expectedHeaderDAHeight)
+	dataDAHeightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(dataDAHeightBytes, expectedDataDAHeight)
 
 	// Create server with mock store
 	server := NewStoreServer(mockStore)
 
-	// Test GetBlock with height
-	t.Run("by height", func(t *testing.T) {
+	// Test GetBlock with height - success case
+	t.Run("by height with DA heights", func(t *testing.T) {
+		// Setup mock expectations
+		mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil).Once()
+		mockStore.On("GetMetadata", mock.Anything, fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height)).Return(headerDAHeightBytes, nil).Once()
+		mockStore.On("GetMetadata", mock.Anything, fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, height)).Return(dataDAHeightBytes, nil).Once()
+
 		req := connect.NewRequest(&pb.GetBlockRequest{
 			Identifier: &pb.GetBlockRequest_Height{
 				Height: height,
@@ -49,24 +62,71 @@ func TestGetBlock(t *testing.T) {
 		// Assert expectations
 		require.NoError(t, err)
 		require.NotNil(t, resp.Msg.Block)
+		require.Equal(t, expectedHeaderDAHeight, resp.Msg.HeaderDaHeight)
+		require.Equal(t, expectedDataDAHeight, resp.Msg.DataDaHeight)
 		mockStore.AssertExpectations(t)
 	})
 
-	// Test GetBlock with hash
-	t.Run("by hash", func(t *testing.T) {
-		hash := []byte("test_hash")
-		mockStore.On("GetBlockByHash", mock.Anything, hash).Return(header, data, nil)
+	// Test GetBlock with height - metadata not found
+	t.Run("by height DA heights not found", func(t *testing.T) {
+		mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil).Once()
+		mockStore.On("GetMetadata", mock.Anything, fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height)).Return(nil, ds.ErrNotFound).Once()
+		mockStore.On("GetMetadata", mock.Anything, fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, height)).Return(nil, ds.ErrNotFound).Once()
+
+		req := connect.NewRequest(&pb.GetBlockRequest{
+			Identifier: &pb.GetBlockRequest_Height{
+				Height: height,
+			},
+		})
+		resp, err := server.GetBlock(context.Background(), req)
+		require.NoError(t, err)
+		require.NotNil(t, resp.Msg.Block)
+		require.Equal(t, uint64(0), resp.Msg.HeaderDaHeight) // Should default to 0
+		require.Equal(t, uint64(0), resp.Msg.DataDaHeight)   // Should default to 0
+		mockStore.AssertExpectations(t)
+	})
+
+	// Test GetBlock with hash - success case
+	t.Run("by hash with DA heights", func(t *testing.T) {
+		hashBytes := []byte("test_hash")
+		// Important: The header returned by GetBlockByHash must also have its height set for DA height lookup
+		headerForHash := &types.SignedHeader{Header: types.Header{BaseHeader: types.BaseHeader{Height: height}}}
+		mockStore.On("GetBlockByHash", mock.Anything, hashBytes).Return(headerForHash, data, nil).Once()
+		mockStore.On("GetMetadata", mock.Anything, fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height)).Return(headerDAHeightBytes, nil).Once()
+		mockStore.On("GetMetadata", mock.Anything, fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, height)).Return(dataDAHeightBytes, nil).Once()
 
 		req := connect.NewRequest(&pb.GetBlockRequest{
 			Identifier: &pb.GetBlockRequest_Hash{
-				Hash: hash,
+				Hash: hashBytes,
 			},
 		})
 		resp, err := server.GetBlock(context.Background(), req)
 
-		// Assert expectations
 		require.NoError(t, err)
 		require.NotNil(t, resp.Msg.Block)
+		require.Equal(t, expectedHeaderDAHeight, resp.Msg.HeaderDaHeight)
+		require.Equal(t, expectedDataDAHeight, resp.Msg.DataDaHeight)
+		mockStore.AssertExpectations(t)
+	})
+
+	// Test GetBlock with genesis height (0), DA heights should be 0 as per current server logic
+	t.Run("by height genesis (height 0)", func(t *testing.T) {
+		genesisHeight := uint64(0) // Requesting latest, and store.Height will return 0
+		mockStore.On("Height", mock.Anything).Return(genesisHeight, nil).Once() // Simulate store being at genesis (current height is 0)
+
+		req := connect.NewRequest(&pb.GetBlockRequest{
+			Identifier: &pb.GetBlockRequest_Height{
+				Height: genesisHeight, // Requesting block 0 (interpreted as "latest")
+			},
+		})
+		resp, err := server.GetBlock(context.Background(), req)
+
+		require.Error(t, err)
+		require.Nil(t, resp)
+		connectErr, ok := err.(*connect.Error)
+		require.True(t, ok)
+		require.Equal(t, connect.CodeNotFound, connectErr.Code())
+		require.Contains(t, connectErr.Message(), "store is empty, no latest block available")
 		mockStore.AssertExpectations(t)
 	})
 }
@@ -75,13 +135,24 @@ func TestGetBlock_Latest(t *testing.T) {
 	mockStore := mocks.NewStore(t)
 	server := NewStoreServer(mockStore)
 
-	header := &types.SignedHeader{}
+	latestHeight := uint64(20)
+	header := &types.SignedHeader{Header: types.Header{BaseHeader: types.BaseHeader{Height: latestHeight}}}
 	data := &types.Data{}
+	expectedHeaderDAHeight := uint64(200)
+	expectedDataDAHeight := uint64(201)
 
-	// Expectation for GetHeight (which should be called by GetLatestBlockHeight)
-	mockStore.On("Height", context.Background()).Return(uint64(20), nil).Once()
+	headerDAHeightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(headerDAHeightBytes, expectedHeaderDAHeight)
+	dataDAHeightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(dataDAHeightBytes, expectedDataDAHeight)
+
+	// Expectation for Height (which should be called by GetLatestBlockHeight)
+	mockStore.On("Height", context.Background()).Return(latestHeight, nil).Once()
 	// Expectation for GetBlockData with the latest height
-	mockStore.On("GetBlockData", context.Background(), uint64(20)).Return(header, data, nil).Once()
+	mockStore.On("GetBlockData", context.Background(), latestHeight).Return(header, data, nil).Once()
+	// Expectation for DA height metadata
+	mockStore.On("GetMetadata", mock.Anything, fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, latestHeight)).Return(headerDAHeightBytes, nil).Once()
+	mockStore.On("GetMetadata", mock.Anything, fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, latestHeight)).Return(dataDAHeightBytes, nil).Once()
 
 	req := connect.NewRequest(&pb.GetBlockRequest{
 		Identifier: &pb.GetBlockRequest_Height{
@@ -91,6 +162,8 @@ func TestGetBlock_Latest(t *testing.T) {
 	resp, err := server.GetBlock(context.Background(), req)
 	require.NoError(t, err)
 	require.NotNil(t, resp.Msg.Block)
+	require.Equal(t, expectedHeaderDAHeight, resp.Msg.HeaderDaHeight)
+	require.Equal(t, expectedDataDAHeight, resp.Msg.DataDaHeight)
 	mockStore.AssertExpectations(t)
 }
 

@@ -1089,8 +1089,8 @@ func TestSetRollkitHeightToDAHeight(t *testing.T) {
 		m.dataCache.SetDAIncluded(data.DACommitment().String(), dataHeight)
 
 		// Mock metadata storage
-		headerKey := fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, height)
-		dataKey := fmt.Sprintf("%s/%d/d", RollkitHeightToDAHeightKey, height)
+		headerKey := fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height)
+		dataKey := fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, height)
 		mockStore.On("SetMetadata", mock.Anything, headerKey, mock.Anything).Return(nil)
 		mockStore.On("SetMetadata", mock.Anything, dataKey, mock.Anything).Return(nil)
 
@@ -1119,8 +1119,8 @@ func TestSetRollkitHeightToDAHeight(t *testing.T) {
 		// Note: we don't set data in cache for empty transactions
 
 		// Mock metadata storage - both should use header height for empty transactions
-		headerKey := fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, height)
-		dataKey := fmt.Sprintf("%s/%d/d", RollkitHeightToDAHeightKey, height)
+		headerKey := fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height)
+		dataKey := fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, height)
 		mockStore.On("SetMetadata", mock.Anything, headerKey, mock.Anything).Return(nil)
 		mockStore.On("SetMetadata", mock.Anything, dataKey, mock.Anything).Return(nil)
 
@@ -1171,7 +1171,7 @@ func TestSetRollkitHeightToDAHeight(t *testing.T) {
 		m.headerCache.SetDAIncluded(header.Hash().String(), uint64(10))
 
 		// Mock metadata storage for header (should succeed)
-		headerKey := fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, height)
+		headerKey := fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height)
 		mockStore.On("SetMetadata", mock.Anything, headerKey, mock.Anything).Return(nil)
 
 		// Call the method - should fail on data lookup
