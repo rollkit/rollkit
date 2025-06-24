@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/pkg/store"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -254,7 +255,7 @@ func TestPendingBase_Generic(t *testing.T) {
 	}
 	headerCase := pendingBaseTestCase[*types.SignedHeader]{
 		name:  "Header",
-		key:   LastSubmittedHeaderHeightKey,
+		key:   storepkg.LastSubmittedHeaderHeightKey,
 		fetch: fetchSignedHeader,
 		makeItem: func(height uint64) *types.SignedHeader {
 			return &types.SignedHeader{Header: types.Header{BaseHeader: types.BaseHeader{Height: height}}}

@@ -21,6 +21,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer"
 	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
 	"github.com/rollkit/rollkit/pkg/store"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -218,7 +219,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header1)
-	store.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(nil, ds.ErrNotFound)
+	store.On("GetMetadata", mock.Anything, storepkg.LastSubmittedHeaderHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
 	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
 	store.On("GetBlockData", mock.Anything, uint64(3)).Return(header3, data3, nil)
@@ -256,7 +257,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header3)
-	store.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(nil, ds.ErrNotFound)
+	store.On("GetMetadata", mock.Anything, storepkg.LastSubmittedHeaderHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
 	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
 	store.On("GetBlockData", mock.Anything, uint64(3)).Return(header3, data3, nil)

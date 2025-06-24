@@ -12,6 +12,15 @@ const (
 	// Full keys are like: rhb/<rollkit_height>/h and rhb/<rollkit_height>/d
 	RollkitHeightToDAHeightKey = "rhb"
 
+	// DAIncludedHeightKey is the key used for persisting the da included height in store.
+	DAIncludedHeightKey = "d"
+
+	// LastBatchDataKey is the key used for persisting the last batch data in store.
+	LastBatchDataKey = "l"
+
+	// LastSubmittedHeaderHeightKey is the key used for persisting the last submitted header height in store.
+	LastSubmittedHeaderHeightKey = "last-submitted-header-height"
+
 	headerPrefix    = "h"
 	dataPrefix      = "d"
 	signaturePrefix = "c"

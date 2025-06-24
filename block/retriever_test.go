@@ -23,6 +23,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	rollmocks "github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -44,7 +45,7 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 	mockStore.On("GetState", mock.Anything).Return(types.State{DAHeight: initialDAHeight}, nil).Maybe()
 	mockStore.On("SetHeight", mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockStore.On("SetMetadata", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	mockStore.On("GetMetadata", mock.Anything, DAIncludedHeightKey).Return([]byte{}, ds.ErrNotFound).Maybe()
+	mockStore.On("GetMetadata", mock.Anything, storepkg.DAIncludedHeightKey).Return([]byte{}, ds.ErrNotFound).Maybe()
 
 	_, cancel := context.WithCancel(context.Background())
 
