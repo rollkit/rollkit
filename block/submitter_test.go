@@ -99,7 +99,7 @@ func TestSubmitDataToDA_Success(t *testing.T) {
 		},
 		mockDASetup: func(da *mocks.DA) {
 			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Return([]coreda.ID{[]byte("id")}, nil)
+				Return([]coreda.ID{getDummyID(1, []byte("commitment"))}, nil)
 		},
 	})
 }
@@ -118,7 +118,7 @@ func TestSubmitHeadersToDA_Success(t *testing.T) {
 		},
 		mockDASetup: func(da *mocks.DA) {
 			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Return([]coreda.ID{[]byte("id")}, nil)
+				Return([]coreda.ID{getDummyID(1, []byte("commitment"))}, nil)
 		},
 	})
 }
@@ -265,15 +265,15 @@ func runRetryPartialFailuresCase[T any](t *testing.T, tc retryPartialFailuresCas
 	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			t.Logf("DA Submit call 1: args=%#v", args)
-		}).Once().Return([]coreda.ID{[]byte("id2")}, nil)
+		}).Once().Return([]coreda.ID{getDummyID(1, []byte("commitment2"))}, nil)
 	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			t.Logf("DA Submit call 2: args=%#v", args)
-		}).Once().Return([]coreda.ID{[]byte("id3")}, nil)
+		}).Once().Return([]coreda.ID{getDummyID(1, []byte("commitment3"))}, nil)
 	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			t.Logf("DA Submit call 3: args=%#v", args)
-		}).Once().Return([]coreda.ID{[]byte("id4")}, nil)
+		}).Once().Return([]coreda.ID{getDummyID(1, []byte("commitment4"))}, nil)
 
 	err = tc.submitToDA(m, ctx, items)
 	assert.NoError(t, err)
@@ -553,4 +553,11 @@ func TestSubmitDataToDA_WithMetricsRecorder(t *testing.T) {
 
 	// Verify that RecordMetrics was called
 	mockSequencer.AssertExpectations(t)
+}
+
+func getDummyID(height uint64, commitment []byte) coreda.ID {
+	id := make([]byte, len(commitment)+8)
+	binary.LittleEndian.PutUint64(id, height)
+	copy(id[8:], commitment)
+	return id
 }
