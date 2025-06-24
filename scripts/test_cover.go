@@ -15,6 +15,7 @@ import (
 
 func main() {
 	rootDir := "."
+
 	var coverFiles []string
 	var testFailures bool
 

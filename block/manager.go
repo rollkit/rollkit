@@ -69,6 +69,13 @@ var (
 // This allows for overriding the behavior in tests.
 type publishBlockFunc func(ctx context.Context) error
 
+// MetricsRecorder defines the interface for sequencers that support recording metrics.
+// This interface is used to avoid duplication of the anonymous interface definition
+// across multiple files in the block package.
+type MetricsRecorder interface {
+	RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64)
+}
+
 func defaultSignaturePayloadProvider(header *types.Header) ([]byte, error) {
 	return header.MarshalBinary()
 }
@@ -140,6 +147,7 @@ type Manager struct {
 	txsAvailable bool
 
 	pendingHeaders *PendingHeaders
+	pendingData    *PendingData
 
 	// for reporting metrics
 	metrics *Metrics
@@ -164,13 +172,6 @@ type Manager struct {
 
 	// txNotifyCh is used to signal when new transactions are available
 	txNotifyCh chan struct{}
-
-	// batchSubmissionChan is used to submit batches to the sequencer
-	batchSubmissionChan chan coresequencer.Batch
-
-	// dataCommitmentToHeight tracks the height a data commitment (data hash) has been seen on.
-	// Key: data commitment (string), Value: uint64 (height)
-	dataCommitmentToHeight sync.Map
 
 	// signaturePayloadProvider is used to provide a signature payload for the header.
 	// It is used to sign the header with the provided signer.
@@ -339,6 +340,11 @@ func NewManager(
 		return nil, err
 	}
 
+	pendingData, err := NewPendingData(store, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	// If lastBatchHash is not set, retrieve the last batch hash from store
 	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
 	if err != nil && s.LastBlockHeight > 0 {
@@ -380,6 +386,7 @@ func NewManager(
 		logger:                   logger,
 		txsAvailable:             false,
 		pendingHeaders:           pendingHeaders,
+		pendingData:              pendingData,
 		metrics:                  seqMetrics,
 		sequencer:                sequencer,
 		exec:                     exec,
@@ -388,7 +395,6 @@ func NewManager(
 		gasPrice:                 gasPrice,
 		gasMultiplier:            gasMultiplier,
 		txNotifyCh:               make(chan struct{}, 1), // Non-blocking channel
-		batchSubmissionChan:      make(chan coresequencer.Batch, eventInChLength),
 		signaturePayloadProvider: signaturePayloadProvider,
 	}
 
@@ -399,11 +405,6 @@ func NewManager(
 
 	// Set the default publishBlock implementation
 	m.publishBlock = m.publishBlockInternal
-	if s, ok := m.sequencer.(interface {
-		SetBatchSubmissionChan(chan coresequencer.Batch)
-	}); ok {
-		s.SetBatchSubmissionChan(m.batchSubmissionChan)
-	}
 
 	// fetch caches from disks
 	if err := m.LoadCache(); err != nil {
@@ -550,8 +551,8 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	default:
 	}
 
-	if m.config.Node.MaxPendingHeaders != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeaders {
-		m.logger.Warn(fmt.Sprintf("refusing to create block: pending blocks [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders))
+	if m.config.Node.MaxPendingHeadersAndData != 0 && (m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeadersAndData || m.pendingData.numPendingData() >= m.config.Node.MaxPendingHeadersAndData) {
+		m.logger.Warn(fmt.Sprintf("refusing to create block: pending headers [%d] or data [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.pendingData.numPendingData(), m.config.Node.MaxPendingHeadersAndData))
 		return nil
 	}
 
@@ -1033,6 +1034,7 @@ func (m *Manager) getDataSignature(data *types.Data) (types.Signature, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if m.signer == nil {
 		return nil, fmt.Errorf("signer is nil; cannot sign data")
 	}

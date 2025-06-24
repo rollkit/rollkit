@@ -143,9 +143,7 @@ func TestCachePersistence(t *testing.T) {
 
 	// populate cache1
 	cache1.SetItem(100, &val1)
-	cache1.SetItemByHash(hash1, &val1)
 	cache1.SetItem(200, &val2)
-	cache1.SetItemByHash(hash2, &val2)
 	cache1.SetSeen(hash1)
 	cache1.SetDAIncluded(hash2)
 
@@ -167,16 +165,6 @@ func TestCachePersistence(t *testing.T) {
 	retrievedVal2Height := cache2.GetItem(200)
 	assert.NotNil(t, retrievedVal2Height, "Item by height 200 should exist")
 	assert.Equal(t, val2, *retrievedVal2Height, "Item by height 200 mismatch")
-
-	// items by hash
-	retrievedVal1Hash := cache2.GetItemByHash(hash1)
-	assert.NotNil(t, retrievedVal1Hash, "Item by hash hash_val1 should exist")
-	assert.Equal(t, val1, *retrievedVal1Hash, "Item by hash hash_val1 mismatch")
-
-	retrievedVal2Hash := cache2.GetItemByHash(hash2)
-	assert.NotNil(t, retrievedVal2Hash, "Item by hash hash_val2 should exist")
-	assert.Equal(t, val2, *retrievedVal2Hash, "Item by hash hash_val2 mismatch")
-
 	// seen hashes
 	assert.True(t, cache2.IsSeen(hash1), "Hash hash_val1 should be seen")
 	assert.False(t, cache2.IsSeen(hash2), "Hash hash_val2 should not be seen unless explicitly set") // only hash1 was SetSeen
