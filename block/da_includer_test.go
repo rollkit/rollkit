@@ -418,8 +418,8 @@ func TestIncrementDAIncludedHeight_WithMetricsRecorder(t *testing.T) {
 	lastSubmittedBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(lastSubmittedBytes, startDAIncludedHeight)
 
-	store.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(lastSubmittedBytes, nil).Maybe() // For pendingHeaders init
-	store.On("Height", mock.Anything).Return(uint64(7), nil).Maybe()                                       // 7 - 4 = 3 pending headers
+	store.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(lastSubmittedBytes, nil).Maybe() // For pendingHeaders init
+	store.On("Height", mock.Anything).Return(uint64(7), nil).Maybe()                                             // 7 - 4 = 3 pending headers
 
 	// Initialize pendingHeaders properly
 	pendingHeaders, err := NewPendingHeaders(store, logger)

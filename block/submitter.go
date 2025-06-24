@@ -78,7 +78,7 @@ func submitToDA[T any](
 	ctx context.Context,
 	items []T,
 	marshalFn func(T) ([]byte, error),
-	postSubmit func([]T, *coreda.ResultSubmit),
+	postSubmit func([]T, *coreda.ResultSubmit, float64),
 	itemType string,
 ) error {
 	submittedAll := false
@@ -126,7 +126,7 @@ func submitToDA[T any](
 			notSubmitted := remaining[res.SubmittedCount:]
 			notSubmittedMarshaled := currMarshaled[res.SubmittedCount:]
 			numSubmitted += int(res.SubmittedCount)
-			postSubmit(submitted, &res)
+			postSubmit(submitted, &res, gasPrice)
 			remaining = notSubmitted
 			marshaled = notSubmittedMarshaled
 			backoff = 0
@@ -135,11 +135,6 @@ func submitToDA[T any](
 				gasPrice = max(gasPrice, initialGasPrice)
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
-
-			// Update sequencer metrics if the sequencer supports it
-			if seq, ok := m.sequencer.(MetricsRecorder); ok {
-				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeight)
-			}
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL)
@@ -175,7 +170,7 @@ func (m *Manager) submitHeadersToDA(ctx context.Context, headersToSubmit []*type
 			}
 			return proto.Marshal(headerPb)
 		},
-		func(submitted []*types.SignedHeader, res *coreda.ResultSubmit) {
+		func(submitted []*types.SignedHeader, res *coreda.ResultSubmit, gasPrice float64) {
 			for _, header := range submitted {
 				m.headerCache.SetDAIncluded(header.Hash().String())
 			}
@@ -184,6 +179,10 @@ func (m *Manager) submitHeadersToDA(ctx context.Context, headersToSubmit []*type
 				lastSubmittedHeaderHeight = submitted[l-1].Height()
 			}
 			m.pendingHeaders.setLastSubmittedHeaderHeight(ctx, lastSubmittedHeaderHeight)
+			// Update sequencer metrics if the sequencer supports it
+			if seq, ok := m.sequencer.(MetricsRecorder); ok {
+				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeaderHeight)
+			}
 			m.sendNonBlockingSignalToDAIncluderCh()
 		},
 		"header",
@@ -196,7 +195,7 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedDataToSubmit []*type
 		func(signedData *types.SignedData) ([]byte, error) {
 			return signedData.MarshalBinary()
 		},
-		func(submitted []*types.SignedData, res *coreda.ResultSubmit) {
+		func(submitted []*types.SignedData, res *coreda.ResultSubmit, gasPrice float64) {
 			for _, signedData := range submitted {
 				m.dataCache.SetDAIncluded(signedData.DACommitment().String())
 			}
@@ -205,6 +204,10 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedDataToSubmit []*type
 				lastSubmittedDataHeight = submitted[l-1].Height()
 			}
 			m.pendingData.setLastSubmittedDataHeight(ctx, lastSubmittedDataHeight)
+			// Update sequencer metrics if the sequencer supports it
+			if seq, ok := m.sequencer.(MetricsRecorder); ok {
+				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingData.numPendingData(), lastSubmittedDataHeight)
+			}
 			m.sendNonBlockingSignalToDAIncluderCh()
 		},
 		"data",

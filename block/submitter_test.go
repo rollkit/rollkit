@@ -98,7 +98,7 @@ func TestSubmitDataToDA_Success(t *testing.T) {
 			return m.submitDataToDA(ctx, items)
 		},
 		mockDASetup: func(da *mocks.DA) {
-			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return([]coreda.ID{[]byte("id")}, nil)
 		},
 	})
@@ -117,7 +117,7 @@ func TestSubmitHeadersToDA_Success(t *testing.T) {
 			return m.submitHeadersToDA(ctx, items)
 		},
 		mockDASetup: func(da *mocks.DA) {
-			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return([]coreda.ID{[]byte("id")}, nil)
 		},
 	})
@@ -187,7 +187,7 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 				daError:  tc.daError,
 				mockDASetup: func(da *mocks.DA, gasPriceHistory *[]float64, daError error) {
 					da.ExpectedCalls = nil
-					da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Run(func(args mock.Arguments) { *gasPriceHistory = append(*gasPriceHistory, args.Get(2).(float64)) }).
 						Return(nil, daError)
 				},
@@ -222,7 +222,7 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 				daError:  tc.daError,
 				mockDASetup: func(da *mocks.DA, gasPriceHistory *[]float64, daError error) {
 					da.ExpectedCalls = nil
-					da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Run(func(args mock.Arguments) { *gasPriceHistory = append(*gasPriceHistory, args.Get(2).(float64)) }).
 						Return(nil, daError)
 				},
@@ -262,17 +262,17 @@ func runRetryPartialFailuresCase[T any](t *testing.T, tc retryPartialFailuresCas
 
 	// Set up DA mock: three calls, each time only one item is accepted
 	da.On("GasMultiplier", mock.Anything).Return(2.0, nil).Times(3)
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
-			t.Logf("DA SubmitWithOptions call 1: args=%#v", args)
+			t.Logf("DA Submit call 1: args=%#v", args)
 		}).Once().Return([]coreda.ID{[]byte("id2")}, nil)
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
-			t.Logf("DA SubmitWithOptions call 2: args=%#v", args)
+			t.Logf("DA Submit call 2: args=%#v", args)
 		}).Once().Return([]coreda.ID{[]byte("id3")}, nil)
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
-			t.Logf("DA SubmitWithOptions call 3: args=%#v", args)
+			t.Logf("DA Submit call 3: args=%#v", args)
 		}).Once().Return([]coreda.ID{[]byte("id4")}, nil)
 
 	err = tc.submitToDA(m, ctx, items)
@@ -473,4 +473,84 @@ func newPendingData(t *testing.T) *PendingData {
 	pendingData, err := NewPendingData(store.New(kv), log.NewTestLogger(t))
 	require.NoError(t, err)
 	return pendingData
+}
+
+// TestSubmitHeadersToDA_WithMetricsRecorder verifies that submitHeadersToDA calls RecordMetrics
+// when the sequencer implements the MetricsRecorder interface.
+func TestSubmitHeadersToDA_WithMetricsRecorder(t *testing.T) {
+	da := &mocks.DA{}
+	m := newTestManagerWithDA(t, da)
+
+	// Set up mock sequencer with metrics
+	mockSequencer := new(MockSequencerWithMetrics)
+	m.sequencer = mockSequencer
+
+	// Fill the pending headers with test data
+	ctx := context.Background()
+	fillPendingHeaders(ctx, t, m.pendingHeaders, "Test Submitting Headers", numItemsToSubmit)
+
+	// Get the headers to submit
+	headers, err := m.pendingHeaders.getPendingHeaders(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, headers)
+
+	// Simulate DA layer successfully accepting the header submission
+	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return([]coreda.ID{[]byte("id")}, nil)
+
+	// Expect RecordMetrics to be called with the correct parameters
+	mockSequencer.On("RecordMetrics",
+		float64(1.0),                  // gasPrice (from newTestManagerWithDA)
+		uint64(0),                     // blobSize (mocked as 0)
+		coreda.StatusSuccess,          // statusCode
+		mock.AnythingOfType("uint64"), // numPendingBlocks (varies based on test data)
+		mock.AnythingOfType("uint64"), // lastSubmittedHeight
+	).Maybe()
+
+	// Call submitHeadersToDA and expect no error
+	err = m.submitHeadersToDA(ctx, headers)
+	assert.NoError(t, err)
+
+	// Verify that RecordMetrics was called at least once
+	mockSequencer.AssertExpectations(t)
+}
+
+// TestSubmitDataToDA_WithMetricsRecorder verifies that submitDataToDA calls RecordMetrics
+// when the sequencer implements the MetricsRecorder interface.
+func TestSubmitDataToDA_WithMetricsRecorder(t *testing.T) {
+	da := &mocks.DA{}
+	m := newTestManagerWithDA(t, da)
+
+	// Set up mock sequencer with metrics
+	mockSequencer := new(MockSequencerWithMetrics)
+	m.sequencer = mockSequencer
+
+	// Fill pending data for testing
+	ctx := context.Background()
+	fillPendingData(ctx, t, m.pendingData, "Test Submitting Data", numItemsToSubmit)
+
+	// Get the data to submit
+	signedDataList, err := m.createSignedDataToSubmit(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, signedDataList)
+
+	// Simulate DA success
+	da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
+	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return([]coreda.ID{[]byte("id")}, nil)
+
+	// Expect RecordMetrics to be called with the correct parameters
+	mockSequencer.On("RecordMetrics",
+		float64(1.0),                  // gasPrice (from newTestManagerWithDA)
+		uint64(0),                     // blobSize (mocked as 0)
+		coreda.StatusSuccess,          // statusCode
+		mock.AnythingOfType("uint64"), // numPendingBlocks (varies based on test data)
+		mock.AnythingOfType("uint64"), // daIncludedHeight
+	).Maybe()
+
+	err = m.submitDataToDA(ctx, signedDataList)
+	assert.NoError(t, err)
+
+	// Verify that RecordMetrics was called
+	mockSequencer.AssertExpectations(t)
 }

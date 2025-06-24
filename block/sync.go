@@ -81,7 +81,6 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 				m.logger.Error("error while getting store height", "error", err)
 				continue
 			}
-			// Data was sent via the P2P network
 			if dataHeight <= height {
 				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue

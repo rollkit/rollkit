@@ -118,17 +118,6 @@ func (c *Sequencer) RecordMetrics(gasPrice float64, blobSize uint64, statusCode 
 	}
 }
 
-func (c *Sequencer) exponentialBackoff(backoff time.Duration) time.Duration {
-	backoff *= 2
-	if backoff == 0 {
-		backoff = initialBackoff
-	}
-	if backoff > c.batchTime {
-		backoff = c.batchTime
-	}
-	return backoff
-}
-
 // VerifyBatch implements sequencing.Sequencer.
 func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBatchRequest) (*coresequencer.VerifyBatchResponse, error) {
 	if !c.isValid(req.Id) {
