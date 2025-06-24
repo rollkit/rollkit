@@ -1084,7 +1084,7 @@ func TestSetRollkitHeightToDAHeight(t *testing.T) {
 
 		// Set DA included heights in cache
 		headerHeight := uint64(10)
-		dataHeight := uint64(11)
+		dataHeight := uint64(20)
 		m.headerCache.SetDAIncluded(header.Hash().String(), headerHeight)
 		m.dataCache.SetDAIncluded(data.DACommitment().String(), dataHeight)
 
