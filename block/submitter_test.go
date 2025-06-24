@@ -50,7 +50,7 @@ func TestSubmitDataToDA_Success(t *testing.T) {
 
 	// Simulate DA success
 	da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return([]coreda.ID{[]byte("id")}, nil)
 
 	pubKey, err := m.signer.GetPublic()
@@ -102,7 +102,7 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 			var gasPriceHistory []float64
 			da.ExpectedCalls = nil
 			da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
-			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Run(func(args mock.Arguments) { gasPriceHistory = append(gasPriceHistory, args.Get(2).(float64)) }). //save the gas price to verify it later
 				Return(nil, tc.daError)
 
@@ -157,7 +157,7 @@ func TestSubmitHeadersToDA_Success(t *testing.T) {
 	fillWithBlockData(context.Background(), t, m.pendingHeaders, "Test Submitting Headers")
 
 	// Simulate DA layer successfully accepting the header submission
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return([]coreda.ID{[]byte("id")}, nil)
 
 	// Call submitHeadersToDA and expect no error
@@ -189,7 +189,7 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 			da.ExpectedCalls = nil
 			// Simulate DA layer returning a specific error
 			var gasPriceHistory []float64
-			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Run(func(args mock.Arguments) { gasPriceHistory = append(gasPriceHistory, args.Get(2).(float64)) }). //save the gas price to verify it later
 				Return(nil, tc.daError)
 
@@ -226,7 +226,7 @@ func TestSubmitHeadersToDA_WithMetricsRecorder(t *testing.T) {
 	fillWithBlockData(context.Background(), t, m.pendingHeaders, "Test Submitting Headers")
 
 	// Simulate DA layer successfully accepting the header submission
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return([]coreda.ID{[]byte("id")}, nil)
 
 	// Expect RecordMetrics to be called with the correct parameters
@@ -262,7 +262,7 @@ func TestSubmitDataToDA_WithMetricsRecorder(t *testing.T) {
 
 	// Simulate DA success
 	da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return([]coreda.ID{[]byte("id")}, nil)
 
 	// Expect RecordMetrics to be called with the correct parameters
