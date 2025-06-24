@@ -211,6 +211,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		ts = prevTimestamp + 1 // Subsequent blocks must have a higher timestamp.
 	}
 
+    parentStateRoot := common.BytesToHash(prevStateRoot)
 	// update forkchoice to get the next payload id
 	var forkchoiceResult engine.ForkChoiceResponse
 	err = c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
@@ -224,7 +225,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 			Random:                prevBlockHash, //c.derivePrevRandao(height),
 			SuggestedFeeRecipient: c.feeRecipient,
 			Withdrawals:           []*types.Withdrawal{},
-			BeaconRoot:            &c.genesisHash,
+			BeaconRoot:            &parentStateRoot,
 			Transactions:          txsPayload,
 			NoTxPool:              true,
 		},
