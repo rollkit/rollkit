@@ -23,7 +23,7 @@ const LastSubmittedDataHeightKey = "last-submitted-data-height"
 // Worst case scenario is when data was successfully submitted to DA, but confirmation was not received (e.g. node was
 // restarted, networking issue occurred). In this case data is re-submitted to DA (it's extra cost).
 // rollkit is able to skip duplicate data so this shouldn't affect full nodes.
-// TODO: we shouldn't try to push all pending data at once; this should depend on max blob size
+// Note: Submission of pending data to DA should account for the DA max blob size.
 type PendingData struct {
 	base *pendingBase[*types.Data]
 }

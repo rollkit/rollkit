@@ -153,8 +153,8 @@ func submitToDA[T any](
 		}
 		attempt++
 	}
-
 	if !submittedAll {
+		// If not all items are submitted, the remaining items will be retried in the next submission loop.
 		return fmt.Errorf("failed to submit all %s(s) to DA layer, submitted %d items (%d left) after %d attempts", itemType, numSubmitted, remLen, attempt)
 	}
 	return nil
