@@ -5,19 +5,21 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
+	sdklog "cosmossdk.io/log"
 	"github.com/rollkit/rollkit/pkg/rpc/client"
 	"github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/store"
 )
 
 // StartStoreServer starts a Store RPC server with the provided store instance
-func StartStoreServer(s store.Store, address string) {
+func StartStoreServer(s store.Store, address string, logger sdklog.Logger) {
 	// Create and start the server
 	// Start RPC server
 	rpcAddr := fmt.Sprintf("%s:%d", "localhost", 8080)
-	handler, err := server.NewServiceHandler(s, nil)
+	handler, err := server.NewServiceHandler(s, nil, logger)
 	if err != nil {
 		panic(err)
 	}
@@ -33,7 +35,8 @@ func StartStoreServer(s store.Store, address string) {
 	// Start the server in a separate goroutine
 	go func() {
 		if err := rpcServer.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatalf("RPC server error: %v", err)
+			logger.Error("RPC server error", err)
+			os.Exit(1)
 		}
 	}()
 }
@@ -74,7 +77,7 @@ func ExampleServer(s store.Store) {
 
 	// Start RPC server
 	rpcAddr := fmt.Sprintf("%s:%d", "localhost", 8080)
-	handler, err := server.NewServiceHandler(s, nil)
+	handler, err := server.NewServiceHandler(s, nil, sdklog.NewNopLogger())
 	if err != nil {
 		panic(err)
 	}

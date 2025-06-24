@@ -2,15 +2,16 @@ package server
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"encoding/binary"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -19,10 +20,10 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
-	"github.com/rollkit/rollkit/pkg/store"
 )
 
 func TestGetBlock(t *testing.T) {
@@ -43,7 +44,7 @@ func TestGetBlock(t *testing.T) {
 	binary.LittleEndian.PutUint64(dataDAHeightBytes, expectedDataDAHeight)
 
 	// Create server with mock store
-	server := NewStoreServer(mockStore)
+	server := NewStoreServer(mockStore, log.NewNopLogger())
 
 	// Test GetBlock with height - success case
 	t.Run("by height with DA heights", func(t *testing.T) {
@@ -111,7 +112,7 @@ func TestGetBlock(t *testing.T) {
 
 	// Test GetBlock with genesis height (0), DA heights should be 0 as per current server logic
 	t.Run("by height genesis (height 0)", func(t *testing.T) {
-		genesisHeight := uint64(0) // Requesting latest, and store.Height will return 0
+		genesisHeight := uint64(0)                                              // Requesting latest, and store.Height will return 0
 		mockStore.On("Height", mock.Anything).Return(genesisHeight, nil).Once() // Simulate store being at genesis (current height is 0)
 
 		req := connect.NewRequest(&pb.GetBlockRequest{
@@ -133,7 +134,7 @@ func TestGetBlock(t *testing.T) {
 
 func TestGetBlock_Latest(t *testing.T) {
 	mockStore := mocks.NewStore(t)
-	server := NewStoreServer(mockStore)
+	server := NewStoreServer(mockStore, log.NewNopLogger())
 
 	latestHeight := uint64(20)
 	header := &types.SignedHeader{Header: types.Header{BaseHeader: types.BaseHeader{Height: latestHeight}}}
@@ -188,7 +189,7 @@ func TestGetState(t *testing.T) {
 	mockStore.On("GetState", mock.Anything).Return(state, nil)
 
 	// Create server with mock store
-	server := NewStoreServer(mockStore)
+	server := NewStoreServer(mockStore, log.NewNopLogger())
 
 	// Call GetState
 	req := connect.NewRequest(&emptypb.Empty{})
@@ -210,7 +211,7 @@ func TestGetState(t *testing.T) {
 func TestGetState_Error(t *testing.T) {
 	mockStore := mocks.NewStore(t)
 	mockStore.On("GetState", mock.Anything).Return(types.State{}, fmt.Errorf("state error"))
-	server := NewStoreServer(mockStore)
+	server := NewStoreServer(mockStore, log.NewNopLogger())
 	resp, err := server.GetState(context.Background(), connect.NewRequest(&emptypb.Empty{}))
 	require.Error(t, err)
 	require.Nil(t, resp)
@@ -228,7 +229,7 @@ func TestGetMetadata(t *testing.T) {
 	mockStore.On("GetMetadata", mock.Anything, key).Return(value, nil)
 
 	// Create server with mock store
-	server := NewStoreServer(mockStore)
+	server := NewStoreServer(mockStore, log.NewNopLogger())
 
 	// Call GetMetadata
 	req := connect.NewRequest(&pb.GetMetadataRequest{
@@ -245,7 +246,7 @@ func TestGetMetadata(t *testing.T) {
 func TestGetMetadata_Error(t *testing.T) {
 	mockStore := mocks.NewStore(t)
 	mockStore.On("GetMetadata", mock.Anything, "bad").Return(nil, fmt.Errorf("meta error"))
-	server := NewStoreServer(mockStore)
+	server := NewStoreServer(mockStore, log.NewNopLogger())
 	resp, err := server.GetMetadata(context.Background(), connect.NewRequest(&pb.GetMetadataRequest{Key: "bad"}))
 	require.Error(t, err)
 	require.Nil(t, resp)
@@ -305,7 +306,7 @@ func TestHealthLiveEndpoint(t *testing.T) {
 	mockP2PManager := &mocks.P2PRPC{} // Assuming this mock is sufficient or can be adapted
 
 	// Create the service handler
-	handler, err := NewServiceHandler(mockStore, mockP2PManager)
+	handler, err := NewServiceHandler(mockStore, mockP2PManager, log.NewNopLogger())
 	assert.NoError(err)
 	assert.NotNil(handler)
 

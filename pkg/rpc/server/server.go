@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+
 	"net/http"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"connectrpc.com/grpcreflect"
+	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -26,13 +28,15 @@ import (
 
 // StoreServer implements the StoreService defined in the proto file
 type StoreServer struct {
-	store store.Store
+	store  store.Store
+	logger log.Logger
 }
 
 // NewStoreServer creates a new StoreServer instance
-func NewStoreServer(store store.Store) *StoreServer {
+func NewStoreServer(store store.Store, logger log.Logger) *StoreServer {
 	return &StoreServer{
-		store: store,
+		store:  store,
+		logger: logger,
 	}
 }
 
@@ -98,9 +102,7 @@ func (s *StoreServer) GetBlock(
 		if err == nil && len(headerDAHeightBytes) == 8 {
 			resp.HeaderDaHeight = binary.LittleEndian.Uint64(headerDAHeightBytes)
 		} else if err != nil && !errors.Is(err, ds.ErrNotFound) {
-			// Log error if it's not a simple case of not found
-			// Consider how to best log this, e.g., using a logger passed to StoreServer
-			fmt.Printf("Error fetching header DA height for block %d: %v\n", rollkitBlockHeight, err)
+			s.logger.Error("Error fetching header DA height for block", "height", rollkitBlockHeight, "err", err)
 		}
 
 		dataDAHeightKey := fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, rollkitBlockHeight)
@@ -108,8 +110,7 @@ func (s *StoreServer) GetBlock(
 		if err == nil && len(dataDAHeightBytes) == 8 {
 			resp.DataDaHeight = binary.LittleEndian.Uint64(dataDAHeightBytes)
 		} else if err != nil && !errors.Is(err, ds.ErrNotFound) {
-			// Log error
-			fmt.Printf("Error fetching data DA height for block %d: %v\n", rollkitBlockHeight, err)
+			s.logger.Error("Error fetching data DA height for block", "height", rollkitBlockHeight, "err", err)
 		}
 	}
 
@@ -238,8 +239,8 @@ func (h *HealthServer) Livez(
 }
 
 // NewServiceHandler creates a new HTTP handler for Store, P2P and Health services
-func NewServiceHandler(store store.Store, peerManager p2p.P2PRPC) (http.Handler, error) {
-	storeServer := NewStoreServer(store)
+func NewServiceHandler(store store.Store, peerManager p2p.P2PRPC, logger log.Logger) (http.Handler, error) {
+	storeServer := NewStoreServer(store, logger)
 	p2pServer := NewP2PServer(peerManager)
 	healthServer := NewHealthServer()
 
