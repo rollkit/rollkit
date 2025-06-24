@@ -106,6 +106,29 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 	}, nil
 }
 
+// RecordMetrics updates the metrics with the given values.
+// This method is intended to be called by the block manager after submitting data to the DA layer.
+func (c *Sequencer) RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64) {
+	if c.metrics != nil {
+		c.metrics.GasPrice.Set(gasPrice)
+		c.metrics.LastBlobSize.Set(float64(blobSize))
+		c.metrics.TransactionStatus.With("status", fmt.Sprintf("%d", statusCode)).Add(1)
+		c.metrics.NumPendingBlocks.Set(float64(numPendingBlocks))
+		c.metrics.IncludedBlockHeight.Set(float64(includedBlockHeight))
+	}
+}
+
+func (c *Sequencer) exponentialBackoff(backoff time.Duration) time.Duration {
+	backoff *= 2
+	if backoff == 0 {
+		backoff = initialBackoff
+	}
+	if backoff > c.batchTime {
+		backoff = c.batchTime
+	}
+	return backoff
+}
+
 // VerifyBatch implements sequencing.Sequencer.
 func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBatchRequest) (*coresequencer.VerifyBatchResponse, error) {
 	if !c.isValid(req.Id) {
@@ -114,12 +137,12 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 
 	if !c.proposer {
 
-		proofs, err := c.da.GetProofs(ctx, req.BatchData, []byte("placeholder"))
+		proofs, err := c.da.GetProofs(ctx, req.BatchData)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get proofs: %w", err)
 		}
 
-		valid, err := c.da.Validate(ctx, req.BatchData, proofs, []byte("placeholder"))
+		valid, err := c.da.Validate(ctx, req.BatchData, proofs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate proof: %w", err)
 		}

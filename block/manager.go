@@ -69,6 +69,13 @@ var (
 // This allows for overriding the behavior in tests.
 type publishBlockFunc func(ctx context.Context) error
 
+// MetricsRecorder defines the interface for sequencers that support recording metrics.
+// This interface is used to avoid duplication of the anonymous interface definition
+// across multiple files in the block package.
+type MetricsRecorder interface {
+	RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64)
+}
+
 func defaultSignaturePayloadProvider(header *types.Header) ([]byte, error) {
 	return header.MarshalBinary()
 }

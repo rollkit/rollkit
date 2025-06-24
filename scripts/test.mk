@@ -11,9 +11,9 @@ test:
 .PHONY: test
 
 ## test-e2e: Running e2e tests
-test-integration: 
+test-integration:
 	@echo "--> Running e2e tests"
-	@cd node && go test -mod=readonly -failfast -timeout=15m -tags='integration' ./... 
+	@cd node && go test -mod=readonly -failfast -timeout=15m -tags='integration' ./...
 .PHONY: test-integration
 
 ## test-e2e: Running e2e tests
@@ -42,4 +42,4 @@ test-evm:
 ## test-docker-e2e: Running Docker E2E tests
 test-docker-e2e:
 	@echo "--> Running Docker E2E tests"
-	@cd test/docker-e2e && go test -mod=readonly -failfast -timeout=30m ./...
+	@cd test/docker-e2e && go test -mod=readonly -failfast -tags='docker_e2e' -timeout=30m ./...

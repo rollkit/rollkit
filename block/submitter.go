@@ -135,6 +135,11 @@ func submitToDA[T any](
 				gasPrice = max(gasPrice, initialGasPrice)
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
+
+			// Update sequencer metrics if the sequencer supports it
+			if seq, ok := m.sequencer.(MetricsRecorder); ok {
+				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeight)
+			}
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL)
