@@ -172,7 +172,7 @@ func (m *Manager) submitHeadersToDA(ctx context.Context, headersToSubmit []*type
 		},
 		func(submitted []*types.SignedHeader, res *coreda.ResultSubmit, gasPrice float64) {
 			for _, header := range submitted {
-				m.headerCache.SetDAIncluded(header.Hash().String())
+				m.headerCache.SetDAIncluded(header.Hash().String(), res.Height)
 			}
 			lastSubmittedHeaderHeight := uint64(0)
 			if l := len(submitted); l > 0 {
@@ -197,7 +197,7 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedDataToSubmit []*type
 		},
 		func(submitted []*types.SignedData, res *coreda.ResultSubmit, gasPrice float64) {
 			for _, signedData := range submitted {
-				m.dataCache.SetDAIncluded(signedData.DACommitment().String())
+				m.dataCache.SetDAIncluded(signedData.Data.DACommitment().String(), res.Height)
 			}
 			lastSubmittedDataHeight := uint64(0)
 			if l := len(submitted); l > 0 {

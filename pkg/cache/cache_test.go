@@ -77,7 +77,7 @@ func TestCacheDAIncludedOperations(t *testing.T) {
 	}
 
 	// Test setting and checking DA-included status
-	cache.SetDAIncluded(testHash)
+	cache.SetDAIncluded(testHash, 1)
 	if !cache.IsDAIncluded(testHash) {
 		t.Error("Hash should be DA-included after SetDAIncluded")
 	}
@@ -86,6 +86,93 @@ func TestCacheDAIncludedOperations(t *testing.T) {
 	if cache.IsDAIncluded("nonexistenthash") {
 		t.Error("Non-existent hash should not be DA-included")
 	}
+}
+
+// TestCacheDAIncludedHeightOperations tests the DA-included height operations,
+// specifically the new GetDAIncludedHeight method which returns the DA height
+// where a hash was included, replacing the previous boolean-only tracking.
+func TestCacheDAIncludedHeightOperations(t *testing.T) {
+	cache := NewCache[int]()
+	testHash := "test-hash-123"
+
+	// Test initial state - not DA-included
+	if cache.IsDAIncluded(testHash) {
+		t.Error("Hash should not be DA-included initially")
+	}
+
+	// Test GetDAIncludedHeight for non-existent hash
+	height, ok := cache.GetDAIncludedHeight(testHash)
+	if ok {
+		t.Error("GetDAIncludedHeight should return false for non-existent hash")
+	}
+	if height != 0 {
+		t.Error("Height should be 0 for non-existent hash")
+	}
+
+	// Test setting and getting DA-included height
+	expectedHeight := uint64(42)
+	cache.SetDAIncluded(testHash, expectedHeight)
+
+	if !cache.IsDAIncluded(testHash) {
+		t.Error("Hash should be DA-included after SetDAIncluded")
+	}
+
+	height, ok = cache.GetDAIncludedHeight(testHash)
+	if !ok {
+		t.Error("GetDAIncludedHeight should return true for DA-included hash")
+	}
+	if height != expectedHeight {
+		t.Errorf("Expected height %d, got %d", expectedHeight, height)
+	}
+
+	// Test updating height for same hash
+	newHeight := uint64(100)
+	cache.SetDAIncluded(testHash, newHeight)
+
+	height, ok = cache.GetDAIncludedHeight(testHash)
+	if !ok {
+		t.Error("GetDAIncludedHeight should still return true after update")
+	}
+	if height != newHeight {
+		t.Errorf("Expected updated height %d, got %d", newHeight, height)
+	}
+}
+
+// TestCacheDAIncludedHeightConcurrency tests concurrent access to the DA-included height operations.
+// This ensures that the new height-based DA inclusion tracking is thread-safe when accessed
+// from multiple goroutines simultaneously, which is critical for the DA includer workflow.
+func TestCacheDAIncludedHeightConcurrency(t *testing.T) {
+	cache := NewCache[int]()
+	numGoroutines := 10
+	numOperations := 100
+
+	var wg sync.WaitGroup
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(goroutineID int) {
+			defer wg.Done()
+			for j := 0; j < numOperations; j++ {
+				hash := fmt.Sprintf("hash-%d-%d", goroutineID, j)
+				height := uint64(goroutineID*1000 + j)
+
+				// Test concurrent height operations
+				cache.SetDAIncluded(hash, height)
+				retrievedHeight, ok := cache.GetDAIncludedHeight(hash)
+				if !ok {
+					t.Errorf("Hash %s should be DA-included", hash)
+				}
+				if retrievedHeight != height {
+					t.Errorf("Expected height %d for hash %s, got %d", height, hash, retrievedHeight)
+				}
+
+				// Test IsDAIncluded still works
+				if !cache.IsDAIncluded(hash) {
+					t.Errorf("Hash %s should be DA-included", hash)
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
 }
 
 // TestCacheConcurrency tests concurrent access to the cache
@@ -113,7 +200,7 @@ func TestCacheConcurrency(t *testing.T) {
 				_ = cache.IsSeen(hash)
 
 				// Test concurrent DA-included operations
-				cache.SetDAIncluded(hash)
+				cache.SetDAIncluded(hash, 1)
 				_ = cache.IsDAIncluded(hash)
 			}
 		}(i)
@@ -145,7 +232,7 @@ func TestCachePersistence(t *testing.T) {
 	cache1.SetItem(100, &val1)
 	cache1.SetItem(200, &val2)
 	cache1.SetSeen(hash1)
-	cache1.SetDAIncluded(hash2)
+	cache1.SetDAIncluded(hash2, 1)
 
 	// save cache1 to disk
 	err := cache1.SaveToDisk(tempDir)
@@ -227,7 +314,7 @@ func TestCachePersistence_Overwrite(t *testing.T) {
 	cache2 := NewCache[int]()
 	val2 := 456
 	cache2.SetItem(2, &val2)
-	cache2.SetDAIncluded("hash2")
+	cache2.SetDAIncluded("hash2", 1)
 	err = cache2.SaveToDisk(tempDir) // save to the same directory
 	require.NoError(t, err)
 
