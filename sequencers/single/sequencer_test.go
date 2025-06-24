@@ -26,7 +26,6 @@ func TestNewSequencer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, []byte("test1"), 10*time.Second, metrics, false)
-	seq.SetBatchSubmissionChan(make(chan coresequencer.Batch, 100))
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
@@ -59,7 +58,6 @@ func TestSequencer_SubmitBatchTxs(t *testing.T) {
 	defer cancel()
 	Id := []byte("test1")
 	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, Id, 10*time.Second, metrics, false)
-	seq.SetBatchSubmissionChan(make(chan coresequencer.Batch, 100))
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}
@@ -112,7 +110,6 @@ func TestSequencer_SubmitBatchTxs_EmptyBatch(t *testing.T) {
 	defer cancel()
 	Id := []byte("test1")
 	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, dummyDA, Id, 10*time.Second, metrics, false)
-	seq.SetBatchSubmissionChan(make(chan coresequencer.Batch, 100))
 	require.NoError(t, err, "Failed to create sequencer")
 	defer func() {
 		err := db.Close()
@@ -186,10 +183,9 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 	db := ds.NewMapDatastore()
 
 	seq := &Sequencer{
-		logger:              log.NewNopLogger(),
-		queue:               NewBatchQueue(db, "batches"),
-		batchSubmissionChan: make(chan coresequencer.Batch, 100),
-		Id:                  []byte("test"),
+		logger: log.NewNopLogger(),
+		queue:  NewBatchQueue(db, "batches"),
+		Id:     []byte("test"),
 	}
 	defer func() {
 		err := db.Close()
@@ -246,12 +242,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		mockDA := damocks.NewDA(t)
 
 		seq := &Sequencer{
-			logger:              log.NewNopLogger(),
-			Id:                  Id,
-			proposer:            true,
-			da:                  mockDA,
-			queue:               NewBatchQueue(db, "proposer_queue"),
-			batchSubmissionChan: make(chan coresequencer.Batch, 1),
+			logger:   log.NewNopLogger(),
+			Id:       Id,
+			proposer: true,
+			da:       mockDA,
+			queue:    NewBatchQueue(db, "proposer_queue"),
 		}
 
 		res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
@@ -267,12 +262,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		t.Run("Valid Proofs", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
 			seq := &Sequencer{
-				logger:              log.NewNopLogger(),
-				Id:                  Id,
-				proposer:            false,
-				da:                  mockDA,
-				queue:               NewBatchQueue(db, "valid_proofs_queue"),
-				batchSubmissionChan: make(chan coresequencer.Batch, 1),
+				logger:   log.NewNopLogger(),
+				Id:       Id,
+				proposer: false,
+				da:       mockDA,
+				queue:    NewBatchQueue(db, "valid_proofs_queue"),
 			}
 
 			mockDA.On("GetProofs", context.Background(), batchData).Return(proofs, nil).Once()
@@ -288,12 +282,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		t.Run("Invalid Proof", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
 			seq := &Sequencer{
-				logger:              log.NewNopLogger(),
-				Id:                  Id,
-				proposer:            false,
-				da:                  mockDA,
-				queue:               NewBatchQueue(db, "invalid_proof_queue"),
-				batchSubmissionChan: make(chan coresequencer.Batch, 1),
+				logger:   log.NewNopLogger(),
+				Id:       Id,
+				proposer: false,
+				da:       mockDA,
+				queue:    NewBatchQueue(db, "invalid_proof_queue"),
 			}
 
 			mockDA.On("GetProofs", context.Background(), batchData).Return(proofs, nil).Once()
@@ -309,12 +302,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		t.Run("GetProofs Error", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
 			seq := &Sequencer{
-				logger:              log.NewNopLogger(),
-				Id:                  Id,
-				proposer:            false,
-				da:                  mockDA,
-				queue:               NewBatchQueue(db, "getproofs_err_queue"),
-				batchSubmissionChan: make(chan coresequencer.Batch, 1),
+				logger:   log.NewNopLogger(),
+				Id:       Id,
+				proposer: false,
+				da:       mockDA,
+				queue:    NewBatchQueue(db, "getproofs_err_queue"),
 			}
 			expectedErr := errors.New("get proofs failed")
 
@@ -331,12 +323,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		t.Run("Validate Error", func(t *testing.T) {
 			mockDA := damocks.NewDA(t)
 			seq := &Sequencer{
-				logger:              log.NewNopLogger(),
-				Id:                  Id,
-				proposer:            false,
-				da:                  mockDA,
-				queue:               NewBatchQueue(db, "validate_err_queue"),
-				batchSubmissionChan: make(chan coresequencer.Batch, 1),
+				logger:   log.NewNopLogger(),
+				Id:       Id,
+				proposer: false,
+				da:       mockDA,
+				queue:    NewBatchQueue(db, "validate_err_queue"),
 			}
 			expectedErr := errors.New("validate failed")
 
@@ -354,12 +345,11 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			mockDA := damocks.NewDA(t)
 
 			seq := &Sequencer{
-				logger:              log.NewNopLogger(),
-				Id:                  Id,
-				proposer:            false,
-				da:                  mockDA,
-				queue:               NewBatchQueue(db, "invalid_queue"),
-				batchSubmissionChan: make(chan coresequencer.Batch, 1),
+				logger:   log.NewNopLogger(),
+				Id:       Id,
+				proposer: false,
+				da:       mockDA,
+				queue:    NewBatchQueue(db, "invalid_queue"),
 			}
 
 			invalidId := []byte("invalid")
@@ -383,7 +373,6 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	seq, err := NewSequencer(ctx, log.NewNopLogger(), db, mockDA, []byte("test1"), 1*time.Second, metrics, false)
-	seq.SetBatchSubmissionChan(make(chan coresequencer.Batch, 100))
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
 	}

@@ -14,9 +14,8 @@ var _ Sequencer = (*DummySequencer)(nil)
 
 // DummySequencer is a dummy implementation of the Sequencer interface for testing
 type DummySequencer struct {
-	mu                  sync.RWMutex
-	batches             map[string][]*Batch
-	batchSubmissionChan chan Batch
+	mu      sync.RWMutex
+	batches map[string][]*Batch
 }
 
 // NewDummySequencer creates a new dummy Sequencer instance
@@ -34,9 +33,6 @@ func (s *DummySequencer) SubmitBatchTxs(ctx context.Context, req SubmitBatchTxsR
 	if req.Batch != nil {
 		rollupKey := string(req.Id)
 		s.batches[rollupKey] = append(s.batches[rollupKey], req.Batch)
-		if len(req.Batch.Transactions) > 0 {
-			s.batchSubmissionChan <- *req.Batch
-		}
 	}
 	return &SubmitBatchTxsResponse{}, nil
 }
@@ -67,8 +63,4 @@ func (s *DummySequencer) VerifyBatch(ctx context.Context, req VerifyBatchRequest
 	return &VerifyBatchResponse{
 		Status: true,
 	}, nil
-}
-
-func (s *DummySequencer) SetBatchSubmissionChan(batchSubmissionChan chan Batch) {
-	s.batchSubmissionChan = batchSubmissionChan
 }
