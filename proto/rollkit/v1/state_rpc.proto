@@ -37,8 +37,8 @@ message GetBlockRequest {
 // GetBlockResponse defines the response for retrieving a block
 message GetBlockResponse {
   Block block = 1;
-  uint64 HeaderDaHeight = 2;
-  uint64 DataDaHeight = 3;
+  uint64 header_da_height = 2;
+  uint64 data_da_height = 3;
 }
 
 // GetStateResponse defines the response for retrieving the current state
