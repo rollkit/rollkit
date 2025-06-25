@@ -21,6 +21,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -302,6 +303,9 @@ func setupFullNode(t *testing.T, sut *SystemUnderTest, fullNodeHome, sequencerHo
 	sut.AwaitNodeUp(t, "http://127.0.0.1:46657", 10*time.Second)
 }
 
+// Global nonce counter to ensure unique nonces across multiple transaction submissions
+var globalNonce uint64 = 0
+
 // submitTransactionAndGetBlockNumber submits a transaction to the sequencer and returns inclusion details.
 // This function:
 // - Creates a random transaction with proper nonce sequencing
@@ -318,9 +322,8 @@ func setupFullNode(t *testing.T, sut *SystemUnderTest, fullNodeHome, sequencerHo
 func submitTransactionAndGetBlockNumber(t *testing.T, sequencerClient *ethclient.Client) (common.Hash, uint64) {
 	t.Helper()
 
-	// Submit transaction to sequencer EVM
-	lastNonce := uint64(0)
-	tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+	// Submit transaction to sequencer EVM with unique nonce
+	tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &globalNonce)
 	evm.SubmitTransaction(t, tx)
 
 	// Wait for transaction to be included and get block number
@@ -388,6 +391,104 @@ func verifyTransactionSync(t *testing.T, sequencerClient, fullNodeClient *ethcli
 		"Transaction should be in the same block number on both sequencer and full node")
 }
 
+// checkBlockInfoAt retrieves block information at a specific height including state root.
+// This function connects to the specified EVM endpoint and queries for the block header
+// to get the block hash, state root, transaction count, and other block metadata.
+//
+// Parameters:
+// - ethURL: EVM endpoint URL to query (e.g., http://localhost:8545)
+// - blockHeight: Height of the block to retrieve (use nil for latest)
+//
+// Returns: block hash, state root, transaction count, block number, and error
+func checkBlockInfoAt(t *testing.T, ethURL string, blockHeight *uint64) (common.Hash, common.Hash, int, uint64, error) {
+	t.Helper()
+
+	ctx := context.Background()
+	ethClient, err := ethclient.Dial(ethURL)
+	if err != nil {
+		return common.Hash{}, common.Hash{}, 0, 0, fmt.Errorf("failed to create ethereum client: %w", err)
+	}
+	defer ethClient.Close()
+
+	var blockNumber *big.Int
+	if blockHeight != nil {
+		blockNumber = new(big.Int).SetUint64(*blockHeight)
+	}
+
+	// Get the block header
+	header, err := ethClient.HeaderByNumber(ctx, blockNumber)
+	if err != nil {
+		return common.Hash{}, common.Hash{}, 0, 0, fmt.Errorf("failed to get block header: %w", err)
+	}
+
+	blockHash := header.Hash()
+	stateRoot := header.Root
+	blockNum := header.Number.Uint64()
+
+	// Get the full block to count transactions
+	block, err := ethClient.BlockByNumber(ctx, header.Number)
+	if err != nil {
+		return blockHash, stateRoot, 0, blockNum, fmt.Errorf("failed to get full block: %w", err)
+	}
+
+	txCount := len(block.Transactions())
+	return blockHash, stateRoot, txCount, blockNum, nil
+}
+
+// verifyStateRootsMatch verifies that state roots match between sequencer and full node for a specific block.
+// This function ensures that:
+// - Both nodes have the same block at the specified height
+// - The state roots are identical between both nodes
+// - Block metadata (hash, transaction count) matches
+//
+// Parameters:
+// - sequencerURL: URL of the sequencer EVM endpoint
+// - fullNodeURL: URL of the full node EVM endpoint
+// - blockHeight: Height of the block to verify
+//
+// This validation ensures that P2P sync maintains state consistency.
+func verifyStateRootsMatch(t *testing.T, sequencerURL, fullNodeURL string, blockHeight uint64) {
+	t.Helper()
+
+	// Get block info from sequencer
+	seqHash, seqStateRoot, seqTxCount, seqBlockNum, err := checkBlockInfoAt(t, sequencerURL, &blockHeight)
+	require.NoError(t, err, "Should get block info from sequencer at height %d", blockHeight)
+
+	// Get block info from full node
+	fnHash, fnStateRoot, fnTxCount, fnBlockNum, err := checkBlockInfoAt(t, fullNodeURL, &blockHeight)
+	require.NoError(t, err, "Should get block info from full node at height %d", blockHeight)
+
+	// Verify block numbers match
+	require.Equal(t, seqBlockNum, fnBlockNum, "Block numbers should match at height %d", blockHeight)
+	require.Equal(t, blockHeight, seqBlockNum, "Sequencer block number should match requested height")
+	require.Equal(t, blockHeight, fnBlockNum, "Full node block number should match requested height")
+
+	// Verify block hashes match
+	require.Equal(t, seqHash.Hex(), fnHash.Hex(),
+		"Block hashes should match at height %d. Sequencer: %s, Full node: %s",
+		blockHeight, seqHash.Hex(), fnHash.Hex())
+
+	// Verify state roots match (this is the key check)
+	require.Equal(t, seqStateRoot.Hex(), fnStateRoot.Hex(),
+		"State roots should match at height %d. Sequencer: %s, Full node: %s",
+		blockHeight, seqStateRoot.Hex(), fnStateRoot.Hex())
+
+	// Verify transaction counts match
+	require.Equal(t, seqTxCount, fnTxCount,
+		"Transaction counts should match at height %d. Sequencer: %d, Full node: %d",
+		blockHeight, seqTxCount, fnTxCount)
+
+	t.Logf("✅ Block %d state roots match: %s (txs: %d)", blockHeight, seqStateRoot.Hex(), seqTxCount)
+}
+
+// min returns the minimum of two uint64 values
+func min(a, b uint64) uint64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // TestEvmSequencerWithFullNodeE2E tests the full node synchronization functionality
 // where a full node connects to a sequencer via P2P and syncs transactions.
 //
@@ -398,6 +499,7 @@ func verifyTransactionSync(t *testing.T, sequencerClient, fullNodeClient *ethcli
 // 4. Starts full node with different EVM ports (8555/8561) and P2P connection to sequencer
 // 5. Submits transaction to sequencer EVM and gets the block number
 // 6. Verifies the full node syncs the exact same block containing the transaction
+// 7. Performs comprehensive state root verification across all synced blocks
 //
 // Validation:
 // - Both sequencer and full node start successfully
@@ -405,15 +507,20 @@ func verifyTransactionSync(t *testing.T, sequencerClient, fullNodeClient *ethcli
 // - Transaction submitted to sequencer is included in a specific block
 // - Full node syncs the same block number containing the transaction
 // - Transaction data is identical on both nodes (same block, same receipt)
+// - State roots match between sequencer and full node for all blocks (key validation)
+// - Block hashes and transaction counts are consistent across both nodes
 //
 // Key Technical Details:
 // - Uses separate Docker Compose configurations for different EVM ports
 // - Handles P2P ID extraction from logs (including split-line scenarios)
 // - Copies genesis file from sequencer to full node for consistency
 // - Validates that P2P sync works independently of DA layer timing
+// - Implements comprehensive state root checking similar to execution_test.go patterns
+// - Ensures EVM state consistency between sequencer and full node on the Reth side
 //
-// This test demonstrates that full nodes can sync with sequencers in real-time
-// and validates the P2P block propagation mechanism in Rollkit.
+// This test demonstrates that full nodes can sync with sequencers in real-time,
+// validates the P2P block propagation mechanism in Rollkit, and ensures that
+// the underlying EVM execution state remains consistent across all nodes.
 func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 	flag.Parse()
 	workDir := t.TempDir()
@@ -465,12 +572,105 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 	require.NoError(t, err, "Should be able to connect to full node EVM")
 	defer fullNodeClient.Close()
 
-	// Submit transaction and verify sync
-	txHash, txBlockNumber := submitTransactionAndGetBlockNumber(t, sequencerClient)
-	t.Logf("Transaction included in sequencer block %d", txBlockNumber)
+	// Submit multiple transactions at different intervals to create more state changes
+	var txHashes []common.Hash
+	var txBlockNumbers []uint64
 
-	t.Log("Waiting for full node to sync the transaction block...")
-	verifyTransactionSync(t, sequencerClient, fullNodeClient, txHash, txBlockNumber)
+	// Submit first batch of transactions
+	t.Log("Submitting first batch of transactions...")
+	for i := 0; i < 3; i++ {
+		txHash, txBlockNumber := submitTransactionAndGetBlockNumber(t, sequencerClient)
+		txHashes = append(txHashes, txHash)
+		txBlockNumbers = append(txBlockNumbers, txBlockNumber)
+		t.Logf("Transaction %d included in sequencer block %d", i+1, txBlockNumber)
 
-	t.Logf("✅ Test PASSED: Transaction synced successfully in block %d on both nodes", txBlockNumber)
+		// Small delay between transactions to spread them across blocks
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	// Wait a bit for block production
+	time.Sleep(2 * time.Second)
+
+	// Submit second batch of transactions
+	t.Log("Submitting second batch of transactions...")
+	for i := 0; i < 2; i++ {
+		txHash, txBlockNumber := submitTransactionAndGetBlockNumber(t, sequencerClient)
+		txHashes = append(txHashes, txHash)
+		txBlockNumbers = append(txBlockNumbers, txBlockNumber)
+		t.Logf("Transaction %d included in sequencer block %d", i+4, txBlockNumber)
+
+		// Small delay between transactions
+		time.Sleep(300 * time.Millisecond)
+	}
+
+	// Wait for all transactions to be processed
+	time.Sleep(3 * time.Second)
+
+	t.Logf("Total transactions submitted: %d across blocks %v", len(txHashes), txBlockNumbers)
+
+	t.Log("Waiting for full node to sync all transaction blocks...")
+
+	// Verify all transactions have synced
+	for i, txHash := range txHashes {
+		txBlockNumber := txBlockNumbers[i]
+		t.Logf("Verifying transaction %d sync in block %d...", i+1, txBlockNumber)
+		verifyTransactionSync(t, sequencerClient, fullNodeClient, txHash, txBlockNumber)
+	}
+
+	// === STATE ROOT VERIFICATION ===
+
+	t.Log("Verifying state roots match between sequencer and full node...")
+
+	// Get the current height on both nodes to determine the range of blocks to check
+	seqCtx := context.Background()
+	seqHeader, err := sequencerClient.HeaderByNumber(seqCtx, nil)
+	require.NoError(t, err, "Should get latest header from sequencer")
+
+	fnCtx := context.Background()
+	fnHeader, err := fullNodeClient.HeaderByNumber(fnCtx, nil)
+	require.NoError(t, err, "Should get latest header from full node")
+
+	// Ensure both nodes are at the same height before checking state roots
+	seqHeight := seqHeader.Number.Uint64()
+	fnHeight := fnHeader.Number.Uint64()
+
+	// Wait for full node to catch up if needed
+	if fnHeight < seqHeight {
+		t.Logf("Full node height (%d) is behind sequencer height (%d), waiting for sync...", fnHeight, seqHeight)
+		require.Eventually(t, func() bool {
+			header, err := fullNodeClient.HeaderByNumber(fnCtx, nil)
+			if err != nil {
+				return false
+			}
+			return header.Number.Uint64() >= seqHeight
+		}, 30*time.Second, 1*time.Second, "Full node should catch up to sequencer height")
+
+		// Re-get the full node height after sync
+		fnHeader, err = fullNodeClient.HeaderByNumber(fnCtx, nil)
+		require.NoError(t, err, "Should get updated header from full node")
+		fnHeight = fnHeader.Number.Uint64()
+	}
+
+	// Check state roots for all blocks from genesis up to current height
+	// Note: Block 0 is genesis, start from block 1
+	startHeight := uint64(1)
+	endHeight := min(seqHeight, fnHeight)
+
+	t.Logf("Checking state roots for blocks %d to %d", startHeight, endHeight)
+
+	for blockHeight := startHeight; blockHeight <= endHeight; blockHeight++ {
+		verifyStateRootsMatch(t, "http://localhost:8545", "http://localhost:8555", blockHeight)
+	}
+
+	// Special focus on the transaction blocks
+	t.Log("Re-verifying state roots for all transaction blocks...")
+	for i, txBlockNumber := range txBlockNumbers {
+		if txBlockNumber >= startHeight && txBlockNumber <= endHeight {
+			t.Logf("Re-verifying state root for transaction %d block %d", i+1, txBlockNumber)
+			verifyStateRootsMatch(t, "http://localhost:8545", "http://localhost:8555", txBlockNumber)
+		}
+	}
+
+	t.Logf("✅ Test PASSED: All blocks (%d-%d) have matching state roots, %d transactions synced successfully across blocks %v",
+		startHeight, endHeight, len(txHashes), txBlockNumbers)
 }
