@@ -194,11 +194,11 @@ func TestIsDAIncluded(t *testing.T) {
 	require.False(m.IsDAIncluded(ctx, height))
 
 	// Set the hash as DAIncluded and verify IsDAIncluded returns true
-	m.headerCache.SetDAIncluded(header.Hash().String())
+	m.headerCache.SetDAIncluded(header.Hash().String(), uint64(1))
 	require.False(m.IsDAIncluded(ctx, height))
 
 	// Set the data as DAIncluded and verify IsDAIncluded returns true
-	m.dataCache.SetDAIncluded(data.DACommitment().String())
+	m.dataCache.SetDAIncluded(data.DACommitment().String(), uint64(1))
 	require.True(m.IsDAIncluded(ctx, height))
 }
 
@@ -1061,5 +1061,140 @@ func TestConfigurationDefaults(t *testing.T) {
 		require.Error(err)
 		require.Contains(err.Error(), "corrupted data")
 		require.Contains(err.Error(), "insufficient bytes for length prefix")
+	})
+}
+
+// TestSetRollkitHeightToDAHeight tests the SetRollkitHeightToDAHeight method which maps
+// rollkit block heights to their corresponding DA heights for both headers and data.
+// This method is critical for tracking which DA heights contain specific rollkit blocks.
+func TestSetRollkitHeightToDAHeight(t *testing.T) {
+	t.Run("Success_WithTransactions", func(t *testing.T) {
+		require := require.New(t)
+		ctx := context.Background()
+		m, mockStore := getManager(t, nil, 0, 0)
+
+		// Create a block with transactions
+		header, data := types.GetRandomBlock(5, 3, "testchain")
+		height := uint64(5)
+
+		// Mock store expectations
+		mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil)
+
+		// Set DA included heights in cache
+		headerHeight := uint64(10)
+		dataHeight := uint64(20)
+		m.headerCache.SetDAIncluded(header.Hash().String(), headerHeight)
+		m.dataCache.SetDAIncluded(data.DACommitment().String(), dataHeight)
+
+		// Mock metadata storage
+		headerKey := fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, height)
+		dataKey := fmt.Sprintf("%s/%d/d", RollkitHeightToDAHeightKey, height)
+		mockStore.On("SetMetadata", mock.Anything, headerKey, mock.Anything).Return(nil)
+		mockStore.On("SetMetadata", mock.Anything, dataKey, mock.Anything).Return(nil)
+
+		// Call the method
+		err := m.SetRollkitHeightToDAHeight(ctx, height)
+		require.NoError(err)
+
+		mockStore.AssertExpectations(t)
+	})
+
+	t.Run("Success_EmptyTransactions", func(t *testing.T) {
+		require := require.New(t)
+		ctx := context.Background()
+		m, mockStore := getManager(t, nil, 0, 0)
+
+		// Create a block with no transactions
+		header, data := types.GetRandomBlock(5, 0, "testchain")
+		height := uint64(5)
+
+		// Mock store expectations
+		mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil)
+
+		// Only set header as DA included (data uses special empty hash)
+		headerHeight := uint64(10)
+		m.headerCache.SetDAIncluded(header.Hash().String(), headerHeight)
+		// Note: we don't set data in cache for empty transactions
+
+		// Mock metadata storage - both should use header height for empty transactions
+		headerKey := fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, height)
+		dataKey := fmt.Sprintf("%s/%d/d", RollkitHeightToDAHeightKey, height)
+		mockStore.On("SetMetadata", mock.Anything, headerKey, mock.Anything).Return(nil)
+		mockStore.On("SetMetadata", mock.Anything, dataKey, mock.Anything).Return(nil)
+
+		// Call the method
+		err := m.SetRollkitHeightToDAHeight(ctx, height)
+		require.NoError(err)
+
+		mockStore.AssertExpectations(t)
+	})
+
+	t.Run("Error_HeaderNotInCache", func(t *testing.T) {
+		require := require.New(t)
+		ctx := context.Background()
+		m, mockStore := getManager(t, nil, 0, 0)
+
+		// Create a block
+		header, data := types.GetRandomBlock(5, 3, "testchain")
+		height := uint64(5)
+
+		// Mock store expectations
+		mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil)
+
+		// Don't set header in cache, but set data
+		m.dataCache.SetDAIncluded(data.DACommitment().String(), uint64(11))
+
+		// Call the method - should fail
+		err := m.SetRollkitHeightToDAHeight(ctx, height)
+		require.Error(err)
+		require.Contains(err.Error(), "header hash")
+		require.Contains(err.Error(), "not found in cache")
+
+		mockStore.AssertExpectations(t)
+	})
+
+	t.Run("Error_DataNotInCache_NonEmptyTxs", func(t *testing.T) {
+		require := require.New(t)
+		ctx := context.Background()
+		m, mockStore := getManager(t, nil, 0, 0)
+
+		// Create a block with transactions
+		header, data := types.GetRandomBlock(5, 3, "testchain")
+		height := uint64(5)
+
+		// Mock store expectations
+		mockStore.On("GetBlockData", mock.Anything, height).Return(header, data, nil)
+
+		// Set header but not data in cache
+		m.headerCache.SetDAIncluded(header.Hash().String(), uint64(10))
+
+		// Mock metadata storage for header (should succeed)
+		headerKey := fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, height)
+		mockStore.On("SetMetadata", mock.Anything, headerKey, mock.Anything).Return(nil)
+
+		// Call the method - should fail on data lookup
+		err := m.SetRollkitHeightToDAHeight(ctx, height)
+		require.Error(err)
+		require.Contains(err.Error(), "data hash")
+		require.Contains(err.Error(), "not found in cache")
+
+		mockStore.AssertExpectations(t)
+	})
+
+	t.Run("Error_BlockNotFound", func(t *testing.T) {
+		require := require.New(t)
+		ctx := context.Background()
+		m, mockStore := getManager(t, nil, 0, 0)
+
+		height := uint64(999) // Non-existent height
+
+		// Mock store expectations
+		mockStore.On("GetBlockData", mock.Anything, height).Return(nil, nil, errors.New("block not found"))
+
+		// Call the method - should fail
+		err := m.SetRollkitHeightToDAHeight(ctx, height)
+		require.Error(err)
+
+		mockStore.AssertExpectations(t)
 	})
 }

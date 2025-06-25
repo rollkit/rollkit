@@ -57,6 +57,7 @@ func SubmitWithHelpers(
 				Message:        "failed to submit blobs: " + err.Error(),
 				IDs:            ids,
 				SubmittedCount: uint64(len(ids)),
+				Height:         0,
 			},
 		}
 	}
@@ -71,13 +72,22 @@ func SubmitWithHelpers(
 		}
 	}
 
+	// Get height from the first ID
+	var height uint64
+	if len(ids) > 0 {
+		height, _, err = coreda.SplitID(ids[0])
+		if err != nil {
+			logger.Error("failed to split ID", "error", err)
+		}
+	}
+
 	logger.Debug("DA submission successful via helper", "num_ids", len(ids))
 	return coreda.ResultSubmit{
 		BaseResult: coreda.BaseResult{
 			Code:           coreda.StatusSuccess,
 			IDs:            ids,
 			SubmittedCount: uint64(len(ids)),
-			Height:         0,
+			Height:         height,
 			BlobSize:       0,
 		},
 	}

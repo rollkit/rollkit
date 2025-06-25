@@ -72,11 +72,10 @@ Block.Verify()
 
 ```
 
-## [Block](https://github.com/rollkit/rollkit/blob/main/types/block.go#L26)
+## [Data](https://github.com/rollkit/rollkit/blob/main/types/data.go#L25)
 
 | **Field Name** | **Valid State**                         | **Validation**                     |
 |----------------|-----------------------------------------|------------------------------------|
-| SignedHeader   | Header of the block, signed by proposer | (See SignedHeader)                 |
 | Data           | Transaction data of the block           | Data.Hash == SignedHeader.DataHash |
 
 ## [SignedHeader](https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L16)
