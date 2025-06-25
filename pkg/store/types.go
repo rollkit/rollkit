@@ -41,6 +41,9 @@ type Store interface {
 	// GetMetadata returns values stored for given key with SetMetadata.
 	GetMetadata(ctx context.Context, key string) ([]byte, error)
 
+	// GetAllMetadata returns all available metadata entries from the store.
+	GetAllMetadata(ctx context.Context) ([]MetadataEntry, error)
+
 	// Close safely closes underlying data storage, to ensure that data is actually saved.
 	Close() error
 }

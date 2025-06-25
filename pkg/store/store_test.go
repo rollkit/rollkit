@@ -314,6 +314,64 @@ func TestMetadata(t *testing.T) {
 	require.Error(err)
 	require.Nil(v)
 }
+
+func TestGetAllMetadata(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	kv, err := NewDefaultInMemoryKVStore()
+	require.NoError(err)
+	s := New(kv)
+
+	// Test with no metadata
+	entries, err := s.GetAllMetadata(t.Context())
+	require.NoError(err)
+	require.Empty(entries)
+
+	// Set some known metadata keys
+	require.NoError(s.SetMetadata(t.Context(), "d", []byte{1, 2, 3, 4, 5, 6, 7, 8}))
+	require.NoError(s.SetMetadata(t.Context(), "l", []byte("last-batch-data")))
+	require.NoError(s.SetMetadata(t.Context(), "last-submitted-header-height", []byte{10, 0, 0, 0, 0, 0, 0, 0}))
+
+	// Set some dynamic metadata 
+	require.NoError(s.SetMetadata(t.Context(), "rhb/1/h", []byte{100, 0, 0, 0, 0, 0, 0, 0}))
+	require.NoError(s.SetMetadata(t.Context(), "rhb/1/d", []byte{101, 0, 0, 0, 0, 0, 0, 0}))
+
+	// Set height so dynamic metadata detection works
+	require.NoError(s.SetHeight(t.Context(), 1))
+
+	entries, err = s.GetAllMetadata(t.Context())
+	require.NoError(err)
+	require.NotEmpty(entries)
+
+	// Check that we got the expected entries
+	entryMap := make(map[string]MetadataEntry)
+	for _, entry := range entries {
+		entryMap[entry.Key] = entry
+	}
+
+	// Verify known static keys
+	require.Contains(entryMap, "d")
+	require.Equal([]byte{1, 2, 3, 4, 5, 6, 7, 8}, entryMap["d"].Value)
+	require.Contains(entryMap["d"].Description, "DA included height")
+
+	require.Contains(entryMap, "l")
+	require.Equal([]byte("last-batch-data"), entryMap["l"].Value)
+	require.Contains(entryMap["l"].Description, "Last batch data")
+
+	require.Contains(entryMap, "last-submitted-header-height")
+	require.Equal([]byte{10, 0, 0, 0, 0, 0, 0, 0}, entryMap["last-submitted-header-height"].Value)
+
+	// Verify dynamic keys
+	require.Contains(entryMap, "rhb/1/h")
+	require.Equal([]byte{100, 0, 0, 0, 0, 0, 0, 0}, entryMap["rhb/1/h"].Value)
+	require.Contains(entryMap["rhb/1/h"].Description, "DA height for rollkit height 1 header")
+
+	require.Contains(entryMap, "rhb/1/d")
+	require.Equal([]byte{101, 0, 0, 0, 0, 0, 0, 0}, entryMap["rhb/1/d"].Value)
+	require.Contains(entryMap["rhb/1/d"].Description, "DA height for rollkit height 1 data")
+}
+
 func TestGetBlockDataErrors(t *testing.T) {
 	t.Parallel()
 	chainID := "TestGetBlockDataErrors"

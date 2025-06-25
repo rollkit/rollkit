@@ -16,6 +16,7 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/rpc/server"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 	rpc "github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
@@ -222,4 +223,41 @@ func TestClientGetNetInfo(t *testing.T) {
 	require.Equal(t, "node1", resultNetInfo.Id)
 	require.Equal(t, "0.0.0.0:26656", resultNetInfo.ListenAddresses[0])
 	mockP2P.AssertExpectations(t)
+}
+
+func TestClientGetAllMetadata(t *testing.T) {
+	// Create an in-memory store with some test data
+	kv, err := store.NewDefaultInMemoryKVStore()
+	require.NoError(t, err)
+	s := store.New(kv)
+	
+	ctx := context.Background()
+	require.NoError(t, s.SetMetadata(ctx, "d", []byte{1, 2, 3, 4, 5, 6, 7, 8}))
+	require.NoError(t, s.SetMetadata(ctx, "l", []byte("test-data")))
+
+	// Start server with the store
+	handler, err := server.NewServiceHandler(s, nil)
+	require.NoError(t, err)
+	testServer := httptest.NewServer(handler)
+	defer testServer.Close()
+
+	// Create client and test GetAllMetadata
+	client := NewClient(testServer.URL)
+	entries, err := client.GetAllMetadata(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, entries)
+
+	// Verify we got expected entries
+	entryMap := make(map[string]MetadataEntry)
+	for _, entry := range entries {
+		entryMap[entry.Key] = entry
+	}
+
+	require.Contains(t, entryMap, "d")
+	require.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, entryMap["d"].Value)
+	require.Contains(t, entryMap["d"].Description, "DA included height")
+
+	require.Contains(t, entryMap, "l")
+	require.Equal(t, []byte("test-data"), entryMap["l"].Value)
+	require.Contains(t, entryMap["l"].Description, "Last batch data")
 }
