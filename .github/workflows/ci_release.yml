@@ -29,6 +29,9 @@ jobs:
   test:
     uses: ./.github/workflows/test.yml
     secrets: inherit
+    with:
+      # tag with the pr in the format of pr-1234 or the tag / branch if it is not a PR.
+      image-tag: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
 
   proto:
     uses: ./.github/workflows/proto.yml

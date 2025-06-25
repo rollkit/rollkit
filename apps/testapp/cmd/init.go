@@ -62,9 +62,10 @@ func InitCmd() *cobra.Command {
 
 			// Initialize genesis without app state
 			err = rollgenesis.CreateGenesis(homePath, chainID, 1, proposerAddress)
+			genesisPath := rollgenesis.GenesisPath(homePath)
 			if errors.Is(err, rollgenesis.ErrGenesisExists) {
 				// check if existing genesis file is valid
-				if genesis, err := rollgenesis.LoadGenesis(homePath); err == nil {
+				if genesis, err := rollgenesis.LoadGenesis(genesisPath); err == nil {
 					if err := genesis.Validate(); err != nil {
 						return fmt.Errorf("existing genesis file is invalid: %w", err)
 					}
@@ -72,7 +73,7 @@ func InitCmd() *cobra.Command {
 					return fmt.Errorf("error loading existing genesis file: %w", err)
 				}
 
-				cmd.Printf("Genesis file already exists at %s, skipping creation.\n", homePath)
+				cmd.Printf("Genesis file already exists at %s, skipping creation.\n", genesisPath)
 			} else if err != nil {
 				return fmt.Errorf("error initializing genesis file: %w", err)
 			}

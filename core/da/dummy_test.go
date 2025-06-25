@@ -2,6 +2,7 @@ package da
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -29,17 +30,20 @@ func TestDummyDA(t *testing.T) {
 		[]byte("test blob 1"),
 		[]byte("test blob 2"),
 	}
-	ids, err := dummyDA.Submit(ctx, blobs, 0, nil)
-	time.Sleep(testDABlockTime)
+	ids, err := dummyDA.Submit(ctx, blobs, 0, []byte("ns"))
 	if err != nil {
 		t.Fatalf("Submit failed: %v", err)
+	}
+	err = waitForFirstDAHeight(ctx, dummyDA) // Wait for height to increment
+	if err != nil {
+		t.Fatalf("waitForFirstDAHeight failed: %v", err)
 	}
 	if len(ids) != len(blobs) {
 		t.Errorf("Expected %d IDs, got %d", len(blobs), len(ids))
 	}
 
 	// Test Get
-	retrievedBlobs, err := dummyDA.Get(ctx, ids, nil)
+	retrievedBlobs, err := dummyDA.Get(ctx, ids)
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
@@ -53,7 +57,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test GetIDs
-	result, err := dummyDA.GetIDs(ctx, 1, nil)
+	result, err := dummyDA.GetIDs(ctx, 1)
 	if err != nil {
 		t.Fatalf("GetIDs failed: %v", err)
 	}
@@ -62,7 +66,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test Commit
-	commitments, err := dummyDA.Commit(ctx, blobs, nil)
+	commitments, err := dummyDA.Commit(ctx, blobs)
 	if err != nil {
 		t.Fatalf("Commit failed: %v", err)
 	}
@@ -71,7 +75,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test GetProofs
-	proofs, err := dummyDA.GetProofs(ctx, ids, nil)
+	proofs, err := dummyDA.GetProofs(ctx, ids)
 	if err != nil {
 		t.Fatalf("GetProofs failed: %v", err)
 	}
@@ -80,7 +84,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test Validate
-	validations, err := dummyDA.Validate(ctx, ids, proofs, nil)
+	validations, err := dummyDA.Validate(ctx, ids, proofs)
 	if err != nil {
 		t.Fatalf("Validate failed: %v", err)
 	}
@@ -98,5 +102,45 @@ func TestDummyDA(t *testing.T) {
 	_, err = dummyDA.Submit(ctx, []Blob{largeBlob}, 0, nil)
 	if err == nil {
 		t.Errorf("Expected error for blob exceeding max size, got nil")
+	}
+}
+
+func waitForFirstDAHeight(ctx context.Context, da *DummyDA) error {
+	return waitForAtLeastDAHeight(ctx, da, 1)
+}
+
+// waitForAtLeastDAHeight waits for the DummyDA to reach at least the given height
+func waitForAtLeastDAHeight(ctx context.Context, da *DummyDA, targetHeight uint64) error {
+	// Read current height at the start
+	da.mu.RLock()
+	current := da.height
+	da.mu.RUnlock()
+
+	if current >= targetHeight {
+		return nil
+	}
+
+	delta := targetHeight - current
+
+	// Dynamically set pollInterval and timeout based on delta
+	pollInterval := da.blockTime / 2
+	timeout := da.blockTime * time.Duration(delta+2)
+
+	deadline := time.Now().Add(timeout)
+	for {
+		da.mu.RLock()
+		current = da.height
+		da.mu.RUnlock()
+		if current >= targetHeight {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for DA height %d, current %d", targetHeight, current)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(pollInterval):
+		}
 	}
 }

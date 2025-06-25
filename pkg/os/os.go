@@ -29,21 +29,6 @@ func TrapSignal(logger logger, cb func()) {
 	}()
 }
 
-// Kill the running process by sending itself SIGTERM.
-func Kill() error {
-	p, err := os.FindProcess(os.Getpid())
-	if err != nil {
-		return err
-	}
-	return p.Signal(syscall.SIGTERM)
-}
-
-// Exit exits the program with a message and a status code of 1.
-func Exit(s string) {
-	fmt.Println(s)
-	os.Exit(1)
-}
-
 // EnsureDir ensures the given directory exists, creating it if necessary.
 // Errors if the path already exists as a non-directory.
 func EnsureDir(dir string, mode os.FileMode) error {
@@ -69,7 +54,8 @@ func ReadFile(filePath string) ([]byte, error) {
 func MustReadFile(filePath string) []byte {
 	fileBytes, err := os.ReadFile(filePath) //nolint:gosec
 	if err != nil {
-		Exit(fmt.Sprintf("MustReadFile failed: %v", err))
+		fmt.Printf("MustReadFile failed: %v", err)
+		os.Exit(1)
 		return nil
 	}
 	return fileBytes
@@ -84,7 +70,8 @@ func WriteFile(filePath string, contents []byte, mode os.FileMode) error {
 func MustWriteFile(filePath string, contents []byte, mode os.FileMode) {
 	err := WriteFile(filePath, contents, mode)
 	if err != nil {
-		Exit(fmt.Sprintf("MustWriteFile failed: %v", err))
+		fmt.Printf("MustWriteFile failed: %v", err)
+		os.Exit(1)
 	}
 }
 

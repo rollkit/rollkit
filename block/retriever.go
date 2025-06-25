@@ -85,9 +85,12 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 				if m.handlePotentialHeader(ctx, bz, daHeight) {
 					continue
 				}
-				m.handlePotentialBatch(ctx, bz, daHeight)
+				m.handlePotentialData(ctx, bz, daHeight)
 			}
 			return nil
+		} else if strings.Contains(fetchErr.Error(), coreda.ErrHeightFromFuture.Error()) {
+			m.logger.Debug("height from future", "daHeight", daHeight, "reason", fetchErr.Error())
+			return fetchErr
 		}
 
 		// Track the error
@@ -117,6 +120,11 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 		m.logger.Debug("failed to decode unmarshalled header", "error", err)
 		return true
 	}
+	// Stronger validation: check for obviously invalid headers using ValidateBasic
+	if err := header.ValidateBasic(); err != nil {
+		m.logger.Debug("blob does not look like a valid header", "daHeight", daHeight, "error", err)
+		return false
+	}
 	// early validation to reject junk headers
 	if !m.isUsingExpectedSingleSequencer(header) {
 		m.logger.Debug("skipping header from unexpected sequencer",
@@ -125,7 +133,7 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 		return true
 	}
 	headerHash := header.Hash().String()
-	m.headerCache.SetDAIncluded(headerHash)
+	m.headerCache.SetDAIncluded(headerHash, daHeight)
 	m.sendNonBlockingSignalToDAIncluderCh()
 	m.logger.Info("header marked as DA included", "headerHeight", header.Height(), "headerHash", headerHash)
 	if !m.headerCache.IsSeen(headerHash) {
@@ -140,36 +148,37 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 	return true
 }
 
-// handlePotentialBatch tries to decode and process a batch. No return value.
-func (m *Manager) handlePotentialBatch(ctx context.Context, bz []byte, daHeight uint64) {
-	var batchPb pb.Batch
-	err := proto.Unmarshal(bz, &batchPb)
+// handlePotentialData tries to decode and process a data. No return value.
+func (m *Manager) handlePotentialData(ctx context.Context, bz []byte, daHeight uint64) {
+	var signedData types.SignedData
+	err := signedData.UnmarshalBinary(bz)
 	if err != nil {
-		m.logger.Debug("failed to unmarshal batch", "error", err)
+		m.logger.Debug("failed to unmarshal signed data", "error", err)
 		return
 	}
-	if len(batchPb.Txs) == 0 {
-		m.logger.Debug("ignoring empty batch", "daHeight", daHeight)
+	if len(signedData.Txs) == 0 {
+		m.logger.Debug("ignoring empty signed data", "daHeight", daHeight)
 		return
 	}
-	data := &types.Data{
-		Txs: make(types.Txs, len(batchPb.Txs)),
+
+	// Early validation to reject junk data
+	if !m.isValidSignedData(&signedData) {
+		m.logger.Debug("invalid data signature", "daHeight", daHeight)
+		return
 	}
-	for i, tx := range batchPb.Txs {
-		data.Txs[i] = types.Tx(tx)
-	}
-	dataHashStr := data.DACommitment().String()
-	m.dataCache.SetDAIncluded(dataHashStr)
+
+	dataHashStr := signedData.Data.DACommitment().String()
+	m.dataCache.SetDAIncluded(dataHashStr, daHeight)
 	m.sendNonBlockingSignalToDAIncluderCh()
-	m.logger.Info("batch marked as DA included", "batchHash", dataHashStr, "daHeight", daHeight)
+	m.logger.Info("signed data marked as DA included", "dataHash", dataHashStr, "daHeight", daHeight, "height", signedData.Height())
 	if !m.dataCache.IsSeen(dataHashStr) {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			m.logger.Warn("dataInCh backlog full, dropping batch", "daHeight", daHeight)
+			m.logger.Warn("dataInCh backlog full, dropping signed data", "daHeight", daHeight)
 		}
-		m.dataInCh <- NewDataEvent{data, daHeight}
+		m.dataInCh <- NewDataEvent{&signedData.Data, daHeight}
 	}
 }
 
@@ -204,8 +213,12 @@ func (m *Manager) fetchBlobs(ctx context.Context, daHeight uint64) (coreda.Resul
 	defer cancel()
 	// TODO: we should maintain the original error instead of creating a new one as we lose context by creating a new error.
 	blobsRes := types.RetrieveWithHelpers(ctx, m.da, m.logger, daHeight)
-	if blobsRes.Code == coreda.StatusError {
+	switch blobsRes.Code {
+	case coreda.StatusError:
 		err = fmt.Errorf("failed to retrieve block: %s", blobsRes.Message)
+	case coreda.StatusHeightFromFuture:
+		// Keep the root cause intact for callers that may rely on errors.Is/As.
+		err = fmt.Errorf("%w: %s", coreda.ErrHeightFromFuture, blobsRes.Message)
 	}
 	return blobsRes, err
 }

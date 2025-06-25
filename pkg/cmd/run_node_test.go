@@ -69,10 +69,9 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.node.lazy_mode",
 		"--rollkit.node.lazy_block_interval", "2m",
 		"--rollkit.node.light",
-		"--rollkit.node.max_pending_headers", "100",
+		"--rollkit.node.max_pending_headers_and_data", "100",
 		"--rollkit.node.trusted_hash", "abcdef1234567890",
 		"--rollkit.da.submit_options", "custom-options",
-
 		// Instrumentation flags
 		"--rollkit.instrumentation.prometheus", "true",
 		"--rollkit.instrumentation.prometheus_listen_addr", ":26665",
@@ -126,10 +125,9 @@ func TestParseFlags(t *testing.T) {
 		{"LazyAggregator", nodeConfig.Node.LazyMode, true},
 		{"LazyBlockTime", nodeConfig.Node.LazyBlockInterval.Duration, 2 * time.Minute},
 		{"Light", nodeConfig.Node.Light, true},
-		{"MaxPendingHeaders", nodeConfig.Node.MaxPendingHeaders, uint64(100)},
+		{"MaxPendingHeadersAndData", nodeConfig.Node.MaxPendingHeadersAndData, uint64(100)},
 		{"TrustedHash", nodeConfig.Node.TrustedHash, "abcdef1234567890"},
 		{"DASubmitOptions", nodeConfig.DA.SubmitOptions, "custom-options"},
-
 		{"Prometheus", nodeConfig.Instrumentation.Prometheus, true},
 		{"PrometheusListenAddr", nodeConfig.Instrumentation.PrometheusListenAddr, ":26665"},
 		{"MaxOpenConnections", nodeConfig.Instrumentation.MaxOpenConnections, 1},
@@ -306,7 +304,7 @@ func TestStartNodeErrors(t *testing.T) {
 	// Create a dummy genesis file for successful load cases
 	// Note: StartNode expects genesis relative to ConfigPath's dir, which defaults relative to RootDir
 	dummyConfigDir := filepath.Join(tmpDir, "config")
-	err := os.MkdirAll(dummyConfigDir, 0755)
+	err := os.MkdirAll(dummyConfigDir, 0o755)
 	assert.NoError(t, err)
 	dummyGenesisPath := filepath.Join(dummyConfigDir, "genesis.json")
 	err = os.WriteFile(dummyGenesisPath, []byte(`{"chain_id":"test","initial_height":"1"}`), 0o600)
@@ -348,7 +346,7 @@ func TestStartNodeErrors(t *testing.T) {
 				// Set RootDir to a path where genesis.json won't be found relative to its default config dir
 				cfg.RootDir = filepath.Join(tmpDir, "nonexistent_root")
 				// Ensure the directory exists so ConfigPath() doesn't fail early, but genesis won't be there
-				err := os.MkdirAll(filepath.Join(cfg.RootDir, "config"), 0755)
+				err := os.MkdirAll(filepath.Join(cfg.RootDir, "config"), 0o755)
 				assert.NoError(t, err)
 			},
 			expectedError: "failed to load genesis:", // Check for prefix as the exact error might vary
@@ -392,7 +390,7 @@ func TestStartNodeErrors(t *testing.T) {
 
 			runFunc := func() {
 				// Pass the final nodeConfig to StartNode
-				err := StartNode(logger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig)
+				err := StartNode(logger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, nil)
 				if tc.expectedError != "" {
 					assert.ErrorContains(t, err, tc.expectedError)
 				} else {
@@ -409,7 +407,7 @@ func TestStartNodeErrors(t *testing.T) {
 				assert.NotPanics(t, runFunc)
 				// Re-check error after NotPanics confirms no panic occurred
 				// Need to re-run StartNode as the original runFunc only checks error if !tc.expectPanic
-				err := StartNode(logger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig)
+				err := StartNode(logger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, nil)
 				if tc.expectedError != "" {
 					assert.ErrorContains(t, err, tc.expectedError)
 				}
@@ -445,7 +443,7 @@ func newRunNodeCmd(
 		Short:   "Run the rollkit node",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Use the nodeConfig passed into this function closure
-			return StartNode(log.NewNopLogger(), cmd, executor, sequencer, dac, p2pClient, datastore, nodeConfig)
+			return StartNode(log.NewNopLogger(), cmd, executor, sequencer, dac, p2pClient, datastore, nodeConfig, nil)
 		},
 	}
 

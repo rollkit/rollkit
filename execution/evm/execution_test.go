@@ -5,14 +5,7 @@ package evm
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
-	"fmt"
 	"math/big"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
-	tc "github.com/testcontainers/testcontainers-go/modules/compose"
 )
 
 const (
@@ -29,8 +21,8 @@ const (
 	TEST_ENGINE_URL = "http://localhost:8551"
 
 	CHAIN_ID          = "1234"
-	GENESIS_HASH      = "0x0a962a0d163416829894c89cb604ae422323bcdf02d7ea08b94d68d3e026a380"
-	GENESIS_STATEROOT = "0x362b7d8a31e7671b0f357756221ac385790c25a27ab222dc8cbdd08944f5aea4"
+	GENESIS_HASH      = "0x2b8bbb1ea1e04f9c9809b4b278a8687806edc061a356c7dbc491930d8e922503"
+	GENESIS_STATEROOT = "0x05e9954443da80d86f2104e56ffdfd98fe21988730684360104865b3dc8191b4"
 	TEST_PRIVATE_KEY  = "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e"
 	TEST_TO_ADDRESS   = "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E"
 
@@ -61,7 +53,9 @@ const (
 // Validates the engine can process transactions, maintain state,
 // handle empty blocks, and support chain replication.
 func TestEngineExecution(t *testing.T) {
-	allPayloads := make([][][]byte, 0, 10) // Slice to store payloads from build to sync phase
+	allPayloads := make([][][]byte, 0, 10)        // Slice to store payloads from build to sync phase
+	allTimestamps := make([]time.Time, 0, 10)     // Slice to store timestamps from build phase
+	buildPhaseStateRoots := make([][]byte, 0, 10) // Slice to store state roots from build phase
 
 	initialHeight := uint64(1)
 	genesisHash := common.HexToHash(GENESIS_HASH)
@@ -70,7 +64,7 @@ func TestEngineExecution(t *testing.T) {
 	rollkitGenesisStateRoot := genesisStateRoot[:]
 
 	t.Run("Build chain", func(tt *testing.T) {
-		jwtSecret := setupTestRethEngine(tt)
+		jwtSecret := SetupTestRethEngine(tt, DOCKER_PATH, JWT_FILENAME)
 
 		executionClient, err := NewEngineExecutionClient(
 			TEST_ETH_URL,
@@ -90,6 +84,10 @@ func TestEngineExecution(t *testing.T) {
 
 		prevStateRoot := rollkitGenesisStateRoot
 		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
+		lastNonce := uint64(0)
+
+		// Use a base timestamp and increment for each block to ensure proper ordering
+		baseTimestamp := time.Now()
 
 		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
 			nTxs := int(blockHeight) + 10
@@ -97,14 +95,12 @@ func TestEngineExecution(t *testing.T) {
 			if blockHeight == 4 {
 				nTxs = 0
 			}
+
 			txs := make([]*ethTypes.Transaction, nTxs)
 			for i := range txs {
-				txs[i] = getRandomTransaction(t, 22000)
+				txs[i] = GetRandomTransaction(t, TEST_PRIVATE_KEY, TEST_TO_ADDRESS, CHAIN_ID, 22000, &lastNonce)
+				SubmitTransaction(tt, txs[i])
 			}
-			for i := range txs {
-				submitTransaction(t, txs[i])
-			}
-			time.Sleep(1000 * time.Millisecond)
 
 			payload, err := executionClient.GetTxs(ctx)
 			require.NoError(tt, err)
@@ -118,7 +114,12 @@ func TestEngineExecution(t *testing.T) {
 			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
 			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
 
-			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
+			// Use incremented timestamp for each block to ensure proper ordering
+			blockTimestamp := baseTimestamp.Add(time.Duration(blockHeight-initialHeight) * time.Second)
+			allTimestamps = append(allTimestamps, blockTimestamp)
+
+			// Execute transactions and get the new state root
+			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, blockTimestamp, prevStateRoot)
 			require.NoError(tt, err)
 			if nTxs > 0 {
 				require.NotZero(tt, maxBytes)
@@ -131,13 +132,18 @@ func TestEngineExecution(t *testing.T) {
 			lastHeight, lastHash, lastTxs = checkLatestBlock(tt, ctx)
 			require.Equal(tt, blockHeight, lastHeight, "Latest block height should match")
 			require.NotEmpty(tt, lastHash.Hex(), "Latest block hash should not be empty")
-			require.GreaterOrEqual(tt, lastTxs, 0, "Number of transactions should be non-negative")
+			require.Equal(tt, lastTxs, nTxs, "Number of transactions should be equal")
 
 			if nTxs == 0 {
 				require.Equal(tt, prevStateRoot, newStateRoot)
 			} else {
 				require.NotEqual(tt, prevStateRoot, newStateRoot)
 			}
+
+			// Store the state root from build phase for later comparison in sync phase
+			buildPhaseStateRoots = append(buildPhaseStateRoots, newStateRoot)
+			tt.Logf("Build phase block %d: stored state root %x", blockHeight, newStateRoot)
+
 			prevStateRoot = newStateRoot
 		}
 	})
@@ -148,7 +154,7 @@ func TestEngineExecution(t *testing.T) {
 
 	// start new container and try to sync
 	t.Run("Sync chain", func(tt *testing.T) {
-		jwtSecret := setupTestRethEngine(t)
+		jwtSecret := SetupTestRethEngine(t, DOCKER_PATH, JWT_FILENAME)
 
 		executionClient, err := NewEngineExecutionClient(
 			TEST_ETH_URL,
@@ -178,7 +184,9 @@ func TestEngineExecution(t *testing.T) {
 			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
 			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
 
-			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
+			// Use timestamp from build phase for each block to ensure proper ordering
+			blockTimestamp := allTimestamps[blockHeight-1]
+			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, blockTimestamp, prevStateRoot)
 			require.NoError(t, err)
 			if len(payload) > 0 {
 				require.NotZero(tt, maxBytes)
@@ -188,6 +196,13 @@ func TestEngineExecution(t *testing.T) {
 			} else {
 				require.NotEqual(tt, prevStateRoot, newStateRoot)
 			}
+
+			// Verify that the sync phase state root matches the build phase state root
+			expectedStateRoot := buildPhaseStateRoots[blockHeight-1]
+			require.Equal(tt, expectedStateRoot, newStateRoot,
+				"Sync phase state root for block %d should match build phase state root. Expected: %x, Got: %x",
+				blockHeight, expectedStateRoot, newStateRoot)
+			tt.Logf("Sync phase block %d: state root %x matches build phase ✓", blockHeight, newStateRoot)
 
 			err = executionClient.SetFinal(ctx, blockHeight)
 			require.NoError(tt, err)
@@ -199,7 +214,6 @@ func TestEngineExecution(t *testing.T) {
 			require.GreaterOrEqual(tt, lastTxs, 0, "Number of transactions should be non-negative")
 
 			prevStateRoot = newStateRoot
-			fmt.Println("all good blockheight", blockHeight)
 		}
 	})
 }
@@ -247,144 +261,13 @@ func checkLatestBlock(t *testing.T, ctx context.Context) (uint64, common.Hash, i
 	return blockNumber, blockHash, txCount
 }
 
-// generateJWTSecret generates a random JWT secret
-func generateJWTSecret() (string, error) {
-	jwtSecret := make([]byte, 32)
-	_, err := rand.Read(jwtSecret)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate random bytes: %w", err)
-	}
-
-	return hex.EncodeToString(jwtSecret), nil
-}
-
-// setupTestRethEngine starts a reth container using docker-compose and returns the JWT secret
-func setupTestRethEngine(t *testing.T) string {
-	t.Helper()
-
-	// Get absolute path to docker directory
-	dockerPath, err := filepath.Abs(DOCKER_PATH)
-	require.NoError(t, err)
-
-	// Create JWT directory if it doesn't exist
-	jwtPath := filepath.Join(dockerPath, "jwttoken")
-	err = os.MkdirAll(jwtPath, 0750) // More permissive directory permissions
-	require.NoError(t, err)
-
-	// Generate JWT secret
-	jwtSecret, err := generateJWTSecret()
-	require.NoError(t, err)
-
-	// Write JWT secret to file with more permissive file permissions
-	jwtFile := filepath.Join(jwtPath, JWT_FILENAME)
-	err = os.WriteFile(jwtFile, []byte(jwtSecret), 0600) // More permissive file permissions
-	require.NoError(t, err)
-
-	// Clean up JWT file after test
-	t.Cleanup(func() {
-		// Don't fail the test if we can't remove the file
-		// The file might be locked by the container
-		_ = os.Remove(jwtFile)
-	})
-
-	// Create compose file path
-	composeFilePath := filepath.Join(dockerPath, "docker-compose.yml")
-
-	// Create a unique identifier for this test run
-	identifier := tc.StackIdentifier(strings.ToLower(t.Name()))
-	identifier = tc.StackIdentifier(strings.ReplaceAll(string(identifier), "/", "_"))
-	identifier = tc.StackIdentifier(strings.ReplaceAll(string(identifier), " ", "_"))
-
-	// Create compose stack
-	compose, err := tc.NewDockerComposeWith(tc.WithStackFiles(composeFilePath), identifier)
-	require.NoError(t, err, "Failed to create docker compose")
-
-	// Set up cleanup
-	t.Cleanup(func() {
-		ctx := context.Background()
-		err := compose.Down(ctx, tc.RemoveOrphans(true), tc.RemoveVolumes(true))
-		if err != nil {
-			t.Logf("Warning: Failed to tear down docker-compose environment: %v", err)
-		}
-	})
-
-	// Start the services
-	ctx := context.Background()
-	err = compose.Up(ctx, tc.Wait(true))
-	require.NoError(t, err, "Failed to start docker compose")
-
-	// Wait for services to be ready
-	err = waitForRethContainer(t, jwtSecret)
-	require.NoError(t, err)
-
-	return jwtSecret
-}
-
-// waitForRethContainer polls the reth endpoints until they're ready or timeout occurs
-func waitForRethContainer(t *testing.T, jwtSecret string) error {
-	t.Helper()
-
-	client := &http.Client{
-		Timeout: 100 * time.Millisecond,
-	}
-
-	timer := time.NewTimer(30 * time.Second)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-timer.C:
-			return fmt.Errorf("timeout waiting for reth container to be ready")
-		default:
-			// check :8545 is ready
-			rpcReq := strings.NewReader(`{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}`)
-			resp, err := client.Post(TEST_ETH_URL, "application/json", rpcReq)
-			if err == nil {
-				if err := resp.Body.Close(); err != nil {
-					return fmt.Errorf("failed to close response body: %w", err)
-				}
-				if resp.StatusCode == http.StatusOK {
-					// check :8551 is ready with a stateless call
-					req, err := http.NewRequest("POST", TEST_ENGINE_URL, strings.NewReader(`{"jsonrpc":"2.0","method":"engine_getClientVersionV1","params":[],"id":1}`))
-					if err != nil {
-						return err
-					}
-					req.Header.Set("Content-Type", "application/json")
-
-					secret, err := decodeSecret(jwtSecret)
-					if err != nil {
-						return err
-					}
-
-					authToken, err := getAuthToken(secret)
-					if err != nil {
-						return err
-					}
-
-					req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken))
-
-					resp, err := client.Do(req)
-					if err == nil {
-						if err := resp.Body.Close(); err != nil {
-							return fmt.Errorf("failed to close response body: %w", err)
-						}
-						if resp.StatusCode == http.StatusOK {
-							return nil
-						}
-					}
-				}
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
-}
-
 func TestSubmitTransaction(t *testing.T) {
 	t.Skip("Use this test to submit a transaction manually to the Ethereum client")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	rpcClient, err := ethclient.Dial(TEST_ETH_URL)
 	require.NoError(t, err)
+	defer rpcClient.Close()
 	height, err := rpcClient.BlockNumber(ctx)
 	require.NoError(t, err)
 
@@ -392,56 +275,18 @@ func TestSubmitTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	address := crypto.PubkeyToAddress(privateKey.PublicKey)
-	lastNonce, err = rpcClient.NonceAt(ctx, address, new(big.Int).SetUint64(height))
+	lastNonce, err := rpcClient.NonceAt(ctx, address, new(big.Int).SetUint64(height))
 	require.NoError(t, err)
 
 	for s := 0; s < 30; s++ {
 		startTime := time.Now()
-		for i := 0; i < 5000; i++ {
-			tx := getRandomTransaction(t, 22000)
-			submitTransaction(t, tx)
+		for i := 0; i < 100; i++ {
+			tx := GetRandomTransaction(t, TEST_PRIVATE_KEY, TEST_TO_ADDRESS, CHAIN_ID, 22000, &lastNonce)
+			SubmitTransaction(t, tx)
 		}
 		elapsed := time.Since(startTime)
 		if elapsed < time.Second {
 			time.Sleep(time.Second - elapsed)
 		}
 	}
-}
-
-// submitTransaction submits a signed transaction to the Ethereum client
-func submitTransaction(t *testing.T, signedTx *ethTypes.Transaction) {
-	rpcClient, err := ethclient.Dial(TEST_ETH_URL)
-	require.NoError(t, err)
-	err = rpcClient.SendTransaction(context.Background(), signedTx)
-	require.NoError(t, err)
-}
-
-var lastNonce uint64
-
-// getRandomTransaction generates a randomized valid ETH transaction
-func getRandomTransaction(t *testing.T, gasLimit uint64) *ethTypes.Transaction {
-	privateKey, err := crypto.HexToECDSA(TEST_PRIVATE_KEY)
-	require.NoError(t, err)
-
-	chainId, _ := new(big.Int).SetString(CHAIN_ID, 10)
-	txValue := big.NewInt(1000000000000000000)
-	gasPrice := big.NewInt(30000000000)
-	toAddress := common.HexToAddress(TEST_TO_ADDRESS)
-	data := make([]byte, 16)
-	_, err = rand.Read(data)
-	require.NoError(t, err)
-
-	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
-		Nonce:    lastNonce,
-		To:       &toAddress,
-		Value:    txValue,
-		Gas:      gasLimit,
-		GasPrice: gasPrice,
-		Data:     data,
-	})
-	lastNonce++
-
-	signedTx, err := ethTypes.SignTx(tx, ethTypes.NewEIP155Signer(chainId), privateKey)
-	require.NoError(t, err)
-	return signedTx
 }

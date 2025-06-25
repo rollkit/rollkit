@@ -9,7 +9,6 @@ import (
 
 func TestDummySequencer_SubmitBatchTxs(t *testing.T) {
 	seq := NewDummySequencer()
-	seq.SetBatchSubmissionChan(make(chan Batch, 1))
 	ctx := t.Context()
 
 	// Create a test batch
@@ -52,8 +51,6 @@ func TestDummySequencer_SubmitBatchTxs(t *testing.T) {
 
 func TestDummySequencer_GetNextBatch(t *testing.T) {
 	seq := NewDummySequencer()
-	seq.SetBatchSubmissionChan(make(chan Batch, 1))
-
 	ctx := t.Context()
 
 	t.Run("non-existent ID", func(t *testing.T) {
@@ -120,7 +117,6 @@ func TestDummySequencer_GetNextBatch(t *testing.T) {
 
 func TestDummySequencer_VerifyBatch(t *testing.T) {
 	seq := NewDummySequencer()
-	seq.SetBatchSubmissionChan(make(chan Batch, 1))
 	ctx := t.Context()
 
 	// The dummy implementation always returns true regardless of input
@@ -155,8 +151,6 @@ func TestDummySequencer_Concurrency(t *testing.T) {
 	// Create a wait group to wait for all goroutines to finish
 	done := make(chan struct{})
 	errors := make(chan error, numGoroutines*numOperationsPerGoroutine)
-	seq.SetBatchSubmissionChan(make(chan Batch, numGoroutines*numOperationsPerGoroutine))
-
 	for i := 0; i < numGoroutines; i++ {
 		go func(routineID int) {
 			for j := 0; j < numOperationsPerGoroutine; j++ {
@@ -219,8 +213,6 @@ func TestDummySequencer_Concurrency(t *testing.T) {
 
 func TestDummySequencer_Multiples(t *testing.T) {
 	seq := NewDummySequencer()
-	seq.SetBatchSubmissionChan(make(chan Batch, 3))
-
 	ctx := t.Context()
 
 	// Create multiple  IDs and batches
@@ -264,7 +256,6 @@ func TestDummySequencer_Multiples(t *testing.T) {
 
 func TestDummySequencer_BatchOverwrite(t *testing.T) {
 	seq := NewDummySequencer()
-	seq.SetBatchSubmissionChan(make(chan Batch, 3))
 	ctx := t.Context()
 
 	ID := []byte("test-chain")

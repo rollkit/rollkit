@@ -35,23 +35,13 @@ lint-fix:
 .PHONY: lint-fix
 
 ## vet: Run go vet
-vet: 
+vet:
 	@echo "--> Running go vet"
 	@go vet ./...
 .PHONY: vet
 
-## mock-gen: generate mocks of external (commetbft) types
+## mock-gen: generate mocks of types
 mock-gen:
 	@echo "-> Generating mocks"
-	mockery --output da/internal/mocks --srcpkg github.com/rollkit/rollkit/core/da --name DA --filename="da.go"
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/core/da --name DA --filename="da.go"
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/core/da --name Client --filename="daclient.go"
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/core/execution --name Executor --filename="execution.go"
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/core/sequencer --name Sequencer --filename="sequencer.go"
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/store --name Store --filename="store.go"
-	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/pkg/p2p --name P2PRPC --filename="p2p.go"
+	go run github.com/vektra/mockery/v3@latest
 .PHONY: mock-gen
-
-mock-header:
-	mockery --output test/mocks --srcpkg github.com/celestiaorg/go-header --name Store --filename="external/hstore.go"
-.PHONY: mock-header

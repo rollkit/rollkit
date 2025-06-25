@@ -1,3 +1,5 @@
+//go:build !integration
+
 package node
 
 import (
@@ -30,7 +32,7 @@ func TestBasicExecutionFlow(t *testing.T) {
 	txs := getTransactions(t, originalExecutor, ctx)
 
 	// Use the generated mock executor for testing execution steps
-	mockExec := testmocks.NewExecutor(t)
+	mockExec := testmocks.NewMockExecutor(t)
 
 	// Define expected state and parameters
 	expectedInitialStateRoot := []byte("initial state root")

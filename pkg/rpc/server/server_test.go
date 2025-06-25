@@ -3,6 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -21,7 +24,7 @@ import (
 
 func TestGetBlock(t *testing.T) {
 	// Create a mock store
-	mockStore := mocks.NewStore(t)
+	mockStore := mocks.NewMockStore(t)
 
 	// Create test data
 	height := uint64(10)
@@ -69,7 +72,7 @@ func TestGetBlock(t *testing.T) {
 }
 
 func TestGetBlock_Latest(t *testing.T) {
-	mockStore := mocks.NewStore(t)
+	mockStore := mocks.NewMockStore(t)
 	server := NewStoreServer(mockStore)
 
 	header := &types.SignedHeader{}
@@ -93,7 +96,7 @@ func TestGetBlock_Latest(t *testing.T) {
 
 func TestGetState(t *testing.T) {
 	// Create a mock store
-	mockStore := mocks.NewStore(t)
+	mockStore := mocks.NewMockStore(t)
 
 	// Create test data
 	state := types.State{
@@ -132,7 +135,7 @@ func TestGetState(t *testing.T) {
 }
 
 func TestGetState_Error(t *testing.T) {
-	mockStore := mocks.NewStore(t)
+	mockStore := mocks.NewMockStore(t)
 	mockStore.On("GetState", mock.Anything).Return(types.State{}, fmt.Errorf("state error"))
 	server := NewStoreServer(mockStore)
 	resp, err := server.GetState(context.Background(), connect.NewRequest(&emptypb.Empty{}))
@@ -142,7 +145,7 @@ func TestGetState_Error(t *testing.T) {
 
 func TestGetMetadata(t *testing.T) {
 	// Create a mock store
-	mockStore := mocks.NewStore(t)
+	mockStore := mocks.NewMockStore(t)
 
 	// Create test data
 	key := "test_key"
@@ -167,7 +170,7 @@ func TestGetMetadata(t *testing.T) {
 }
 
 func TestGetMetadata_Error(t *testing.T) {
-	mockStore := mocks.NewStore(t)
+	mockStore := mocks.NewMockStore(t)
 	mockStore.On("GetMetadata", mock.Anything, "bad").Return(nil, fmt.Errorf("meta error"))
 	server := NewStoreServer(mockStore)
 	resp, err := server.GetMetadata(context.Background(), connect.NewRequest(&pb.GetMetadataRequest{Key: "bad"}))
@@ -176,7 +179,7 @@ func TestGetMetadata_Error(t *testing.T) {
 }
 
 func TestP2PServer_GetPeerInfo(t *testing.T) {
-	mockP2P := &mocks.P2PRPC{}
+	mockP2P := &mocks.MockP2PRPC{}
 	addr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/4001")
 	require.NoError(t, err)
 	mockP2P.On("GetPeers").Return([]peer.AddrInfo{{ID: "id1", Addrs: []multiaddr.Multiaddr{addr}}}, nil)
@@ -187,7 +190,7 @@ func TestP2PServer_GetPeerInfo(t *testing.T) {
 	mockP2P.AssertExpectations(t)
 
 	// Error case
-	mockP2P2 := &mocks.P2PRPC{}
+	mockP2P2 := &mocks.MockP2PRPC{}
 	mockP2P2.On("GetPeers").Return(nil, fmt.Errorf("p2p error"))
 	server2 := NewP2PServer(mockP2P2)
 	resp2, err2 := server2.GetPeerInfo(context.Background(), connect.NewRequest(&emptypb.Empty{}))
@@ -196,7 +199,7 @@ func TestP2PServer_GetPeerInfo(t *testing.T) {
 }
 
 func TestP2PServer_GetNetInfo(t *testing.T) {
-	mockP2P := &mocks.P2PRPC{}
+	mockP2P := &mocks.MockP2PRPC{}
 	netInfo := p2p.NetworkInfo{ID: "nid", ListenAddress: []string{"addr1"}}
 	mockP2P.On("GetNetworkInfo").Return(netInfo, nil)
 	server := NewP2PServer(mockP2P)
@@ -206,7 +209,7 @@ func TestP2PServer_GetNetInfo(t *testing.T) {
 	mockP2P.AssertExpectations(t)
 
 	// Error case
-	mockP2P2 := &mocks.P2PRPC{}
+	mockP2P2 := &mocks.MockP2PRPC{}
 	mockP2P2.On("GetNetworkInfo").Return(p2p.NetworkInfo{}, fmt.Errorf("netinfo error"))
 	server2 := NewP2PServer(mockP2P2)
 	resp2, err2 := server2.GetNetInfo(context.Background(), connect.NewRequest(&emptypb.Empty{}))
@@ -219,4 +222,34 @@ func TestHealthServer_Livez(t *testing.T) {
 	resp, err := h.Livez(context.Background(), connect.NewRequest(&emptypb.Empty{}))
 	require.NoError(t, err)
 	require.Equal(t, pb.HealthStatus_PASS, resp.Msg.Status)
+}
+
+func TestHealthLiveEndpoint(t *testing.T) {
+	assert := require.New(t)
+
+	// Create mock dependencies
+	mockStore := mocks.NewMockStore(t)
+	mockP2PManager := &mocks.MockP2PRPC{} // Assuming this mock is sufficient or can be adapted
+
+	// Create the service handler
+	handler, err := NewServiceHandler(mockStore, mockP2PManager)
+	assert.NoError(err)
+	assert.NotNil(handler)
+
+	// Create a new HTTP test server
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	// Make a GET request to the /health/live endpoint
+	resp, err := http.Get(server.URL + "/health/live")
+	assert.NoError(err)
+	defer resp.Body.Close()
+
+	// Check the status code
+	assert.Equal(http.StatusOK, resp.StatusCode)
+
+	// Check the response body
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(err)
+	assert.Equal("OK\n", string(body)) // fmt.Fprintln adds a newline
 }

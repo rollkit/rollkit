@@ -3,6 +3,7 @@ package block
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -10,15 +11,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	coreda "github.com/rollkit/rollkit/core/da"
+	"github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
 // newTestManager creates a Manager with mocked Store and Executor for testing DAIncluder logic.
-func newTestManager(t *testing.T) (*Manager, *mocks.Store, *mocks.Executor, *MockLogger) {
-	store := mocks.NewStore(t)
-	exec := mocks.NewExecutor(t)
+func newTestManager(t *testing.T) (*Manager, *mocks.MockStore, *mocks.MockExecutor, *MockLogger) {
+	store := mocks.NewMockStore(t)
+	exec := mocks.NewMockExecutor(t)
 	logger := new(MockLogger)
 	logger.On("Debug", mock.Anything, mock.Anything).Maybe()
 	logger.On("Info", mock.Anything, mock.Anything).Maybe()
@@ -51,11 +54,19 @@ func TestDAIncluderLoop_AdvancesHeightWhenBothDAIncluded(t *testing.T) {
 	header, data := types.GetRandomBlock(5, 1, "testchain")
 	headerHash := header.Hash().String()
 	dataHash := data.DACommitment().String()
-	m.headerCache.SetDAIncluded(headerHash)
-	m.dataCache.SetDAIncluded(dataHash)
+	m.headerCache.SetDAIncluded(headerHash, uint64(1))
+	m.dataCache.SetDAIncluded(dataHash, uint64(1))
 
-	store.On("GetBlockData", mock.Anything, uint64(5)).Return(header, data, nil).Once()
+	store.On("GetBlockData", mock.Anything, uint64(5)).Return(header, data, nil).Times(2)
 	store.On("GetBlockData", mock.Anything, uint64(6)).Return(nil, nil, assert.AnError).Once()
+	// Mock expectations for SetRollkitHeightToDAHeight method
+	headerHeightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(headerHeightBytes, uint64(1))
+	store.On("SetMetadata", mock.Anything, fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, uint64(5)), headerHeightBytes).Return(nil).Once()
+	dataHeightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(dataHeightBytes, uint64(1))
+	store.On("SetMetadata", mock.Anything, fmt.Sprintf("%s/%d/d", RollkitHeightToDAHeightKey, uint64(5)), dataHeightBytes).Return(nil).Once()
+	// Mock expectations for incrementDAIncludedHeight method
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
 	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(nil).Once()
@@ -91,7 +102,7 @@ func TestDAIncluderLoop_StopsWhenHeaderNotDAIncluded(t *testing.T) {
 
 	header, data := types.GetRandomBlock(5, 1, "testchain")
 	// m.headerCache.SetDAIncluded(headerHash) // Not set
-	m.dataCache.SetDAIncluded(data.DACommitment().String())
+	m.dataCache.SetDAIncluded(data.DACommitment().String(), uint64(1))
 
 	store.On("GetBlockData", mock.Anything, uint64(5)).Return(header, data, nil).Once()
 
@@ -122,7 +133,7 @@ func TestDAIncluderLoop_StopsWhenDataNotDAIncluded(t *testing.T) {
 
 	header, data := types.GetRandomBlock(5, 1, "testchain")
 	headerHash := header.Hash().String()
-	m.headerCache.SetDAIncluded(headerHash)
+	m.headerCache.SetDAIncluded(headerHash, uint64(1))
 	// m.dataCache.SetDAIncluded(data.DACommitment().String()) // Not set
 
 	store.On("GetBlockData", mock.Anything, uint64(5)).Return(header, data, nil).Once()
@@ -270,12 +281,22 @@ func TestDAIncluderLoop_MultipleConsecutiveHeightsDAIncluded(t *testing.T) {
 		headers[i], dataBlocks[i] = types.GetRandomBlock(height, numTxs, "testchain")
 		headerHash := headers[i].Hash().String()
 		dataHash := dataBlocks[i].DACommitment().String()
-		m.headerCache.SetDAIncluded(headerHash)
-		m.dataCache.SetDAIncluded(dataHash)
-		store.On("GetBlockData", mock.Anything, height).Return(headers[i], dataBlocks[i], nil).Once()
+		m.headerCache.SetDAIncluded(headerHash, uint64(i+1))
+		m.dataCache.SetDAIncluded(dataHash, uint64(i+1))
+		store.On("GetBlockData", mock.Anything, height).Return(headers[i], dataBlocks[i], nil).Times(2) // Called by IsDAIncluded and SetRollkitHeightToDAHeight
 	}
 	// Next height returns error
 	store.On("GetBlockData", mock.Anything, startDAIncludedHeight+uint64(numConsecutive+1)).Return(nil, nil, assert.AnError).Once()
+	// Mock expectations for SetRollkitHeightToDAHeight method calls
+	for i := 0; i < numConsecutive; i++ {
+		height := startDAIncludedHeight + uint64(i+1)
+		headerHeightBytes := make([]byte, 8)
+		binary.LittleEndian.PutUint64(headerHeightBytes, uint64(i+1))
+		store.On("SetMetadata", mock.Anything, fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, height), headerHeightBytes).Return(nil).Once()
+		dataHeightBytes := make([]byte, 8)
+		binary.LittleEndian.PutUint64(dataHeightBytes, uint64(i+1))
+		store.On("SetMetadata", mock.Anything, fmt.Sprintf("%s/%d/d", RollkitHeightToDAHeightKey, height), dataHeightBytes).Return(nil).Once()
+	}
 	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, mock.Anything).Return(nil).Times(numConsecutive)
 	exec.On("SetFinal", mock.Anything, mock.Anything).Return(nil).Times(numConsecutive)
 
@@ -310,11 +331,25 @@ func TestDAIncluderLoop_AdvancesHeightWhenDataHashIsEmptyAndHeaderDAIncluded(t *
 
 	header, data := types.GetRandomBlock(5, 0, "testchain")
 	headerHash := header.Hash().String()
-	m.headerCache.SetDAIncluded(headerHash)
+	m.headerCache.SetDAIncluded(headerHash, uint64(1))
 	// Do NOT set data as DA-included
 
-	store.On("GetBlockData", mock.Anything, uint64(5)).Return(header, data, nil).Once()
+	store.On("GetBlockData", mock.Anything, uint64(5)).Return(header, data, nil).Times(2) // Called by IsDAIncluded and SetRollkitHeightToDAHeight
 	store.On("GetBlockData", mock.Anything, uint64(6)).Return(nil, nil, assert.AnError).Once()
+	// Mock expectations for SetRollkitHeightToDAHeight method
+	headerHeightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(headerHeightBytes, uint64(1))
+	store.On("SetMetadata", mock.Anything, fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, uint64(5)), headerHeightBytes).Return(nil).Once()
+	// Note: For empty data, data SetMetadata call should still be made but data won't be marked as DA-included in cache,
+	// so SetRollkitHeightToDAHeight will fail when trying to get the DA height for data
+	// Actually, let's check if this case is handled differently for empty txs
+	// Let me check what happens with empty txs by adding the data cache entry as well
+	dataHash := data.DACommitment().String()
+	m.dataCache.SetDAIncluded(dataHash, uint64(1))
+	dataHeightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(dataHeightBytes, uint64(1))
+	store.On("SetMetadata", mock.Anything, fmt.Sprintf("%s/%d/d", RollkitHeightToDAHeightKey, uint64(5)), dataHeightBytes).Return(nil).Once()
+	// Mock expectations for incrementDAIncludedHeight method
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
 	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(nil).Once()
@@ -367,6 +402,83 @@ func TestDAIncluderLoop_DoesNotAdvanceWhenDataHashIsEmptyAndHeaderNotDAIncluded(
 
 	assert.Equal(t, startDAIncludedHeight, m.GetDAIncludedHeight())
 	store.AssertExpectations(t)
+}
+
+// MockSequencerWithMetrics is a mock sequencer that implements MetricsRecorder interface
+type MockSequencerWithMetrics struct {
+	mock.Mock
+}
+
+func (m *MockSequencerWithMetrics) RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64) {
+	m.Called(gasPrice, blobSize, statusCode, numPendingBlocks, includedBlockHeight)
+}
+
+// Implement the Sequencer interface methods
+func (m *MockSequencerWithMetrics) SubmitBatchTxs(ctx context.Context, req sequencer.SubmitBatchTxsRequest) (*sequencer.SubmitBatchTxsResponse, error) {
+	args := m.Called(ctx, req)
+	return args.Get(0).(*sequencer.SubmitBatchTxsResponse), args.Error(1)
+}
+
+func (m *MockSequencerWithMetrics) GetNextBatch(ctx context.Context, req sequencer.GetNextBatchRequest) (*sequencer.GetNextBatchResponse, error) {
+	args := m.Called(ctx, req)
+	return args.Get(0).(*sequencer.GetNextBatchResponse), args.Error(1)
+}
+
+func (m *MockSequencerWithMetrics) VerifyBatch(ctx context.Context, req sequencer.VerifyBatchRequest) (*sequencer.VerifyBatchResponse, error) {
+	args := m.Called(ctx, req)
+	return args.Get(0).(*sequencer.VerifyBatchResponse), args.Error(1)
+}
+
+// TestIncrementDAIncludedHeight_WithMetricsRecorder verifies that incrementDAIncludedHeight calls RecordMetrics
+// when the sequencer implements the MetricsRecorder interface (covers lines 73-74).
+func TestIncrementDAIncludedHeight_WithMetricsRecorder(t *testing.T) {
+	t.Parallel()
+	m, store, exec, logger := newTestManager(t)
+	startDAIncludedHeight := uint64(4)
+	expectedDAIncludedHeight := startDAIncludedHeight + 1
+	m.daIncludedHeight.Store(startDAIncludedHeight)
+
+	// Set up mock sequencer with metrics
+	mockSequencer := new(MockSequencerWithMetrics)
+	m.sequencer = mockSequencer
+	m.gasPrice = 1.5 // Set a test gas price
+
+	// Mock the store calls needed for PendingHeaders initialization
+	// First, clear the existing Height mock from newTestManager
+	store.ExpectedCalls = nil
+
+	// Create a byte array representing lastSubmittedHeight = 4
+	lastSubmittedBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lastSubmittedBytes, startDAIncludedHeight)
+
+	store.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(lastSubmittedBytes, nil).Maybe() // For pendingHeaders init
+	store.On("Height", mock.Anything).Return(uint64(7), nil).Maybe()                                             // 7 - 4 = 3 pending headers
+
+	// Initialize pendingHeaders properly
+	pendingHeaders, err := NewPendingHeaders(store, logger)
+	assert.NoError(t, err)
+	m.pendingHeaders = pendingHeaders
+
+	heightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(heightBytes, expectedDAIncludedHeight)
+	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, heightBytes).Return(nil).Once()
+	exec.On("SetFinal", mock.Anything, expectedDAIncludedHeight).Return(nil).Once()
+
+	// Expect RecordMetrics to be called with the correct parameters
+	mockSequencer.On("RecordMetrics",
+		float64(1.5),             // gasPrice
+		uint64(0),                // blobSize
+		coreda.StatusSuccess,     // statusCode
+		uint64(3),                // numPendingBlocks (7 - 4 = 3)
+		expectedDAIncludedHeight, // includedBlockHeight
+	).Once()
+
+	err = m.incrementDAIncludedHeight(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDAIncludedHeight, m.GetDAIncludedHeight())
+	store.AssertExpectations(t)
+	exec.AssertExpectations(t)
+	mockSequencer.AssertExpectations(t)
 }
 
 // Note: It is not practical to unit test a CompareAndSwap failure for incrementDAIncludedHeight

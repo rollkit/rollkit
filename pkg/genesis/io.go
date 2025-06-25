@@ -10,6 +10,12 @@ import (
 
 var ErrGenesisExists = fmt.Errorf("genesis file already exists")
 
+// GenesisPath returns the genesis file path from a home directory.
+func GenesisPath(homePath string) string {
+	configDir := filepath.Join(homePath, "config")
+	return filepath.Join(configDir, "genesis.json")
+}
+
 // CreateGenesis creates and saves a genesis file with the given app state.
 // If the genesis file already exists, it skips the creation and returns ErrGenesisExists.
 // The genesis file is saved in the config directory of the specified home path.
