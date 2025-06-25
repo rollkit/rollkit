@@ -61,8 +61,6 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.da.address", "http://127.0.0.1:27005",
 		"--rollkit.da.auth_token", "token",
 		"--rollkit.da.block_time", "20s",
-		"--rollkit.da.gas_multiplier", "1.5",
-		"--rollkit.da.gas_price", "1.5",
 		"--rollkit.da.mempool_ttl", "10",
 		"--rollkit.da.namespace", "namespace",
 		"--rollkit.da.start_height", "100",

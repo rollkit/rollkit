@@ -69,7 +69,7 @@ func TestSequencer_GetNextBatch_FromDALayer(t *testing.T) {
 	ctx := context.Background()
 
 	blobs := []coreda.Blob{[]byte("tx2"), []byte("tx3")}
-	_, err := sequencer.DA.Submit(ctx, blobs)
+	_, err := sequencer.DA.Submit(ctx, blobs, nil)
 	assert.NoError(t, err)
 	time.Sleep(getTestDABlockTime())
 
@@ -98,7 +98,7 @@ func TestSequencer_GetNextBatch_ExceedsMaxDrift(t *testing.T) {
 	assert.NoError(t, err)
 
 	ctx := context.Background()
-	_, err = dummyDA.Submit(ctx, []coreda.Blob{[]byte("tx4")})
+	_, err = dummyDA.Submit(ctx, []coreda.Blob{[]byte("tx4")}, nil)
 	assert.NoError(t, err)
 	time.Sleep(getTestDABlockTime())
 
@@ -115,7 +115,7 @@ func TestSequencer_VerifyBatch_Success(t *testing.T) {
 	sequencer := newTestSequencer(t)
 
 	ctx := context.Background()
-	ids, err := sequencer.DA.Submit(ctx, []coreda.Blob{[]byte("tx1")})
+	ids, err := sequencer.DA.Submit(ctx, []coreda.Blob{[]byte("tx1")}, nil)
 	assert.NoError(t, err)
 	time.Sleep(getTestDABlockTime())
 

@@ -227,7 +227,6 @@ signer:
 	// Set some flags through the command line
 	cmd.SetArgs([]string{
 		"--home=" + tempDir,
-		"--rollkit.da.gas_price=0.5",
 		"--rollkit.node.lazy_mode=true",
 	})
 	err = cmd.Execute()

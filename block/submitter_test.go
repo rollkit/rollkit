@@ -49,8 +49,6 @@ func newTestManagerWithDA(t *testing.T, da *mocks.MockDA) (m *Manager) {
 		da:             da,
 		logger:         logger,
 		config:         nodeConf,
-		gasPrice:       1.0,
-		gasMultiplier:  2.0,
 		headerCache:    cache.NewCache[types.SignedHeader](),
 		dataCache:      cache.NewCache[types.Data](),
 		signer:         testSigner,
@@ -129,8 +127,9 @@ type submitToDAFailureCase[T any] struct {
 	fillPending func(ctx context.Context, t *testing.T, m *Manager)
 	getToSubmit func(m *Manager, ctx context.Context) ([]T, error)
 	submitToDA  func(m *Manager, ctx context.Context, items []T) error
+	errorMsg    string
 	daError     error
-	mockDASetup func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error)
+	mockDASetup func(da *mocks.MockDA, daError error)
 }
 
 func runSubmitToDAFailureCase[T any](t *testing.T, tc submitToDAFailureCase[T]) {
@@ -140,16 +139,16 @@ func runSubmitToDAFailureCase[T any](t *testing.T, tc submitToDAFailureCase[T]) 
 	ctx := t.Context()
 	tc.fillPending(ctx, t, m)
 
-	// Set up the DA mock to return the expected error
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(nil, tc.daError).Times(maxSubmitAttempts)
+	tc.mockDASetup(da, tc.daError)
 
 	items, err := tc.getToSubmit(m, ctx)
 	require.NoError(t, err)
 	require.NotEmpty(t, items)
 
 	err = tc.submitToDA(m, ctx, items)
-	assert.Error(t, err)
+	assert.Error(t, err, "expected error")
+	assert.Contains(t, err.Error(), tc.errorMsg)
+
 }
 
 func TestSubmitDataToDA_Failure(t *testing.T) {
@@ -164,7 +163,7 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			runSubmitToDAFailureCase(t, submitToDAFailureCase[*types.SignedData]{
-				name: tc.name,
+				name: "Data",
 				fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
 					fillPendingData(ctx, t, m.pendingData, "Test Submitting Data", numItemsToSubmit)
 				},
@@ -176,10 +175,9 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 				},
 				errorMsg: "failed to submit all data(s) to DA layer",
 				daError:  tc.daError,
-				mockDASetup: func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error) {
+				mockDASetup: func(da *mocks.MockDA, daError error) {
 					da.ExpectedCalls = nil
-					da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						Run(func(args mock.Arguments) { *gasPriceHistory = append(*gasPriceHistory, args.Get(2).(float64)) }).
+					da.On("Submit", mock.Anything, mock.Anything, mock.Anything).
 						Return(nil, daError)
 				},
 			})
@@ -199,7 +197,7 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			runSubmitToDAFailureCase(t, submitToDAFailureCase[*types.SignedHeader]{
-				name: tc.name,
+				name: "Headers",
 				fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
 					fillPendingHeaders(ctx, t, m.pendingHeaders, "Test Submitting Headers", numItemsToSubmit)
 				},
@@ -211,10 +209,9 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 				},
 				errorMsg: "failed to submit all header(s) to DA layer",
 				daError:  tc.daError,
-				mockDASetup: func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error) {
+				mockDASetup: func(da *mocks.MockDA, daError error) {
 					da.ExpectedCalls = nil
-					da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						Run(func(args mock.Arguments) { *gasPriceHistory = append(*gasPriceHistory, args.Get(2).(float64)) }).
+					da.On("Submit", mock.Anything, mock.Anything, mock.Anything).
 						Return(nil, daError)
 				},
 			})
@@ -240,8 +237,6 @@ func runRetryPartialFailuresCase[T any](t *testing.T, tc retryPartialFailuresCas
 	m.logger = log.NewTestLogger(t)
 	da := &mocks.MockDA{}
 	m.da = da
-	m.gasPrice = 1.0
-	m.gasMultiplier = 2.0
 	tc.setupStoreAndDA(m, mockStore, da)
 	ctx := t.Context()
 	tc.fillPending(ctx, t, m)
@@ -345,15 +340,36 @@ func TestSubmitToDA_RetryPartialFailures_Generic(t *testing.T) {
 
 // TestCreateSignedDataToSubmit tests createSignedDataToSubmit for normal, empty, and error cases.
 func TestCreateSignedDataToSubmit(t *testing.T) {
-	// Setup: create a Manager with a valid signer and genesis proposer address
-	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
-	require.NoError(t, err)
-	testSigner, err := noop.NewNoopSigner(privKey)
-	require.NoError(t, err)
-	proposerAddr, err := testSigner.GetAddress()
-	require.NoError(t, err)
+	// Normal case: pending data exists and is signed correctly
+	t.Run("normal case", func(t *testing.T) {
+		m := newTestManagerWithDA(t, nil)
+		fillPendingData(t.Context(), t, m.pendingData, "Test Creating Signed Data", numItemsToSubmit)
+		pubKey, err := m.signer.GetPublic()
+		require.NoError(t, err)
+		proposerAddr, err := m.signer.GetAddress()
+		require.NoError(t, err)
+		signedDataList, err := m.createSignedDataToSubmit(t.Context())
+		require.NoError(t, err)
+		require.Len(t, signedDataList, numItemsToSubmit)
+		assert.Equal(t, types.Tx("tx1"), signedDataList[0].Txs[0])
+		assert.Equal(t, types.Tx("tx2"), signedDataList[0].Txs[1])
+		assert.Equal(t, pubKey, signedDataList[0].Signer.PubKey)
+		assert.Equal(t, proposerAddr, signedDataList[0].Signer.Address)
+		assert.NotEmpty(t, signedDataList[0].Signature)
+		assert.Equal(t, types.Tx("tx3"), signedDataList[1].Txs[0])
+		assert.Equal(t, types.Tx("tx4"), signedDataList[1].Txs[1])
+		assert.Equal(t, pubKey, signedDataList[1].Signer.PubKey)
+		assert.Equal(t, proposerAddr, signedDataList[1].Signer.Address)
+		assert.NotEmpty(t, signedDataList[1].Signature)
+	})
 
-	gen := genesis.NewGenesis("testchain", 1, time.Now(), proposerAddr)
+	// Empty pending data: should return no error and an empty list
+	t.Run("empty pending data", func(t *testing.T) {
+		m := newTestManagerWithDA(t, nil)
+		signedDataList, err := m.createSignedDataToSubmit(t.Context())
+		assert.NoError(t, err, "expected no error when pending data is empty")
+		assert.Empty(t, signedDataList, "expected signedDataList to be empty when no pending data")
+	})
 
 	// getPendingData returns error: should return error and error message should match
 	t.Run("getPendingData returns error", func(t *testing.T) {
@@ -421,93 +437,28 @@ func fillPendingData(ctx context.Context, t *testing.T, pendingData *PendingData
 			data.Txs[i] = types.Tx(fmt.Sprintf("tx%d", txNum))
 			txNum++
 		}
-
-		// Create a batch with transactions
-		batch := types.Data{
-			Height: 1,
-			Txs:    []types.Tx{[]byte("tx1"), []byte("tx2")},
-		}
-		lastSubmitted := uint64(0)
-		err := m.pendingData.storePendingData(context.Background(), &batch, lastSubmitted)
-		require.NoError(t, err)
-
-		signedData, err := m.createSignedDataToSubmit(context.Background())
-		assert.NoError(t, err)
-		assert.NotNil(t, signedData)
-		assert.Len(t, signedData, 1)
-		assert.Equal(t, pubKey, signedData[0].Signer.PubKey)
-		assert.Equal(t, proposerAddr, signedData[0].Signer.Address)
-		assert.NotNil(t, signedData[0].Signature)
-	})
-
-	t.Run("Empty Batch", func(t *testing.T) {
-		m := &Manager{
-			signer:      testSigner,
-			genesis:     gen,
-			pendingData: newPendingData(t),
-		}
-
-		// Create an empty batch
-		batch := types.Data{
-			Height: 2,
-			Txs:    []types.Tx{},
-		}
-		lastSubmitted := uint64(1)
-		err := m.pendingData.storePendingData(context.Background(), &batch, lastSubmitted)
-		require.NoError(t, err)
-
-		signedData, err := m.createSignedDataToSubmit(context.Background())
-		assert.NoError(t, err)
-		assert.Empty(t, signedData)
-	})
-
-	t.Run("Nil signer", func(t *testing.T) {
-		m := &Manager{
-			signer:      nil,
-			genesis:     gen,
-			pendingData: newPendingData(t),
-		}
-
-		// Create a batch with transactions
-		batch := types.Data{
-			Height: 1,
-			Txs:    []types.Tx{[]byte("tx1")},
-		}
-		lastSubmitted := uint64(0)
-		err := m.pendingData.storePendingData(context.Background(), &batch, lastSubmitted)
-		require.NoError(t, err)
-
-		signedData, err := m.createSignedDataToSubmit(context.Background())
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "signer is nil")
-		assert.Nil(t, signedData)
-	})
-}
-
-// Helper functions for testing
-
-func newPendingData(t *testing.T) *pendingBlocks {
-	db := store.New(ds.NewMapDatastore())
-	return &pendingBlocks{
-		daIncludedTxs: db.NewKVStore("pendingData"),
-		logger:        log.NewNopLogger(),
+		sig := &header.Signature
+		err := store.SaveBlockData(ctx, header, data, sig)
+		require.NoError(t, err, "failed to save block data for data at height %d", height)
+		err = store.SetHeight(ctx, height)
+		require.NoError(t, err, "failed to set store height for data at height %d", height)
 	}
 }
 
-func newPendingHeaders(t *testing.T) *pendingBlocks {
-	db := store.New(ds.NewMapDatastore())
-	return &pendingBlocks{
-		daIncludedTxs: db.NewKVStore("pendingHeaders"),
-		logger:        log.NewNopLogger(),
-	}
+func newPendingHeaders(t *testing.T) *PendingHeaders {
+	kv, err := store.NewDefaultInMemoryKVStore()
+	require.NoError(t, err)
+	pendingHeaders, err := NewPendingHeaders(store.New(kv), log.NewTestLogger(t))
+	require.NoError(t, err)
+	return pendingHeaders
 }
 
-func newPendingBlocks(t *testing.T) *pendingBlocks {
-	db := store.New(ds.NewMapDatastore())
-	return &pendingBlocks{
-		daIncludedTxs: db.NewKVStore("pendingBlocks"),
-		logger:        log.NewNopLogger(),
-	}
+func newPendingData(t *testing.T) *PendingData {
+	kv, err := store.NewDefaultInMemoryKVStore()
+	require.NoError(t, err)
+	pendingData, err := NewPendingData(store.New(kv), log.NewTestLogger(t))
+	require.NoError(t, err)
+	return pendingData
 }
 
 // TestSubmitHeadersToDA_WithMetricsRecorder verifies that submitHeadersToDA calls RecordMetrics
@@ -535,7 +486,6 @@ func TestSubmitHeadersToDA_WithMetricsRecorder(t *testing.T) {
 
 	// Expect RecordMetrics to be called with the correct parameters
 	mockSequencer.On("RecordMetrics",
-		float64(1.0),                  // gasPrice (from newTestManagerWithDA)
 		uint64(0),                     // blobSize (mocked as 0)
 		coreda.StatusSuccess,          // statusCode
 		mock.AnythingOfType("uint64"), // numPendingBlocks (varies based on test data)
@@ -576,7 +526,6 @@ func TestSubmitDataToDA_WithMetricsRecorder(t *testing.T) {
 
 	// Expect RecordMetrics to be called with the correct parameters
 	mockSequencer.On("RecordMetrics",
-		float64(1.0),                  // gasPrice (from newTestManagerWithDA)
 		uint64(0),                     // blobSize (mocked as 0)
 		coreda.StatusSuccess,          // statusCode
 		mock.AnythingOfType("uint64"), // numPendingBlocks (varies based on test data)
@@ -590,33 +539,9 @@ func TestSubmitDataToDA_WithMetricsRecorder(t *testing.T) {
 	mockSequencer.AssertExpectations(t)
 }
 
-func fillWithBlockData(ctx context.Context, t *testing.T, pending *pendingBlocks, msgPrefix string) {
-	fillPendingHeaders(ctx, t, pending, msgPrefix, numItemsToSubmit)
-}
-
-func createTestHeader(t *testing.T, height uint64, msgPrefix string) *types.SignedHeader {
-	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
-	require.NoError(t, err)
-	signer, err := noop.NewNoopSigner(privKey)
-	require.NoError(t, err)
-	
-	header := &types.Header{
-		Height: func() types.Height { return types.Height{RollappHeight: height} }(),
-		DataHash: []byte(fmt.Sprintf("%s data hash %d", msgPrefix, height)),
-	}
-	
-	sig, err := signer.Sign(header.Bytes())
-	require.NoError(t, err)
-	
-	return &types.SignedHeader{
-		Header:    header,
-		Signature: sig,
-	}
-}
-
-func getDummyID(num uint64, data []byte) coreda.ID {
-	id := make([]byte, 8+len(data))
-	binary.BigEndian.PutUint64(id[:8], num)
-	copy(id[8:], data)
+func getDummyID(height uint64, commitment []byte) coreda.ID {
+	id := make([]byte, len(commitment)+8)
+	binary.LittleEndian.PutUint64(id, height)
+	copy(id[8:], commitment)
 	return id
 }
