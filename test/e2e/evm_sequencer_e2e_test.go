@@ -3,20 +3,31 @@
 
 // Package e2e contains end-to-end tests for Rollkit's EVM integration.
 //
-// This file specifically tests the EVM aggregator (sequencer) functionality including:
+// This file specifically tests the EVM sequencer (aggregator) functionality including:
 // - Basic sequencer operation and transaction processing
-// - Full node synchronization via P2P
-// - High-throughput transaction handling and ordering
+// - High-throughput transaction handling with nonce ordering
+// - Double-spend prevention and nonce handling mechanisms
+// - Invalid transaction rejection and validation
+// - Transaction inclusion verification and block production
 //
 // Test Coverage:
-// 1. TestEvmSequencerE2E - Basic sequencer functionality
-// 2. TestEvmSequencerWithFullNodeE2E - Full node P2P sync
-// 3. TestEvmMultipleTransactionInclusionE2E - High-throughput transaction processing
+// 1. TestEvmSequencerE2E - Basic sequencer functionality with single transaction
+// 2. TestEvmMultipleTransactionInclusionE2E - High-throughput processing (500 transactions)
+// 3. TestEvmDoubleSpendNonceHandlingE2E - Double-spend prevention with duplicate nonces
+// 4. TestEvmInvalidTransactionRejectionE2E - Various invalid transaction type rejections
 //
 // Prerequisites:
 // - Docker and Docker Compose (for Reth EVM engine)
 // - Built binaries: evm-single, local-da
-// - Available ports: 7980 (DA), 7331/46657 (Rollkit RPC), 8545/8551/8555/8561 (EVM)
+// - Available ports: 7980 (DA), 7331/46657 (Rollkit RPC), 8545/8551 (EVM)
+//
+// Key Features Tested:
+// - Transaction validation and inclusion mechanisms
+// - Nonce ordering and duplicate prevention
+// - EVM engine integration via Docker Compose
+// - Block production timing and consistency
+// - Error handling for malformed transactions
+// - System stability under various transaction loads
 package e2e
 
 import (
