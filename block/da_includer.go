@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	coreda "github.com/rollkit/rollkit/core/da"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 )
 
 // DAIncluderLoop is responsible for advancing the DAIncludedHeight by checking if blocks after the current height
@@ -62,7 +63,7 @@ func (m *Manager) incrementDAIncludedHeight(ctx context.Context) error {
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, newHeight)
 	m.logger.Debug("setting DA included height", "height", newHeight)
-	err = m.store.SetMetadata(ctx, DAIncludedHeightKey, heightBytes)
+	err = m.store.SetMetadata(ctx, storepkg.DAIncludedHeightKey, heightBytes)
 	if err != nil {
 		m.logger.Error("failed to set DA included height", "height", newHeight, "error", err)
 		return err

@@ -18,6 +18,7 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 
 	// Use existing store mock if available, or define one
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
@@ -58,8 +59,8 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	ctx, cancel = context.WithCancel(context.Background())
 
 	// Mock initial metadata reads during manager creation if necessary
-	mockStore.On("GetMetadata", mock.Anything, DAIncludedHeightKey).Return(nil, ds.ErrNotFound).Maybe()
-	mockStore.On("GetMetadata", mock.Anything, LastBatchDataKey).Return(nil, ds.ErrNotFound).Maybe()
+	mockStore.On("GetMetadata", mock.Anything, storepkg.DAIncludedHeightKey).Return(nil, ds.ErrNotFound).Maybe()
+	mockStore.On("GetMetadata", mock.Anything, storepkg.LastBatchDataKey).Return(nil, ds.ErrNotFound).Maybe()
 
 	signer, err := noop.NewNoopSigner(pk)
 	require.NoError(t, err)
@@ -81,7 +82,7 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	}
 
 	// initialize da included height
-	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
+	if height, err := m.store.GetMetadata(ctx, storepkg.DAIncludedHeightKey); err == nil && len(height) == 8 {
 		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
 	}
 
