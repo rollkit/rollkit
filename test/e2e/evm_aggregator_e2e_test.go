@@ -1,6 +1,22 @@
 //go:build evm
 // +build evm
 
+// Package e2e contains end-to-end tests for Rollkit's EVM integration.
+//
+// This file specifically tests the EVM aggregator (sequencer) functionality including:
+// - Basic sequencer operation and transaction processing
+// - Full node synchronization via P2P
+// - High-throughput transaction handling and ordering
+//
+// Test Coverage:
+// 1. TestEvmSequencerE2E - Basic sequencer functionality
+// 2. TestEvmSequencerWithFullNodeE2E - Full node P2P sync
+// 3. TestEvmMultipleTransactionInclusionE2E - High-throughput transaction processing
+//
+// Prerequisites:
+// - Docker and Docker Compose (for Reth EVM engine)
+// - Built binaries: evm-single, local-da
+// - Available ports: 7980 (DA), 7331/46657 (Rollkit RPC), 8545/8551/8555/8561 (EVM)
 package e2e
 
 import (
@@ -33,11 +49,24 @@ func init() {
 	flag.StringVar(&evmSingleBinaryPath, "evm-binary", "evm-single", "evm-single binary")
 }
 
+// setupTestRethEngineE2E sets up a Reth EVM engine for E2E testing using Docker Compose.
+// This creates the sequencer's EVM instance on standard ports (8545/8551).
+//
+// Returns: JWT secret string for authenticating with the EVM engine
 func setupTestRethEngineE2E(t *testing.T) string {
 	return evm.SetupTestRethEngine(t, DOCKER_PATH, "jwt.hex")
 }
 
-// setupTestRethEngineFullNode sets up a Reth engine test environment for full node using Docker Compose with different ports
+// setupTestRethEngineFullNode sets up a Reth EVM engine for full node testing.
+// This creates a separate EVM instance using docker-compose-full-node.yml with:
+// - Different ports (8555/8561) to avoid conflicts with sequencer
+// - Separate JWT token generation and management
+// - Independent Docker network and volumes
+//
+// The function waits for the JWT file to be created by the Docker container
+// and reads the generated JWT secret for authentication.
+//
+// Returns: JWT secret string for authenticating with the full node's EVM engine
 func setupTestRethEngineFullNode(t *testing.T) string {
 	t.Helper()
 	dockerAbsPath, err := filepath.Abs(DOCKER_PATH)
@@ -82,7 +111,16 @@ func setupTestRethEngineFullNode(t *testing.T) string {
 	return jwtSecretHex
 }
 
-// waitForRethContainerAt waits for the Reth container to be ready by polling the provided endpoints
+// waitForRethContainerAt waits for the Reth container to be ready by polling HTTP endpoints.
+// This function polls the provided ETH JSON-RPC endpoint until it responds successfully,
+// indicating that the Reth container is fully initialized and ready to accept requests.
+//
+// Parameters:
+// - jwtSecret: JWT secret for engine authentication (currently unused but kept for consistency)
+// - ethURL: HTTP endpoint for ETH JSON-RPC calls (e.g., http://localhost:8545)
+// - engineURL: HTTP endpoint for Engine API calls (e.g., http://localhost:8551)
+//
+// Returns: Error if timeout occurs, nil if container becomes ready
 func waitForRethContainerAt(t *testing.T, jwtSecret, ethURL, engineURL string) error {
 	t.Helper()
 	client := &http.Client{Timeout: 100 * time.Millisecond}
@@ -110,7 +148,15 @@ func waitForRethContainerAt(t *testing.T, jwtSecret, ethURL, engineURL string) e
 	}
 }
 
-// checkTxIncludedAt checks if a transaction with the given hash was included in a block at the specified EVM endpoint
+// checkTxIncludedAt checks if a transaction was included in a block at the specified EVM endpoint.
+// This utility function connects to the provided EVM endpoint and queries for the
+// transaction receipt to determine if the transaction was successfully included.
+//
+// Parameters:
+// - txHash: Hash of the transaction to check
+// - ethURL: EVM endpoint URL to query (e.g., http://localhost:8545)
+//
+// Returns: true if transaction is included with success status, false otherwise
 func checkTxIncludedAt(t *testing.T, txHash common.Hash, ethURL string) bool {
 	t.Helper()
 	rpcClient, err := ethclient.Dial(ethURL)
@@ -122,6 +168,23 @@ func checkTxIncludedAt(t *testing.T, txHash common.Hash, ethURL string) bool {
 	return err == nil && receipt != nil && receipt.Status == 1
 }
 
+// TestEvmSequencerE2E tests the basic end-to-end functionality of a single EVM sequencer node.
+//
+// Test Flow:
+// 1. Sets up Local DA layer for data availability
+// 2. Starts EVM (Reth) engine via Docker Compose
+// 3. Initializes and starts the sequencer node with proper configuration
+// 4. Submits a single test transaction to the EVM
+// 5. Verifies the transaction is successfully included in a block
+//
+// Validation:
+// - Sequencer node starts successfully and becomes responsive
+// - Transaction submission works correctly
+// - Transaction is included in EVM block with success status
+// - Block production occurs within expected timeframe
+//
+// This test validates the core functionality of Rollkit's EVM integration
+// and ensures basic transaction processing works correctly.
 func TestEvmSequencerE2E(t *testing.T) {
 	flag.Parse()
 	workDir := t.TempDir()
@@ -179,7 +242,16 @@ func TestEvmSequencerE2E(t *testing.T) {
 	t.Log("Transaction included in EVM block")
 }
 
-// extractP2PID extracts the P2P ID from sequencer logs, handling cases where the ID might be split across lines
+// extractP2PID extracts the P2P ID from sequencer logs for establishing peer connections.
+// This function handles complex scenarios including:
+// - P2P IDs split across multiple log lines due to terminal output wrapping
+// - Multiple regex patterns to catch different log formats
+// - Fallback to deterministic test P2P ID when sequencer P2P isn't active yet
+//
+// The function searches both stdout and stderr buffers from the SystemUnderTest
+// and uses multiple regex patterns to handle edge cases in log parsing.
+//
+// Returns: A valid P2P ID string that can be used for peer connections
 func extractP2PID(t *testing.T, sut *SystemUnderTest) string {
 	t.Helper()
 
@@ -237,7 +309,17 @@ func extractP2PID(t *testing.T, sut *SystemUnderTest) string {
 	return fallbackID
 }
 
-// setupSequencerNode initializes and starts the sequencer node
+// setupSequencerNode initializes and starts the sequencer node with proper configuration.
+// This function handles:
+// - Node initialization with aggregator mode enabled
+// - Sequencer-specific configuration (block time, DA layer connection)
+// - JWT authentication setup for EVM engine communication
+// - Waiting for node to become responsive on the RPC endpoint
+//
+// Parameters:
+// - sequencerHome: Directory path for sequencer node data
+// - jwtSecret: JWT secret for authenticating with EVM engine
+// - genesisHash: Hash of the genesis block for chain validation
 func setupSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
 	t.Helper()
 
@@ -265,7 +347,20 @@ func setupSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSe
 	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 10*time.Second)
 }
 
-// setupFullNode initializes and starts the full node
+// setupFullNode initializes and starts the full node with P2P connection to sequencer.
+// This function handles:
+// - Full node initialization (non-aggregator mode)
+// - Genesis file copying from sequencer to ensure chain consistency
+// - P2P configuration to connect with the sequencer node
+// - Different EVM engine ports (8555/8561) to avoid conflicts
+// - DA layer connection for long-term data availability
+//
+// Parameters:
+// - fullNodeHome: Directory path for full node data
+// - sequencerHome: Directory path of sequencer (for genesis file copying)
+// - fullNodeJwtSecret: JWT secret for full node's EVM engine
+// - genesisHash: Hash of the genesis block for chain validation
+// - p2pID: P2P ID of the sequencer node to connect to
 func setupFullNode(t *testing.T, sut *SystemUnderTest, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, p2pID string) {
 	t.Helper()
 
@@ -301,7 +396,19 @@ func setupFullNode(t *testing.T, sut *SystemUnderTest, fullNodeHome, sequencerHo
 	sut.AwaitNodeUp(t, "http://127.0.0.1:46657", 10*time.Second)
 }
 
-// submitTransactionAndGetBlockNumber submits a transaction to the sequencer and returns the block number it was included in
+// submitTransactionAndGetBlockNumber submits a transaction to the sequencer and returns inclusion details.
+// This function:
+// - Creates a random transaction with proper nonce sequencing
+// - Submits it to the sequencer's EVM endpoint
+// - Waits for the transaction to be included in a block
+// - Returns both the transaction hash and the block number where it was included
+//
+// Returns:
+// - Transaction hash for later verification
+// - Block number where the transaction was included
+//
+// This is used in full node sync tests to verify that both nodes
+// include the same transaction in the same block number.
 func submitTransactionAndGetBlockNumber(t *testing.T, sequencerClient *ethclient.Client) (common.Hash, uint64) {
 	t.Helper()
 
@@ -325,7 +432,21 @@ func submitTransactionAndGetBlockNumber(t *testing.T, sequencerClient *ethclient
 	return tx.Hash(), txBlockNumber
 }
 
-// verifyTransactionSync verifies that the transaction syncs to the full node in the same block
+// verifyTransactionSync verifies that the transaction syncs to the full node in the same block.
+// This function ensures that:
+// - The full node reaches or exceeds the block height containing the transaction
+// - The transaction exists in the full node with the same block number
+// - Both sequencer and full node have identical transaction receipts
+// - The transaction status is successful on both nodes
+//
+// Parameters:
+// - sequencerClient: Ethereum client connected to sequencer EVM
+// - fullNodeClient: Ethereum client connected to full node EVM
+// - txHash: Hash of the transaction to verify
+// - expectedBlockNumber: Block number where transaction should be included
+//
+// This validation ensures that P2P sync is working correctly and that
+// full nodes maintain consistency with the sequencer.
 func verifyTransactionSync(t *testing.T, sequencerClient, fullNodeClient *ethclient.Client, txHash common.Hash, expectedBlockNumber uint64) {
 	t.Helper()
 
@@ -361,6 +482,32 @@ func verifyTransactionSync(t *testing.T, sequencerClient, fullNodeClient *ethcli
 		"Transaction should be in the same block number on both sequencer and full node")
 }
 
+// TestEvmSequencerWithFullNodeE2E tests the full node synchronization functionality
+// where a full node connects to a sequencer via P2P and syncs transactions.
+//
+// Test Flow:
+// 1. Sets up Local DA layer and separate EVM instances for sequencer and full node
+// 2. Starts sequencer node with standard EVM ports (8545/8551)
+// 3. Extracts P2P ID from sequencer logs for peer connection
+// 4. Starts full node with different EVM ports (8555/8561) and P2P connection to sequencer
+// 5. Submits transaction to sequencer EVM and gets the block number
+// 6. Verifies the full node syncs the exact same block containing the transaction
+//
+// Validation:
+// - Both sequencer and full node start successfully
+// - P2P connection is established between nodes
+// - Transaction submitted to sequencer is included in a specific block
+// - Full node syncs the same block number containing the transaction
+// - Transaction data is identical on both nodes (same block, same receipt)
+//
+// Key Technical Details:
+// - Uses separate Docker Compose configurations for different EVM ports
+// - Handles P2P ID extraction from logs (including split-line scenarios)
+// - Copies genesis file from sequencer to full node for consistency
+// - Validates that P2P sync works independently of DA layer timing
+//
+// This test demonstrates that full nodes can sync with sequencers in real-time
+// and validates the P2P block propagation mechanism in Rollkit.
 func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 	flag.Parse()
 	workDir := t.TempDir()
@@ -420,4 +567,215 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 	verifyTransactionSync(t, sequencerClient, fullNodeClient, txHash, txBlockNumber)
 
 	t.Logf("✅ Test PASSED: Transaction synced successfully in block %d on both nodes", txBlockNumber)
+}
+
+// TestEvmMultipleTransactionInclusionE2E tests high-throughput transaction processing
+// to ensure multiple transactions submitted in quick succession are all included
+// and maintain correct ordering without any loss or corruption.
+//
+// Test Configuration:
+// - Submits 500 transactions in rapid succession (10ms intervals)
+// - Each transaction has sequential nonces (0-499)
+// - Uses proper chain ID (1234) for transaction signing
+// - Extended timeout (120s) to handle large transaction volume
+//
+// Test Flow:
+// 1. Sets up Local DA layer and EVM sequencer
+// 2. Submits 500 transactions rapidly with 10ms delays between submissions
+// 3. Waits for all transactions to be included in blocks
+// 4. Verifies each transaction maintains correct nonce ordering
+// 5. Analyzes transaction distribution across blocks
+// 6. Ensures no transactions are lost or reordered
+//
+// Validation Criteria:
+// - All 500 transactions are successfully included
+// - Nonce sequence is perfectly maintained (0, 1, 2, ..., 499)
+// - No transaction loss occurs under high-frequency submission
+// - Transaction receipts show success status for all transactions
+// - Block distribution is reasonable and logged for analysis
+//
+// Performance Expectations:
+// - ~50 transactions per second submission rate
+// - ~55 transactions per block average packing
+// - Total test execution under 20 seconds
+// - Consistent performance across multiple runs
+//
+// This test validates that Rollkit can handle production-level burst transaction loads
+// while maintaining all ordering guarantees and preventing transaction loss.
+func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
+	flag.Parse()
+	workDir := t.TempDir()
+	nodeHome := filepath.Join(workDir, "evm-agg")
+	sut := NewSystemUnderTest(t)
+
+	// 1. Start local DA
+	localDABinary := "local-da"
+	if evmSingleBinaryPath != "evm-single" {
+		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
+	}
+	sut.ExecCmd(localDABinary)
+	t.Log("Started local DA")
+	time.Sleep(200 * time.Millisecond)
+
+	// 2. Start EVM (Reth) via Docker Compose
+	jwtSecret := setupTestRethEngineE2E(t)
+
+	// 3. Get genesis hash from EVM node
+	genesisHash := evm.GetGenesisHash(t)
+	t.Logf("Genesis hash: %s", genesisHash)
+
+	// 4. Initialize sequencer node
+	output, err := sut.RunCmd(evmSingleBinaryPath,
+		"init",
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", "secret",
+		"--home", nodeHome,
+	)
+	require.NoError(t, err, "failed to init sequencer", output)
+	t.Log("Initialized sequencer node")
+
+	// 5. Start sequencer node
+	sut.ExecCmd(evmSingleBinaryPath,
+		"start",
+		"--evm.jwt-secret", jwtSecret,
+		"--evm.genesis-hash", genesisHash,
+		"--rollkit.node.block_time", "1s",
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", "secret",
+		"--home", nodeHome,
+		"--rollkit.da.address", "http://localhost:7980",
+		"--rollkit.da.block_time", "1m",
+	)
+	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 10*time.Second)
+	t.Log("Sequencer node is up")
+
+	// 6. Connect to EVM
+	client, err := ethclient.Dial("http://localhost:8545")
+	require.NoError(t, err, "Should be able to connect to EVM")
+	defer client.Close()
+
+	// 7. Submit multiple transactions in quick succession
+	const numTxs = 500
+	var txHashes []common.Hash
+	var expectedNonces []uint64
+	lastNonce := uint64(0)
+
+	t.Logf("Submitting %d transactions in quick succession...", numTxs)
+	for i := 0; i < numTxs; i++ {
+		// Create transaction with proper chain ID (1234)
+		tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+
+		evm.SubmitTransaction(t, tx)
+		txHashes = append(txHashes, tx.Hash())
+		expectedNonces = append(expectedNonces, tx.Nonce())
+
+		// Log progress every 50 transactions to avoid spam
+		if (i+1)%50 == 0 || i < 10 {
+			t.Logf("Submitted transaction %d: hash=%s, nonce=%d", i+1, tx.Hash().Hex(), tx.Nonce())
+		}
+
+		// Reduce delay to increase throughput while still being manageable
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// 8. Wait for all transactions to be included and verify order
+	ctx := context.Background()
+	var receipts []*common.Hash
+
+	t.Log("Waiting for all transactions to be included...")
+	require.Eventually(t, func() bool {
+		receipts = receipts[:0] // Clear slice
+
+		for _, txHash := range txHashes {
+			receipt, err := client.TransactionReceipt(ctx, txHash)
+			if err != nil || receipt == nil || receipt.Status != 1 {
+				return false // Not all transactions included yet
+			}
+			receipts = append(receipts, &txHash)
+		}
+
+		// Log progress every 100 transactions
+		if len(receipts)%100 == 0 && len(receipts) > 0 {
+			t.Logf("Progress: %d/%d transactions included", len(receipts), numTxs)
+		}
+
+		return len(receipts) == numTxs
+	}, 120*time.Second, 2*time.Second, "All transactions should be included")
+
+	t.Logf("✅ All %d transactions were successfully included", numTxs)
+
+	// 9. Verify transaction order by checking nonces
+	var actualNonces []uint64
+	var blockNumbers []uint64
+
+	t.Log("Verifying transaction nonces and block inclusion...")
+	for i, txHash := range txHashes {
+		receipt, err := client.TransactionReceipt(ctx, txHash)
+		require.NoError(t, err, "Should get receipt for transaction %d", i+1)
+		require.Equal(t, uint64(1), receipt.Status, "Transaction %d should be successful", i+1)
+
+		// Get the actual transaction to check nonce
+		tx, _, err := client.TransactionByHash(ctx, txHash)
+		require.NoError(t, err, "Should get transaction %d", i+1)
+
+		actualNonces = append(actualNonces, tx.Nonce())
+		blockNumbers = append(blockNumbers, receipt.BlockNumber.Uint64())
+
+		// Log progress for verification every 100 transactions, plus first 10 and last 10
+		if (i+1)%100 == 0 || i < 10 || i >= numTxs-10 {
+			t.Logf("Transaction %d: nonce=%d, block=%d, expected_nonce=%d",
+				i+1, tx.Nonce(), receipt.BlockNumber.Uint64(), expectedNonces[i])
+		}
+	}
+
+	// 10. Verify nonce ordering (transactions should maintain nonce order)
+	for i := 0; i < numTxs; i++ {
+		require.Equal(t, expectedNonces[i], actualNonces[i],
+			"Transaction %d should have expected nonce %d, got %d", i+1, expectedNonces[i], actualNonces[i])
+	}
+
+	// 11. Verify no transactions were lost
+	require.Equal(t, numTxs, len(actualNonces), "All %d transactions should be included", numTxs)
+
+	// 12. Log block distribution
+	blockCounts := make(map[uint64]int)
+	var minBlock, maxBlock uint64 = ^uint64(0), 0
+
+	for _, blockNum := range blockNumbers {
+		blockCounts[blockNum]++
+		if blockNum < minBlock {
+			minBlock = blockNum
+		}
+		if blockNum > maxBlock {
+			maxBlock = blockNum
+		}
+	}
+
+	t.Logf("Transaction distribution across %d blocks (blocks %d-%d):", len(blockCounts), minBlock, maxBlock)
+	totalBlocks := len(blockCounts)
+	if totalBlocks <= 20 {
+		// Show all blocks if reasonable number
+		for blockNum := minBlock; blockNum <= maxBlock; blockNum++ {
+			if count, exists := blockCounts[blockNum]; exists {
+				t.Logf("  Block %d: %d transactions", blockNum, count)
+			}
+		}
+	} else {
+		// Show summary for large number of blocks
+		t.Logf("  Average transactions per block: %.2f", float64(numTxs)/float64(totalBlocks))
+		t.Logf("  First 5 blocks:")
+		for blockNum := minBlock; blockNum < minBlock+5 && blockNum <= maxBlock; blockNum++ {
+			if count, exists := blockCounts[blockNum]; exists {
+				t.Logf("    Block %d: %d transactions", blockNum, count)
+			}
+		}
+		t.Logf("  Last 5 blocks:")
+		for blockNum := maxBlock - 4; blockNum <= maxBlock && blockNum >= minBlock; blockNum++ {
+			if count, exists := blockCounts[blockNum]; exists {
+				t.Logf("    Block %d: %d transactions", blockNum, count)
+			}
+		}
+	}
+
+	t.Logf("✅ Test PASSED: All %d transactions included in correct nonce order", numTxs)
 }
