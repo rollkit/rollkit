@@ -36,20 +36,59 @@ import (
 
 var evmSingleBinaryPath string
 
-const (
-	DOCKER_PATH = "../../execution/evm/docker"
-)
-
 func init() {
 	flag.StringVar(&evmSingleBinaryPath, "evm-binary", "evm-single", "evm-single binary")
 }
 
-// setupTestRethEngineE2E sets up a Reth EVM engine for E2E testing using Docker Compose.
-// This creates the sequencer's EVM instance on standard ports (8545/8551).
+// setupEvmSequencerTest performs common setup for EVM sequencer tests.
+// This helper reduces code duplication across multiple test functions.
 //
-// Returns: JWT secret string for authenticating with the EVM engine
-func setupTestRethEngineE2E(t *testing.T) string {
-	return evm.SetupTestRethEngine(t, DOCKER_PATH, "jwt.hex")
+// Returns: jwtSecret and genesisHash for the sequencer
+func setupEvmSequencerTest(t *testing.T, sut *SystemUnderTest, nodeHome string) (string, string) {
+	t.Helper()
+
+	// Start local DA
+	localDABinary := "local-da"
+	if evmSingleBinaryPath != "evm-single" {
+		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
+	}
+	sut.ExecCmd(localDABinary)
+	t.Log("Started local DA")
+	time.Sleep(200 * time.Millisecond)
+
+	// Start EVM (Reth) via Docker Compose
+	jwtSecret := evm.SetupTestRethEngine(t, dockerPath, "jwt.hex")
+
+	// Get genesis hash from EVM node
+	genesisHash := evm.GetGenesisHash(t)
+	t.Logf("Genesis hash: %s", genesisHash)
+
+	// Initialize sequencer node
+	output, err := sut.RunCmd(evmSingleBinaryPath,
+		"init",
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", "secret",
+		"--home", nodeHome,
+	)
+	require.NoError(t, err, "failed to init sequencer", output)
+	t.Log("Initialized sequencer node")
+
+	// Start sequencer node
+	sut.ExecCmd(evmSingleBinaryPath,
+		"start",
+		"--evm.jwt-secret", jwtSecret,
+		"--evm.genesis-hash", genesisHash,
+		"--rollkit.node.block_time", "1s",
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", "secret",
+		"--home", nodeHome,
+		"--rollkit.da.address", "http://localhost:7980",
+		"--rollkit.da.block_time", "1m",
+	)
+	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 10*time.Second)
+	t.Log("Sequencer node is up")
+
+	return jwtSecret, genesisHash
 }
 
 // TestEvmSequencerE2E tests the basic end-to-end functionality of a single EVM sequencer node.
@@ -75,51 +114,17 @@ func TestEvmSequencerE2E(t *testing.T) {
 	nodeHome := filepath.Join(workDir, "evm-agg")
 	sut := NewSystemUnderTest(t)
 
-	// 1. Start local DA
-	localDABinary := filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
-	sut.ExecCmd(localDABinary)
-	t.Log("Started local DA")
-	time.Sleep(200 * time.Millisecond)
-
-	// 2. Start EVM (Reth) via Docker Compose using setupTestRethEngine logic
-	jwtSecret := setupTestRethEngineE2E(t)
-
-	// 3. Get genesis hash from EVM node
-	genesisHash := evm.GetGenesisHash(t)
+	// Common setup for EVM sequencer test
+	_, genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
-	// 4. Initialize sequencer node
-	output, err := sut.RunCmd(evmSingleBinaryPath,
-		"init",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", nodeHome,
-	)
-	require.NoError(t, err, "failed to init sequencer", output)
-	t.Log("Initialized sequencer node")
-
-	// 5. Start sequencer node
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--evm.jwt-secret", jwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.node.block_time", "1s",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", nodeHome,
-		"--rollkit.da.address", "http://localhost:7980",
-		"--rollkit.da.block_time", "1m",
-	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 10*time.Second)
-	t.Log("Sequencer node is up")
-
-	// 6. Submit a transaction to EVM
+	// Submit a transaction to EVM
 	lastNonce := uint64(0)
 	tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
 	evm.SubmitTransaction(t, tx)
 	t.Log("Submitted test transaction to EVM")
 
-	// 7. Wait for block production and verify transaction inclusion
+	// Wait for block production and verify transaction inclusion
 	require.Eventually(t, func() bool {
 		return evm.CheckTxIncluded(t, tx.Hash())
 	}, 20*time.Second, 1*time.Second)
@@ -165,53 +170,16 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 	nodeHome := filepath.Join(workDir, "evm-agg")
 	sut := NewSystemUnderTest(t)
 
-	// 1. Start local DA
-	localDABinary := "local-da"
-	if evmSingleBinaryPath != "evm-single" {
-		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
-	}
-	sut.ExecCmd(localDABinary)
-	t.Log("Started local DA")
-	time.Sleep(200 * time.Millisecond)
-
-	// 2. Start EVM (Reth) via Docker Compose
-	jwtSecret := setupTestRethEngineE2E(t)
-
-	// 3. Get genesis hash from EVM node
-	genesisHash := evm.GetGenesisHash(t)
+	// Common setup for EVM sequencer test
+	_, genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
-	// 4. Initialize sequencer node
-	output, err := sut.RunCmd(evmSingleBinaryPath,
-		"init",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", nodeHome,
-	)
-	require.NoError(t, err, "failed to init sequencer", output)
-	t.Log("Initialized sequencer node")
-
-	// 5. Start sequencer node
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--evm.jwt-secret", jwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.node.block_time", "1s",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", nodeHome,
-		"--rollkit.da.address", "http://localhost:7980",
-		"--rollkit.da.block_time", "1m",
-	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 10*time.Second)
-	t.Log("Sequencer node is up")
-
-	// 6. Connect to EVM
+	// Connect to EVM
 	client, err := ethclient.Dial("http://localhost:8545")
 	require.NoError(t, err, "Should be able to connect to EVM")
 	defer client.Close()
 
-	// 7. Submit multiple transactions in quick succession
+	// Submit multiple transactions in quick succession
 	const numTxs = 500
 	var txHashes []common.Hash
 	var expectedNonces []uint64
@@ -235,7 +203,7 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	// 8. Wait for all transactions to be included and verify order
+	// Wait for all transactions to be included and verify order
 	ctx := context.Background()
 	var receipts []*common.Hash
 
@@ -248,7 +216,9 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 			if err != nil || receipt == nil || receipt.Status != 1 {
 				return false // Not all transactions included yet
 			}
-			receipts = append(receipts, &txHash)
+			// Shadow the loop variable to avoid taking address of the same variable
+			hashCopy := txHash
+			receipts = append(receipts, &hashCopy)
 		}
 
 		// Log progress every 100 transactions
@@ -261,7 +231,7 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 
 	t.Logf("✅ All %d transactions were successfully included", numTxs)
 
-	// 9. Verify transaction order by checking nonces
+	// Verify transaction order by checking nonces
 	var actualNonces []uint64
 	var blockNumbers []uint64
 
@@ -285,16 +255,16 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 		}
 	}
 
-	// 10. Verify nonce ordering (transactions should maintain nonce order)
+	// Verify nonce ordering (transactions should maintain nonce order)
 	for i := 0; i < numTxs; i++ {
 		require.Equal(t, expectedNonces[i], actualNonces[i],
 			"Transaction %d should have expected nonce %d, got %d", i+1, expectedNonces[i], actualNonces[i])
 	}
 
-	// 11. Verify no transactions were lost
+	// Verify no transactions were lost
 	require.Equal(t, numTxs, len(actualNonces), "All %d transactions should be included", numTxs)
 
-	// 12. Log block distribution
+	// Log block distribution
 	blockCounts := make(map[uint64]int)
 	var minBlock, maxBlock uint64 = ^uint64(0), 0
 
@@ -367,53 +337,16 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	nodeHome := filepath.Join(workDir, "evm-agg")
 	sut := NewSystemUnderTest(t)
 
-	// 1. Start local DA
-	localDABinary := "local-da"
-	if evmSingleBinaryPath != "evm-single" {
-		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
-	}
-	sut.ExecCmd(localDABinary)
-	t.Log("Started local DA")
-	time.Sleep(200 * time.Millisecond)
-
-	// 2. Start EVM (Reth) via Docker Compose
-	jwtSecret := setupTestRethEngineE2E(t)
-
-	// 3. Get genesis hash from EVM node
-	genesisHash := evm.GetGenesisHash(t)
+	// Common setup for EVM sequencer test
+	_, genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
-	// 4. Initialize sequencer node
-	output, err := sut.RunCmd(evmSingleBinaryPath,
-		"init",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", nodeHome,
-	)
-	require.NoError(t, err, "failed to init sequencer", output)
-	t.Log("Initialized sequencer node")
-
-	// 5. Start sequencer node
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--evm.jwt-secret", jwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.node.block_time", "1s",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", nodeHome,
-		"--rollkit.da.address", "http://localhost:7980",
-		"--rollkit.da.block_time", "1m",
-	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 10*time.Second)
-	t.Log("Sequencer node is up")
-
-	// 6. Connect to EVM
+	// Connect to EVM
 	client, err := ethclient.Dial("http://localhost:8545")
 	require.NoError(t, err, "Should be able to connect to EVM")
 	defer client.Close()
 
-	// 7. Create two transactions with the same nonce (double-spend attempt)
+	// Create two transactions with the same nonce (double-spend attempt)
 	const duplicateNonce = uint64(0)
 	lastNonce := duplicateNonce
 
@@ -433,7 +366,7 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	t.Logf("  TX1 Hash: %s", tx1.Hash().Hex())
 	t.Logf("  TX2 Hash: %s", tx2.Hash().Hex())
 
-	// 8. Submit both transactions in quick succession
+	// Submit both transactions in quick succession
 	evm.SubmitTransaction(t, tx1)
 	t.Logf("Submitted first transaction (TX1): %s", tx1.Hash().Hex())
 
@@ -472,13 +405,13 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 		}
 	}()
 
-	// 9. Wait for block production and check transaction inclusion
+	// Wait for block production and check transaction inclusion
 	ctx := context.Background()
 
 	t.Log("Waiting for transactions to be processed...")
 	time.Sleep(5 * time.Second) // Give time for processing
 
-	// 10. Check which transaction was included
+	// Check which transaction was included
 	var includedTxHash common.Hash
 	var rejectedTxHash common.Hash
 
@@ -515,7 +448,7 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 		require.Fail(t, "Neither transaction was included - system may have failed")
 	}
 
-	// 11. Verify exactly one transaction was included
+	// Verify exactly one transaction was included
 	require.True(t, (tx1Included && !tx2Included) || (tx2Included && !tx1Included),
 		"Exactly one transaction should be included, the other should be rejected")
 
@@ -523,7 +456,7 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	t.Logf("  ✅ Included transaction: %s", includedTxHash.Hex())
 	t.Logf("  ❌ Rejected transaction: %s", rejectedTxHash.Hex())
 
-	// 12. Verify the account nonce (note: in test environment, nonce behavior may vary)
+	// Verify the account nonce (note: in test environment, nonce behavior may vary)
 	fromAddress := common.HexToAddress("0x944fDcD1c868E3cC566C78023CcB38A32cDA836E")
 
 	// Wait a bit more for the transaction to be fully processed and nonce updated
@@ -582,48 +515,11 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	nodeHome := filepath.Join(workDir, "evm-agg")
 	sut := NewSystemUnderTest(t)
 
-	// 1. Start local DA
-	localDABinary := "local-da"
-	if evmSingleBinaryPath != "evm-single" {
-		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
-	}
-	sut.ExecCmd(localDABinary)
-	t.Log("Started local DA")
-	time.Sleep(200 * time.Millisecond)
-
-	// 2. Start EVM (Reth) via Docker Compose
-	jwtSecret := setupTestRethEngineE2E(t)
-
-	// 3. Get genesis hash from EVM node
-	genesisHash := evm.GetGenesisHash(t)
+	// Common setup for EVM sequencer test
+	_, genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
-	// 4. Initialize sequencer node
-	output, err := sut.RunCmd(evmSingleBinaryPath,
-		"init",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", nodeHome,
-	)
-	require.NoError(t, err, "failed to init sequencer", output)
-	t.Log("Initialized sequencer node")
-
-	// 5. Start sequencer node
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--evm.jwt-secret", jwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.node.block_time", "1s",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", nodeHome,
-		"--rollkit.da.address", "http://localhost:7980",
-		"--rollkit.da.block_time", "1m",
-	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 10*time.Second)
-	t.Log("Sequencer node is up")
-
-	// 6. Connect to EVM
+	// Connect to EVM
 	client, err := ethclient.Dial("http://localhost:8545")
 	require.NoError(t, err, "Should be able to connect to EVM")
 	defer client.Close()
@@ -634,7 +530,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 
 	t.Log("Testing various invalid transaction types...")
 
-	// 7a. Test invalid signature transaction
+	// Test invalid signature transaction
 	t.Log("7a. Testing transaction with invalid signature...")
 	func() {
 		defer func() {
@@ -659,7 +555,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 		}
 	}()
 
-	// 7b. Test insufficient funds transaction
+	// Test insufficient funds transaction
 	t.Log("7b. Testing transaction with insufficient funds...")
 	func() {
 		defer func() {
@@ -684,7 +580,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 		}
 	}()
 
-	// 7c. Test invalid nonce transaction (way too high)
+	// Test invalid nonce transaction (way too high)
 	t.Log("7c. Testing transaction with invalid nonce...")
 	func() {
 		defer func() {
@@ -708,7 +604,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 		}
 	}()
 
-	// 7d. Test invalid gas limit transaction (too low)
+	// Test invalid gas limit transaction (too low)
 	t.Log("7d. Testing transaction with invalid gas limit...")
 	func() {
 		defer func() {
@@ -732,11 +628,11 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 		}
 	}()
 
-	// 8. Wait a bit for any transactions to be processed
+	// Wait a bit for any transactions to be processed
 	t.Log("Waiting for transaction processing...")
 	time.Sleep(5 * time.Second)
 
-	// 9. Check that none of the invalid transactions were included in blocks
+	// Check that none of the invalid transactions were included in blocks
 	invalidTxsIncluded := 0
 	for i, txHash := range invalidTxHashes {
 		receipt, err := client.TransactionReceipt(ctx, txHash)
@@ -755,7 +651,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 		}
 	}
 
-	// 10. Submit a valid transaction to verify system stability
+	// Submit a valid transaction to verify system stability
 	t.Log("Testing system stability with valid transaction...")
 	lastNonce := uint64(0)
 	validTx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
@@ -763,7 +659,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	evm.SubmitTransaction(t, validTx)
 	t.Logf("Submitted valid transaction: %s", validTx.Hash().Hex())
 
-	// 11. Wait for valid transaction to be included
+	// Wait for valid transaction to be included
 	require.Eventually(t, func() bool {
 		receipt, err := client.TransactionReceipt(ctx, validTx.Hash())
 		return err == nil && receipt != nil && receipt.Status == 1
@@ -771,7 +667,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 
 	t.Log("✅ Valid transaction included successfully - system stability confirmed")
 
-	// 12. Final verification
+	// Final verification
 	validReceipt, err := client.TransactionReceipt(ctx, validTx.Hash())
 	require.NoError(t, err, "Should get receipt for valid transaction")
 	require.Equal(t, uint64(1), validReceipt.Status, "Valid transaction should be successful")
