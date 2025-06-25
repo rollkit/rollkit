@@ -46,7 +46,7 @@ Note: Replace `<path_to>` with the actual path to the rollkit repository. If you
 
 The sequencer can be configured using various command-line flags. The most important ones are:
 
-- `--rollkit.node.aggregator`: Set to true to run in aggregator mode
+- `--rollkit.node.aggregator`: Set to true to run in sequencer mode
 - `--rollkit.signer.passphrase`: Passphrase for the signer
 - `--evm.jwt-secret`: JWT secret for EVM communication
 - `--evm.genesis-hash`: Genesis hash of the EVM chain
