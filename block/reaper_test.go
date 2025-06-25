@@ -20,8 +20,8 @@ import (
 func TestReaper_SubmitTxs_Success(t *testing.T) {
 	t.Parallel()
 
-	mockExec := testmocks.NewExecutor(t)
-	mockSeq := testmocks.NewSequencer(t)
+	mockExec := testmocks.NewMockExecutor(t)
+	mockSeq := testmocks.NewMockSequencer(t)
 	store := dsync.MutexWrap(ds.NewMapDatastore())
 	logger := log.NewNopLogger()
 	chainID := "test-chain"
@@ -57,8 +57,8 @@ func TestReaper_SubmitTxs_Success(t *testing.T) {
 func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
 	t.Parallel()
 
-	mockExec := testmocks.NewExecutor(t)
-	mockSeq := testmocks.NewSequencer(t)
+	mockExec := testmocks.NewMockExecutor(t)
+	mockSeq := testmocks.NewMockSequencer(t)
 	store := dsync.MutexWrap(ds.NewMapDatastore())
 	logger := log.NewNopLogger()
 	chainID := "test-chain"
@@ -83,10 +83,10 @@ func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 	require := require.New(t)
 
 	// Use separate mocks for each instance but share the store
-	mockExec1 := testmocks.NewExecutor(t)
-	mockSeq1 := testmocks.NewSequencer(t)
-	mockExec2 := testmocks.NewExecutor(t)
-	mockSeq2 := testmocks.NewSequencer(t)
+	mockExec1 := testmocks.NewMockExecutor(t)
+	mockSeq1 := testmocks.NewMockSequencer(t)
+	mockExec2 := testmocks.NewMockExecutor(t)
+	mockSeq2 := testmocks.NewMockSequencer(t)
 
 	store := dsync.MutexWrap(ds.NewMapDatastore())
 	logger := log.NewNopLogger()

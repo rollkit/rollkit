@@ -43,7 +43,7 @@ func TestNetInfoCmd_Success(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	mockP2P := new(testmocks.P2PRPC)
+	mockP2P := new(testmocks.MockP2PRPC)
 
 	mockNodeID := "12D3KooWExampleNodeID1234567890"
 	mockListenAddr1 := "/ip4/127.0.0.1/tcp/7676"
@@ -137,7 +137,7 @@ func TestNetInfoCmd_NoPeers(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	mockP2P := new(testmocks.P2PRPC)
+	mockP2P := new(testmocks.MockP2PRPC)
 
 	mockNodeID := "12D3KooWExampleNodeID1234567890"
 	mockListenAddr1 := "/ip4/127.0.0.1/tcp/7676"

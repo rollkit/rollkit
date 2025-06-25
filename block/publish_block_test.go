@@ -34,12 +34,12 @@ func setupManagerForPublishBlockTest(
 	lastSubmittedHeaderHeight uint64,
 	lastSubmittedDataHeight uint64,
 	logBuffer *bytes.Buffer,
-) (*Manager, *mocks.Store, *mocks.Executor, *mocks.Sequencer, signer.Signer, context.CancelFunc) {
+) (*Manager, *mocks.MockStore, *mocks.MockExecutor, *mocks.MockSequencer, signer.Signer, context.CancelFunc) {
 	require := require.New(t)
 
-	mockStore := mocks.NewStore(t)
-	mockExec := mocks.NewExecutor(t)
-	mockSeq := mocks.NewSequencer(t)
+	mockStore := mocks.NewMockStore(t)
+	mockExec := mocks.NewMockExecutor(t)
+	mockSeq := mocks.NewMockSequencer(t)
 
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
@@ -160,9 +160,9 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup manager with mocks
-	mockStore := mocks.NewStore(t)
-	mockSeq := mocks.NewSequencer(t)
-	mockExec := mocks.NewExecutor(t)
+	mockStore := mocks.NewMockStore(t)
+	mockSeq := mocks.NewMockSequencer(t)
+	mockExec := mocks.NewMockExecutor(t)
 	logger := log.NewTestLogger(t)
 	chainID := "Test_publishBlock_NoBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
@@ -230,9 +230,9 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup manager with mocks
-	mockStore := mocks.NewStore(t)
-	mockSeq := mocks.NewSequencer(t)
-	mockExec := mocks.NewExecutor(t)
+	mockStore := mocks.NewMockStore(t)
+	mockSeq := mocks.NewMockSequencer(t)
+	mockExec := mocks.NewMockExecutor(t)
 	logger := log.NewTestLogger(t)
 	chainID := "Test_publishBlock_EmptyBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)

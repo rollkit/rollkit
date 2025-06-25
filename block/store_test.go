@@ -18,6 +18,7 @@ import (
 
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+
 	// Use existing store mock if available, or define one
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	extmocks "github.com/rollkit/rollkit/test/mocks/external"
@@ -26,7 +27,7 @@ import (
 
 func setupManagerForStoreRetrieveTest(t *testing.T) (
 	m *Manager,
-	mockStore *mocksStore.Store,
+	mockStore *mocksStore.MockStore,
 	mockHeaderStore *extmocks.Store[*types.SignedHeader],
 	mockDataStore *extmocks.Store[*types.Data],
 	headerStoreCh chan struct{},
@@ -39,7 +40,7 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	t.Helper()
 
 	// Mocks
-	mockStore = mocksStore.NewStore(t)
+	mockStore = mocksStore.NewMockStore(t)
 	mockHeaderStore = extmocks.NewStore[*types.SignedHeader](t)
 	mockDataStore = extmocks.NewStore[*types.Data](t)
 
