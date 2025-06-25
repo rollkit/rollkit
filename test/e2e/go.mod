@@ -4,11 +4,11 @@ go 1.24.2
 
 require (
 	github.com/ethereum/go-ethereum v1.15.0
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/libp2p/go-libp2p v0.41.1
 	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/execution/evm v0.0.0-20250602130019-2a732cf903a5
 	github.com/stretchr/testify v1.10.0
-	github.com/testcontainers/testcontainers-go/modules/compose v0.37.0
 )
 
 replace (
@@ -98,7 +98,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/gofrs/flock v0.12.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
@@ -195,6 +194,7 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/testcontainers/testcontainers-go v0.37.0 // indirect
+	github.com/testcontainers/testcontainers-go/modules/compose v0.37.0 // indirect
 	github.com/theupdateframework/notary v0.7.0 // indirect
 	github.com/tilt-dev/fsnotify v1.4.8-0.20220602155310-fff9c274a375 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
