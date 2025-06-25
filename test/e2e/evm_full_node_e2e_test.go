@@ -41,487 +41,15 @@ package e2e
 
 import (
 	"context"
-	"encoding/hex"
 	"flag"
-	"fmt"
-	"math/big"
-	"net/http"
-	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
-
-	"github.com/rollkit/rollkit/execution/evm"
 )
-
-const (
-	dockerPath = "../../execution/evm/docker"
-)
-
-// setupTestRethEngineFullNode sets up a Reth EVM engine for full node testing.
-// This creates a separate EVM instance using docker-compose-full-node.yml with:
-// - Different ports (8555/8561) to avoid conflicts with sequencer
-// - Separate JWT token generation and management
-// - Independent Docker network and volumes
-//
-// The function waits for the JWT file to be created by the Docker container
-// and reads the generated JWT secret for authentication.
-//
-// Returns: JWT secret string for authenticating with the full node's EVM engine
-func setupTestRethEngineFullNode(t *testing.T) string {
-	jwtSecretHex := evm.SetupTestRethEngineFullNode(t, dockerPath, "jwt.hex")
-
-	err := waitForRethContainerAt(t, jwtSecretHex, "http://localhost:8555", "http://localhost:8561")
-	require.NoError(t, err, "Reth container should be ready at full node ports")
-
-	return jwtSecretHex
-}
-
-// setupTestRethEngineE2E sets up a Reth EVM engine for E2E testing using Docker Compose.
-// This creates the sequencer's EVM instance on standard ports (8545/8551).
-//
-// Returns: JWT secret string for authenticating with the EVM engine
-func setupTestRethEngineE2E(t *testing.T) string {
-	return evm.SetupTestRethEngine(t, dockerPath, "jwt.hex")
-}
-
-// decodeSecret decodes a hex-encoded JWT secret string into a byte slice.
-func decodeSecret(jwtSecret string) ([]byte, error) {
-	secret, err := hex.DecodeString(strings.TrimPrefix(jwtSecret, "0x"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode JWT secret: %w", err)
-	}
-	return secret, nil
-}
-
-// getAuthToken creates a JWT token signed with the provided secret, valid for 1 hour.
-func getAuthToken(jwtSecret []byte) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"exp": time.Now().Add(time.Hour * 1).Unix(), // Expires in 1 hour
-		"iat": time.Now().Unix(),
-	})
-
-	// Sign the token with the decoded secret
-	authToken, err := token.SignedString(jwtSecret)
-	if err != nil {
-		return "", fmt.Errorf("failed to sign JWT token: %w", err)
-	}
-	return authToken, nil
-}
-
-// waitForRethContainerAt waits for the Reth container to be ready by polling HTTP endpoints.
-// This function polls both the ETH JSON-RPC endpoint and the Engine API endpoint with JWT authentication
-// to ensure both are fully ready before proceeding with tests.
-//
-// Parameters:
-// - jwtSecret: JWT secret for engine authentication
-// - ethURL: HTTP endpoint for ETH JSON-RPC calls (e.g., http://localhost:8545)
-// - engineURL: HTTP endpoint for Engine API calls (e.g., http://localhost:8551)
-//
-// Returns: Error if timeout occurs, nil if both endpoints become ready
-func waitForRethContainerAt(t *testing.T, jwtSecret, ethURL, engineURL string) error {
-	t.Helper()
-	client := &http.Client{Timeout: 100 * time.Millisecond}
-	timer := time.NewTimer(30 * time.Second)
-	defer timer.Stop()
-	for {
-		select {
-		case <-timer.C:
-			return fmt.Errorf("timeout waiting for reth container to be ready")
-		default:
-			// Check ETH RPC endpoint
-			rpcReq := strings.NewReader(`{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}`)
-			resp, err := client.Post(ethURL, "application/json", rpcReq)
-			if err == nil && resp.StatusCode == http.StatusOK {
-				if err := resp.Body.Close(); err != nil {
-					return fmt.Errorf("failed to close response body: %w", err)
-				}
-
-				// Also check the engine URL with JWT authentication
-				req, err := http.NewRequest("POST", engineURL, strings.NewReader(`{"jsonrpc":"2.0","method":"engine_getClientVersionV1","params":[],"id":1}`))
-				if err != nil {
-					return err
-				}
-				req.Header.Set("Content-Type", "application/json")
-				secret, err := decodeSecret(jwtSecret)
-				if err != nil {
-					return err
-				}
-				authToken, err := getAuthToken(secret)
-				if err != nil {
-					return err
-				}
-				req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken))
-				resp, err := client.Do(req)
-				if err == nil && resp.StatusCode == http.StatusOK {
-					if err := resp.Body.Close(); err != nil {
-						return fmt.Errorf("failed to close response body: %w", err)
-					}
-					return nil
-				}
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
-}
-
-// checkTxIncludedAt checks if a transaction was included in a block at the specified EVM endpoint.
-// This utility function connects to the provided EVM endpoint and queries for the
-// transaction receipt to determine if the transaction was successfully included.
-//
-// Parameters:
-// - txHash: Hash of the transaction to check
-// - ethURL: EVM endpoint URL to query (e.g., http://localhost:8545)
-//
-// Returns: true if transaction is included with success status, false otherwise
-func checkTxIncludedAt(t *testing.T, txHash common.Hash, ethURL string) bool {
-	t.Helper()
-	rpcClient, err := ethclient.Dial(ethURL)
-	if err != nil {
-		return false
-	}
-	defer rpcClient.Close()
-	receipt, err := rpcClient.TransactionReceipt(context.Background(), txHash)
-	return err == nil && receipt != nil && receipt.Status == 1
-}
-
-// extractP2PID extracts the P2P ID from sequencer logs for establishing peer connections.
-// This function handles complex scenarios including:
-// - P2P IDs split across multiple log lines due to terminal output wrapping
-// - Multiple regex patterns to catch different log formats
-// - Fallback to deterministic test P2P ID when sequencer P2P isn't active yet
-//
-// The function searches both stdout and stderr buffers from the SystemUnderTest
-// and uses multiple regex patterns to handle edge cases in log parsing.
-//
-// Returns: A valid P2P ID string that can be used for peer connections
-func extractP2PID(t *testing.T, sut *SystemUnderTest) string {
-	t.Helper()
-
-	var p2pID string
-	p2pRegex := regexp.MustCompile(`listening on address=/ip4/127\.0\.0\.1/tcp/7676/p2p/([A-Za-z0-9]+)`)
-	p2pIDRegex := regexp.MustCompile(`/p2p/([A-Za-z0-9]+)`)
-
-	// Use require.Eventually to poll for P2P ID log message instead of hardcoded sleep
-	require.Eventually(t, func() bool {
-		var allLogLines []string
-
-		// Collect all available logs from both buffers
-		sut.outBuff.Do(func(v any) {
-			if v != nil {
-				line := v.(string)
-				allLogLines = append(allLogLines, line)
-				if matches := p2pRegex.FindStringSubmatch(line); len(matches) == 2 {
-					p2pID = matches[1]
-				}
-			}
-		})
-
-		sut.errBuff.Do(func(v any) {
-			if v != nil {
-				line := v.(string)
-				allLogLines = append(allLogLines, line)
-				if matches := p2pRegex.FindStringSubmatch(line); len(matches) == 2 {
-					p2pID = matches[1]
-				}
-			}
-		})
-
-		// Handle split lines by combining logs and trying different patterns
-		if p2pID == "" {
-			combinedLogs := strings.Join(allLogLines, "")
-			if matches := p2pRegex.FindStringSubmatch(combinedLogs); len(matches) == 2 {
-				p2pID = matches[1]
-			} else if matches := p2pIDRegex.FindStringSubmatch(combinedLogs); len(matches) == 2 {
-				p2pID = matches[1]
-			}
-		}
-
-		// Return true if P2P ID found, false to continue polling
-		return p2pID != ""
-	}, 10*time.Second, 200*time.Millisecond, "P2P ID should be available in sequencer logs")
-
-	// If P2P ID found in logs, use it (this would be the ideal case)
-	if p2pID != "" {
-		t.Logf("Successfully extracted P2P ID from logs: %s", p2pID)
-		return p2pID
-	}
-
-	// Pragmatic approach: The sequencer doesn't start P2P services until there are peers
-	// Generate a deterministic P2P ID for the test
-	// In a real environment, the sequencer would generate this when P2P starts
-	fallbackID := "12D3KooWSequencerTestNode123456789012345678901234567890"
-	t.Logf("⚠️  Failed to extract P2P ID from sequencer logs, using fallback test P2P ID: %s", fallbackID)
-	t.Logf("⚠️  This indicates that P2P ID logging may have changed or failed - please verify log parsing is working correctly")
-
-	return fallbackID
-}
-
-// setupSequencerNode initializes and starts the sequencer node with proper configuration.
-// This function handles:
-// - Node initialization with aggregator mode enabled
-// - Sequencer-specific configuration (block time, DA layer connection)
-// - JWT authentication setup for EVM engine communication
-// - Waiting for node to become responsive on the RPC endpoint
-//
-// Parameters:
-// - sequencerHome: Directory path for sequencer node data
-// - jwtSecret: JWT secret for authenticating with EVM engine
-// - genesisHash: Hash of the genesis block for chain validation
-func setupSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
-	t.Helper()
-
-	// Initialize sequencer node
-	output, err := sut.RunCmd(evmSingleBinaryPath,
-		"init",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", sequencerHome,
-	)
-	require.NoError(t, err, "failed to init sequencer", output)
-
-	// Start sequencer node
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--evm.jwt-secret", jwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.node.block_time", "1s",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", sequencerHome,
-		"--rollkit.da.address", "http://localhost:7980",
-		"--rollkit.da.block_time", "1m",
-	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 10*time.Second)
-}
-
-// setupFullNode initializes and starts the full node with P2P connection to sequencer.
-// This function handles:
-// - Full node initialization (non-aggregator mode)
-// - Genesis file copying from sequencer to ensure chain consistency
-// - P2P configuration to connect with the sequencer node
-// - Different EVM engine ports (8555/8561) to avoid conflicts
-// - DA layer connection for long-term data availability
-//
-// Parameters:
-// - fullNodeHome: Directory path for full node data
-// - sequencerHome: Directory path of sequencer (for genesis file copying)
-// - fullNodeJwtSecret: JWT secret for full node's EVM engine
-// - genesisHash: Hash of the genesis block for chain validation
-// - p2pID: P2P ID of the sequencer node to connect to
-func setupFullNode(t *testing.T, sut *SystemUnderTest, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, p2pID string) {
-	t.Helper()
-
-	// Initialize full node
-	output, err := sut.RunCmd(evmSingleBinaryPath,
-		"init",
-		"--home", fullNodeHome,
-	)
-	require.NoError(t, err, "failed to init full node", output)
-
-	// Copy genesis file from sequencer to full node
-	sequencerGenesis := filepath.Join(sequencerHome, "config", "genesis.json")
-	fullNodeGenesis := filepath.Join(fullNodeHome, "config", "genesis.json")
-	genesisData, err := os.ReadFile(sequencerGenesis)
-	require.NoError(t, err, "failed to read sequencer genesis file")
-	err = os.WriteFile(fullNodeGenesis, genesisData, 0644)
-	require.NoError(t, err, "failed to write full node genesis file")
-
-	// Start full node
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--home", fullNodeHome,
-		"--evm.jwt-secret", fullNodeJwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.rpc.address", "127.0.0.1:46657",
-		"--rollkit.p2p.listen_address", "/ip4/127.0.0.1/tcp/7677",
-		"--rollkit.p2p.peers", "/ip4/127.0.0.1/tcp/7676/p2p/"+p2pID,
-		"--evm.engine-url", "http://localhost:8561",
-		"--evm.eth-url", "http://localhost:8555",
-		"--rollkit.da.address", "http://localhost:7980",
-		"--rollkit.da.block_time", "1m",
-	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:46657", 10*time.Second)
-
-	// Use require.Eventually to wait for nodes to establish sync instead of hardcoded sleep
-	sequencerClient, err := ethclient.Dial("http://localhost:8545")
-	require.NoError(t, err, "Should be able to connect to sequencer EVM")
-	defer sequencerClient.Close()
-
-	fullNodeClient, err := ethclient.Dial("http://localhost:8555")
-	require.NoError(t, err, "Should be able to connect to full node EVM")
-	defer fullNodeClient.Close()
-
-	// Wait for full node to establish sync with sequencer by checking if they can communicate
-	t.Log("Waiting for nodes to establish sync connection...")
-	require.Eventually(t, func() bool {
-		// Check if both nodes are responsive and at similar block heights
-		seqHeader, seqErr := sequencerClient.HeaderByNumber(context.Background(), nil)
-		fnHeader, fnErr := fullNodeClient.HeaderByNumber(context.Background(), nil)
-
-		if seqErr != nil || fnErr != nil {
-			return false
-		}
-
-		// Both nodes should be at least at genesis height and responding
-		seqHeight := seqHeader.Number.Uint64()
-		fnHeight := fnHeader.Number.Uint64()
-
-		// Both should be at least at genesis (height 0) and difference should be reasonable
-		return seqHeight >= 0 && fnHeight >= 0 && (seqHeight == 0 || fnHeight+5 >= seqHeight)
-	}, 30*time.Second, 500*time.Millisecond, "Nodes should establish sync connection")
-
-	t.Log("Nodes have established sync connection")
-
-	// === TESTING PHASE ===
-
-	// Connect to both EVM instances
-	sequencerClient, err = ethclient.Dial("http://localhost:8545")
-	require.NoError(t, err, "Should be able to connect to sequencer EVM")
-	defer sequencerClient.Close()
-
-	fullNodeClient, err = ethclient.Dial("http://localhost:8555")
-	require.NoError(t, err, "Should be able to connect to full node EVM")
-	defer fullNodeClient.Close()
-
-	// Submit multiple transactions to create blocks with varying content
-	var txHashes []common.Hash
-	var txBlockNumbers []uint64
-
-	t.Log("Submitting transactions to create blocks...")
-
-	// Submit multiple batches of transactions to test block propagation
-	totalTransactions := 10
-	for i := 0; i < totalTransactions; i++ {
-		txHash, txBlockNumber := submitTransactionAndGetBlockNumber(t, sequencerClient)
-		txHashes = append(txHashes, txHash)
-		txBlockNumbers = append(txBlockNumbers, txBlockNumber)
-		t.Logf("Transaction %d included in sequencer block %d", i+1, txBlockNumber)
-
-		// Vary the timing to create different block distributions
-		if i < 3 {
-			time.Sleep(200 * time.Millisecond) // Fast submissions
-		} else if i < 6 {
-			time.Sleep(500 * time.Millisecond) // Medium pace
-		} else {
-			time.Sleep(800 * time.Millisecond) // Slower pace
-		}
-	}
-
-	// Wait for all blocks to propagate
-	t.Log("Waiting for block propagation to full node...")
-	time.Sleep(10 * time.Second)
-
-	// === VERIFICATION PHASE ===
-
-	nodeURLs := []string{
-		"http://localhost:8545", // Sequencer
-		"http://localhost:8555", // Full Node
-	}
-
-	nodeNames := []string{
-		"Sequencer",
-		"Full Node",
-	}
-
-	// Get the current height to determine which blocks to verify
-	ctx := context.Background()
-	seqHeader, err := sequencerClient.HeaderByNumber(ctx, nil)
-	require.NoError(t, err, "Should get latest header from sequencer")
-	currentHeight := seqHeader.Number.Uint64()
-
-	t.Logf("Current sequencer height: %d", currentHeight)
-
-	// Wait for full node to catch up to the sequencer height
-	t.Log("Ensuring full node is synced to current height...")
-
-	require.Eventually(t, func() bool {
-		header, err := fullNodeClient.HeaderByNumber(ctx, nil)
-		if err != nil {
-			return false
-		}
-		height := header.Number.Uint64()
-		if height < currentHeight {
-			t.Logf("Full node height: %d (target: %d)", height, currentHeight)
-			return false
-		}
-		return true
-	}, 60*time.Second, 2*time.Second, "Full node should catch up to sequencer height %d", currentHeight)
-
-	t.Log("Full node is synced! Verifying block propagation...")
-
-	// Verify block propagation for all blocks from genesis to current height
-	// Start from block 1 (skip genesis block 0)
-	startHeight := uint64(1)
-	endHeight := currentHeight
-
-	t.Logf("Verifying block propagation for blocks %d to %d", startHeight, endHeight)
-
-	// Test all blocks have propagated correctly
-	for blockHeight := startHeight; blockHeight <= endHeight; blockHeight++ {
-		verifyBlockPropagationAcrossNodes(t, nodeURLs, blockHeight, nodeNames)
-	}
-
-	// Verify all transactions exist on full node
-	t.Log("Verifying all transactions exist on full node...")
-
-	for i, txHash := range txHashes {
-		txBlockNumber := txBlockNumbers[i]
-
-		// Check transaction on full node
-		require.Eventually(t, func() bool {
-			receipt, err := fullNodeClient.TransactionReceipt(ctx, txHash)
-			return err == nil && receipt != nil && receipt.Status == 1 && receipt.BlockNumber.Uint64() == txBlockNumber
-		}, 30*time.Second, 1*time.Second, "Transaction %d should exist on full node in block %d", i+1, txBlockNumber)
-
-		t.Logf("✅ Transaction %d verified on full node (block %d)", i+1, txBlockNumber)
-	}
-
-	// Final comprehensive verification of all transaction blocks
-	uniqueBlocks := make(map[uint64]bool)
-	for _, blockNum := range txBlockNumbers {
-		uniqueBlocks[blockNum] = true
-	}
-
-	t.Logf("Final verification: checking %d unique transaction blocks", len(uniqueBlocks))
-	for blockHeight := range uniqueBlocks {
-		verifyBlockPropagationAcrossNodes(t, nodeURLs, blockHeight, nodeNames)
-	}
-
-	// Additional test: Simulate multiple full node behavior by running verification multiple times
-	t.Log("Simulating multiple full node verification by running additional checks...")
-
-	// Verify state consistency multiple times to simulate different full nodes
-	for round := 1; round <= 3; round++ {
-		t.Logf("Verification round %d - simulating full node %d", round, round)
-
-		// Check a sample of blocks each round
-		sampleBlocks := []uint64{startHeight, startHeight + 1, endHeight - 1, endHeight}
-		for _, blockHeight := range sampleBlocks {
-			if blockHeight >= startHeight && blockHeight <= endHeight {
-				verifyBlockPropagationAcrossNodes(t, nodeURLs, blockHeight, nodeNames)
-			}
-		}
-
-		// Small delay between rounds
-		time.Sleep(1 * time.Second)
-	}
-
-	t.Logf("✅ Test PASSED: Block propagation working correctly!")
-	t.Logf("   - Sequencer produced %d blocks", currentHeight)
-	t.Logf("   - Full node received identical blocks")
-	t.Logf("   - %d transactions propagated successfully across %d unique blocks", len(txHashes), len(uniqueBlocks))
-	t.Logf("   - Block hashes, state roots, and transaction data match between nodes")
-	t.Logf("   - P2P block propagation mechanism functioning properly")
-	t.Logf("   - Test simulated multiple full node scenarios successfully")
-}
 
 // verifyBlockPropagationAcrossNodes verifies that a specific block exists and matches across all provided node URLs.
 // This function ensures that:
@@ -593,44 +121,6 @@ func verifyBlockPropagationAcrossNodes(t *testing.T, nodeURLs []string, blockHei
 		blockHeight, len(nodeURLs), referenceHash.Hex(), referenceTxCount)
 }
 
-// Global nonce counter to ensure unique nonces across multiple transaction submissions
-var globalNonce uint64 = 0
-
-// submitTransactionAndGetBlockNumber submits a transaction to the sequencer and returns inclusion details.
-// This function:
-// - Creates a random transaction with proper nonce sequencing
-// - Submits it to the sequencer's EVM endpoint
-// - Waits for the transaction to be included in a block
-// - Returns both the transaction hash and the block number where it was included
-//
-// Returns:
-// - Transaction hash for later verification
-// - Block number where the transaction was included
-//
-// This is used in full node sync tests to verify that both nodes
-// include the same transaction in the same block number.
-func submitTransactionAndGetBlockNumber(t *testing.T, sequencerClient *ethclient.Client) (common.Hash, uint64) {
-	t.Helper()
-
-	// Submit transaction to sequencer EVM with unique nonce
-	tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &globalNonce)
-	evm.SubmitTransaction(t, tx)
-
-	// Wait for transaction to be included and get block number
-	ctx := context.Background()
-	var txBlockNumber uint64
-	require.Eventually(t, func() bool {
-		receipt, err := sequencerClient.TransactionReceipt(ctx, tx.Hash())
-		if err == nil && receipt != nil && receipt.Status == 1 {
-			txBlockNumber = receipt.BlockNumber.Uint64()
-			return true
-		}
-		return false
-	}, 20*time.Second, 1*time.Second)
-
-	return tx.Hash(), txBlockNumber
-}
-
 // verifyTransactionSync verifies that the transaction syncs to the full node in the same block.
 // This function ensures that:
 // - The full node reaches or exceeds the block height containing the transaction
@@ -681,50 +171,6 @@ func verifyTransactionSync(t *testing.T, sequencerClient, fullNodeClient *ethcli
 		"Transaction should be in the same block number on both sequencer and full node")
 }
 
-// checkBlockInfoAt retrieves block information at a specific height including state root.
-// This function connects to the specified EVM endpoint and queries for the block header
-// to get the block hash, state root, transaction count, and other block metadata.
-//
-// Parameters:
-// - ethURL: EVM endpoint URL to query (e.g., http://localhost:8545)
-// - blockHeight: Height of the block to retrieve (use nil for latest)
-//
-// Returns: block hash, state root, transaction count, block number, and error
-func checkBlockInfoAt(t *testing.T, ethURL string, blockHeight *uint64) (common.Hash, common.Hash, int, uint64, error) {
-	t.Helper()
-
-	ctx := context.Background()
-	ethClient, err := ethclient.Dial(ethURL)
-	if err != nil {
-		return common.Hash{}, common.Hash{}, 0, 0, fmt.Errorf("failed to create ethereum client: %w", err)
-	}
-	defer ethClient.Close()
-
-	var blockNumber *big.Int
-	if blockHeight != nil {
-		blockNumber = new(big.Int).SetUint64(*blockHeight)
-	}
-
-	// Get the block header
-	header, err := ethClient.HeaderByNumber(ctx, blockNumber)
-	if err != nil {
-		return common.Hash{}, common.Hash{}, 0, 0, fmt.Errorf("failed to get block header: %w", err)
-	}
-
-	blockHash := header.Hash()
-	stateRoot := header.Root
-	blockNum := header.Number.Uint64()
-
-	// Get the full block to count transactions
-	block, err := ethClient.BlockByNumber(ctx, header.Number)
-	if err != nil {
-		return blockHash, stateRoot, 0, blockNum, fmt.Errorf("failed to get full block: %w", err)
-	}
-
-	txCount := len(block.Transactions())
-	return blockHash, stateRoot, txCount, blockNum, nil
-}
-
 // verifyStateRootsMatch verifies that state roots match between sequencer and full node for a specific block.
 // This function ensures that:
 // - Both nodes have the same block at the specified height
@@ -771,12 +217,54 @@ func verifyStateRootsMatch(t *testing.T, sequencerURL, fullNodeURL string, block
 	t.Logf("✅ Block %d state roots match: %s (txs: %d)", blockHeight, seqStateRoot.Hex(), seqTxCount)
 }
 
-// min returns the minimum of two uint64 values
-func min(a, b uint64) uint64 {
-	if a < b {
-		return a
-	}
-	return b
+// setupSequencerWithFullNode sets up both sequencer and full node with P2P connections.
+// This helper function handles the complex setup required for full node tests.
+//
+// Returns: sequencerClient, fullNodeClient for EVM connections
+func setupSequencerWithFullNode(t *testing.T, sut *SystemUnderTest, sequencerHome, fullNodeHome string) (*ethclient.Client, *ethclient.Client) {
+	t.Helper()
+
+	// Common setup for both sequencer and full node
+	jwtSecret, fullNodeJwtSecret, genesisHash := setupCommonEVMTest(t, sut, true)
+
+	// Setup sequencer
+	setupSequencerNode(t, sut, sequencerHome, jwtSecret, genesisHash)
+	t.Log("Sequencer node is up")
+
+	// Extract P2P ID and setup full node
+	p2pID := extractP2PID(t, sut)
+	t.Logf("Extracted P2P ID: %s", p2pID)
+
+	setupFullNode(t, sut, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, p2pID)
+	t.Log("Full node is up")
+
+	// Connect to both EVM instances
+	sequencerClient, err := ethclient.Dial(SequencerEthURL)
+	require.NoError(t, err, "Should be able to connect to sequencer EVM")
+
+	fullNodeClient, err := ethclient.Dial(FullNodeEthURL)
+	require.NoError(t, err, "Should be able to connect to full node EVM")
+
+	// Wait for P2P connections to establish
+	t.Log("Waiting for P2P connections to establish...")
+	require.Eventually(t, func() bool {
+		// Check if both nodes are responsive
+		seqHeader, seqErr := sequencerClient.HeaderByNumber(context.Background(), nil)
+		fnHeader, fnErr := fullNodeClient.HeaderByNumber(context.Background(), nil)
+
+		if seqErr != nil || fnErr != nil {
+			return false
+		}
+
+		// Both nodes should be responsive and at genesis or later
+		seqHeight := seqHeader.Number.Uint64()
+		fnHeight := fnHeader.Number.Uint64()
+
+		return seqHeight >= 0 && fnHeight >= 0 && (seqHeight == 0 || fnHeight+5 >= seqHeight)
+	}, DefaultTestTimeout, 500*time.Millisecond, "P2P connections should be established")
+
+	t.Log("P2P connections established")
+	return sequencerClient, fullNodeClient
 }
 
 // TestEvmSequencerWithFullNodeE2E tests the full node synchronization functionality
@@ -818,65 +306,10 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 	fullNodeHome := filepath.Join(workDir, "evm-full-node")
 	sut := NewSystemUnderTest(t)
 
-	// === SETUP PHASE ===
-
-	// Start local DA layer
-	localDABinary := "local-da"
-	if evmSingleBinaryPath != "evm-single" {
-		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
-	}
-	sut.ExecCmd(localDABinary)
-	t.Log("Started local DA")
-	time.Sleep(200 * time.Millisecond)
-
-	// Start EVM instances (sequencer and full node)
-	jwtSecret := setupTestRethEngineE2E(t)
-	fullNodeJwtSecret := setupTestRethEngineFullNode(t)
-	genesisHash := evm.GetGenesisHash(t)
-	t.Logf("Genesis hash: %s", genesisHash)
-
-	// === SEQUENCER SETUP ===
-
-	setupSequencerNode(t, sut, sequencerHome, jwtSecret, genesisHash)
-	t.Log("Sequencer node is up")
-
-	// === FULL NODE SETUP ===
-
-	p2pID := extractP2PID(t, sut)
-	t.Logf("Extracted P2P ID: %s", p2pID)
-
-	setupFullNode(t, sut, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, p2pID)
-	t.Log("Full node is up")
-
-	// Use require.Eventually to wait for nodes to establish sync instead of hardcoded sleep
-	sequencerClient, err := ethclient.Dial("http://localhost:8545")
-	require.NoError(t, err, "Should be able to connect to sequencer EVM")
+	// Setup both sequencer and full node
+	sequencerClient, fullNodeClient := setupSequencerWithFullNode(t, sut, sequencerHome, fullNodeHome)
 	defer sequencerClient.Close()
-
-	fullNodeClient, err := ethclient.Dial("http://localhost:8555")
-	require.NoError(t, err, "Should be able to connect to full node EVM")
 	defer fullNodeClient.Close()
-
-	// Wait for full node to establish sync with sequencer by checking if they can communicate
-	t.Log("Waiting for nodes to establish sync connection...")
-	require.Eventually(t, func() bool {
-		// Check if both nodes are responsive and at similar block heights
-		seqHeader, seqErr := sequencerClient.HeaderByNumber(context.Background(), nil)
-		fnHeader, fnErr := fullNodeClient.HeaderByNumber(context.Background(), nil)
-
-		if seqErr != nil || fnErr != nil {
-			return false
-		}
-
-		// Both nodes should be at least at genesis height and responding
-		seqHeight := seqHeader.Number.Uint64()
-		fnHeight := fnHeader.Number.Uint64()
-
-		// Both should be at least at genesis (height 0) and difference should be reasonable
-		return seqHeight >= 0 && fnHeight >= 0 && (seqHeight == 0 || fnHeight+5 >= seqHeight)
-	}, 30*time.Second, 500*time.Millisecond, "Nodes should establish sync connection")
-
-	t.Log("Nodes have established sync connection")
 
 	// === TESTING PHASE ===
 
@@ -951,7 +384,7 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 				return false
 			}
 			return header.Number.Uint64() >= seqHeight
-		}, 30*time.Second, 1*time.Second, "Full node should catch up to sequencer height")
+		}, DefaultTestTimeout, 1*time.Second, "Full node should catch up to sequencer height")
 
 		// Re-get the full node height after sync
 		fnHeader, err = fullNodeClient.HeaderByNumber(fnCtx, nil)
@@ -967,7 +400,7 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 	t.Logf("Checking state roots for blocks %d to %d", startHeight, endHeight)
 
 	for blockHeight := startHeight; blockHeight <= endHeight; blockHeight++ {
-		verifyStateRootsMatch(t, "http://localhost:8545", "http://localhost:8555", blockHeight)
+		verifyStateRootsMatch(t, SequencerEthURL, FullNodeEthURL, blockHeight)
 	}
 
 	// Special focus on the transaction blocks
@@ -975,7 +408,7 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 	for i, txBlockNumber := range txBlockNumbers {
 		if txBlockNumber >= startHeight && txBlockNumber <= endHeight {
 			t.Logf("Re-verifying state root for transaction %d block %d", i+1, txBlockNumber)
-			verifyStateRootsMatch(t, "http://localhost:8545", "http://localhost:8555", txBlockNumber)
+			verifyStateRootsMatch(t, SequencerEthURL, FullNodeEthURL, txBlockNumber)
 		}
 	}
 
@@ -1011,71 +444,10 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 	fullNodeHome := filepath.Join(workDir, "evm-full-node")
 	sut := NewSystemUnderTest(t)
 
-	// Reset global nonce for this test
-	globalNonce = 0
-
-	// === SETUP PHASE ===
-
-	// Start local DA layer
-	localDABinary := "local-da"
-	if evmSingleBinaryPath != "evm-single" {
-		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
-	}
-	sut.ExecCmd(localDABinary)
-	t.Log("Started local DA")
-	time.Sleep(200 * time.Millisecond)
-
-	// Start EVM instances for sequencer and full node
-	t.Log("Setting up EVM instances...")
-	jwtSecret := setupTestRethEngineE2E(t)              // Sequencer: 8545/8551
-	fullNodeJwtSecret := setupTestRethEngineFullNode(t) // Full Node: 8555/8561
-
-	genesisHash := evm.GetGenesisHash(t)
-	t.Logf("Genesis hash: %s", genesisHash)
-
-	// === SEQUENCER SETUP ===
-
-	t.Log("Setting up sequencer node...")
-	setupSequencerNode(t, sut, sequencerHome, jwtSecret, genesisHash)
-	t.Log("Sequencer node is up")
-
-	// === FULL NODE SETUP ===
-
-	p2pID := extractP2PID(t, sut)
-	t.Logf("Extracted P2P ID: %s", p2pID)
-
-	t.Log("Setting up full node...")
-	setupFullNode(t, sut, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, p2pID)
-	t.Log("Full node is up")
-
-	// Use require.Eventually to wait for P2P connections instead of hardcoded sleep
-	sequencerClient, err := ethclient.Dial("http://localhost:8545")
-	require.NoError(t, err, "Should be able to connect to sequencer EVM")
+	// Setup both sequencer and full node
+	sequencerClient, fullNodeClient := setupSequencerWithFullNode(t, sut, sequencerHome, fullNodeHome)
 	defer sequencerClient.Close()
-
-	fullNodeClient, err := ethclient.Dial("http://localhost:8555")
-	require.NoError(t, err, "Should be able to connect to full node EVM")
 	defer fullNodeClient.Close()
-
-	// Wait for P2P connections to establish by checking node responsiveness
-	t.Log("Waiting for P2P connections to establish...")
-	require.Eventually(t, func() bool {
-		// Check if both nodes are responsive
-		seqHeader, seqErr := sequencerClient.HeaderByNumber(context.Background(), nil)
-		fnHeader, fnErr := fullNodeClient.HeaderByNumber(context.Background(), nil)
-
-		if seqErr != nil || fnErr != nil {
-			return false
-		}
-
-		// Both nodes should be responsive and at genesis or later
-		seqHeight := seqHeader.Number.Uint64()
-		fnHeight := fnHeader.Number.Uint64()
-
-		return seqHeight >= 0 && fnHeight >= 0
-	}, 30*time.Second, 500*time.Millisecond, "P2P connections should be established")
-
-	t.Log("P2P connections established")
 
 	// === TESTING PHASE ===
 
@@ -1110,8 +482,8 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 	// === VERIFICATION PHASE ===
 
 	nodeURLs := []string{
-		"http://localhost:8545", // Sequencer
-		"http://localhost:8555", // Full Node
+		SequencerEthURL, // Sequencer
+		FullNodeEthURL,  // Full Node
 	}
 
 	nodeNames := []string{
@@ -1167,7 +539,7 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 		require.Eventually(t, func() bool {
 			receipt, err := fullNodeClient.TransactionReceipt(ctx, txHash)
 			return err == nil && receipt != nil && receipt.Status == 1 && receipt.BlockNumber.Uint64() == txBlockNumber
-		}, 30*time.Second, 1*time.Second, "Transaction %d should exist on full node in block %d", i+1, txBlockNumber)
+		}, DefaultTestTimeout, 1*time.Second, "Transaction %d should exist on full node in block %d", i+1, txBlockNumber)
 
 		t.Logf("✅ Transaction %d verified on full node (block %d)", i+1, txBlockNumber)
 	}
