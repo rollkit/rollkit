@@ -48,7 +48,7 @@ The sequencer can be configured using various command-line flags. The most impor
 - `--evm.genesis-hash`: Genesis hash of the EVM chain
 - `--rollkit.node.block_time`: Block time for the Rollkit node
 
-# Rollkit EVM Full Node
+## Rollkit EVM Full Node
 
 1. The sequencer must be running before starting any Full Node. You can run the EVM layer of the Full Node using `docker-compose -f docker-compose-full-node.yml` from <path_to>/execution/evm/docker.
 
@@ -58,7 +58,7 @@ The sequencer can be configured using various command-line flags. The most impor
     ```
 3. Copy the genesis file from the sequencer node:
     ```bash
-    cp ~/.evm-single/config/genesis.json ~/.evm-single-full/config/genesis.json 
+    cp ~/.evm-single/config/genesis.json ~/.evm-single-full-node/config/genesis.json 
     ```
 4. Identify the sequencer node's P2P address from its logs. It will look similar to:
     ```
