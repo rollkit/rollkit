@@ -28,8 +28,8 @@ import (
 func setupManagerForStoreRetrieveTest(t *testing.T) (
 	m *Manager,
 	mockStore *mocksStore.MockStore,
-	mockHeaderStore *extmocks.Store[*types.SignedHeader],
-	mockDataStore *extmocks.Store[*types.Data],
+	mockHeaderStore *extmocks.MockStore[*types.SignedHeader],
+	mockDataStore *extmocks.MockStore[*types.Data],
 	headerStoreCh chan struct{},
 	dataStoreCh chan struct{},
 	headerInCh chan NewHeaderEvent,
@@ -41,8 +41,8 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 
 	// Mocks
 	mockStore = mocksStore.NewMockStore(t)
-	mockHeaderStore = extmocks.NewStore[*types.SignedHeader](t)
-	mockDataStore = extmocks.NewStore[*types.Data](t)
+	mockHeaderStore = extmocks.NewMockStore[*types.SignedHeader](t)
+	mockDataStore = extmocks.NewMockStore[*types.Data](t)
 
 	// Channels (buffered to prevent deadlocks in simple test cases)
 	headerStoreCh = make(chan struct{}, 1)
