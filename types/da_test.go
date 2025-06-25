@@ -106,7 +106,7 @@ func TestSubmitWithHelpers(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := mocks.NewDA(t)
+			mockDA := mocks.NewMockDA(t)
 			mockDA.On("Submit", mock.Anything, tc.data, tc.options).Return(tc.submitIDs, tc.submitErr)
 
 			result := types.SubmitWithHelpers(context.Background(), mockDA, logger, tc.data, tc.options)
@@ -208,7 +208,7 @@ func TestRetrieveWithHelpers(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := mocks.NewDA(t)
+			mockDA := mocks.NewMockDA(t)
 
 			mockDA.On("GetIDs", mock.Anything, dataLayerHeight).Return(tc.getIDsResult, tc.getIDsErr)
 

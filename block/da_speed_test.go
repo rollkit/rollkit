@@ -89,9 +89,9 @@ func TestDASpeed(t *testing.T) {
 }
 
 // setupManagerForTest initializes a Manager with mocked dependencies for testing.
-func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.DA) {
-	mockDAClient := rollmocks.NewDA(t)
-	mockStore := rollmocks.NewStore(t)
+func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.MockDA) {
+	mockDAClient := rollmocks.NewMockDA(t)
+	mockStore := rollmocks.NewMockStore(t)
 	mockLogger := log.NewNopLogger()
 
 	headerStore, _ := goheaderstore.NewStore[*types.SignedHeader](ds.NewMapDatastore())

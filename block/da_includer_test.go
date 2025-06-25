@@ -20,8 +20,8 @@ import (
 
 // newTestManager creates a Manager with mocked Store and Executor for testing DAIncluder logic.
 func newTestManager(t *testing.T) (*Manager, *mocks.Store, *mocks.Executor, *MockLogger) {
-	store := mocks.NewStore(t)
-	exec := mocks.NewExecutor(t)
+	store := mocks.NewMockStore(t)
+	exec := mocks.NewMockExecutor(t)
 	logger := new(MockLogger)
 	logger.On("Debug", mock.Anything, mock.Anything).Maybe()
 	logger.On("Info", mock.Anything, mock.Anything).Maybe()
@@ -441,7 +441,6 @@ func TestIncrementDAIncludedHeight_WithMetricsRecorder(t *testing.T) {
 	// Set up mock sequencer with metrics
 	mockSequencer := new(MockSequencerWithMetrics)
 	m.sequencer = mockSequencer
-	m.gasPrice = 1.5 // Set a test gas price
 
 	// Mock the store calls needed for PendingHeaders initialization
 	// First, clear the existing Height mock from newTestManager

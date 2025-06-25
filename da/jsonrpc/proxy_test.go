@@ -248,7 +248,7 @@ func TestSubmitWithOptions(t *testing.T) {
 	testOptions := []byte("test_options")
 
 	// Helper function to create a client with a mocked internal API
-	createMockedClient := func(internalAPI *mocks.DA) *proxy.Client {
+	createMockedClient := func(internalAPI *mocks.MockDA) *proxy.Client {
 		client := &proxy.Client{}
 		client.DA.Namespace = testNamespace
 		client.DA.MaxBlobSize = testMaxBlobSize
@@ -261,7 +261,7 @@ func TestSubmitWithOptions(t *testing.T) {
 	}
 
 	t.Run("Happy Path - All blobs fit", func(t *testing.T) {
-		mockAPI := mocks.NewDA(t)
+		mockAPI := mocks.NewMockDA(t)
 		client := createMockedClient(mockAPI)
 
 		blobs := []coreda.Blob{[]byte("blob1"), []byte("blob2")}
@@ -277,7 +277,7 @@ func TestSubmitWithOptions(t *testing.T) {
 	})
 
 	t.Run("Single Blob Too Large", func(t *testing.T) {
-		mockAPI := mocks.NewDA(t)
+		mockAPI := mocks.NewMockDA(t)
 		client := createMockedClient(mockAPI)
 
 		largerBlob := make([]byte, testMaxBlobSize+1)
@@ -290,7 +290,7 @@ func TestSubmitWithOptions(t *testing.T) {
 	})
 
 	t.Run("Total Size Exceeded", func(t *testing.T) {
-		mockAPI := mocks.NewDA(t)
+		mockAPI := mocks.NewMockDA(t)
 		client := createMockedClient(mockAPI)
 
 		blobsizes := make([]byte, testMaxBlobSize/3)
@@ -310,7 +310,7 @@ func TestSubmitWithOptions(t *testing.T) {
 	})
 
 	t.Run("First Blob Too Large", func(t *testing.T) {
-		mockAPI := mocks.NewDA(t)
+		mockAPI := mocks.NewMockDA(t)
 		client := createMockedClient(mockAPI)
 
 		largerBlob := make([]byte, testMaxBlobSize+1)
@@ -327,7 +327,7 @@ func TestSubmitWithOptions(t *testing.T) {
 	})
 
 	t.Run("Empty Input Blobs", func(t *testing.T) {
-		mockAPI := mocks.NewDA(t)
+		mockAPI := mocks.NewMockDA(t)
 		client := createMockedClient(mockAPI)
 
 		var blobs []coreda.Blob
@@ -342,7 +342,7 @@ func TestSubmitWithOptions(t *testing.T) {
 	})
 
 	t.Run("Error During Submit RPC", func(t *testing.T) {
-		mockAPI := mocks.NewDA(t)
+		mockAPI := mocks.NewMockDA(t)
 		client := createMockedClient(mockAPI)
 
 		blobs := []coreda.Blob{[]byte("blob1")}
