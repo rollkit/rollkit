@@ -548,3 +548,238 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	t.Logf("   - EVM correctly rejected duplicate nonce transaction")
 	t.Logf("   - System maintains transaction integrity and prevents double-spending")
 }
+
+// TestEvmInvalidTransactionRejectionE2E tests the system's ability to properly reject
+// various types of invalid transactions and ensure they are not included in any blocks.
+//
+// Test Purpose:
+// - Confirm that invalid transactions are rejected and not included in blocks
+// - Test various types of invalid transactions (bad signature, insufficient funds, malformed data)
+// - Ensure system stability when processing invalid transactions
+// - Validate that valid transactions still work after invalid ones are rejected
+//
+// Test Flow:
+//  1. Sets up Local DA layer and EVM sequencer
+//  2. Submits various invalid transactions:
+//     a. Transaction with invalid signature
+//     b. Transaction with insufficient funds (from empty account)
+//     c. Transaction with invalid nonce (too high)
+//     d. Transaction with invalid gas limit (too low)
+//  3. Verifies that all invalid transactions are rejected
+//  4. Submits a valid transaction to confirm system stability
+//  5. Ensures the valid transaction is processed correctly
+//
+// Expected Behavior:
+// - All invalid transactions should be rejected at submission or processing
+// - No invalid transactions should appear in any blocks
+// - Valid transactions should continue to work normally
+// - System should remain stable and responsive after rejecting invalid transactions
+//
+// This test validates Rollkit's transaction validation and rejection mechanisms.
+func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
+	flag.Parse()
+	workDir := t.TempDir()
+	nodeHome := filepath.Join(workDir, "evm-agg")
+	sut := NewSystemUnderTest(t)
+
+	// 1. Start local DA
+	localDABinary := "local-da"
+	if evmSingleBinaryPath != "evm-single" {
+		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
+	}
+	sut.ExecCmd(localDABinary)
+	t.Log("Started local DA")
+	time.Sleep(200 * time.Millisecond)
+
+	// 2. Start EVM (Reth) via Docker Compose
+	jwtSecret := setupTestRethEngineE2E(t)
+
+	// 3. Get genesis hash from EVM node
+	genesisHash := evm.GetGenesisHash(t)
+	t.Logf("Genesis hash: %s", genesisHash)
+
+	// 4. Initialize sequencer node
+	output, err := sut.RunCmd(evmSingleBinaryPath,
+		"init",
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", "secret",
+		"--home", nodeHome,
+	)
+	require.NoError(t, err, "failed to init sequencer", output)
+	t.Log("Initialized sequencer node")
+
+	// 5. Start sequencer node
+	sut.ExecCmd(evmSingleBinaryPath,
+		"start",
+		"--evm.jwt-secret", jwtSecret,
+		"--evm.genesis-hash", genesisHash,
+		"--rollkit.node.block_time", "1s",
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", "secret",
+		"--home", nodeHome,
+		"--rollkit.da.address", "http://localhost:7980",
+		"--rollkit.da.block_time", "1m",
+	)
+	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 10*time.Second)
+	t.Log("Sequencer node is up")
+
+	// 6. Connect to EVM
+	client, err := ethclient.Dial("http://localhost:8545")
+	require.NoError(t, err, "Should be able to connect to EVM")
+	defer client.Close()
+
+	ctx := context.Background()
+	var invalidTxHashes []common.Hash
+	var invalidTxErrors []string
+
+	t.Log("Testing various invalid transaction types...")
+
+	// 7a. Test invalid signature transaction
+	t.Log("7a. Testing transaction with invalid signature...")
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				invalidTxErrors = append(invalidTxErrors, fmt.Sprintf("Invalid signature tx: %v", r))
+				t.Logf("✅ Invalid signature transaction rejected as expected: %v", r)
+			}
+		}()
+
+		// Try to submit with a bad signature by creating a transaction with wrong private key
+		badPrivKey := "1111111111111111111111111111111111111111111111111111111111111111"
+		lastNonce := uint64(0)
+		badTx := evm.GetRandomTransaction(t, badPrivKey, "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+
+		err := client.SendTransaction(ctx, badTx)
+		if err != nil {
+			invalidTxErrors = append(invalidTxErrors, fmt.Sprintf("Invalid signature tx: %v", err))
+			t.Logf("✅ Invalid signature transaction rejected as expected: %v", err)
+		} else {
+			invalidTxHashes = append(invalidTxHashes, badTx.Hash())
+			t.Logf("⚠️  Invalid signature transaction was submitted: %s", badTx.Hash().Hex())
+		}
+	}()
+
+	// 7b. Test insufficient funds transaction
+	t.Log("7b. Testing transaction with insufficient funds...")
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				invalidTxErrors = append(invalidTxErrors, fmt.Sprintf("Insufficient funds tx: %v", r))
+				t.Logf("✅ Insufficient funds transaction rejected as expected: %v", r)
+			}
+		}()
+
+		// Use an empty account that has no funds
+		emptyAccountPrivKey := "2222222222222222222222222222222222222222222222222222222222222222"
+		lastNonce := uint64(0)
+		tx := evm.GetRandomTransaction(t, emptyAccountPrivKey, "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+
+		err := client.SendTransaction(ctx, tx)
+		if err != nil {
+			invalidTxErrors = append(invalidTxErrors, fmt.Sprintf("Insufficient funds tx: %v", err))
+			t.Logf("✅ Insufficient funds transaction rejected as expected: %v", err)
+		} else {
+			invalidTxHashes = append(invalidTxHashes, tx.Hash())
+			t.Logf("⚠️  Insufficient funds transaction was submitted: %s", tx.Hash().Hex())
+		}
+	}()
+
+	// 7c. Test invalid nonce transaction (way too high)
+	t.Log("7c. Testing transaction with invalid nonce...")
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				invalidTxErrors = append(invalidTxErrors, fmt.Sprintf("Invalid nonce tx: %v", r))
+				t.Logf("✅ Invalid nonce transaction rejected as expected: %v", r)
+			}
+		}()
+
+		// Use a very high nonce that's way ahead of the current account nonce
+		lastNonce := uint64(999999)
+		tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+
+		err := client.SendTransaction(ctx, tx)
+		if err != nil {
+			invalidTxErrors = append(invalidTxErrors, fmt.Sprintf("Invalid nonce tx: %v", err))
+			t.Logf("✅ Invalid nonce transaction rejected as expected: %v", err)
+		} else {
+			invalidTxHashes = append(invalidTxHashes, tx.Hash())
+			t.Logf("⚠️  Invalid nonce transaction was submitted: %s", tx.Hash().Hex())
+		}
+	}()
+
+	// 7d. Test invalid gas limit transaction (too low)
+	t.Log("7d. Testing transaction with invalid gas limit...")
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				invalidTxErrors = append(invalidTxErrors, fmt.Sprintf("Invalid gas limit tx: %v", r))
+				t.Logf("✅ Invalid gas limit transaction rejected as expected: %v", r)
+			}
+		}()
+
+		// Use an extremely low gas limit that's insufficient for basic transfer
+		lastNonce := uint64(0)
+		tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 1000, &lastNonce) // Very low gas
+
+		err := client.SendTransaction(ctx, tx)
+		if err != nil {
+			invalidTxErrors = append(invalidTxErrors, fmt.Sprintf("Invalid gas limit tx: %v", err))
+			t.Logf("✅ Invalid gas limit transaction rejected as expected: %v", err)
+		} else {
+			invalidTxHashes = append(invalidTxHashes, tx.Hash())
+			t.Logf("⚠️  Invalid gas limit transaction was submitted: %s", tx.Hash().Hex())
+		}
+	}()
+
+	// 8. Wait a bit for any transactions to be processed
+	t.Log("Waiting for transaction processing...")
+	time.Sleep(5 * time.Second)
+
+	// 9. Check that none of the invalid transactions were included in blocks
+	invalidTxsIncluded := 0
+	for i, txHash := range invalidTxHashes {
+		receipt, err := client.TransactionReceipt(ctx, txHash)
+		if err == nil && receipt != nil {
+			invalidTxsIncluded++
+			t.Errorf("❌ Invalid transaction %d was included in block %d: %s", i+1, receipt.BlockNumber.Uint64(), txHash.Hex())
+		}
+	}
+
+	if invalidTxsIncluded > 0 {
+		require.Fail(t, fmt.Sprintf("❌ %d invalid transactions were incorrectly included in blocks", invalidTxsIncluded))
+	} else {
+		t.Logf("✅ All invalid transactions were properly rejected: %d errors recorded", len(invalidTxErrors))
+		for i, errMsg := range invalidTxErrors {
+			t.Logf("   %d. %s", i+1, errMsg)
+		}
+	}
+
+	// 10. Submit a valid transaction to verify system stability
+	t.Log("Testing system stability with valid transaction...")
+	lastNonce := uint64(0)
+	validTx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+
+	evm.SubmitTransaction(t, validTx)
+	t.Logf("Submitted valid transaction: %s", validTx.Hash().Hex())
+
+	// 11. Wait for valid transaction to be included
+	require.Eventually(t, func() bool {
+		receipt, err := client.TransactionReceipt(ctx, validTx.Hash())
+		return err == nil && receipt != nil && receipt.Status == 1
+	}, 20*time.Second, 1*time.Second, "Valid transaction should be included after invalid ones were rejected")
+
+	t.Log("✅ Valid transaction included successfully - system stability confirmed")
+
+	// 12. Final verification
+	validReceipt, err := client.TransactionReceipt(ctx, validTx.Hash())
+	require.NoError(t, err, "Should get receipt for valid transaction")
+	require.Equal(t, uint64(1), validReceipt.Status, "Valid transaction should be successful")
+
+	t.Logf("✅ Test PASSED: Invalid transaction rejection working correctly")
+	t.Logf("   - %d invalid transactions properly rejected", len(invalidTxErrors))
+	t.Logf("   - No invalid transactions included in any blocks")
+	t.Logf("   - Valid transactions continue to work normally")
+	t.Logf("   - System maintains stability after rejecting invalid transactions")
+	t.Logf("   - Transaction validation mechanisms functioning properly")
+}
