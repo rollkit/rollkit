@@ -56,8 +56,8 @@ func (s *FullNodeTestSuite) SetupTest() {
 	config := getTestConfig(s.T(), 1)
 
 	// Add debug logging for configuration
-	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingHeaders=%d",
-		config.Node.BlockTime.Duration, config.DA.BlockTime.Duration, config.Node.MaxPendingHeaders)
+	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingHeadersAndData=%d",
+		config.Node.BlockTime.Duration, config.DA.BlockTime.Duration, config.Node.MaxPendingHeadersAndData)
 
 	node, cleanup := createNodeWithCleanup(s.T(), config)
 	s.T().Cleanup(func() {
@@ -257,17 +257,16 @@ func TestStateRecovery(t *testing.T) {
 	require.GreaterOrEqual(recoveredHeight, originalHeight)
 }
 
-// TestMaxPendingHeaders verifies that the sequencer will stop producing blocks when the maximum number of pending headers is reached.
+// TestMaxPendingHeadersAndData verifies that the sequencer will stop producing blocks when the maximum number of pending headers or data is reached.
 // It reconfigures the node with a low max pending value, waits for block production, and checks the pending block count.
-func TestMaxPendingHeaders(t *testing.T) {
+func TestMaxPendingHeadersAndData(t *testing.T) {
 	require := require.New(t)
-
 	// Reconfigure node with low max pending
 	config := getTestConfig(t, 1)
-	config.Node.MaxPendingHeaders = 2
+	config.Node.MaxPendingHeadersAndData = 2
 
 	// Set DA block time large enough to avoid header submission to DA layer
-	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 20 * time.Second}
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 100 * time.Second}
 
 	node, cleanup := createNodeWithCleanup(t, config)
 	defer cleanup()
@@ -279,13 +278,13 @@ func TestMaxPendingHeaders(t *testing.T) {
 	startNodeInBackground(t, []*FullNode{node}, []context.Context{ctx}, &runningWg, 0)
 
 	// Wait blocks to be produced up to max pending
-	numExtraHeaders := uint64(5)
-	time.Sleep(time.Duration(config.Node.MaxPendingHeaders+numExtraHeaders) * config.Node.BlockTime.Duration)
+	numExtraBlocks := uint64(5)
+	time.Sleep(time.Duration(config.Node.MaxPendingHeadersAndData+numExtraBlocks) * config.Node.BlockTime.Duration)
 
-	// Verify that number of pending blocks doesn't exceed max
+	// Verify that the node is not producing blocks beyond the max pending limit
 	height, err := getNodeHeight(node, Store)
 	require.NoError(err)
-	require.LessOrEqual(height, config.Node.MaxPendingHeaders)
+	require.LessOrEqual(height, config.Node.MaxPendingHeadersAndData)
 
 	// Stop the node and wait for shutdown
 	shutdownAndWait(t, []context.CancelFunc{cancel}, &runningWg, 5*time.Second)

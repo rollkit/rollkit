@@ -11,9 +11,6 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 )
 
-// TODO: remove this after we modify the da interfaces
-var NameSpacePlaceholder = []byte("placeholder")
-
 // SubmitWithHelpers performs blob submission using the underlying DA layer,
 // handling error mapping to produce a ResultSubmit.
 // It assumes blob size filtering is handled within the DA implementation's SubmitWithOptions.
@@ -25,9 +22,9 @@ func SubmitWithHelpers(
 	data [][]byte,
 	options []byte,
 ) coreda.ResultSubmit { // Return core ResultSubmit type
-	ids, err := da.SubmitWithOptions(ctx, data, options)
+	ids, err := da.Submit(ctx, data, options)
 
-	// Handle errors returned by SubmitWithOptions
+	// Handle errors returned by Submit
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			logger.Debug("DA submission canceled via helper due to context cancellation")
@@ -59,6 +56,7 @@ func SubmitWithHelpers(
 				Message:        "failed to submit blobs: " + err.Error(),
 				IDs:            ids,
 				SubmittedCount: uint64(len(ids)),
+				Height:         0,
 			},
 		}
 	}
@@ -73,13 +71,22 @@ func SubmitWithHelpers(
 		}
 	}
 
+	// Get height from the first ID
+	var height uint64
+	if len(ids) > 0 {
+		height, _, err = coreda.SplitID(ids[0])
+		if err != nil {
+			logger.Error("failed to split ID", "error", err)
+		}
+	}
+
 	logger.Debug("DA submission successful via helper", "num_ids", len(ids))
 	return coreda.ResultSubmit{
 		BaseResult: coreda.BaseResult{
 			Code:           coreda.StatusSuccess,
 			IDs:            ids,
 			SubmittedCount: uint64(len(ids)),
-			Height:         0,
+			Height:         height,
 			BlobSize:       0,
 		},
 	}
@@ -96,7 +103,7 @@ func RetrieveWithHelpers(
 ) coreda.ResultRetrieve {
 
 	// 1. Get IDs
-	idsResult, err := da.GetIDs(ctx, dataLayerHeight, NameSpacePlaceholder)
+	idsResult, err := da.GetIDs(ctx, dataLayerHeight)
 	if err != nil {
 		// Handle specific "not found" error
 		if strings.Contains(err.Error(), coreda.ErrBlobNotFound.Error()) {
@@ -143,7 +150,7 @@ func RetrieveWithHelpers(
 	}
 
 	// 2. Get Blobs using the retrieved IDs
-	blobs, err := da.Get(ctx, idsResult.IDs, []byte("placeholder"))
+	blobs, err := da.Get(ctx, idsResult.IDs)
 	if err != nil {
 		// Handle errors during Get
 		logger.Error("Retrieve helper: Failed to get blobs", "height", dataLayerHeight, "num_ids", len(idsResult.IDs), "error", err)

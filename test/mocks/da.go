@@ -3,8 +3,9 @@
 package mocks
 
 import (
-	da "github.com/rollkit/rollkit/core/da"
 	context "context"
+
+	da "github.com/rollkit/rollkit/core/da"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -14,9 +15,9 @@ type DA struct {
 	mock.Mock
 }
 
-// Commit provides a mock function with given fields: ctx, blobs, namespace
-func (_m *DA) Commit(ctx context.Context, blobs [][]byte, namespace []byte) ([][]byte, error) {
-	ret := _m.Called(ctx, blobs, namespace)
+// Commit provides a mock function with given fields: ctx, blobs
+func (_m *DA) Commit(ctx context.Context, blobs [][]byte) ([][]byte, error) {
+	ret := _m.Called(ctx, blobs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Commit")
@@ -24,19 +25,19 @@ func (_m *DA) Commit(ctx context.Context, blobs [][]byte, namespace []byte) ([][
 
 	var r0 [][]byte
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, []byte) ([][]byte, error)); ok {
-		return rf(ctx, blobs, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) ([][]byte, error)); ok {
+		return rf(ctx, blobs)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, []byte) [][]byte); ok {
-		r0 = rf(ctx, blobs, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) [][]byte); ok {
+		r0 = rf(ctx, blobs)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([][]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, []byte) error); ok {
-		r1 = rf(ctx, blobs, namespace)
+	if rf, ok := ret.Get(1).(func(context.Context, [][]byte) error); ok {
+		r1 = rf(ctx, blobs)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -54,19 +55,19 @@ func (_m *DA) Get(ctx context.Context, ids [][]byte, namespace []byte) ([][]byte
 
 	var r0 [][]byte
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, []byte) ([][]byte, error)); ok {
-		return rf(ctx, ids, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) ([][]byte, error)); ok {
+		return rf(ctx, ids)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, []byte) [][]byte); ok {
-		r0 = rf(ctx, ids, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) [][]byte); ok {
+		r0 = rf(ctx, ids)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([][]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, []byte) error); ok {
-		r1 = rf(ctx, ids, namespace)
+	if rf, ok := ret.Get(1).(func(context.Context, [][]byte) error); ok {
+		r1 = rf(ctx, ids)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -74,9 +75,9 @@ func (_m *DA) Get(ctx context.Context, ids [][]byte, namespace []byte) ([][]byte
 	return r0, r1
 }
 
-// GetIDs provides a mock function with given fields: ctx, height, namespace
-func (_m *DA) GetIDs(ctx context.Context, height uint64, namespace []byte) (*da.GetIDsResult, error) {
-	ret := _m.Called(ctx, height, namespace)
+// GetIDs provides a mock function with given fields: ctx, height
+func (_m *DA) GetIDs(ctx context.Context, height uint64) (*da.GetIDsResult, error) {
+	ret := _m.Called(ctx, height)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetIDs")
@@ -84,19 +85,19 @@ func (_m *DA) GetIDs(ctx context.Context, height uint64, namespace []byte) (*da.
 
 	var r0 *da.GetIDsResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte) (*da.GetIDsResult, error)); ok {
-		return rf(ctx, height, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*da.GetIDsResult, error)); ok {
+		return rf(ctx, height)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte) *da.GetIDsResult); ok {
-		r0 = rf(ctx, height, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) *da.GetIDsResult); ok {
+		r0 = rf(ctx, height)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*da.GetIDsResult)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, []byte) error); ok {
-		r1 = rf(ctx, height, namespace)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+		r1 = rf(ctx, height)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -104,9 +105,9 @@ func (_m *DA) GetIDs(ctx context.Context, height uint64, namespace []byte) (*da.
 	return r0, r1
 }
 
-// GetProofs provides a mock function with given fields: ctx, ids, namespace
-func (_m *DA) GetProofs(ctx context.Context, ids [][]byte, namespace []byte) ([][]byte, error) {
-	ret := _m.Called(ctx, ids, namespace)
+// GetProofs provides a mock function with given fields: ctx, ids
+func (_m *DA) GetProofs(ctx context.Context, ids [][]byte) ([][]byte, error) {
+	ret := _m.Called(ctx, ids)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetProofs")
@@ -114,19 +115,19 @@ func (_m *DA) GetProofs(ctx context.Context, ids [][]byte, namespace []byte) ([]
 
 	var r0 [][]byte
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, []byte) ([][]byte, error)); ok {
-		return rf(ctx, ids, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) ([][]byte, error)); ok {
+		return rf(ctx, ids)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, []byte) [][]byte); ok {
-		r0 = rf(ctx, ids, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) [][]byte); ok {
+		r0 = rf(ctx, ids)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([][]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, []byte) error); ok {
-		r1 = rf(ctx, ids, namespace)
+	if rf, ok := ret.Get(1).(func(context.Context, [][]byte) error); ok {
+		r1 = rf(ctx, ids)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -204,19 +205,19 @@ func (_m *DA) Validate(ctx context.Context, ids [][]byte, proofs [][]byte, names
 
 	var r0 []bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, [][]byte, []byte) ([]bool, error)); ok {
-		return rf(ctx, ids, proofs, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, [][]byte) ([]bool, error)); ok {
+		return rf(ctx, ids, proofs)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, [][]byte, []byte) []bool); ok {
-		r0 = rf(ctx, ids, proofs, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, [][]byte) []bool); ok {
+		r0 = rf(ctx, ids, proofs)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]bool)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, [][]byte, []byte) error); ok {
-		r1 = rf(ctx, ids, proofs, namespace)
+	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, [][]byte) error); ok {
+		r1 = rf(ctx, ids, proofs)
 	} else {
 		r1 = ret.Error(1)
 	}

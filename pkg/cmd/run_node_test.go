@@ -69,10 +69,9 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.node.lazy_mode",
 		"--rollkit.node.lazy_block_interval", "2m",
 		"--rollkit.node.light",
-		"--rollkit.node.max_pending_headers", "100",
+		"--rollkit.node.max_pending_headers_and_data", "100",
 		"--rollkit.node.trusted_hash", "abcdef1234567890",
 		"--rollkit.da.submit_options", "custom-options",
-
 		// Instrumentation flags
 		"--rollkit.instrumentation.prometheus", "true",
 		"--rollkit.instrumentation.prometheus_listen_addr", ":26665",
@@ -124,10 +123,9 @@ func TestParseFlags(t *testing.T) {
 		{"LazyAggregator", nodeConfig.Node.LazyMode, true},
 		{"LazyBlockTime", nodeConfig.Node.LazyBlockInterval.Duration, 2 * time.Minute},
 		{"Light", nodeConfig.Node.Light, true},
-		{"MaxPendingHeaders", nodeConfig.Node.MaxPendingHeaders, uint64(100)},
+		{"MaxPendingHeadersAndData", nodeConfig.Node.MaxPendingHeadersAndData, uint64(100)},
 		{"TrustedHash", nodeConfig.Node.TrustedHash, "abcdef1234567890"},
 		{"DASubmitOptions", nodeConfig.DA.SubmitOptions, "custom-options"},
-
 		{"Prometheus", nodeConfig.Instrumentation.Prometheus, true},
 		{"PrometheusListenAddr", nodeConfig.Instrumentation.PrometheusListenAddr, ":26665"},
 		{"MaxOpenConnections", nodeConfig.Instrumentation.MaxOpenConnections, 1},

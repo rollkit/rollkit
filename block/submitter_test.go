@@ -2,6 +2,8 @@ package block
 
 import (
 	"context"
+	"encoding/binary"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,16 +12,19 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	coreda "github.com/rollkit/rollkit/core/da"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
+
+const numItemsToSubmit = 3
 
 // newTestManagerWithDA creates a Manager instance with a mocked DA layer for testing.
 func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
@@ -31,176 +36,6 @@ func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
 	testSigner, err := noop.NewNoopSigner(privKey)
 	require.NoError(t, err)
 
-	return &Manager{
-		da:          da,
-		logger:      logger,
-		config:      nodeConf,
-		headerCache: cache.NewCache[types.SignedHeader](),
-		dataCache:   cache.NewCache[types.Data](),
-		signer:      testSigner,
-	}
-}
-
-// TestSubmitDataToDA_Success verifies that submitDataToDA succeeds when the DA layer accepts the data.
-func TestSubmitDataToDA_Success(t *testing.T) {
-	da := &mocks.DA{}
-	m := newTestManagerWithDA(t, da)
-
-	// Simulate DA success
-	da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return([]coreda.ID{[]byte("id")}, nil)
-
-	pubKey, err := m.signer.GetPublic()
-	require.NoError(t, err)
-	addr, err := m.signer.GetAddress()
-	require.NoError(t, err)
-
-	transactions := [][]byte{[]byte("tx1"), []byte("tx2")}
-
-	signedData := types.SignedData{
-		Data: types.Data{
-			Txs: make(types.Txs, len(transactions)),
-		},
-		Signer: types.Signer{
-			Address: addr,
-			PubKey:  pubKey,
-		},
-	}
-
-	for i, tx := range transactions {
-		signedData.Txs[i] = types.Tx(tx)
-	}
-
-	signature, err := m.getDataSignature(&signedData.Data)
-	require.NoError(t, err)
-	signedData.Signature = signature
-
-	err = m.submitDataToDA(context.Background(), &signedData)
-	assert.NoError(t, err)
-}
-
-// TestSubmitDataToDA_Failure verifies that submitDataToDA returns an error for various DA failures.
-func TestSubmitDataToDA_Failure(t *testing.T) {
-	da := &mocks.DA{}
-	m := newTestManagerWithDA(t, da)
-
-	// Table-driven test for different DA error scenarios
-	testCases := []struct {
-		name    string
-		daError error
-	}{
-		{"AlreadyInMempool", coreda.ErrTxAlreadyInMempool},
-		{"TimedOut", coreda.ErrTxTimedOut},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Reset mock expectations for each error scenario
-			var gasPriceHistory []float64
-			da.ExpectedCalls = nil
-			da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
-			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Run(func(args mock.Arguments) { gasPriceHistory = append(gasPriceHistory, args.Get(2).(float64)) }). //save the gas price to verify it later
-				Return(nil, tc.daError)
-
-			pubKey, err := m.signer.GetPublic()
-			require.NoError(t, err)
-			addr, err := m.signer.GetAddress()
-			require.NoError(t, err)
-
-			transactions := [][]byte{[]byte("tx1"), []byte("tx2")}
-
-			signedData := types.SignedData{
-				Data: types.Data{
-					Txs: make(types.Txs, len(transactions)),
-				},
-				Signer: types.Signer{
-					Address: addr,
-					PubKey:  pubKey,
-				},
-			}
-
-			signedData.Txs = make(types.Txs, len(transactions))
-			for i, tx := range transactions {
-				signedData.Txs[i] = types.Tx(tx)
-			}
-
-			signature, err := m.getDataSignature(&signedData.Data)
-			require.NoError(t, err)
-			signedData.Signature = signature
-
-			// Expect an error from submitDataToDA
-			err = m.submitDataToDA(context.Background(), &signedData)
-			assert.Error(t, err, "expected error")
-
-		})
-	}
-}
-
-func TestSubmitHeadersToDA_Success(t *testing.T) {
-	da := &mocks.DA{}
-	m := newTestManagerWithDA(t, da)
-	// Prepare a mock PendingHeaders with test data
-	m.pendingHeaders = newPendingBlocks(t)
-
-	// Fill the pending headers with mock block data
-	fillWithBlockData(context.Background(), t, m.pendingHeaders, "Test Submitting Headers")
-
-	// Simulate DA layer successfully accepting the header submission
-	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return([]coreda.ID{[]byte("id")}, nil)
-
-	// Call submitHeadersToDA and expect no error
-	err := m.submitHeadersToDA(context.Background())
-	assert.NoError(t, err)
-}
-
-// TestSubmitHeadersToDA_Failure verifies that submitHeadersToDA returns an error for various DA failures.
-func TestSubmitHeadersToDA_Failure(t *testing.T) {
-	da := &mocks.DA{}
-	m := newTestManagerWithDA(t, da)
-	// Prepare a mock PendingHeaders with test data
-	m.pendingHeaders = newPendingBlocks(t)
-
-	// Table-driven test for different DA error scenarios
-	testCases := []struct {
-		name    string
-		daError error
-	}{
-		{"AlreadyInMempool", coreda.ErrTxAlreadyInMempool},
-		{"TimedOut", coreda.ErrTxTimedOut},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Fill the pending headers with mock block data for each subtest
-			fillWithBlockData(context.Background(), t, m.pendingHeaders, "Test Submitting Headers")
-			// Reset mock expectations for each error scenario
-			da.ExpectedCalls = nil
-			// Simulate DA layer returning a specific error
-			var gasPriceHistory []float64
-			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Run(func(args mock.Arguments) { gasPriceHistory = append(gasPriceHistory, args.Get(2).(float64)) }). //save the gas price to verify it later
-				Return(nil, tc.daError)
-
-			// Call submitHeadersToDA and expect an error
-			err := m.submitHeadersToDA(context.Background())
-			assert.Error(t, err, "expected error for DA error: %v", tc.daError)
-			assert.Contains(t, err.Error(), "failed to submit all headers to DA layer")
-
-			// Validate that gas price increased according to gas multiplier
-		})
-	}
-}
-
-// TestCreateSignedDataFromBatch tests createSignedDataFromBatch for normal, empty, and error cases.
-func TestCreateSignedDataFromBatch(t *testing.T) {
-	// Setup: create a Manager with a valid signer and genesis proposer address
-	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
-	require.NoError(t, err)
-	testSigner, err := noop.NewNoopSigner(privKey)
-	require.NoError(t, err)
 	proposerAddr, err := testSigner.GetAddress()
 	require.NoError(t, err)
 	gen := genesis.NewGenesis(
@@ -209,43 +44,330 @@ func TestCreateSignedDataFromBatch(t *testing.T) {
 		time.Now(),
 		proposerAddr,
 	)
-	m := &Manager{
-		signer:  testSigner,
-		genesis: gen,
+
+	return &Manager{
+		da:             da,
+		logger:         logger,
+		config:         nodeConf,
+		gasPrice:       1.0,
+		gasMultiplier:  2.0,
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		signer:         testSigner,
+		genesis:        gen,
+		pendingData:    newPendingData(t),
+		pendingHeaders: newPendingHeaders(t),
+	}
+}
+
+// --- Generic success test for data and headers submission ---
+type submitToDASuccessCase[T any] struct {
+	name        string
+	fillPending func(ctx context.Context, t *testing.T, m *Manager)
+	getToSubmit func(m *Manager, ctx context.Context) ([]T, error)
+	submitToDA  func(m *Manager, ctx context.Context, items []T) error
+	mockDASetup func(da *mocks.DA)
+}
+
+func runSubmitToDASuccessCase[T any](t *testing.T, tc submitToDASuccessCase[T]) {
+	da := &mocks.DA{}
+	m := newTestManagerWithDA(t, da)
+
+	ctx := t.Context()
+	tc.fillPending(ctx, t, m)
+	tc.mockDASetup(da)
+
+	items, err := tc.getToSubmit(m, ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, items)
+
+	err = tc.submitToDA(m, ctx, items)
+	assert.NoError(t, err)
+}
+
+func TestSubmitDataToDA_Success(t *testing.T) {
+	runSubmitToDASuccessCase(t, submitToDASuccessCase[*types.SignedData]{
+		name: "Data",
+		fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
+			fillPendingData(ctx, t, m.pendingData, "Test Submitting Data", numItemsToSubmit)
+		},
+		getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedData, error) {
+			return m.createSignedDataToSubmit(ctx)
+		},
+		submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedData) error {
+			return m.submitDataToDA(ctx, items)
+		},
+		mockDASetup: func(da *mocks.DA) {
+			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Return([]coreda.ID{getDummyID(1, []byte("commitment"))}, nil)
+		},
+	})
+}
+
+func TestSubmitHeadersToDA_Success(t *testing.T) {
+	runSubmitToDASuccessCase(t, submitToDASuccessCase[*types.SignedHeader]{
+		name: "Headers",
+		fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
+			fillPendingHeaders(ctx, t, m.pendingHeaders, "Test Submitting Headers", numItemsToSubmit)
+		},
+		getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedHeader, error) {
+			return m.pendingHeaders.getPendingHeaders(ctx)
+		},
+		submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedHeader) error {
+			return m.submitHeadersToDA(ctx, items)
+		},
+		mockDASetup: func(da *mocks.DA) {
+			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Return([]coreda.ID{getDummyID(1, []byte("commitment"))}, nil)
+		},
+	})
+}
+
+// --- Generic failure test for data and headers submission ---
+type submitToDAFailureCase[T any] struct {
+	name        string
+	fillPending func(ctx context.Context, t *testing.T, m *Manager)
+	getToSubmit func(m *Manager, ctx context.Context) ([]T, error)
+	submitToDA  func(m *Manager, ctx context.Context, items []T) error
+	daError     error
+}
+
+func runSubmitToDAFailureCase[T any](t *testing.T, tc submitToDAFailureCase[T]) {
+	da := &mocks.DA{}
+	m := newTestManagerWithDA(t, da)
+
+	ctx := t.Context()
+	tc.fillPending(ctx, t, m)
+
+	// Set up the DA mock to return the expected error
+	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, tc.daError).Times(maxSubmitAttempts)
+
+	items, err := tc.getToSubmit(m, ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, items)
+
+	err = tc.submitToDA(m, ctx, items)
+	assert.Error(t, err)
+}
+
+func TestSubmitDataToDA_Failure(t *testing.T) {
+	testCases := []struct {
+		name    string
+		daError error
+	}{
+		{"AlreadyInMempool", coreda.ErrTxAlreadyInMempool},
+		{"TimedOut", coreda.ErrTxTimedOut},
 	}
 
-	t.Run("normal batch", func(t *testing.T) {
-		batch := &coresequencer.Batch{
-			Transactions: [][]byte{[]byte("tx1"), []byte("tx2")},
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			runSubmitToDAFailureCase(t, submitToDAFailureCase[*types.SignedData]{
+				name: tc.name,
+				fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
+					fillPendingData(ctx, t, m.pendingData, "Test Submitting Data", numItemsToSubmit)
+				},
+				getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedData, error) {
+					return m.createSignedDataToSubmit(ctx)
+				},
+				submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedData) error {
+					return m.submitDataToDA(ctx, items)
+				},
+				daError: tc.daError,
+			})
+		})
+	}
+}
+
+func TestSubmitHeadersToDA_Failure(t *testing.T) {
+	testCases := []struct {
+		name    string
+		daError error
+	}{
+		{"AlreadyInMempool", coreda.ErrTxAlreadyInMempool},
+		{"TimedOut", coreda.ErrTxTimedOut},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			runSubmitToDAFailureCase(t, submitToDAFailureCase[*types.SignedHeader]{
+				name: tc.name,
+				fillPending: func(ctx context.Context, t *testing.T, m *Manager) {
+					fillPendingHeaders(ctx, t, m.pendingHeaders, "Test Submitting Headers", numItemsToSubmit)
+				},
+				getToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedHeader, error) {
+					return m.pendingHeaders.getPendingHeaders(ctx)
+				},
+				submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedHeader) error {
+					return m.submitHeadersToDA(ctx, items)
+				},
+				daError: tc.daError,
+			})
+		})
+	}
+}
+
+// TestCreateSignedDataToSubmit tests createSignedDataToSubmit for normal, empty, and error cases.
+func TestCreateSignedDataToSubmit(t *testing.T) {
+	// Setup: create a Manager with a valid signer and genesis proposer address
+	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(t, err)
+	testSigner, err := noop.NewNoopSigner(privKey)
+	require.NoError(t, err)
+	proposerAddr, err := testSigner.GetAddress()
+	require.NoError(t, err)
+
+	gen := genesis.NewGenesis("testchain", 1, time.Now(), proposerAddr)
+
+	t.Run("Normal Case", func(t *testing.T) {
+		m := &Manager{
+			signer:      testSigner,
+			genesis:     gen,
+			pendingData: newPendingData(t),
 		}
-		signedData, err := m.createSignedDataFromBatch(batch)
+
+		// Create a batch with transactions
+		batch := types.Data{
+			Height: 1,
+			Txs:    []types.Tx{[]byte("tx1"), []byte("tx2")},
+		}
+		lastSubmitted := uint64(0)
+		err := m.pendingData.storePendingData(context.Background(), &batch, lastSubmitted)
 		require.NoError(t, err)
-		assert.Equal(t, 2, len(signedData.Txs))
-		assert.Equal(t, types.Tx("tx1"), signedData.Txs[0])
-		assert.Equal(t, types.Tx("tx2"), signedData.Txs[1])
-		assert.Equal(t, pubKey, signedData.Signer.PubKey)
-		assert.Equal(t, proposerAddr, signedData.Signer.Address)
-		assert.NotEmpty(t, signedData.Signature)
+
+		signedData, err := m.createSignedDataToSubmit(context.Background())
+		assert.NoError(t, err)
+		assert.NotNil(t, signedData)
+		assert.Len(t, signedData, 1)
+		assert.Equal(t, pubKey, signedData[0].Signer.PubKey)
+		assert.Equal(t, proposerAddr, signedData[0].Signer.Address)
+		assert.NotNil(t, signedData[0].Signature)
 	})
 
-	t.Run("empty batch", func(t *testing.T) {
-		batch := &coresequencer.Batch{
-			Transactions: [][]byte{},
+	t.Run("Empty Batch", func(t *testing.T) {
+		m := &Manager{
+			signer:      testSigner,
+			genesis:     gen,
+			pendingData: newPendingData(t),
 		}
-		signedData, err := m.createSignedDataFromBatch(batch)
+
+		// Create an empty batch
+		batch := types.Data{
+			Height: 2,
+			Txs:    []types.Tx{},
+		}
+		lastSubmitted := uint64(1)
+		err := m.pendingData.storePendingData(context.Background(), &batch, lastSubmitted)
+		require.NoError(t, err)
+
+		signedData, err := m.createSignedDataToSubmit(context.Background())
+		assert.NoError(t, err)
+		assert.Empty(t, signedData)
+	})
+
+	t.Run("Nil signer", func(t *testing.T) {
+		m := &Manager{
+			signer:      nil,
+			genesis:     gen,
+			pendingData: newPendingData(t),
+		}
+
+		// Create a batch with transactions
+		batch := types.Data{
+			Height: 1,
+			Txs:    []types.Tx{[]byte("tx1")},
+		}
+		lastSubmitted := uint64(0)
+		err := m.pendingData.storePendingData(context.Background(), &batch, lastSubmitted)
+		require.NoError(t, err)
+
+		signedData, err := m.createSignedDataToSubmit(context.Background())
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "signer is nil")
 		assert.Nil(t, signedData)
 	})
+}
 
-	t.Run("signer returns error", func(t *testing.T) {
-		badManager := &Manager{
-			signer:  nil, // nil signer will cause getDataSignature to fail
-			genesis: m.genesis,
+// Helper functions for testing
+
+func newPendingData(t *testing.T) *pendingBlocks {
+	db := store.New(ds.NewMapDatastore())
+	return &pendingBlocks{
+		daIncludedTxs: db.NewKVStore("pendingData"),
+		logger:        log.NewNopLogger(),
+	}
+}
+
+func newPendingHeaders(t *testing.T) *pendingBlocks {
+	db := store.New(ds.NewMapDatastore())
+	return &pendingBlocks{
+		daIncludedTxs: db.NewKVStore("pendingHeaders"),
+		logger:        log.NewNopLogger(),
+	}
+}
+
+func newPendingBlocks(t *testing.T) *pendingBlocks {
+	db := store.New(ds.NewMapDatastore())
+	return &pendingBlocks{
+		daIncludedTxs: db.NewKVStore("pendingBlocks"),
+		logger:        log.NewNopLogger(),
+	}
+}
+
+func fillPendingData(ctx context.Context, t *testing.T, pending *pendingBlocks, msgPrefix string, num int) {
+	for i := 0; i < num; i++ {
+		data := &types.Data{
+			Height: uint64(i + 1),
+			Txs:    []types.Tx{[]byte(fmt.Sprintf("%s %d", msgPrefix, i))},
 		}
-		batch := &coresequencer.Batch{
-			Transactions: [][]byte{[]byte("tx1")},
+		lastSubmitted := uint64(0)
+		if i > 0 {
+			lastSubmitted = uint64(i)
 		}
-		_, err := badManager.createSignedDataFromBatch(batch)
-		assert.Error(t, err)
-	})
+		err := pending.storePendingData(ctx, data, lastSubmitted)
+		require.NoError(t, err)
+	}
+}
+
+func fillPendingHeaders(ctx context.Context, t *testing.T, pending *pendingBlocks, msgPrefix string, num int) {
+	for i := 0; i < num; i++ {
+		header := createTestHeader(t, uint64(i+1), msgPrefix)
+		lastSubmitted := uint64(0)
+		if i > 0 {
+			lastSubmitted = uint64(i)
+		}
+		err := pending.storePendingBlock(ctx, header, lastSubmitted)
+		require.NoError(t, err)
+	}
+}
+
+func fillWithBlockData(ctx context.Context, t *testing.T, pending *pendingBlocks, msgPrefix string) {
+	fillPendingHeaders(ctx, t, pending, msgPrefix, numItemsToSubmit)
+}
+
+func createTestHeader(t *testing.T, height uint64, msgPrefix string) *types.SignedHeader {
+	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(t, err)
+	signer, err := noop.NewNoopSigner(privKey)
+	require.NoError(t, err)
+	
+	header := &types.Header{
+		Height: func() types.Height { return types.Height{RollappHeight: height} }(),
+		DataHash: []byte(fmt.Sprintf("%s data hash %d", msgPrefix, height)),
+	}
+	
+	sig, err := signer.Sign(header.Bytes())
+	require.NoError(t, err)
+	
+	return &types.SignedHeader{
+		Header:    header,
+		Signature: sig,
+	}
+}
+
+func getDummyID(num uint64, data []byte) coreda.ID {
+	id := make([]byte, 8+len(data))
+	binary.BigEndian.PutUint64(id[:8], num)
+	copy(id[8:], data)
+	return id
 }
