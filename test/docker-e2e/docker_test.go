@@ -1,3 +1,5 @@
+//go:build docker_e2e
+
 package docker_e2e
 
 import (

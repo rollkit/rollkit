@@ -52,8 +52,7 @@ func (s *DockerTestSuite) TestBasicDockerE2E() {
 
 		host := rollkitNode.GetHostName()
 
-		client, err := NewClient(host, "8080")
-		require.NoError(t, err)
+		client, err := NewClient(host, "8080/tcp")
 
 		key := "key1"
 		value := "value1"
