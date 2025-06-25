@@ -4,6 +4,7 @@ package mocks
 
 import (
 	context "context"
+	execution "github.com/rollkit/rollkit/core/execution"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -132,6 +133,24 @@ func (_m *Executor) SetFinal(ctx context.Context, blockHeight uint64) error {
 		r0 = rf(ctx, blockHeight)
 	} else {
 		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// GetExecutionMode provides a mock function with given fields: 
+func (_m *Executor) GetExecutionMode() execution.ExecutionMode {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExecutionMode")
+	}
+
+	var r0 execution.ExecutionMode
+	if rf, ok := ret.Get(0).(func() execution.ExecutionMode); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(execution.ExecutionMode)
 	}
 
 	return r0
