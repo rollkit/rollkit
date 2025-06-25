@@ -40,12 +40,8 @@ vet:
 	@go vet ./...
 .PHONY: vet
 
-## mock-gen: generate mocks of external (commetbft) types
+## mock-gen: generate mocks of types
 mock-gen:
 	@echo "-> Generating mocks"
-	mockery
+	go run github.com/vektra/mockery/v3@latest
 .PHONY: mock-gen
-
-mock-header:
-	mockery --output test/mocks --srcpkg github.com/celestiaorg/go-header --name Store --filename="external/hstore.go"
-.PHONY: mock-header

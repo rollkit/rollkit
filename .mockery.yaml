@@ -38,4 +38,11 @@ packages:
         config:
           dir: ./test/mocks
           pkgname: mocks
-          filename: Store.go
+          filename: store.go
+  github.com/celestiaorg/go-header:
+    interfaces:
+      Store:
+        config:
+          dir: ./test/mocks
+          pkgname: mocks
+          filename: external/hstore.go
