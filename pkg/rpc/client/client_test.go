@@ -23,7 +23,7 @@ import (
 )
 
 // setupTestServer creates a test server with mock store and mock p2p manager
-func setupTestServer(t *testing.T, mockStore *mocks.Store, mockP2P *mocks.P2PRPC) (*httptest.Server, *Client) {
+func setupTestServer(t *testing.T, mockStore *mocks.MockStore, mockP2P *mocks.MockP2PRPC) (*httptest.Server, *Client) {
 	// Create a new HTTP test server
 	mux := http.NewServeMux()
 
@@ -50,8 +50,8 @@ func setupTestServer(t *testing.T, mockStore *mocks.Store, mockP2P *mocks.P2PRPC
 
 func TestClientGetState(t *testing.T) {
 	// Create mocks
-	mockStore := mocks.NewStore(t)
-	mockP2P := mocks.NewP2PRPC(t)
+	mockStore := mocks.NewMockStore(t)
+	mockP2P := mocks.NewMockP2PRPC(t)
 
 	// Create test data
 	state := types.State{
@@ -82,8 +82,8 @@ func TestClientGetState(t *testing.T) {
 
 func TestClientGetMetadata(t *testing.T) {
 	// Create mocks
-	mockStore := mocks.NewStore(t)
-	mockP2P := mocks.NewP2PRPC(t)
+	mockStore := mocks.NewMockStore(t)
+	mockP2P := mocks.NewMockP2PRPC(t)
 
 	// Create test data
 	key := "test_key"
@@ -107,8 +107,8 @@ func TestClientGetMetadata(t *testing.T) {
 
 func TestClientGetBlockByHeight(t *testing.T) {
 	// Create mocks
-	mockStore := mocks.NewStore(t)
-	mockP2P := mocks.NewP2PRPC(t)
+	mockStore := mocks.NewMockStore(t)
+	mockP2P := mocks.NewMockP2PRPC(t)
 
 	// Create test data
 	height := uint64(10)
@@ -133,8 +133,8 @@ func TestClientGetBlockByHeight(t *testing.T) {
 
 func TestClientGetBlockByHash(t *testing.T) {
 	// Create mocks
-	mockStore := mocks.NewStore(t)
-	mockP2P := mocks.NewP2PRPC(t)
+	mockStore := mocks.NewMockStore(t)
+	mockP2P := mocks.NewMockP2PRPC(t)
 
 	// Create test data
 	hash := []byte("block_hash")
@@ -159,8 +159,8 @@ func TestClientGetBlockByHash(t *testing.T) {
 
 func TestClientGetPeerInfo(t *testing.T) {
 	// Create mocks
-	mockStore := mocks.NewStore(t)
-	mockP2P := mocks.NewP2PRPC(t)
+	mockStore := mocks.NewMockStore(t)
+	mockP2P := mocks.NewMockP2PRPC(t)
 
 	addr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/8000")
 	require.NoError(t, err)
@@ -199,8 +199,8 @@ func TestClientGetPeerInfo(t *testing.T) {
 
 func TestClientGetNetInfo(t *testing.T) {
 	// Create mocks
-	mockStore := mocks.NewStore(t)
-	mockP2P := mocks.NewP2PRPC(t)
+	mockStore := mocks.NewMockStore(t)
+	mockP2P := mocks.NewMockP2PRPC(t)
 
 	// Create test data
 	netInfo := p2p.NetworkInfo{

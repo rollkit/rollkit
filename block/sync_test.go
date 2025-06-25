@@ -26,8 +26,8 @@ import (
 // setupManagerForSyncLoopTest initializes a Manager instance suitable for SyncLoop testing.
 func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 	*Manager,
-	*mocks.Store,
-	*mocks.Executor,
+	*mocks.MockStore,
+	*mocks.MockExecutor,
 	context.Context,
 	context.CancelFunc,
 	chan NewHeaderEvent,
@@ -36,8 +36,8 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 ) {
 	t.Helper()
 
-	mockStore := mocks.NewStore(t)
-	mockExec := mocks.NewExecutor(t)
+	mockStore := mocks.NewMockStore(t)
+	mockExec := mocks.NewMockExecutor(t)
 
 	headerInCh := make(chan NewHeaderEvent, 10)
 	dataInCh := make(chan NewDataEvent, 10)
@@ -731,7 +731,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock store and data cache
-	store := mocks.NewStore(t)
+	store := mocks.NewMockStore(t)
 	dataCache := cache.NewCache[types.Data]()
 
 	// Setup the manager with the mock and data cache
@@ -801,7 +801,7 @@ func TestSyncLoop_MultipleHeadersArriveFirst_ThenData(t *testing.T) {
 	require.NoError(err)
 	store := store.New(kv)
 
-	mockExec := mocks.NewExecutor(t)
+	mockExec := mocks.NewMockExecutor(t)
 
 	headerInCh := make(chan NewHeaderEvent, 5)
 	dataInCh := make(chan NewDataEvent, 5)

@@ -239,7 +239,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	proofs := [][]byte{[]byte("proof1"), []byte("proof2")}
 
 	t.Run("Proposer Mode", func(t *testing.T) {
-		mockDA := damocks.NewDA(t)
+		mockDA := damocks.NewMockDA(t)
 
 		seq := &Sequencer{
 			logger:   log.NewNopLogger(),
@@ -260,7 +260,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 
 	t.Run("Non-Proposer Mode", func(t *testing.T) {
 		t.Run("Valid Proofs", func(t *testing.T) {
-			mockDA := damocks.NewDA(t)
+			mockDA := damocks.NewMockDA(t)
 			seq := &Sequencer{
 				logger:   log.NewNopLogger(),
 				Id:       Id,
@@ -280,7 +280,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		})
 
 		t.Run("Invalid Proof", func(t *testing.T) {
-			mockDA := damocks.NewDA(t)
+			mockDA := damocks.NewMockDA(t)
 			seq := &Sequencer{
 				logger:   log.NewNopLogger(),
 				Id:       Id,
@@ -300,7 +300,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		})
 
 		t.Run("GetProofs Error", func(t *testing.T) {
-			mockDA := damocks.NewDA(t)
+			mockDA := damocks.NewMockDA(t)
 			seq := &Sequencer{
 				logger:   log.NewNopLogger(),
 				Id:       Id,
@@ -321,7 +321,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		})
 
 		t.Run("Validate Error", func(t *testing.T) {
-			mockDA := damocks.NewDA(t)
+			mockDA := damocks.NewMockDA(t)
 			seq := &Sequencer{
 				logger:   log.NewNopLogger(),
 				Id:       Id,
@@ -342,7 +342,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		})
 
 		t.Run("Invalid ID", func(t *testing.T) {
-			mockDA := damocks.NewDA(t)
+			mockDA := damocks.NewMockDA(t)
 
 			seq := &Sequencer{
 				logger:   log.NewNopLogger(),
@@ -368,7 +368,7 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	t.Skip()
 	// Initialize a new sequencer with mock DA
 	metrics, _ := NopMetrics()
-	mockDA := &damocks.DA{}
+	mockDA := &damocks.MockDA{}
 	db := ds.NewMapDatastore()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

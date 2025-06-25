@@ -39,9 +39,9 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 }
 
 // Returns a minimalistic block manager using a mock DA Client
-func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) (*Manager, *mocks.Store) {
+func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) (*Manager, *mocks.MockStore) {
 	logger := log.NewTestLogger(t)
-	mockStore := mocks.NewStore(t)
+	mockStore := mocks.NewMockStore(t)
 	m := &Manager{
 		da:                       da,
 		headerCache:              cache.NewCache[types.SignedHeader](),
@@ -71,7 +71,7 @@ func TestInitialStateClean(t *testing.T) {
 	logger := log.NewTestLogger(t)
 	es, _ := storepkg.NewDefaultInMemoryKVStore()
 	emptyStore := storepkg.New(es)
-	mockExecutor := mocks.NewExecutor(t)
+	mockExecutor := mocks.NewMockExecutor(t)
 
 	// Set expectation for InitChain call within getInitialState
 	mockExecutor.On("InitChain", ctx, genesisData.GenesisDAStartTime, genesisData.InitialHeight, genesisData.ChainID).
@@ -105,7 +105,7 @@ func TestInitialStateStored(t *testing.T) {
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	logger := log.NewTestLogger(t)
-	mockExecutor := mocks.NewExecutor(t)
+	mockExecutor := mocks.NewMockExecutor(t)
 
 	// getInitialState should not call InitChain if state exists
 	s, err := getInitialState(ctx, genesisData, nil, store, mockExecutor, logger, nil /* uses default signature verification */)
@@ -141,7 +141,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	store := storepkg.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	mockExecutor := mocks.NewExecutor(t)
+	mockExecutor := mocks.NewMockExecutor(t)
 
 	_, err = getInitialState(ctx, genesis, nil, store, mockExecutor, logger, nil /* uses default signature verification */)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
@@ -153,7 +153,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 // TestSignVerifySignature verifies that signatures can be created and verified using the configured signer.
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
-	mockDAC := mocks.NewDA(t)
+	mockDAC := mocks.NewMockDA(t)
 	m, _ := getManager(t, mockDAC, -1, -1)
 	payload := []byte("test")
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
@@ -182,7 +182,7 @@ func TestSignVerifySignature(t *testing.T) {
 
 func TestIsDAIncluded(t *testing.T) {
 	require := require.New(t)
-	mockDAC := mocks.NewDA(t)
+	mockDAC := mocks.NewMockDA(t)
 
 	// Create a minimalistic block manager
 	m, mockStore := getManager(t, mockDAC, -1, -1)
@@ -210,14 +210,14 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	mockDA := mocks.NewDA(t)
+	mockDA := mocks.NewMockDA(t)
 	m, _ := getManager(t, mockDA, -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
 	header3, data3 := types.GetRandomBlock(uint64(3), 5, chainID)
 
-	store := mocks.NewStore(t)
+	store := mocks.NewMockStore(t)
 	invalidateBlockHeader(header1)
 	store.On("GetMetadata", mock.Anything, storepkg.LastSubmittedHeaderHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
@@ -248,14 +248,14 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	mockDA := mocks.NewDA(t)
+	mockDA := mocks.NewMockDA(t)
 	m, _ := getManager(t, mockDA, -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
 	header3, data3 := types.GetRandomBlock(uint64(3), 5, chainID)
 
-	store := mocks.NewStore(t)
+	store := mocks.NewMockStore(t)
 	invalidateBlockHeader(header3)
 	store.On("GetMetadata", mock.Anything, storepkg.LastSubmittedHeaderHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
@@ -377,7 +377,7 @@ func TestBytesToBatchData(t *testing.T) {
 // TestGetDataSignature_Success ensures a valid signature is returned when the signer is set.
 func TestGetDataSignature_Success(t *testing.T) {
 	require := require.New(t)
-	mockDAC := mocks.NewDA(t)
+	mockDAC := mocks.NewMockDA(t)
 	m, _ := getManager(t, mockDAC, -1, -1)
 
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
@@ -394,7 +394,7 @@ func TestGetDataSignature_Success(t *testing.T) {
 // TestGetDataSignature_NilSigner ensures the correct error is returned when the signer is nil.
 func TestGetDataSignature_NilSigner(t *testing.T) {
 	require := require.New(t)
-	mockDAC := mocks.NewDA(t)
+	mockDAC := mocks.NewMockDA(t)
 	m, _ := getManager(t, mockDAC, -1, -1)
 
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
@@ -603,7 +603,7 @@ func TestManager_execValidate(t *testing.T) {
 func TestGetterMethods(t *testing.T) {
 	t.Run("GetLastState", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		state := types.State{ChainID: "test", LastBlockHeight: 5}
 		m.SetLastState(state)
 
@@ -613,7 +613,7 @@ func TestGetterMethods(t *testing.T) {
 
 	t.Run("GetDAIncludedHeight", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		m.daIncludedHeight.Store(10)
 
 		result := m.GetDAIncludedHeight()
@@ -622,7 +622,7 @@ func TestGetterMethods(t *testing.T) {
 
 	t.Run("PendingHeaders", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		result := m.PendingHeaders()
 		require.Nil(result)
 		require.Equal(m.pendingHeaders, result)
@@ -630,14 +630,14 @@ func TestGetterMethods(t *testing.T) {
 
 	t.Run("SeqClient", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		result := m.SeqClient()
 		require.Equal(m.sequencer, result)
 	})
 
 	t.Run("GetExecutor", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		result := m.GetExecutor()
 		require.Equal(m.exec, result)
 	})
@@ -647,7 +647,7 @@ func TestGetterMethods(t *testing.T) {
 func TestCacheMethods(t *testing.T) {
 	t.Run("HeaderCache", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		cache := m.HeaderCache()
 		require.NotNil(cache)
 		require.Equal(m.headerCache, cache)
@@ -655,7 +655,7 @@ func TestCacheMethods(t *testing.T) {
 
 	t.Run("DataCache", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		cache := m.DataCache()
 		require.NotNil(cache)
 		require.Equal(m.dataCache, cache)
@@ -663,7 +663,7 @@ func TestCacheMethods(t *testing.T) {
 
 	t.Run("IsBlockHashSeen", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		hash := "test-hash"
 
 		// Initially not seen
@@ -706,7 +706,7 @@ func TestUtilityFunctions(t *testing.T) {
 
 	t.Run("ExponentialBackoff", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		m.config.DA.BlockTime.Duration = 10 * time.Second
 
 		// Test initial backoff
@@ -724,7 +724,7 @@ func TestUtilityFunctions(t *testing.T) {
 
 	t.Run("GetHeaderSignature_NilSigner", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		m.signer = nil
 
 		header := types.Header{}
@@ -734,7 +734,7 @@ func TestUtilityFunctions(t *testing.T) {
 
 	t.Run("IsUsingExpectedSingleSequencer", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 
 		// Create genesis data for the test
 		genesisData, privKey, _ := types.GetGenesisWithPrivkey("TestIsUsingExpectedSingleSequencer")
@@ -782,7 +782,7 @@ func TestUtilityFunctions(t *testing.T) {
 func TestErrorHandling(t *testing.T) {
 	t.Run("GetStoreHeight_Error", func(t *testing.T) {
 		require := require.New(t)
-		m, mockStore := getManager(t, mocks.NewDA(t), -1, -1)
+		m, mockStore := getManager(t, mocks.NewMockDA(t), -1, -1)
 		expectedErr := errors.New("store error")
 		mockStore.On("Height", mock.Anything).Return(uint64(0), expectedErr)
 
@@ -792,7 +792,7 @@ func TestErrorHandling(t *testing.T) {
 
 	t.Run("IsDAIncluded_StoreError", func(t *testing.T) {
 		require := require.New(t)
-		m, mockStore := getManager(t, mocks.NewDA(t), -1, -1)
+		m, mockStore := getManager(t, mocks.NewMockDA(t), -1, -1)
 		height := uint64(1)
 		expectedErr := errors.New("store height error")
 		mockStore.On("Height", mock.Anything).Return(uint64(0), expectedErr)
@@ -803,7 +803,7 @@ func TestErrorHandling(t *testing.T) {
 	})
 
 	t.Run("IsDAIncluded_HeightTooHigh", func(t *testing.T) {
-		m, mockStore := getManager(t, mocks.NewDA(t), -1, -1)
+		m, mockStore := getManager(t, mocks.NewMockDA(t), -1, -1)
 		height := uint64(10)
 		mockStore.On("Height", mock.Anything).Return(uint64(5), nil)
 
@@ -814,7 +814,7 @@ func TestErrorHandling(t *testing.T) {
 
 	t.Run("IsDAIncluded_GetBlockDataError", func(t *testing.T) {
 		require := require.New(t)
-		m, mockStore := getManager(t, mocks.NewDA(t), -1, -1)
+		m, mockStore := getManager(t, mocks.NewMockDA(t), -1, -1)
 		height := uint64(5)
 		expectedErr := errors.New("get block data error")
 		mockStore.On("Height", mock.Anything).Return(uint64(10), nil)
@@ -827,14 +827,14 @@ func TestErrorHandling(t *testing.T) {
 
 	t.Run("RetrieveBatch_SequencerError", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 
 		// Set up genesis for chain ID
 		genesisData, _, _ := types.GetGenesisWithPrivkey("TestRetrieveBatch")
 		m.genesis = genesisData
 
 		// Create a mock sequencer that returns an error
-		mockSequencer := mocks.NewSequencer(t)
+		mockSequencer := mocks.NewMockSequencer(t)
 		expectedErr := errors.New("sequencer error")
 		mockSequencer.On("GetNextBatch", mock.Anything, mock.Anything).Return(nil, expectedErr)
 		m.sequencer = mockSequencer
@@ -848,7 +848,7 @@ func TestErrorHandling(t *testing.T) {
 func TestStateManagement(t *testing.T) {
 	t.Run("SetLastState_ThreadSafety", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 
 		var wg sync.WaitGroup
 		states := []types.State{
@@ -875,7 +875,7 @@ func TestStateManagement(t *testing.T) {
 
 	t.Run("GetLastBlockTime", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 
 		testTime := time.Now()
 		state := types.State{
@@ -890,7 +890,7 @@ func TestStateManagement(t *testing.T) {
 
 	t.Run("GetLastBlockTime_ThreadSafety", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 
 		testTime := time.Now()
 		state := types.State{
@@ -924,7 +924,7 @@ func TestStateManagement(t *testing.T) {
 func TestNotificationSystem(t *testing.T) {
 	t.Run("NotifyNewTransactions", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 
 		// Should be able to notify without blocking
 		m.NotifyNewTransactions()
@@ -945,7 +945,7 @@ func TestNotificationSystem(t *testing.T) {
 
 	t.Run("NotifyNewTransactions_NonBlocking", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 
 		// Fill the channel to test non-blocking behavior
 		m.txNotifyCh <- struct{}{}
@@ -964,7 +964,7 @@ func TestNotificationSystem(t *testing.T) {
 func TestValidationMethods(t *testing.T) {
 	t.Run("GetStoreHeight_Success", func(t *testing.T) {
 		require := require.New(t)
-		m, mockStore := getManager(t, mocks.NewDA(t), -1, -1)
+		m, mockStore := getManager(t, mocks.NewMockDA(t), -1, -1)
 		expectedHeight := uint64(42)
 		mockStore.On("Height", mock.Anything).Return(expectedHeight, nil)
 
@@ -975,7 +975,7 @@ func TestValidationMethods(t *testing.T) {
 
 	t.Run("IsBlockHashSeen_True", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		hash := "test-hash"
 
 		// Mark as seen first
@@ -987,7 +987,7 @@ func TestValidationMethods(t *testing.T) {
 
 	t.Run("IsBlockHashSeen_False", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 		hash := "unseen-hash"
 
 		result := m.IsBlockHashSeen(hash)
@@ -996,7 +996,7 @@ func TestValidationMethods(t *testing.T) {
 
 	t.Run("ExponentialBackoff_WithConfig", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 
 		// Set up a config with a specific block time
 		m.config.DA.BlockTime.Duration = 5 * time.Second
@@ -1015,7 +1015,7 @@ func TestValidationMethods(t *testing.T) {
 func TestConfigurationDefaults(t *testing.T) {
 	t.Run("ExponentialBackoff_EdgeCases", func(t *testing.T) {
 		require := require.New(t)
-		m, _ := getManager(t, mocks.NewDA(t), -1, -1)
+		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 
 		// Test with zero block time - should still double the backoff since there's no cap
 		m.config.DA.BlockTime.Duration = 0

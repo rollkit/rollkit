@@ -20,9 +20,9 @@ import (
 )
 
 // newTestManager creates a Manager with mocked Store and Executor for testing DAIncluder logic.
-func newTestManager(t *testing.T) (*Manager, *mocks.Store, *mocks.Executor, *MockLogger) {
-	store := mocks.NewStore(t)
-	exec := mocks.NewExecutor(t)
+func newTestManager(t *testing.T) (*Manager, *mocks.MockStore, *mocks.MockExecutor, *MockLogger) {
+	store := mocks.NewMockStore(t)
+	exec := mocks.NewMockExecutor(t)
 	logger := new(MockLogger)
 	logger.On("Debug", mock.Anything, mock.Anything).Maybe()
 	logger.On("Info", mock.Anything, mock.Anything).Maybe()

@@ -29,10 +29,10 @@ import (
 )
 
 // setupManagerForRetrieverTest initializes a Manager with mocked dependencies.
-func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.DA, *rollmocks.Store, *MockLogger, *cache.Cache[types.SignedHeader], *cache.Cache[types.Data], context.CancelFunc) {
+func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.MockDA, *rollmocks.MockStore, *MockLogger, *cache.Cache[types.SignedHeader], *cache.Cache[types.Data], context.CancelFunc) {
 	t.Helper()
-	mockDAClient := rollmocks.NewDA(t)
-	mockStore := rollmocks.NewStore(t)
+	mockDAClient := rollmocks.NewMockDA(t)
+	mockStore := rollmocks.NewMockStore(t)
 	mockLogger := new(MockLogger)
 	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe()
 	mockLogger.On("Info", mock.Anything, mock.Anything).Maybe()
