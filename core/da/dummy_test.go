@@ -16,21 +16,12 @@ func TestDummyDA(t *testing.T) {
 	// Height is always 0
 	ctx := context.Background()
 
-	// Test MaxBlobSize
-	maxSize, err := dummyDA.MaxBlobSize(ctx)
-	if err != nil {
-		t.Fatalf("MaxBlobSize failed: %v", err)
-	}
-	if maxSize != 1024 {
-		t.Errorf("Expected max blob size 1024, got %d", maxSize)
-	}
-
 	// Test Submit
 	blobs := []Blob{
 		[]byte("test blob 1"),
 		[]byte("test blob 2"),
 	}
-	ids, err := dummyDA.Submit(ctx, blobs, 0, []byte("ns"))
+	ids, err := dummyDA.Submit(ctx, blobs, 0, nil)
 	if err != nil {
 		t.Fatalf("Submit failed: %v", err)
 	}
@@ -43,7 +34,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test Get
-	retrievedBlobs, err := dummyDA.Get(ctx, ids, []byte("ns"))
+	retrievedBlobs, err := dummyDA.Get(ctx, ids, nil)
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
@@ -57,7 +48,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test GetIDs
-	result, err := dummyDA.GetIDs(ctx, 1, []byte("ns"))
+	result, err := dummyDA.GetIDs(ctx, 1, nil)
 	if err != nil {
 		t.Fatalf("GetIDs failed: %v", err)
 	}
@@ -66,7 +57,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test Commit
-	commitments, err := dummyDA.Commit(ctx, blobs, []byte("ns"))
+	commitments, err := dummyDA.Commit(ctx, blobs, nil)
 	if err != nil {
 		t.Fatalf("Commit failed: %v", err)
 	}
@@ -75,7 +66,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test GetProofs
-	proofs, err := dummyDA.GetProofs(ctx, ids, []byte("ns"))
+	proofs, err := dummyDA.GetProofs(ctx, ids, nil)
 	if err != nil {
 		t.Fatalf("GetProofs failed: %v", err)
 	}
@@ -84,7 +75,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test Validate
-	validations, err := dummyDA.Validate(ctx, ids, proofs, []byte("ns"))
+	validations, err := dummyDA.Validate(ctx, ids, proofs, nil)
 	if err != nil {
 		t.Fatalf("Validate failed: %v", err)
 	}
@@ -113,7 +104,7 @@ func waitForFirstDAHeight(ctx context.Context, da *DummyDA) error {
 func waitForAtLeastDAHeight(ctx context.Context, da *DummyDA, targetHeight uint64) error {
 	// Read current height at the start
 	da.mu.RLock()
-	current := da.height
+	current := da.currentHeight
 	da.mu.RUnlock()
 
 	if current >= targetHeight {
@@ -129,7 +120,7 @@ func waitForAtLeastDAHeight(ctx context.Context, da *DummyDA, targetHeight uint6
 	deadline := time.Now().Add(timeout)
 	for {
 		da.mu.RLock()
-		current = da.height
+		current = da.currentHeight
 		da.mu.RUnlock()
 		if current >= targetHeight {
 			return nil

@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+var _ DA = (*DummyDA)(nil)
+
 // DummyDA is a simple in-memory implementation of the DA interface for testing purposes.
 type DummyDA struct {
 	mu                 sync.RWMutex
@@ -20,9 +22,11 @@ type DummyDA struct {
 	maxBlobSize        uint64
 	gasPrice           float64
 	gasMultiplier      float64
-	height             uint64
-	blockTime          time.Duration
-	stopCh             chan struct{}
+
+	// DA height simulation
+	currentHeight uint64
+	blockTime     time.Duration
+	stopCh        chan struct{}
 }
 
 var ErrHeightFromFutureStr = fmt.Errorf("given height is from the future")
@@ -38,9 +42,9 @@ func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64, blo
 		maxBlobSize:        maxBlobSize,
 		gasPrice:           gasPrice,
 		gasMultiplier:      gasMultiplier,
-		height:             1,
 		blockTime:          blockTime,
 		stopCh:             make(chan struct{}),
+		currentHeight:      0,
 	}
 }
 
@@ -53,7 +57,7 @@ func (d *DummyDA) StartHeightTicker() {
 			select {
 			case <-ticker.C:
 				d.mu.Lock()
-				d.height++
+				d.currentHeight++
 				d.mu.Unlock()
 			case <-d.stopCh:
 				return
@@ -65,11 +69,6 @@ func (d *DummyDA) StartHeightTicker() {
 // StopHeightTicker stops the height ticker goroutine.
 func (d *DummyDA) StopHeightTicker() {
 	close(d.stopCh)
-}
-
-// MaxBlobSize returns the maximum blob size.
-func (d *DummyDA) MaxBlobSize(ctx context.Context) (uint64, error) {
-	return d.maxBlobSize, nil
 }
 
 // GasPrice returns the gas price for the DA layer.
@@ -103,8 +102,8 @@ func (d *DummyDA) GetIDs(ctx context.Context, height uint64, namespace []byte) (
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	if height > d.height {
-		return nil, fmt.Errorf("%w: requested %d, current %d", ErrHeightFromFutureStr, height, d.height)
+	if height > d.currentHeight {
+		return nil, fmt.Errorf("%w: requested %d, current %d", ErrHeightFromFutureStr, height, d.currentHeight)
 	}
 
 	ids, exists := d.blobsByHeight[height]
@@ -153,12 +152,15 @@ func (d *DummyDA) Commit(ctx context.Context, blobs []Blob, namespace []byte) ([
 
 // Submit submits blobs to the DA layer.
 func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte) ([]ID, error) {
+	return d.SubmitWithOptions(ctx, blobs, gasPrice, namespace, nil)
+}
+
+// SubmitWithOptions submits blobs to the DA layer with additional options.
+func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	batchHeight := d.height
-	d.height++
-
+	height := d.currentHeight + 1
 	ids := make([]ID, 0, len(blobs))
 	var currentSize uint64
 
@@ -187,7 +189,7 @@ func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, na
 		commitment := bz[:]
 
 		// Create ID from height and commitment
-		id := makeID(batchHeight, commitment)
+		id := makeID(height, commitment)
 		idStr := string(id)
 
 		d.blobs[idStr] = blob
@@ -197,8 +199,13 @@ func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, na
 		ids = append(ids, id)
 	}
 
-	d.blobsByHeight[batchHeight] = ids
-	d.timestampsByHeight[batchHeight] = time.Now()
+	// Add the IDs to the blobsByHeight map if they don't already exist
+	if existingIDs, exists := d.blobsByHeight[height]; exists {
+		d.blobsByHeight[height] = append(existingIDs, ids...)
+	} else {
+		d.blobsByHeight[height] = ids
+	}
+	d.timestampsByHeight[height] = time.Now()
 
 	return ids, nil
 }

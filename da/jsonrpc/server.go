@@ -61,9 +61,15 @@ func (s *serverInternalAPI) Validate(ctx context.Context, ids []da.ID, proofs []
 }
 
 // Submit implements the RPC method. This is the primary submit method which includes options.
-func (s *serverInternalAPI) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
-	s.logger.Debug("RPC server: Submit called", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns), "options", string(options))
-	return s.daImpl.Submit(ctx, blobs, gasPrice, ns) // Pass namespace to underlying DA
+func (s *serverInternalAPI) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte) ([]da.ID, error) {
+	s.logger.Debug("RPC server: Submit called", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns))
+	return s.daImpl.Submit(ctx, blobs, gasPrice, ns)
+}
+
+// SubmitWithOptions implements the RPC method.
+func (s *serverInternalAPI) SubmitWithOptions(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
+	s.logger.Debug("RPC server: SubmitWithOptions called", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns), "options", string(options))
+	return s.daImpl.SubmitWithOptions(ctx, blobs, gasPrice, ns, options)
 }
 
 // GasPrice implements the RPC method.
