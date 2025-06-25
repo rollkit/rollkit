@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/store"
 	storepkg "github.com/rollkit/rollkit/pkg/store"
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -22,7 +21,7 @@ import (
 type pendingBaseTestCase[T any] struct {
 	name     string
 	key      string
-	fetch    func(ctx context.Context, store store.Store, height uint64) (T, error)
+	fetch    func(ctx context.Context, store storepkg.Store, height uint64) (T, error)
 	makeItem func(height uint64) T
 	// For GetBlockData, returns (header, data, error) for a given height
 	mockGetBlockData func(height uint64) (any, any, error)
@@ -218,7 +217,7 @@ func runPendingBase_Fetch[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	})
 }
 
-func runPendingBase_NewPending[T any](t *testing.T, tc pendingBaseTestCase[T], newPending func(store.Store, log.Logger) (any, error)) {
+func runPendingBase_NewPending[T any](t *testing.T, tc pendingBaseTestCase[T], newPending func(storepkg.Store, log.Logger) (any, error)) {
 	t.Run(tc.name+"/new_pending", func(t *testing.T) {
 		mockStore := mocksStore.NewStore(t)
 		logger := log.NewNopLogger()
@@ -276,7 +275,7 @@ func TestPendingBase_Generic(t *testing.T) {
 			runPendingBase_setLastSubmittedHeight(t, tc)
 			runPendingBase_init_cases(t, tc)
 			runPendingBase_Fetch(t, tc)
-			runPendingBase_NewPending(t, tc, func(store store.Store, logger log.Logger) (any, error) { return NewPendingData(store, logger) })
+			runPendingBase_NewPending(t, tc, func(store storepkg.Store, logger log.Logger) (any, error) { return NewPendingData(store, logger) })
 		case pendingBaseTestCase[*types.SignedHeader]:
 			runPendingBase_InitAndGetLastSubmittedHeight(t, tc)
 			runPendingBase_GetPending_AllCases(t, tc)
@@ -284,7 +283,7 @@ func TestPendingBase_Generic(t *testing.T) {
 			runPendingBase_setLastSubmittedHeight(t, tc)
 			runPendingBase_init_cases(t, tc)
 			runPendingBase_Fetch(t, tc)
-			runPendingBase_NewPending(t, tc, func(store store.Store, logger log.Logger) (any, error) { return NewPendingHeaders(store, logger) })
+			runPendingBase_NewPending(t, tc, func(store storepkg.Store, logger log.Logger) (any, error) { return NewPendingHeaders(store, logger) })
 		}
 	}
 }

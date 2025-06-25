@@ -124,8 +124,8 @@ func TestGetBlock(t *testing.T) {
 
 		require.Error(t, err)
 		require.Nil(t, resp)
-		connectErr, ok := err.(*connect.Error)
-		require.True(t, ok)
+		var connectErr *connect.Error
+		require.ErrorAs(t, err, &connectErr)
 		require.Equal(t, connect.CodeNotFound, connectErr.Code())
 		require.Contains(t, connectErr.Message(), "store is empty, no latest block available")
 		mockStore.AssertExpectations(t)

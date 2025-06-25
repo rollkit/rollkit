@@ -26,7 +26,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer"
-	"github.com/rollkit/rollkit/pkg/store"
 	storepkg "github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 )
@@ -103,7 +102,7 @@ type Manager struct {
 	lastState types.State
 	// lastStateMtx is used by lastState
 	lastStateMtx *sync.RWMutex
-	store        store.Store
+	store        storepkg.Store
 
 	config  config.Config
 	genesis genesis.Genesis
@@ -172,7 +171,7 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
-func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
+func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store storepkg.Store, exec coreexecutor.Executor, logger log.Logger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
 	if signaturePayloadProvider == nil {
 		signaturePayloadProvider = defaultSignaturePayloadProvider
 	}
@@ -276,7 +275,7 @@ func NewManager(
 	signer signer.Signer,
 	config config.Config,
 	genesis genesis.Genesis,
-	store store.Store,
+	store storepkg.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
@@ -500,7 +499,7 @@ func (m *Manager) SetRollkitHeightToDAHeight(ctx context.Context, height uint64)
 		return fmt.Errorf("header hash %s not found in cache", headerHash)
 	}
 	binary.LittleEndian.PutUint64(headerHeightBytes, daHeightForHeader)
-	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height), headerHeightBytes); err != nil {
+	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/h", storepkg.RollkitHeightToDAHeightKey, height), headerHeightBytes); err != nil {
 		return err
 	}
 	dataHeightBytes := make([]byte, 8)
@@ -514,7 +513,7 @@ func (m *Manager) SetRollkitHeightToDAHeight(ctx context.Context, height uint64)
 		}
 		binary.LittleEndian.PutUint64(dataHeightBytes, daHeightForData)
 	}
-	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, height), dataHeightBytes); err != nil {
+	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/d", storepkg.RollkitHeightToDAHeightKey, height), dataHeightBytes); err != nil {
 		return err
 	}
 	return nil

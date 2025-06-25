@@ -20,7 +20,7 @@ import (
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer"
 	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
-	"github.com/rollkit/rollkit/pkg/store"
+
 	storepkg "github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -69,8 +69,8 @@ func TestInitialStateClean(t *testing.T) {
 	// Create genesis document
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateClean")
 	logger := log.NewTestLogger(t)
-	es, _ := store.NewDefaultInMemoryKVStore()
-	emptyStore := store.New(es)
+	es, _ := storepkg.NewDefaultInMemoryKVStore()
+	emptyStore := storepkg.New(es)
 	mockExecutor := mocks.NewExecutor(t)
 
 	// Set expectation for InitChain call within getInitialState
@@ -100,8 +100,8 @@ func TestInitialStateStored(t *testing.T) {
 		LastBlockHeight: 100,
 	}
 
-	es, _ := store.NewDefaultInMemoryKVStore()
-	store := store.New(es)
+	es, _ := storepkg.NewDefaultInMemoryKVStore()
+	store := storepkg.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	logger := log.NewTestLogger(t)
@@ -137,8 +137,8 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 		InitialHeight:   1,
 		LastBlockHeight: 0,
 	}
-	es, _ := store.NewDefaultInMemoryKVStore()
-	store := store.New(es)
+	es, _ := storepkg.NewDefaultInMemoryKVStore()
+	store := storepkg.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	mockExecutor := mocks.NewExecutor(t)
@@ -1090,8 +1090,8 @@ func TestSetRollkitHeightToDAHeight(t *testing.T) {
 		m.dataCache.SetDAIncluded(data.DACommitment().String(), dataHeight)
 
 		// Mock metadata storage
-		headerKey := fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height)
-		dataKey := fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, height)
+		headerKey := fmt.Sprintf("%s/%d/h", storepkg.RollkitHeightToDAHeightKey, height)
+		dataKey := fmt.Sprintf("%s/%d/d", storepkg.RollkitHeightToDAHeightKey, height)
 		mockStore.On("SetMetadata", mock.Anything, headerKey, mock.Anything).Return(nil)
 		mockStore.On("SetMetadata", mock.Anything, dataKey, mock.Anything).Return(nil)
 
@@ -1120,8 +1120,8 @@ func TestSetRollkitHeightToDAHeight(t *testing.T) {
 		// Note: we don't set data in cache for empty transactions
 
 		// Mock metadata storage - both should use header height for empty transactions
-		headerKey := fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height)
-		dataKey := fmt.Sprintf("%s/%d/d", store.RollkitHeightToDAHeightKey, height)
+		headerKey := fmt.Sprintf("%s/%d/h", storepkg.RollkitHeightToDAHeightKey, height)
+		dataKey := fmt.Sprintf("%s/%d/d", storepkg.RollkitHeightToDAHeightKey, height)
 		mockStore.On("SetMetadata", mock.Anything, headerKey, mock.Anything).Return(nil)
 		mockStore.On("SetMetadata", mock.Anything, dataKey, mock.Anything).Return(nil)
 
@@ -1172,7 +1172,7 @@ func TestSetRollkitHeightToDAHeight(t *testing.T) {
 		m.headerCache.SetDAIncluded(header.Hash().String(), uint64(10))
 
 		// Mock metadata storage for header (should succeed)
-		headerKey := fmt.Sprintf("%s/%d/h", store.RollkitHeightToDAHeightKey, height)
+		headerKey := fmt.Sprintf("%s/%d/h", storepkg.RollkitHeightToDAHeightKey, height)
 		mockStore.On("SetMetadata", mock.Anything, headerKey, mock.Anything).Return(nil)
 
 		// Call the method - should fail on data lookup
