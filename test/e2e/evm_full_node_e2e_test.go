@@ -6,15 +6,37 @@
 // This file specifically tests the EVM full node functionality including:
 // - Full node synchronization via P2P with sequencer
 // - Transaction sync verification between sequencer and full node
-// - Multi-node setup and coordination
+// - Multi-node setup and P2P block propagation
+// - State root consistency across distributed nodes
+// - Block propagation verification with multiple full nodes
 //
 // Test Coverage:
 // 1. TestEvmSequencerWithFullNodeE2E - Full node P2P sync with sequencer
+// 2. TestEvmFullNodeBlockPropagationE2E - Block propagation across multiple nodes
 //
 // Prerequisites:
 // - Docker and Docker Compose (for Reth EVM engine)
 // - Built binaries: evm-single, local-da
 // - Available ports: 7980 (DA), 7331/46657 (Rollkit RPC), 8545/8551/8555/8561 (EVM)
+//
+// Key Features Tested:
+// - P2P peer discovery and connection establishment
+// - Real-time block synchronization between nodes
+// - State root consistency validation across all nodes
+// - Transaction propagation and inclusion verification
+// - Genesis file sharing and chain initialization
+// - JWT authentication for EVM engine communication
+// - Docker Compose orchestration for multiple EVM instances
+// - Network resilience and sync recovery mechanisms
+// - Multi-node block validation and consensus verification
+//
+// Technical Implementation:
+// - Uses separate Docker Compose files for different node types
+// - Implements JWT token generation and validation for Engine API
+// - Handles P2P ID extraction from logs with fallback mechanisms
+// - Provides comprehensive state root verification across block ranges
+// - Supports variable transaction timing for realistic block distribution
+// - Includes helper functions for block propagation verification across nodes
 package e2e
 
 import (
