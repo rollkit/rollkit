@@ -98,7 +98,7 @@ func TestSubmitDataToDA_Success(t *testing.T) {
 			return m.submitDataToDA(ctx, items)
 		},
 		mockDASetup: func(da *mocks.MockDA) {
-			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return([]coreda.ID{getDummyID(1, []byte("commitment"))}, nil)
 		},
 	})
@@ -117,7 +117,7 @@ func TestSubmitHeadersToDA_Success(t *testing.T) {
 			return m.submitHeadersToDA(ctx, items)
 		},
 		mockDASetup: func(da *mocks.MockDA) {
-			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return([]coreda.ID{getDummyID(1, []byte("commitment"))}, nil)
 		},
 	})
@@ -187,7 +187,7 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 				daError:  tc.daError,
 				mockDASetup: func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error) {
 					da.ExpectedCalls = nil
-					da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Run(func(args mock.Arguments) { *gasPriceHistory = append(*gasPriceHistory, args.Get(2).(float64)) }).
 						Return(nil, daError)
 				},
@@ -222,7 +222,7 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 				daError:  tc.daError,
 				mockDASetup: func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error) {
 					da.ExpectedCalls = nil
-					da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Run(func(args mock.Arguments) { *gasPriceHistory = append(*gasPriceHistory, args.Get(2).(float64)) }).
 						Return(nil, daError)
 				},
@@ -262,15 +262,15 @@ func runRetryPartialFailuresCase[T any](t *testing.T, tc retryPartialFailuresCas
 
 	// Set up DA mock: three calls, each time only one item is accepted
 	da.On("GasMultiplier", mock.Anything).Return(2.0, nil).Times(3)
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			t.Logf("DA Submit call 1: args=%#v", args)
 		}).Once().Return([]coreda.ID{getDummyID(1, []byte("commitment2"))}, nil)
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			t.Logf("DA Submit call 2: args=%#v", args)
 		}).Once().Return([]coreda.ID{getDummyID(1, []byte("commitment3"))}, nil)
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			t.Logf("DA Submit call 3: args=%#v", args)
 		}).Once().Return([]coreda.ID{getDummyID(1, []byte("commitment4"))}, nil)
@@ -495,7 +495,7 @@ func TestSubmitHeadersToDA_WithMetricsRecorder(t *testing.T) {
 	require.NotEmpty(t, headers)
 
 	// Simulate DA layer successfully accepting the header submission
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return([]coreda.ID{[]byte("id")}, nil)
 
 	// Expect RecordMetrics to be called with the correct parameters
@@ -536,7 +536,7 @@ func TestSubmitDataToDA_WithMetricsRecorder(t *testing.T) {
 
 	// Simulate DA success
 	da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return([]coreda.ID{[]byte("id")}, nil)
 
 	// Expect RecordMetrics to be called with the correct parameters

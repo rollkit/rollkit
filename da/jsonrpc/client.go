@@ -132,7 +132,7 @@ func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, _
 			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Submit")
 			return res, context.Canceled
 		}
-		api.Logger.Error("RPC call failed", "method", "Submit", "error", err)
+		api.Logger.Error("RPC call failed", "method", "Submit", "error", err, "namespace", api.Namespace)
 	} else {
 		api.Logger.Debug("RPC call successful", "method", "Submit", "num_ids_returned", len(res))
 	}
