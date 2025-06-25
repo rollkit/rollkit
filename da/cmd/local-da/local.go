@@ -58,24 +58,6 @@ func NewLocalDA(logger log.Logger, opts ...func(*LocalDA) *LocalDA) *LocalDA {
 
 var _ coreda.DA = &LocalDA{}
 
-// MaxBlobSize returns the max blob size in bytes.
-func (d *LocalDA) MaxBlobSize(ctx context.Context) (uint64, error) {
-	d.logger.Debug("MaxBlobSize called", "maxBlobSize", d.maxBlobSize)
-	return d.maxBlobSize, nil
-}
-
-// GasMultiplier returns the gas multiplier.
-func (d *LocalDA) GasMultiplier(ctx context.Context) (float64, error) {
-	d.logger.Debug("GasMultiplier called")
-	return 1.0, nil
-}
-
-// GasPrice returns the gas price.
-func (d *LocalDA) GasPrice(ctx context.Context) (float64, error) {
-	d.logger.Debug("GasPrice called")
-	return 0.0, nil
-}
-
 // Get returns Blobs for given IDs.
 func (d *LocalDA) Get(ctx context.Context, ids []coreda.ID) ([]coreda.Blob, error) {
 	d.logger.Debug("Get called", "ids", ids)
@@ -160,8 +142,8 @@ func (d *LocalDA) Commit(ctx context.Context, blobs []coreda.Blob) ([]coreda.Com
 }
 
 // SubmitWithOptions stores blobs in DA layer (options are ignored).
-func (d *LocalDA) Submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, _ []byte) ([]coreda.ID, error) {
-	d.logger.Info("Submit called", "numBlobs", len(blobs), "gasPrice", gasPrice)
+func (d *LocalDA) Submit(ctx context.Context, blobs []coreda.Blob, _ []byte) ([]coreda.ID, error) {
+	d.logger.Info("Submit called", "numBlobs", len(blobs))
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ids := make([]coreda.ID, len(blobs))

@@ -47,8 +47,6 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 		headerCache:              cache.NewCache[types.SignedHeader](),
 		dataCache:                cache.NewCache[types.Data](),
 		logger:                   logger,
-		gasPrice:                 gasPrice,
-		gasMultiplier:            gasMultiplier,
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		store:                    mockStore,

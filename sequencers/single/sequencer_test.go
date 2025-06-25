@@ -433,14 +433,13 @@ func TestSequencer_RecordMetrics(t *testing.T) {
 		}
 
 		// Test values
-		gasPrice := 1.5
 		blobSize := uint64(1024)
 		statusCode := coreda.StatusSuccess
 		numPendingBlocks := uint64(5)
 		includedBlockHeight := uint64(100)
 
 		// Call RecordMetrics - should not panic or error
-		seq.RecordMetrics(gasPrice, blobSize, statusCode, numPendingBlocks, includedBlockHeight)
+		seq.RecordMetrics(blobSize, statusCode, numPendingBlocks, includedBlockHeight)
 
 		// Since we're using NopMetrics (discard metrics), we can't verify the actual values
 		// but we can verify the method doesn't panic and completes successfully
@@ -455,14 +454,13 @@ func TestSequencer_RecordMetrics(t *testing.T) {
 		}
 
 		// Test values
-		gasPrice := 2.0
 		blobSize := uint64(2048)
 		statusCode := coreda.StatusNotIncludedInBlock
 		numPendingBlocks := uint64(3)
 		includedBlockHeight := uint64(200)
 
 		// Call RecordMetrics - should not panic even with nil metrics
-		seq.RecordMetrics(gasPrice, blobSize, statusCode, numPendingBlocks, includedBlockHeight)
+		seq.RecordMetrics(blobSize, statusCode, numPendingBlocks, includedBlockHeight)
 
 		// Verify metrics is still nil
 		assert.Nil(t, seq.metrics)
@@ -493,7 +491,7 @@ func TestSequencer_RecordMetrics(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				// Call RecordMetrics with different status codes
-				seq.RecordMetrics(1.0, 512, tc.statusCode, 2, 50)
+				seq.RecordMetrics(512, tc.statusCode, 2, 50)
 
 				// Verify no panic occurred
 				assert.NotNil(t, seq.metrics)

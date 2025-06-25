@@ -210,8 +210,6 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		nil,
 		nil,
 		NopMetrics(),
-		1.,
-		1.,
 		nil, // using default signature verification
 	)
 	require.NoError(t, err)

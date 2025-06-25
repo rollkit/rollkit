@@ -410,8 +410,8 @@ type MockSequencerWithMetrics struct {
 	mock.Mock
 }
 
-func (m *MockSequencerWithMetrics) RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64) {
-	m.Called(gasPrice, blobSize, statusCode, numPendingBlocks, includedBlockHeight)
+func (m *MockSequencerWithMetrics) RecordMetrics(blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64) {
+	m.Called(blobSize, statusCode, numPendingBlocks, includedBlockHeight)
 }
 
 // Implement the Sequencer interface methods
@@ -442,7 +442,6 @@ func TestIncrementDAIncludedHeight_WithMetricsRecorder(t *testing.T) {
 	// Set up mock sequencer with metrics
 	mockSequencer := new(MockSequencerWithMetrics)
 	m.sequencer = mockSequencer
-	m.gasPrice = 1.5 // Set a test gas price
 
 	// Mock the store calls needed for PendingHeaders initialization
 	// First, clear the existing Height mock from newTestManager
@@ -467,7 +466,6 @@ func TestIncrementDAIncludedHeight_WithMetricsRecorder(t *testing.T) {
 
 	// Expect RecordMetrics to be called with the correct parameters
 	mockSequencer.On("RecordMetrics",
-		float64(1.5),             // gasPrice
 		uint64(0),                // blobSize
 		coreda.StatusSuccess,     // statusCode
 		uint64(3),                // numPendingBlocks (7 - 4 = 3)

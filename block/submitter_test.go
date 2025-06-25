@@ -49,8 +49,6 @@ func newTestManagerWithDA(t *testing.T, da *mocks.MockDA) (m *Manager) {
 		da:             da,
 		logger:         logger,
 		config:         nodeConf,
-		gasPrice:       1.0,
-		gasMultiplier:  2.0,
 		headerCache:    cache.NewCache[types.SignedHeader](),
 		dataCache:      cache.NewCache[types.Data](),
 		signer:         testSigner,
@@ -131,7 +129,7 @@ type submitToDAFailureCase[T any] struct {
 	submitToDA  func(m *Manager, ctx context.Context, items []T) error
 	errorMsg    string
 	daError     error
-	mockDASetup func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error)
+	mockDASetup func(da *mocks.MockDA, daError error)
 }
 
 func runSubmitToDAFailureCase[T any](t *testing.T, tc submitToDAFailureCase[T]) {
@@ -141,8 +139,7 @@ func runSubmitToDAFailureCase[T any](t *testing.T, tc submitToDAFailureCase[T]) 
 	ctx := t.Context()
 	tc.fillPending(ctx, t, m)
 
-	var gasPriceHistory []float64
-	tc.mockDASetup(da, &gasPriceHistory, tc.daError)
+	tc.mockDASetup(da, tc.daError)
 
 	items, err := tc.getToSubmit(m, ctx)
 	require.NoError(t, err)
@@ -152,13 +149,6 @@ func runSubmitToDAFailureCase[T any](t *testing.T, tc submitToDAFailureCase[T]) 
 	assert.Error(t, err, "expected error")
 	assert.Contains(t, err.Error(), tc.errorMsg)
 
-	// Validate that gas price increased according to gas multiplier
-	previousGasPrice := m.gasPrice
-	assert.Equal(t, gasPriceHistory[0], m.gasPrice) // verify that the first call is done with the right price
-	for _, gasPrice := range gasPriceHistory[1:] {
-		assert.Equal(t, gasPrice, previousGasPrice*m.gasMultiplier)
-		previousGasPrice = gasPrice
-	}
 }
 
 func TestSubmitDataToDA_Failure(t *testing.T) {
@@ -185,10 +175,9 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 				},
 				errorMsg: "failed to submit all data(s) to DA layer",
 				daError:  tc.daError,
-				mockDASetup: func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error) {
+				mockDASetup: func(da *mocks.MockDA, daError error) {
 					da.ExpectedCalls = nil
-					da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						Run(func(args mock.Arguments) { *gasPriceHistory = append(*gasPriceHistory, args.Get(2).(float64)) }).
+					da.On("Submit", mock.Anything, mock.Anything, mock.Anything).
 						Return(nil, daError)
 				},
 			})
@@ -220,10 +209,9 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 				},
 				errorMsg: "failed to submit all header(s) to DA layer",
 				daError:  tc.daError,
-				mockDASetup: func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error) {
+				mockDASetup: func(da *mocks.MockDA, daError error) {
 					da.ExpectedCalls = nil
-					da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						Run(func(args mock.Arguments) { *gasPriceHistory = append(*gasPriceHistory, args.Get(2).(float64)) }).
+					da.On("Submit", mock.Anything, mock.Anything, mock.Anything).
 						Return(nil, daError)
 				},
 			})
@@ -249,8 +237,6 @@ func runRetryPartialFailuresCase[T any](t *testing.T, tc retryPartialFailuresCas
 	m.logger = log.NewTestLogger(t)
 	da := &mocks.MockDA{}
 	m.da = da
-	m.gasPrice = 1.0
-	m.gasMultiplier = 2.0
 	tc.setupStoreAndDA(m, mockStore, da)
 	ctx := t.Context()
 	tc.fillPending(ctx, t, m)
@@ -500,7 +486,6 @@ func TestSubmitHeadersToDA_WithMetricsRecorder(t *testing.T) {
 
 	// Expect RecordMetrics to be called with the correct parameters
 	mockSequencer.On("RecordMetrics",
-		float64(1.0),                  // gasPrice (from newTestManagerWithDA)
 		uint64(0),                     // blobSize (mocked as 0)
 		coreda.StatusSuccess,          // statusCode
 		mock.AnythingOfType("uint64"), // numPendingBlocks (varies based on test data)
@@ -541,7 +526,6 @@ func TestSubmitDataToDA_WithMetricsRecorder(t *testing.T) {
 
 	// Expect RecordMetrics to be called with the correct parameters
 	mockSequencer.On("RecordMetrics",
-		float64(1.0),                  // gasPrice (from newTestManagerWithDA)
 		uint64(0),                     // blobSize (mocked as 0)
 		coreda.StatusSuccess,          // statusCode
 		mock.AnythingOfType("uint64"), // numPendingBlocks (varies based on test data)

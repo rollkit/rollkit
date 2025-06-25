@@ -30,7 +30,7 @@ func TestDummyDA(t *testing.T) {
 		[]byte("test blob 1"),
 		[]byte("test blob 2"),
 	}
-	ids, err := dummyDA.Submit(ctx, blobs, 0, []byte("ns"))
+	ids, err := dummyDA.Submit(ctx, blobs, nil)
 	if err != nil {
 		t.Fatalf("Submit failed: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestDummyDA(t *testing.T) {
 
 	// Test error case: blob size exceeds maximum
 	largeBlob := make([]byte, 2048) // Larger than our max of 1024
-	_, err = dummyDA.Submit(ctx, []Blob{largeBlob}, 0, nil)
+	_, err = dummyDA.Submit(ctx, []Blob{largeBlob}, nil)
 	if err == nil {
 		t.Errorf("Expected error for blob exceeding max size, got nil")
 	}

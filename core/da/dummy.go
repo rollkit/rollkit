@@ -72,16 +72,6 @@ func (d *DummyDA) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return d.maxBlobSize, nil
 }
 
-// GasPrice returns the gas price for the DA layer.
-func (d *DummyDA) GasPrice(ctx context.Context) (float64, error) {
-	return d.gasPrice, nil
-}
-
-// GasMultiplier returns the gas multiplier for the DA layer.
-func (d *DummyDA) GasMultiplier(ctx context.Context) (float64, error) {
-	return d.gasMultiplier, nil
-}
-
 // Get returns blobs for the given IDs.
 func (d *DummyDA) Get(ctx context.Context, ids []ID) ([]Blob, error) {
 	d.mu.RLock()
@@ -152,7 +142,7 @@ func (d *DummyDA) Commit(ctx context.Context, blobs []Blob) ([]Commitment, error
 }
 
 // SubmitWithOptions submits blobs to the DA layer with additional options.
-func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, options []byte) ([]ID, error) {
+func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, options []byte) ([]ID, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

@@ -61,21 +61,9 @@ func (s *serverInternalAPI) Validate(ctx context.Context, ids []da.ID, proofs []
 }
 
 // Submit implements the RPC method. This is the primary submit method which includes options.
-func (s *serverInternalAPI) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
-	s.logger.Debug("RPC server: Submit called", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns), "options", string(options))
-	return s.daImpl.Submit(ctx, blobs, gasPrice, options) // Pass options to underlying DA
-}
-
-// GasPrice implements the RPC method.
-func (s *serverInternalAPI) GasPrice(ctx context.Context) (float64, error) {
-	s.logger.Debug("RPC server: GasPrice called")
-	return s.daImpl.GasPrice(ctx)
-}
-
-// GasMultiplier implements the RPC method.
-func (s *serverInternalAPI) GasMultiplier(ctx context.Context) (float64, error) {
-	s.logger.Debug("RPC server: GasMultiplier called")
-	return s.daImpl.GasMultiplier(ctx)
+func (s *serverInternalAPI) Submit(ctx context.Context, blobs []da.Blob, ns []byte, options []byte) ([]da.ID, error) {
+	s.logger.Debug("RPC server: Submit called", "num_blobs", len(blobs), "namespace", string(ns), "options", string(options))
+	return s.daImpl.Submit(ctx, blobs, options) // Pass options to underlying DA
 }
 
 // NewServer accepts the host address port and the DA implementation to serve as a jsonrpc service

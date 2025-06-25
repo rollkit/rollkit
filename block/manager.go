@@ -67,7 +67,7 @@ type publishBlockFunc func(ctx context.Context) error
 // This interface is used to avoid duplication of the anonymous interface definition
 // across multiple files in the block package.
 type MetricsRecorder interface {
-	RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64)
+	RecordMetrics(blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64)
 }
 
 func defaultSignaturePayloadProvider(header *types.Header) ([]byte, error) {
@@ -152,8 +152,6 @@ type Manager struct {
 	// in the DA
 	daIncludedHeight atomic.Uint64
 	da               coreda.DA
-	gasPrice         float64
-	gasMultiplier    float64
 
 	sequencer     coresequencer.Sequencer
 	lastBatchData [][]byte
@@ -285,8 +283,6 @@ func NewManager(
 	headerBroadcaster broadcaster[*types.SignedHeader],
 	dataBroadcaster broadcaster[*types.Data],
 	seqMetrics *Metrics,
-	gasPrice float64,
-	gasMultiplier float64,
 	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (*Manager, error) {
 	if signaturePayloadProvider == nil {
@@ -381,8 +377,6 @@ func NewManager(
 		sequencer:                sequencer,
 		exec:                     exec,
 		da:                       da,
-		gasPrice:                 gasPrice,
-		gasMultiplier:            gasMultiplier,
 		txNotifyCh:               make(chan struct{}, 1), // Non-blocking channel
 		signaturePayloadProvider: signaturePayloadProvider,
 	}

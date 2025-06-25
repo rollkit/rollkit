@@ -108,9 +108,8 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 
 // RecordMetrics updates the metrics with the given values.
 // This method is intended to be called by the block manager after submitting data to the DA layer.
-func (c *Sequencer) RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64) {
+func (c *Sequencer) RecordMetrics(blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64) {
 	if c.metrics != nil {
-		c.metrics.GasPrice.Set(gasPrice)
 		c.metrics.LastBlobSize.Set(float64(blobSize))
 		c.metrics.TransactionStatus.With("status", fmt.Sprintf("%d", statusCode)).Add(1)
 		c.metrics.NumPendingBlocks.Set(float64(numPendingBlocks))

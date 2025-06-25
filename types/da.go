@@ -20,10 +20,9 @@ func SubmitWithHelpers(
 	da coreda.DA, // Use the core DA interface
 	logger log.Logger,
 	data [][]byte,
-	gasPrice float64,
 	options []byte,
 ) coreda.ResultSubmit { // Return core ResultSubmit type
-	ids, err := da.Submit(ctx, data, gasPrice, options)
+	ids, err := da.Submit(ctx, data, options)
 
 	// Handle errors returned by Submit
 	if err != nil {

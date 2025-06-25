@@ -106,126 +106,6 @@ func (_c *MockDA_Commit_Call) RunAndReturn(run func(ctx context.Context, blobs [
 	return _c
 }
 
-// GasMultiplier provides a mock function for the type MockDA
-func (_mock *MockDA) GasMultiplier(ctx context.Context) (float64, error) {
-	ret := _mock.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GasMultiplier")
-	}
-
-	var r0 float64
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (float64, error)); ok {
-		return returnFunc(ctx)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) float64); ok {
-		r0 = returnFunc(ctx)
-	} else {
-		r0 = ret.Get(0).(float64)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockDA_GasMultiplier_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GasMultiplier'
-type MockDA_GasMultiplier_Call struct {
-	*mock.Call
-}
-
-// GasMultiplier is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *MockDA_Expecter) GasMultiplier(ctx interface{}) *MockDA_GasMultiplier_Call {
-	return &MockDA_GasMultiplier_Call{Call: _e.mock.On("GasMultiplier", ctx)}
-}
-
-func (_c *MockDA_GasMultiplier_Call) Run(run func(ctx context.Context)) *MockDA_GasMultiplier_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *MockDA_GasMultiplier_Call) Return(f float64, err error) *MockDA_GasMultiplier_Call {
-	_c.Call.Return(f, err)
-	return _c
-}
-
-func (_c *MockDA_GasMultiplier_Call) RunAndReturn(run func(ctx context.Context) (float64, error)) *MockDA_GasMultiplier_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GasPrice provides a mock function for the type MockDA
-func (_mock *MockDA) GasPrice(ctx context.Context) (float64, error) {
-	ret := _mock.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GasPrice")
-	}
-
-	var r0 float64
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (float64, error)); ok {
-		return returnFunc(ctx)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) float64); ok {
-		r0 = returnFunc(ctx)
-	} else {
-		r0 = ret.Get(0).(float64)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockDA_GasPrice_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GasPrice'
-type MockDA_GasPrice_Call struct {
-	*mock.Call
-}
-
-// GasPrice is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *MockDA_Expecter) GasPrice(ctx interface{}) *MockDA_GasPrice_Call {
-	return &MockDA_GasPrice_Call{Call: _e.mock.On("GasPrice", ctx)}
-}
-
-func (_c *MockDA_GasPrice_Call) Run(run func(ctx context.Context)) *MockDA_GasPrice_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *MockDA_GasPrice_Call) Return(f float64, err error) *MockDA_GasPrice_Call {
-	_c.Call.Return(f, err)
-	return _c
-}
-
-func (_c *MockDA_GasPrice_Call) RunAndReturn(run func(ctx context.Context) (float64, error)) *MockDA_GasPrice_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // Get provides a mock function for the type MockDA
 func (_mock *MockDA) Get(ctx context.Context, ids []da.ID) ([]da.Blob, error) {
 	ret := _mock.Called(ctx, ids)
@@ -431,8 +311,8 @@ func (_c *MockDA_GetProofs_Call) RunAndReturn(run func(ctx context.Context, ids 
 }
 
 // Submit provides a mock function for the type MockDA
-func (_mock *MockDA) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, options []byte) ([]da.ID, error) {
-	ret := _mock.Called(ctx, blobs, gasPrice, options)
+func (_mock *MockDA) Submit(ctx context.Context, blobs []da.Blob, options []byte) ([]da.ID, error) {
+	ret := _mock.Called(ctx, blobs, options)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Submit")
@@ -440,18 +320,18 @@ func (_mock *MockDA) Submit(ctx context.Context, blobs []da.Blob, gasPrice float
 
 	var r0 []da.ID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []da.Blob, float64, []byte) ([]da.ID, error)); ok {
-		return returnFunc(ctx, blobs, gasPrice, options)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []da.Blob, []byte) ([]da.ID, error)); ok {
+		return returnFunc(ctx, blobs, options)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []da.Blob, float64, []byte) []da.ID); ok {
-		r0 = returnFunc(ctx, blobs, gasPrice, options)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []da.Blob, []byte) []da.ID); ok {
+		r0 = returnFunc(ctx, blobs, options)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]da.ID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []da.Blob, float64, []byte) error); ok {
-		r1 = returnFunc(ctx, blobs, gasPrice, options)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []da.Blob, []byte) error); ok {
+		r1 = returnFunc(ctx, blobs, options)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -466,13 +346,12 @@ type MockDA_Submit_Call struct {
 // Submit is a helper method to define mock.On call
 //   - ctx context.Context
 //   - blobs []da.Blob
-//   - gasPrice float64
 //   - options []byte
-func (_e *MockDA_Expecter) Submit(ctx interface{}, blobs interface{}, gasPrice interface{}, options interface{}) *MockDA_Submit_Call {
-	return &MockDA_Submit_Call{Call: _e.mock.On("Submit", ctx, blobs, gasPrice, options)}
+func (_e *MockDA_Expecter) Submit(ctx interface{}, blobs interface{}, options interface{}) *MockDA_Submit_Call {
+	return &MockDA_Submit_Call{Call: _e.mock.On("Submit", ctx, blobs, options)}
 }
 
-func (_c *MockDA_Submit_Call) Run(run func(ctx context.Context, blobs []da.Blob, gasPrice float64, options []byte)) *MockDA_Submit_Call {
+func (_c *MockDA_Submit_Call) Run(run func(ctx context.Context, blobs []da.Blob, options []byte)) *MockDA_Submit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -482,19 +361,14 @@ func (_c *MockDA_Submit_Call) Run(run func(ctx context.Context, blobs []da.Blob,
 		if args[1] != nil {
 			arg1 = args[1].([]da.Blob)
 		}
-		var arg2 float64
+		var arg2 []byte
 		if args[2] != nil {
-			arg2 = args[2].(float64)
-		}
-		var arg3 []byte
-		if args[3] != nil {
-			arg3 = args[3].([]byte)
+			arg2 = args[2].([]byte)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -505,7 +379,7 @@ func (_c *MockDA_Submit_Call) Return(vs []da.ID, err error) *MockDA_Submit_Call 
 	return _c
 }
 
-func (_c *MockDA_Submit_Call) RunAndReturn(run func(ctx context.Context, blobs []da.Blob, gasPrice float64, options []byte) ([]da.ID, error)) *MockDA_Submit_Call {
+func (_c *MockDA_Submit_Call) RunAndReturn(run func(ctx context.Context, blobs []da.Blob, options []byte) ([]da.ID, error)) *MockDA_Submit_Call {
 	_c.Call.Return(run)
 	return _c
 }
