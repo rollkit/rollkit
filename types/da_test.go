@@ -107,7 +107,7 @@ func TestSubmitWithHelpers(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDA := mocks.NewMockDA(t)
-			mockDA.On("Submit", mock.Anything, tc.data, tc.options).Return(tc.submitIDs, tc.submitErr)
+			mockDA.On("Submit", mock.Anything, tc.data, tc.gasPrice, tc.options).Return(tc.submitIDs, tc.submitErr)
 
 			result := types.SubmitWithHelpers(context.Background(), mockDA, logger, tc.data, tc.options)
 
