@@ -51,55 +51,21 @@ func init() {
 	flag.StringVar(&evmSingleBinaryPath, "evm-binary", "evm-single", "evm-single binary")
 }
 
-// setupEvmSequencerTest performs common setup for EVM sequencer tests.
-// This helper reduces code duplication across multiple test functions.
+// setupEvmSequencerTest performs setup for EVM sequencer-only tests.
+// This helper sets up DA, EVM engine, and sequencer node for tests that don't need full nodes.
 //
-// Returns: jwtSecret and genesisHash for the sequencer
-func setupEvmSequencerTest(t *testing.T, sut *SystemUnderTest, nodeHome string) (string, string) {
+// Returns: genesisHash for the sequencer
+func setupEvmSequencerTest(t *testing.T, sut *SystemUnderTest, nodeHome string) string {
 	t.Helper()
 
-	// Start local DA
-	localDABinary := "local-da"
-	if evmSingleBinaryPath != "evm-single" {
-		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
-	}
-	sut.ExecCmd(localDABinary)
-	t.Log("Started local DA")
-	time.Sleep(200 * time.Millisecond)
+	// Use common setup (no full node needed)
+	jwtSecret, _, genesisHash := setupCommonEVMTest(t, sut, false)
 
-	// Start EVM (Reth) via Docker Compose
-	jwtSecret := evm.SetupTestRethEngine(t, dockerPath, "jwt.hex")
-
-	// Get genesis hash from EVM node
-	genesisHash := evm.GetGenesisHash(t)
-	t.Logf("Genesis hash: %s", genesisHash)
-
-	// Initialize sequencer node
-	output, err := sut.RunCmd(evmSingleBinaryPath,
-		"init",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", nodeHome,
-	)
-	require.NoError(t, err, "failed to init sequencer", output)
-	t.Log("Initialized sequencer node")
-
-	// Start sequencer node
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--evm.jwt-secret", jwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.node.block_time", "1s",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", "secret",
-		"--home", nodeHome,
-		"--rollkit.da.address", "http://localhost:7980",
-		"--rollkit.da.block_time", "1m",
-	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:7331", 10*time.Second)
+	// Initialize and start sequencer node
+	setupSequencerNode(t, sut, nodeHome, jwtSecret, genesisHash)
 	t.Log("Sequencer node is up")
 
-	return jwtSecret, genesisHash
+	return genesisHash
 }
 
 // TestEvmSequencerE2E tests the basic end-to-end functionality of a single EVM sequencer node.
@@ -125,13 +91,13 @@ func TestEvmSequencerE2E(t *testing.T) {
 	nodeHome := filepath.Join(workDir, "evm-agg")
 	sut := NewSystemUnderTest(t)
 
-	// Common setup for EVM sequencer test
-	_, genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
+	// Setup sequencer
+	genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
 	// Submit a transaction to EVM
 	lastNonce := uint64(0)
-	tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+	tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
 	evm.SubmitTransaction(t, tx)
 	t.Log("Submitted test transaction to EVM")
 
@@ -181,12 +147,12 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 	nodeHome := filepath.Join(workDir, "evm-agg")
 	sut := NewSystemUnderTest(t)
 
-	// Common setup for EVM sequencer test
-	_, genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
+	// Setup sequencer
+	genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
 	// Connect to EVM
-	client, err := ethclient.Dial("http://localhost:8545")
+	client, err := ethclient.Dial(SequencerEthURL)
 	require.NoError(t, err, "Should be able to connect to EVM")
 	defer client.Close()
 
@@ -198,8 +164,8 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 
 	t.Logf("Submitting %d transactions in quick succession...", numTxs)
 	for i := 0; i < numTxs; i++ {
-		// Create transaction with proper chain ID (1234)
-		tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+		// Create transaction with proper chain ID
+		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
 
 		evm.SubmitTransaction(t, tx)
 		txHashes = append(txHashes, tx.Hash())
@@ -348,12 +314,12 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	nodeHome := filepath.Join(workDir, "evm-agg")
 	sut := NewSystemUnderTest(t)
 
-	// Common setup for EVM sequencer test
-	_, genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
+	// Setup sequencer
+	genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
 	// Connect to EVM
-	client, err := ethclient.Dial("http://localhost:8545")
+	client, err := ethclient.Dial(SequencerEthURL)
 	require.NoError(t, err, "Should be able to connect to EVM")
 	defer client.Close()
 
@@ -362,11 +328,11 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	lastNonce := duplicateNonce
 
 	// Create first transaction with nonce 0
-	tx1 := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+	tx1 := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
 
 	// Reset nonce to create second transaction with same nonce
 	lastNonce = duplicateNonce
-	tx2 := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+	tx2 := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
 
 	// Verify both transactions have the same nonce
 	require.Equal(t, tx1.Nonce(), tx2.Nonce(), "Both transactions should have the same nonce")
@@ -400,7 +366,7 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 				}
 			}()
 			// Use a lower-level approach to avoid panics
-			client, clientErr := ethclient.Dial("http://localhost:8545")
+			client, clientErr := ethclient.Dial(SequencerEthURL)
 			if clientErr != nil {
 				return clientErr
 			}
@@ -468,7 +434,7 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	t.Logf("  ❌ Rejected transaction: %s", rejectedTxHash.Hex())
 
 	// Verify the account nonce (note: in test environment, nonce behavior may vary)
-	fromAddress := common.HexToAddress("0x944fDcD1c868E3cC566C78023CcB38A32cDA836E")
+	fromAddress := common.HexToAddress(TestToAddress)
 
 	// Wait a bit more for the transaction to be fully processed and nonce updated
 	time.Sleep(2 * time.Second)
@@ -526,12 +492,12 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	nodeHome := filepath.Join(workDir, "evm-agg")
 	sut := NewSystemUnderTest(t)
 
-	// Common setup for EVM sequencer test
-	_, genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
+	// Setup sequencer
+	genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
 	// Connect to EVM
-	client, err := ethclient.Dial("http://localhost:8545")
+	client, err := ethclient.Dial(SequencerEthURL)
 	require.NoError(t, err, "Should be able to connect to EVM")
 	defer client.Close()
 
@@ -554,7 +520,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 		// Try to submit with a bad signature by creating a transaction with wrong private key
 		badPrivKey := "1111111111111111111111111111111111111111111111111111111111111111"
 		lastNonce := uint64(0)
-		badTx := evm.GetRandomTransaction(t, badPrivKey, "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+		badTx := evm.GetRandomTransaction(t, badPrivKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
 
 		err := client.SendTransaction(ctx, badTx)
 		if err != nil {
@@ -579,7 +545,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 		// Use an empty account that has no funds
 		emptyAccountPrivKey := "2222222222222222222222222222222222222222222222222222222222222222"
 		lastNonce := uint64(0)
-		tx := evm.GetRandomTransaction(t, emptyAccountPrivKey, "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+		tx := evm.GetRandomTransaction(t, emptyAccountPrivKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
 
 		err := client.SendTransaction(ctx, tx)
 		if err != nil {
@@ -603,7 +569,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 
 		// Use a very high nonce that's way ahead of the current account nonce
 		lastNonce := uint64(999999)
-		tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
 
 		err := client.SendTransaction(ctx, tx)
 		if err != nil {
@@ -627,7 +593,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 
 		// Use an extremely low gas limit that's insufficient for basic transfer
 		lastNonce := uint64(0)
-		tx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 1000, &lastNonce) // Very low gas
+		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, 1000, &lastNonce) // Very low gas
 
 		err := client.SendTransaction(ctx, tx)
 		if err != nil {
@@ -665,7 +631,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	// Submit a valid transaction to verify system stability
 	t.Log("Testing system stability with valid transaction...")
 	lastNonce := uint64(0)
-	validTx := evm.GetRandomTransaction(t, "cece4f25ac74deb1468965160c7185e07dff413f23fcadb611b05ca37ab0a52e", "0x944fDcD1c868E3cC566C78023CcB38A32cDA836E", "1234", 22000, &lastNonce)
+	validTx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
 
 	evm.SubmitTransaction(t, validTx)
 	t.Logf("Submitted valid transaction: %s", validTx.Hash().Hex())
