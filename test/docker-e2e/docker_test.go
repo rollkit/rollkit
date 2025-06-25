@@ -251,7 +251,7 @@ func getRollkitImage() tastoradocker.DockerImage {
 }
 
 func generateValidNamespaceHex() string {
-	return hex.EncodeToString(share.RandomBlobNamespaceID())
+	return hex.EncodeToString(share.RandomBlobNamespace().Bytes())
 }
 
 // appOverrides enables indexing of transactions so Broadcasting of transactions works
