@@ -77,7 +77,7 @@ func (d *LocalDA) GasPrice(ctx context.Context) (float64, error) {
 }
 
 // Get returns Blobs for given IDs.
-func (d *LocalDA) Get(ctx context.Context, ids []coreda.ID) ([]coreda.Blob, error) {
+func (d *LocalDA) Get(ctx context.Context, ids []coreda.ID, namespace []byte) ([]coreda.Blob, error) {
 	d.logger.Debug("Get called", "ids", ids)
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -105,7 +105,7 @@ func (d *LocalDA) Get(ctx context.Context, ids []coreda.ID) ([]coreda.Blob, erro
 }
 
 // GetIDs returns IDs of Blobs at given DA height.
-func (d *LocalDA) GetIDs(ctx context.Context, height uint64) (*coreda.GetIDsResult, error) {
+func (d *LocalDA) GetIDs(ctx context.Context, height uint64, namespace []byte) (*coreda.GetIDsResult, error) {
 	d.logger.Debug("GetIDs called", "height", height)
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -130,9 +130,9 @@ func (d *LocalDA) GetIDs(ctx context.Context, height uint64) (*coreda.GetIDsResu
 }
 
 // GetProofs returns inclusion Proofs for all Blobs located in DA at given height.
-func (d *LocalDA) GetProofs(ctx context.Context, ids []coreda.ID) ([]coreda.Proof, error) {
+func (d *LocalDA) GetProofs(ctx context.Context, ids []coreda.ID, namespace []byte) ([]coreda.Proof, error) {
 	d.logger.Debug("GetProofs called", "ids", ids)
-	blobs, err := d.Get(ctx, ids)
+	blobs, err := d.Get(ctx, ids, namespace)
 	if err != nil {
 		d.logger.Error("GetProofs: failed to get blobs", "error", err)
 		return nil, err
@@ -149,7 +149,7 @@ func (d *LocalDA) GetProofs(ctx context.Context, ids []coreda.ID) ([]coreda.Proo
 }
 
 // Commit returns cryptographic Commitments for given blobs.
-func (d *LocalDA) Commit(ctx context.Context, blobs []coreda.Blob) ([]coreda.Commitment, error) {
+func (d *LocalDA) Commit(ctx context.Context, blobs []coreda.Blob, namespace []byte) ([]coreda.Commitment, error) {
 	d.logger.Debug("Commit called", "numBlobs", len(blobs))
 	commits := make([]coreda.Commitment, len(blobs))
 	for i, blob := range blobs {
@@ -159,8 +159,8 @@ func (d *LocalDA) Commit(ctx context.Context, blobs []coreda.Blob) ([]coreda.Com
 	return commits, nil
 }
 
-// SubmitWithOptions stores blobs in DA layer (options are ignored).
-func (d *LocalDA) Submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, _ []byte) ([]coreda.ID, error) {
+// Submit stores blobs in DA layer.
+func (d *LocalDA) Submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace []byte) ([]coreda.ID, error) {
 	d.logger.Info("Submit called", "numBlobs", len(blobs), "gasPrice", gasPrice)
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -177,7 +177,7 @@ func (d *LocalDA) Submit(ctx context.Context, blobs []coreda.Blob, gasPrice floa
 }
 
 // Validate checks the Proofs for given IDs.
-func (d *LocalDA) Validate(ctx context.Context, ids []coreda.ID, proofs []coreda.Proof) ([]bool, error) {
+func (d *LocalDA) Validate(ctx context.Context, ids []coreda.ID, proofs []coreda.Proof, namespace []byte) ([]bool, error) {
 	d.logger.Debug("Validate called", "numIDs", len(ids), "numProofs", len(proofs))
 	if len(ids) != len(proofs) {
 		d.logger.Error("Validate: id/proof count mismatch", "ids", len(ids), "proofs", len(proofs))

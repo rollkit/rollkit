@@ -33,37 +33,37 @@ type serverInternalAPI struct {
 // Get implements the RPC method.
 func (s *serverInternalAPI) Get(ctx context.Context, ids []da.ID, ns []byte) ([]da.Blob, error) {
 	s.logger.Debug("RPC server: Get called", "num_ids", len(ids), "namespace", string(ns))
-	return s.daImpl.Get(ctx, ids)
+	return s.daImpl.Get(ctx, ids, ns)
 }
 
 // GetIDs implements the RPC method.
 func (s *serverInternalAPI) GetIDs(ctx context.Context, height uint64, ns []byte) (*da.GetIDsResult, error) {
 	s.logger.Debug("RPC server: GetIDs called", "height", height, "namespace", string(ns))
-	return s.daImpl.GetIDs(ctx, height)
+	return s.daImpl.GetIDs(ctx, height, ns)
 }
 
 // GetProofs implements the RPC method.
 func (s *serverInternalAPI) GetProofs(ctx context.Context, ids []da.ID, ns []byte) ([]da.Proof, error) {
 	s.logger.Debug("RPC server: GetProofs called", "num_ids", len(ids), "namespace", string(ns))
-	return s.daImpl.GetProofs(ctx, ids)
+	return s.daImpl.GetProofs(ctx, ids, ns)
 }
 
 // Commit implements the RPC method.
 func (s *serverInternalAPI) Commit(ctx context.Context, blobs []da.Blob, ns []byte) ([]da.Commitment, error) {
 	s.logger.Debug("RPC server: Commit called", "num_blobs", len(blobs), "namespace", string(ns))
-	return s.daImpl.Commit(ctx, blobs)
+	return s.daImpl.Commit(ctx, blobs, ns)
 }
 
 // Validate implements the RPC method.
 func (s *serverInternalAPI) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, ns []byte) ([]bool, error) {
 	s.logger.Debug("RPC server: Validate called", "num_ids", len(ids), "num_proofs", len(proofs), "namespace", string(ns))
-	return s.daImpl.Validate(ctx, ids, proofs)
+	return s.daImpl.Validate(ctx, ids, proofs, ns)
 }
 
 // Submit implements the RPC method. This is the primary submit method which includes options.
 func (s *serverInternalAPI) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
 	s.logger.Debug("RPC server: Submit called", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns), "options", string(options))
-	return s.daImpl.Submit(ctx, blobs, gasPrice, options) // Pass options to underlying DA
+	return s.daImpl.Submit(ctx, blobs, gasPrice, ns) // Pass namespace to underlying DA
 }
 
 // GasPrice implements the RPC method.

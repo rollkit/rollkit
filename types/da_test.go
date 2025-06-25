@@ -220,13 +220,13 @@ func TestRetrieveWithHelpers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDA := mocks.NewMockDA(t)
 
-			mockDA.On("GetIDs", mock.Anything, dataLayerHeight).Return(tc.getIDsResult, tc.getIDsErr)
+			mockDA.On("GetIDs", mock.Anything, dataLayerHeight, mock.Anything).Return(tc.getIDsResult, tc.getIDsErr)
 
 			if tc.getIDsErr == nil && tc.getIDsResult != nil && len(tc.getIDsResult.IDs) > 0 {
-				mockDA.On("Get", mock.Anything, tc.getIDsResult.IDs).Return(mockBlobs, tc.getBlobsErr)
+				mockDA.On("Get", mock.Anything, tc.getIDsResult.IDs, mock.Anything).Return(mockBlobs, tc.getBlobsErr)
 			}
 
-			result := types.RetrieveWithHelpers(context.Background(), mockDA, logger, dataLayerHeight)
+			result := types.RetrieveWithHelpers(context.Background(), mockDA, logger, dataLayerHeight, []byte("test-namespace"))
 
 			assert.Equal(t, tc.expectedCode, result.Code)
 			assert.Equal(t, tc.expectedHeight, result.Height)

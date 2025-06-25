@@ -113,7 +113,7 @@ func submitToDA[T any](
 		remLen = len(remaining)
 
 		submitctx, submitCtxCancel := context.WithTimeout(ctx, 60*time.Second)
-		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, currMarshaled, gasPrice, nil)
+		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, currMarshaled, gasPrice, []byte(m.genesis.ChainID))
 		submitCtxCancel()
 
 		switch res.Code {

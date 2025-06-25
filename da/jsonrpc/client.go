@@ -37,9 +37,9 @@ type API struct {
 }
 
 // Get returns Blob for each given ID, or an error.
-func (api *API) Get(ctx context.Context, ids []da.ID) ([]da.Blob, error) {
-	api.Logger.Debug("Making RPC call", "method", "Get", "num_ids", len(ids), "namespace", string(api.Namespace))
-	res, err := api.Internal.Get(ctx, ids, api.Namespace)
+func (api *API) Get(ctx context.Context, ids []da.ID, namespace []byte) ([]da.Blob, error) {
+	api.Logger.Debug("Making RPC call", "method", "Get", "num_ids", len(ids), "namespace", string(namespace))
+	res, err := api.Internal.Get(ctx, ids, namespace)
 	if err != nil {
 		if strings.Contains(err.Error(), context.Canceled.Error()) {
 			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Get")
@@ -54,9 +54,9 @@ func (api *API) Get(ctx context.Context, ids []da.ID) ([]da.Blob, error) {
 }
 
 // GetIDs returns IDs of all Blobs located in DA at given height.
-func (api *API) GetIDs(ctx context.Context, height uint64) (*da.GetIDsResult, error) {
-	api.Logger.Debug("Making RPC call", "method", "GetIDs", "height", height, "namespace", string(api.Namespace))
-	res, err := api.Internal.GetIDs(ctx, height, api.Namespace)
+func (api *API) GetIDs(ctx context.Context, height uint64, namespace []byte) (*da.GetIDsResult, error) {
+	api.Logger.Debug("Making RPC call", "method", "GetIDs", "height", height, "namespace", string(namespace))
+	res, err := api.Internal.GetIDs(ctx, height, namespace)
 	if err != nil {
 		// Using strings.contains since JSON RPC serialization doesn't preserve error wrapping
 		// Check if the error is specifically BlobNotFound, otherwise log and return
@@ -87,9 +87,9 @@ func (api *API) GetIDs(ctx context.Context, height uint64) (*da.GetIDsResult, er
 }
 
 // GetProofs returns inclusion Proofs for Blobs specified by their IDs.
-func (api *API) GetProofs(ctx context.Context, ids []da.ID) ([]da.Proof, error) {
-	api.Logger.Debug("Making RPC call", "method", "GetProofs", "num_ids", len(ids), "namespace", string(api.Namespace))
-	res, err := api.Internal.GetProofs(ctx, ids, api.Namespace)
+func (api *API) GetProofs(ctx context.Context, ids []da.ID, namespace []byte) ([]da.Proof, error) {
+	api.Logger.Debug("Making RPC call", "method", "GetProofs", "num_ids", len(ids), "namespace", string(namespace))
+	res, err := api.Internal.GetProofs(ctx, ids, namespace)
 	if err != nil {
 		api.Logger.Error("RPC call failed", "method", "GetProofs", "error", err)
 	} else {
@@ -99,9 +99,9 @@ func (api *API) GetProofs(ctx context.Context, ids []da.ID) ([]da.Proof, error) 
 }
 
 // Commit creates a Commitment for each given Blob.
-func (api *API) Commit(ctx context.Context, blobs []da.Blob) ([]da.Commitment, error) {
-	api.Logger.Debug("Making RPC call", "method", "Commit", "num_blobs", len(blobs), "namespace", string(api.Namespace))
-	res, err := api.Internal.Commit(ctx, blobs, api.Namespace)
+func (api *API) Commit(ctx context.Context, blobs []da.Blob, namespace []byte) ([]da.Commitment, error) {
+	api.Logger.Debug("Making RPC call", "method", "Commit", "num_blobs", len(blobs), "namespace", string(namespace))
+	res, err := api.Internal.Commit(ctx, blobs, namespace)
 	if err != nil {
 		api.Logger.Error("RPC call failed", "method", "Commit", "error", err)
 	} else {
@@ -111,9 +111,9 @@ func (api *API) Commit(ctx context.Context, blobs []da.Blob) ([]da.Commitment, e
 }
 
 // Validate validates Commitments against the corresponding Proofs. This should be possible without retrieving the Blobs.
-func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof) ([]bool, error) {
-	api.Logger.Debug("Making RPC call", "method", "Validate", "num_ids", len(ids), "num_proofs", len(proofs), "namespace", string(api.Namespace))
-	res, err := api.Internal.Validate(ctx, ids, proofs, api.Namespace)
+func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, namespace []byte) ([]bool, error) {
+	api.Logger.Debug("Making RPC call", "method", "Validate", "num_ids", len(ids), "num_proofs", len(proofs), "namespace", string(namespace))
+	res, err := api.Internal.Validate(ctx, ids, proofs, namespace)
 	if err != nil {
 		api.Logger.Error("RPC call failed", "method", "Validate", "error", err)
 	} else {
@@ -122,9 +122,9 @@ func (api *API) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof) ([
 	return res, err
 }
 
-// Submit submits the Blobs to Data Availability layer with additional options.
+// Submit submits the Blobs to Data Availability layer.
 // It checks blobs against MaxBlobSize and submits only those that fit.
-func (api *API) Submit(ctx context.Context, inputBlobs []da.Blob, gasPrice float64, options []byte) ([]da.ID, error) {
+func (api *API) Submit(ctx context.Context, inputBlobs []da.Blob, gasPrice float64, namespace []byte) ([]da.ID, error) {
 	maxBlobSize := api.MaxBlobSize
 
 	var (
@@ -161,8 +161,8 @@ func (api *API) Submit(ctx context.Context, inputBlobs []da.Blob, gasPrice float
 		return []da.ID{}, nil
 	}
 
-	api.Logger.Debug("Making RPC call", "method", "Submit", "num_blobs_original", len(inputBlobs), "num_blobs_to_submit", len(blobsToSubmit), "gas_price", gasPrice, "namespace", string(api.Namespace))
-	res, err := api.Internal.Submit(ctx, blobsToSubmit, gasPrice, api.Namespace, options)
+	api.Logger.Debug("Making RPC call", "method", "Submit", "num_blobs_original", len(inputBlobs), "num_blobs_to_submit", len(blobsToSubmit), "gas_price", gasPrice, "namespace", string(namespace))
+	res, err := api.Internal.Submit(ctx, blobsToSubmit, gasPrice, namespace, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), context.Canceled.Error()) {
 			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Submit")

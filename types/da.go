@@ -13,7 +13,7 @@ import (
 
 // SubmitWithHelpers performs blob submission using the underlying DA layer,
 // handling error mapping to produce a ResultSubmit.
-// It assumes blob size filtering is handled within the DA implementation's SubmitWithOptions.
+// It assumes blob size filtering is handled within the DA implementation's Submit.
 // It mimics the logic previously found in da.DAClient.Submit.
 func SubmitWithHelpers(
 	ctx context.Context,
@@ -21,9 +21,9 @@ func SubmitWithHelpers(
 	logger log.Logger,
 	data [][]byte,
 	gasPrice float64,
-	options []byte,
+	namespace []byte,
 ) coreda.ResultSubmit { // Return core ResultSubmit type
-	ids, err := da.Submit(ctx, data, gasPrice, options)
+	ids, err := da.Submit(ctx, data, gasPrice, namespace)
 
 	// Handle errors returned by Submit
 	if err != nil {
@@ -101,10 +101,11 @@ func RetrieveWithHelpers(
 	da coreda.DA,
 	logger log.Logger,
 	dataLayerHeight uint64,
+	namespace []byte,
 ) coreda.ResultRetrieve {
 
 	// 1. Get IDs
-	idsResult, err := da.GetIDs(ctx, dataLayerHeight)
+	idsResult, err := da.GetIDs(ctx, dataLayerHeight, namespace)
 	if err != nil {
 		// Handle specific "not found" error
 		if strings.Contains(err.Error(), coreda.ErrBlobNotFound.Error()) {
@@ -151,7 +152,7 @@ func RetrieveWithHelpers(
 	}
 
 	// 2. Get Blobs using the retrieved IDs
-	blobs, err := da.Get(ctx, idsResult.IDs)
+	blobs, err := da.Get(ctx, idsResult.IDs, namespace)
 	if err != nil {
 		// Handle errors during Get
 		logger.Error("Retrieve helper: Failed to get blobs", "height", dataLayerHeight, "num_ids", len(idsResult.IDs), "error", err)

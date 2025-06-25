@@ -43,7 +43,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test Get
-	retrievedBlobs, err := dummyDA.Get(ctx, ids)
+	retrievedBlobs, err := dummyDA.Get(ctx, ids, []byte("ns"))
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test GetIDs
-	result, err := dummyDA.GetIDs(ctx, 1)
+	result, err := dummyDA.GetIDs(ctx, 1, []byte("ns"))
 	if err != nil {
 		t.Fatalf("GetIDs failed: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test Commit
-	commitments, err := dummyDA.Commit(ctx, blobs)
+	commitments, err := dummyDA.Commit(ctx, blobs, []byte("ns"))
 	if err != nil {
 		t.Fatalf("Commit failed: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test GetProofs
-	proofs, err := dummyDA.GetProofs(ctx, ids)
+	proofs, err := dummyDA.GetProofs(ctx, ids, []byte("ns"))
 	if err != nil {
 		t.Fatalf("GetProofs failed: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestDummyDA(t *testing.T) {
 	}
 
 	// Test Validate
-	validations, err := dummyDA.Validate(ctx, ids, proofs)
+	validations, err := dummyDA.Validate(ctx, ids, proofs, []byte("ns"))
 	if err != nil {
 		t.Fatalf("Validate failed: %v", err)
 	}
