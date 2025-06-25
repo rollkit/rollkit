@@ -29,7 +29,7 @@ type pendingBaseTestCase[T any] struct {
 
 func runPendingBase_InitAndGetLastSubmittedHeight[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	t.Run(tc.name+"/InitAndGetLastSubmittedHeight", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
 		pb, err := newPendingBase(mockStore, logger, tc.key, tc.fetch)
@@ -41,7 +41,7 @@ func runPendingBase_InitAndGetLastSubmittedHeight[T any](t *testing.T, tc pendin
 
 func runPendingBase_GetPending_AllCases[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	t.Run(tc.name+"/GetPending_AllCases", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
 		pb, err := newPendingBase(mockStore, logger, tc.key, tc.fetch)
@@ -98,7 +98,7 @@ func runPendingBase_GetPending_AllCases[T any](t *testing.T, tc pendingBaseTestC
 
 func runPendingBase_isEmpty_numPending[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	t.Run(tc.name+"/isEmpty_numPending", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
 		pb, err := newPendingBase(mockStore, logger, tc.key, tc.fetch)
@@ -123,7 +123,7 @@ func runPendingBase_isEmpty_numPending[T any](t *testing.T, tc pendingBaseTestCa
 
 func runPendingBase_setLastSubmittedHeight[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	t.Run(tc.name+"/setLastSubmittedHeight", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
 		pb, err := newPendingBase(mockStore, logger, tc.key, tc.fetch)
@@ -176,7 +176,7 @@ func runPendingBase_init_cases[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
-				mockStore := mocksStore.NewStore(t)
+				mockStore := mocksStore.NewMockStore(t)
 				logger := log.NewNopLogger()
 				mockStore.On("GetMetadata", mock.Anything, tc.key).Return(c.metaValue, c.metaErr).Once()
 				pb := &pendingBase[T]{store: mockStore, logger: logger, metaKey: tc.key, fetch: tc.fetch}
@@ -194,7 +194,7 @@ func runPendingBase_init_cases[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 
 func runPendingBase_Fetch[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	t.Run(tc.name+"/fetch_success", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		ctx := context.Background()
 		item := tc.makeItem(42)
 		// fetchData: returns (nil, data, nil), fetchSignedHeader: returns (header, nil, nil)
@@ -209,7 +209,7 @@ func runPendingBase_Fetch[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	})
 
 	t.Run(tc.name+"/fetch_error", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		ctx := context.Background()
 		mockStore.On("GetBlockData", ctx, uint64(99)).Return(nil, nil, errors.New("fail")).Once()
 		_, err := tc.fetch(ctx, mockStore, 99)
@@ -219,7 +219,7 @@ func runPendingBase_Fetch[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 
 func runPendingBase_NewPending[T any](t *testing.T, tc pendingBaseTestCase[T], newPending func(store.Store, log.Logger) (any, error)) {
 	t.Run(tc.name+"/new_pending", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
 		pending, err := newPending(mockStore, logger)
@@ -228,7 +228,7 @@ func runPendingBase_NewPending[T any](t *testing.T, tc pendingBaseTestCase[T], n
 	})
 
 	t.Run(tc.name+"/new_pending_error", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		simErr := errors.New("simulated error")
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, simErr).Once()
