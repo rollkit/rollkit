@@ -8,6 +8,7 @@
 // - Sequencer and full node initialization
 // - P2P connection management
 // - Transaction submission and verification utilities
+// - Node restart and recovery functions
 // - Common constants and configuration values
 //
 // By centralizing these utilities, we eliminate code duplication and ensure
@@ -17,6 +18,7 @@ package e2e
 import (
 	"context"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -34,6 +36,13 @@ import (
 
 	"github.com/rollkit/rollkit/execution/evm"
 )
+
+// evmSingleBinaryPath is the path to the evm-single binary used in tests
+var evmSingleBinaryPath string
+
+func init() {
+	flag.StringVar(&evmSingleBinaryPath, "evm-binary", "evm-single", "evm-single binary")
+}
 
 // Common constants used across EVM tests
 const (
@@ -282,6 +291,38 @@ func setupSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSe
 	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
 }
 
+// setupSequencerNodeLazy initializes and starts the sequencer node in lazy mode.
+// In lazy mode, blocks are only produced when transactions are available,
+// not on a regular timer.
+func setupSequencerNodeLazy(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
+	t.Helper()
+
+	// Initialize sequencer node
+	output, err := sut.RunCmd(evmSingleBinaryPath,
+		"init",
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", TestPassphrase,
+		"--home", sequencerHome,
+	)
+	require.NoError(t, err, "failed to init sequencer", output)
+
+	// Start sequencer node in lazy mode
+	sut.ExecCmd(evmSingleBinaryPath,
+		"start",
+		"--evm.jwt-secret", jwtSecret,
+		"--evm.genesis-hash", genesisHash,
+		"--rollkit.node.block_time", DefaultBlockTime,
+		"--rollkit.node.aggregator=true",
+		"--rollkit.node.lazy_mode=true",          // Enable lazy mode
+		"--rollkit.node.lazy_block_interval=60s", // Set lazy block interval to 60 seconds to prevent timer-based block production during test
+		"--rollkit.signer.passphrase", TestPassphrase,
+		"--home", sequencerHome,
+		"--rollkit.da.address", DAAddress,
+		"--rollkit.da.block_time", DefaultDABlockTime,
+	)
+	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
+}
+
 // setupFullNode initializes and starts the full node with P2P connection to sequencer.
 // This function handles:
 // - Full node initialization (non-aggregator mode)
@@ -469,12 +510,154 @@ func checkBlockInfoAt(t *testing.T, ethURL string, blockHeight *uint64) (common.
 	return blockHash, stateRoot, txCount, blockNum, nil
 }
 
+// max returns the maximum of two uint64 values
+func max(a, b uint64) uint64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // min returns the minimum of two uint64 values
 func min(a, b uint64) uint64 {
 	if a < b {
 		return a
 	}
 	return b
+}
+
+// setupSequencerOnlyTest performs setup for EVM sequencer-only tests.
+// This helper sets up DA, EVM engine, and sequencer node for tests that don't need full nodes.
+//
+// Parameters:
+// - sut: SystemUnderTest instance for managing test processes
+// - nodeHome: Directory path for sequencer node data
+//
+// Returns: genesisHash for the sequencer
+func setupSequencerOnlyTest(t *testing.T, sut *SystemUnderTest, nodeHome string) string {
+	t.Helper()
+
+	// Use common setup (no full node needed)
+	jwtSecret, _, genesisHash := setupCommonEVMTest(t, sut, false)
+
+	// Initialize and start sequencer node
+	setupSequencerNode(t, sut, nodeHome, jwtSecret, genesisHash)
+	t.Log("Sequencer node is up")
+
+	return genesisHash
+}
+
+// restartDAAndSequencer restarts both the local DA and sequencer node.
+// This is used for restart scenarios where all processes were shutdown.
+// This function is shared between multiple restart tests.
+//
+// Parameters:
+// - sut: SystemUnderTest instance for managing test processes
+// - sequencerHome: Directory path for sequencer node data
+// - jwtSecret: JWT secret for sequencer's EVM engine authentication
+// - genesisHash: Hash of the genesis block for chain validation
+func restartDAAndSequencer(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
+	t.Helper()
+
+	// First restart the local DA
+	localDABinary := "local-da"
+	if evmSingleBinaryPath != "evm-single" {
+		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
+	}
+	sut.ExecCmd(localDABinary)
+	t.Log("Restarted local DA")
+	time.Sleep(100 * time.Millisecond)
+
+	// Then restart the sequencer node (without init - node already exists)
+	sut.ExecCmd(evmSingleBinaryPath,
+		"start",
+		"--evm.jwt-secret", jwtSecret,
+		"--evm.genesis-hash", genesisHash,
+		"--rollkit.node.block_time", DefaultBlockTime,
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", TestPassphrase,
+		"--home", sequencerHome,
+		"--rollkit.da.address", DAAddress,
+		"--rollkit.da.block_time", DefaultDABlockTime,
+	)
+
+	// Give the node a moment to start before checking
+	time.Sleep(2 * time.Second)
+
+	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
+}
+
+// restartDAAndSequencerLazy restarts both the local DA and sequencer node in lazy mode.
+// This is used for restart scenarios where all processes were shutdown and we want
+// to restart the sequencer in lazy mode.
+// This function is shared between multiple restart tests.
+//
+// Parameters:
+// - sut: SystemUnderTest instance for managing test processes
+// - sequencerHome: Directory path for sequencer node data
+// - jwtSecret: JWT secret for sequencer's EVM engine authentication
+// - genesisHash: Hash of the genesis block for chain validation
+func restartDAAndSequencerLazy(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
+	t.Helper()
+
+	// First restart the local DA
+	localDABinary := "local-da"
+	if evmSingleBinaryPath != "evm-single" {
+		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
+	}
+	sut.ExecCmd(localDABinary)
+	t.Log("Restarted local DA")
+	time.Sleep(100 * time.Millisecond)
+
+	// Then restart the sequencer node in lazy mode (without init - node already exists)
+	sut.ExecCmd(evmSingleBinaryPath,
+		"start",
+		"--evm.jwt-secret", jwtSecret,
+		"--evm.genesis-hash", genesisHash,
+		"--rollkit.node.block_time", DefaultBlockTime,
+		"--rollkit.node.aggregator=true",
+		"--rollkit.node.lazy_mode=true",          // Enable lazy mode
+		"--rollkit.node.lazy_block_interval=60s", // Set lazy block interval to 60 seconds to prevent timer-based block production during test
+		"--rollkit.signer.passphrase", TestPassphrase,
+		"--home", sequencerHome,
+		"--rollkit.da.address", DAAddress,
+		"--rollkit.da.block_time", DefaultDABlockTime,
+	)
+
+	// Give the node a moment to start before checking
+	time.Sleep(2 * time.Second)
+
+	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
+}
+
+// restartSequencerNode starts an existing sequencer node without initialization.
+// This is used for restart scenarios where the node has already been initialized.
+//
+// Parameters:
+// - sut: SystemUnderTest instance for managing test processes
+// - sequencerHome: Directory path for sequencer node data
+// - jwtSecret: JWT secret for sequencer's EVM engine authentication
+// - genesisHash: Hash of the genesis block for chain validation
+func restartSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
+	t.Helper()
+
+	// Start sequencer node (without init - node already exists)
+	sut.ExecCmd(evmSingleBinaryPath,
+		"start",
+		"--evm.jwt-secret", jwtSecret,
+		"--evm.genesis-hash", genesisHash,
+		"--rollkit.node.block_time", DefaultBlockTime,
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", TestPassphrase,
+		"--home", sequencerHome,
+		"--rollkit.da.address", DAAddress,
+		"--rollkit.da.block_time", DefaultDABlockTime,
+	)
+
+	// Give the node a moment to start before checking
+	time.Sleep(2 * time.Second)
+
+	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
 }
 
 // verifyNoBlockProduction verifies that no new blocks are being produced over a specified duration.
