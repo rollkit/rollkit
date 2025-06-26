@@ -476,3 +476,43 @@ func min(a, b uint64) uint64 {
 	}
 	return b
 }
+
+// verifyNoBlockProduction verifies that no new blocks are being produced over a specified duration.
+// This is used to test lazy mode behavior where blocks should only be produced when
+// transactions are submitted.
+//
+// Parameters:
+// - client: Ethereum client to monitor for block production
+// - duration: How long to monitor for block production
+// - nodeName: Human-readable name for logging (e.g., "sequencer", "full node")
+//
+// This function ensures that during lazy mode idle periods, no automatic block production occurs.
+func verifyNoBlockProduction(t *testing.T, client *ethclient.Client, duration time.Duration, nodeName string) {
+	t.Helper()
+
+	ctx := context.Background()
+
+	// Get initial height
+	initialHeader, err := client.HeaderByNumber(ctx, nil)
+	require.NoError(t, err, "Should get initial header from %s", nodeName)
+	initialHeight := initialHeader.Number.Uint64()
+
+	t.Logf("Initial %s height: %d, monitoring for %v", nodeName, initialHeight, duration)
+
+	// Monitor for the specified duration
+	endTime := time.Now().Add(duration)
+	for time.Now().Before(endTime) {
+		currentHeader, err := client.HeaderByNumber(ctx, nil)
+		require.NoError(t, err, "Should get current header from %s", nodeName)
+		currentHeight := currentHeader.Number.Uint64()
+
+		// Verify height hasn't increased
+		require.Equal(t, initialHeight, currentHeight,
+			"%s should not produce new blocks during idle period (started at %d, now at %d)",
+			nodeName, initialHeight, currentHeight)
+
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	t.Logf("✅ %s maintained height %d for %v (no new blocks produced)", nodeName, initialHeight, duration)
+}
