@@ -50,9 +50,10 @@ func (s *DockerTestSuite) TestBasicDockerE2E() {
 	s.T().Run("submit a transaction to the rollkit chain", func(t *testing.T) {
 		rollkitNode := s.rollkitChain.GetNodes()[0]
 
-		host := rollkitNode.GetHostName()
+		// the http port resolvable by teh test runner.
+		httpPort := rollkitNode.GetHostHTTPPort()
 
-		client, err := NewClient(host, "9090/tcp")
+		client, err := NewClient("localhost", httpPort)
 
 		key := "key1"
 		value := "value1"
@@ -60,7 +61,7 @@ func (s *DockerTestSuite) TestBasicDockerE2E() {
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			res, err := client.Get(ctx, "/"+key)
+			res, err := client.Get(ctx, "/kv?key="+key)
 			if err != nil {
 				return false
 			}

@@ -33,6 +33,10 @@ func (c *Client) Get(ctx context.Context, path string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+	}
+
 	return io.ReadAll(resp.Body)
 }
 
