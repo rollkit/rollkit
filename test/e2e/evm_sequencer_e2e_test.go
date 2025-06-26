@@ -34,7 +34,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -761,56 +760,32 @@ func TestEvmSequencerRestartRecoveryE2E(t *testing.T) {
 
 	t.Log("Phase 2: Gracefully stopping sequencer node...")
 
-	// Debug: Show what processes are currently tracked
-	t.Logf("Binary path being used: %s", evmSingleBinaryPath)
-	t.Logf("Has any processes: %v", sut.HasProcess())
-	t.Logf("Has evm-single processes: %v", sut.HasProcess("evm-single"))
-	t.Logf("Has full path processes: %v", sut.HasProcess(evmSingleBinaryPath))
+	// For restart testing, we need to shutdown all processes managed by SUT
+	// This ensures a clean shutdown and allows us to restart properly
+	t.Log("Shutting down all processes using SystemUnderTest...")
 
-	// Manual approach: Find and kill evm-single processes using pkill
-	t.Log("Attempting to find and kill evm-single processes manually...")
-
-	// First try graceful shutdown with SIGTERM
-	cmd := exec.Command("pkill", "-f", "evm-single")
-	if err := cmd.Run(); err != nil {
-		t.Logf("pkill SIGTERM failed (process may not exist): %v", err)
-	} else {
-		t.Log("Sent SIGTERM to evm-single processes")
-	}
+	// Shutdown all processes tracked by SUT - this is more reliable than targeting specific commands
+	sut.ShutdownAll()
 
 	// Wait for graceful shutdown to allow state to be saved
 	t.Log("Waiting for graceful shutdown and state persistence...")
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 
-	// Check if process is still running and force kill if needed
-	checkCmd := exec.Command("pgrep", "-f", "evm-single")
-	if err := checkCmd.Run(); err == nil {
-		t.Log("Process still running, sending SIGKILL...")
-		killCmd := exec.Command("pkill", "-9", "-f", "evm-single")
-		if err := killCmd.Run(); err != nil {
-			t.Logf("pkill SIGKILL failed: %v", err)
-		} else {
-			t.Log("Sent SIGKILL to evm-single processes")
-		}
-	}
-
-	// Wait and verify shutdown by checking if process exists
+	// Verify shutdown using SUT's process tracking
 	require.Eventually(t, func() bool {
-		checkCmd := exec.Command("pgrep", "-f", "evm-single")
-		err := checkCmd.Run()
-		processExists := (err == nil)
-		t.Logf("Shutdown check: evm-single process exists=%v", processExists)
-		return !processExists
-	}, 10*time.Second, 500*time.Millisecond, "evm-single process should be stopped")
+		hasAnyProcess := sut.HasProcess()
+		t.Logf("Shutdown check: any processes exist=%v", hasAnyProcess)
+		return !hasAnyProcess
+	}, 15*time.Second, 500*time.Millisecond, "all processes should be stopped")
 
-	t.Log("evm-single process stopped successfully")
+	t.Log("All processes stopped successfully")
 
 	// === PHASE 3: Sequencer restart and state synchronization ===
 
-	t.Log("Phase 3: Restarting sequencer node (testing state synchronization)...")
+	t.Log("Phase 3: Restarting DA and sequencer node (testing state synchronization)...")
 
-	// Restart the sequencer node with the same configuration
-	restartSequencerNode(t, sut, nodeHome, jwtSecret, genesisHash)
+	// Restart both DA and sequencer since ShutdownAll() killed everything
+	restartDAAndSequencer(t, sut, nodeHome, jwtSecret, genesisHash)
 
 	t.Log("Sequencer node restarted successfully")
 
@@ -920,6 +895,39 @@ func TestEvmSequencerRestartRecoveryE2E(t *testing.T) {
 	t.Logf("   - No 'nil payload status' errors: ✓")
 	t.Logf("   - Blockchain height progressed: %d -> %d: ✓", initialHeight, finalHeight)
 	t.Logf("   - All %d transactions verified: ✓", len(allTxHashes))
+}
+
+// restartDAAndSequencer restarts both the local DA and sequencer node.
+// This is used for restart scenarios where all processes were shutdown.
+func restartDAAndSequencer(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
+	t.Helper()
+
+	// First restart the local DA
+	localDABinary := "local-da"
+	if evmSingleBinaryPath != "evm-single" {
+		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
+	}
+	sut.ExecCmd(localDABinary)
+	t.Log("Restarted local DA")
+	time.Sleep(100 * time.Millisecond)
+
+	// Then restart the sequencer node (without init - node already exists)
+	sut.ExecCmd(evmSingleBinaryPath,
+		"start",
+		"--evm.jwt-secret", jwtSecret,
+		"--evm.genesis-hash", genesisHash,
+		"--rollkit.node.block_time", DefaultBlockTime,
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", TestPassphrase,
+		"--home", sequencerHome,
+		"--rollkit.da.address", DAAddress,
+		"--rollkit.da.block_time", DefaultDABlockTime,
+	)
+
+	// Give the node a moment to start before checking
+	time.Sleep(2 * time.Second)
+
+	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
 }
 
 // restartSequencerNode starts an existing sequencer node without initialization.
