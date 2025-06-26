@@ -126,12 +126,12 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 
 	if !c.proposer {
 
-		proofs, err := c.da.GetProofs(ctx, req.BatchData)
+		proofs, err := c.da.GetProofs(ctx, req.BatchData, c.Id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get proofs: %w", err)
 		}
 
-		valid, err := c.da.Validate(ctx, req.BatchData, proofs)
+		valid, err := c.da.Validate(ctx, req.BatchData, proofs, c.Id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate proof: %w", err)
 		}

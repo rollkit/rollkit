@@ -269,8 +269,8 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				queue:    NewBatchQueue(db, "valid_proofs_queue"),
 			}
 
-			mockDA.On("GetProofs", context.Background(), batchData).Return(proofs, nil).Once()
-			mockDA.On("Validate", mock.Anything, batchData, proofs).Return([]bool{true, true}, nil).Once()
+			mockDA.On("GetProofs", context.Background(), batchData, Id).Return(proofs, nil).Once()
+			mockDA.On("Validate", mock.Anything, batchData, proofs, Id).Return([]bool{true, true}, nil).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
 			assert.NoError(err)
@@ -289,8 +289,8 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				queue:    NewBatchQueue(db, "invalid_proof_queue"),
 			}
 
-			mockDA.On("GetProofs", context.Background(), batchData).Return(proofs, nil).Once()
-			mockDA.On("Validate", mock.Anything, batchData, proofs).Return([]bool{true, false}, nil).Once()
+			mockDA.On("GetProofs", context.Background(), batchData, Id).Return(proofs, nil).Once()
+			mockDA.On("Validate", mock.Anything, batchData, proofs, Id).Return([]bool{true, false}, nil).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
 			assert.NoError(err)
@@ -310,7 +310,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			}
 			expectedErr := errors.New("get proofs failed")
 
-			mockDA.On("GetProofs", context.Background(), batchData).Return(nil, expectedErr).Once()
+			mockDA.On("GetProofs", context.Background(), batchData, Id).Return(nil, expectedErr).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
 			assert.Error(err)
@@ -331,8 +331,8 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			}
 			expectedErr := errors.New("validate failed")
 
-			mockDA.On("GetProofs", context.Background(), batchData).Return(proofs, nil).Once()
-			mockDA.On("Validate", mock.Anything, batchData, proofs).Return(nil, expectedErr).Once()
+			mockDA.On("GetProofs", context.Background(), batchData, Id).Return(proofs, nil).Once()
+			mockDA.On("Validate", mock.Anything, batchData, proofs, Id).Return(nil, expectedErr).Once()
 
 			res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
 			assert.Error(err)
