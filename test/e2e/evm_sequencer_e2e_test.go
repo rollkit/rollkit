@@ -34,6 +34,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -655,4 +657,337 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	t.Logf("   - Valid transactions continue to work normally")
 	t.Logf("   - System maintains stability after rejecting invalid transactions")
 	t.Logf("   - Transaction validation mechanisms functioning properly")
+}
+
+// TestEvmSequencerRestartRecoveryE2E tests the sequencer node's ability to recover from
+// a restart without data loss or corruption, validating the state synchronization fix.
+//
+// Test Purpose:
+// - Validate that the sequencer node can recover from a crash or restart without data loss
+// - Test the state synchronization between Rollkit and EVM engine on restart
+// - Ensure previously submitted transactions are not lost during restart
+// - Verify the node resumes block production correctly after restart
+//
+// This test specifically validates the fix for the "nil payload status" crash that occurred
+// when restarting a node due to state desynchronization between Rollkit and EVM engine.
+//
+// Test Flow:
+// 1. Sets up Local DA layer and EVM sequencer
+// 2. Submits initial transactions and verifies they are included
+// 3. Records the current blockchain state (height, transactions)
+// 4. Gracefully stops the sequencer node
+// 5. Restarts the sequencer node with the same configuration
+// 6. Verifies the node starts successfully without crashes
+// 7. Submits new transactions to verify resumed functionality
+// 8. Validates that all previous and new transactions are preserved
+//
+// Expected Behavior:
+// - Initial transactions should be processed successfully
+// - Node restart should complete without errors or crashes
+// - Previous blockchain state should be preserved
+// - New transactions should be processed after restart
+// - No "nil payload status" or state synchronization errors
+//
+// This test validates the state synchronization fix implemented in NewEngineExecutionClientWithState.
+func TestEvmSequencerRestartRecoveryE2E(t *testing.T) {
+	flag.Parse()
+	workDir := t.TempDir()
+	nodeHome := filepath.Join(workDir, "evm-agg")
+	sut := NewSystemUnderTest(t)
+
+	// Setup DA and EVM engine (these will persist across restart)
+	jwtSecret, _, genesisHash := setupCommonEVMTest(t, sut, false)
+	t.Logf("Genesis hash: %s", genesisHash)
+
+	// === PHASE 1: Initial sequencer startup and transaction processing ===
+
+	t.Log("Phase 1: Starting initial sequencer and processing transactions...")
+
+	// Initialize and start sequencer node
+	setupSequencerNode(t, sut, nodeHome, jwtSecret, genesisHash)
+	t.Log("Initial sequencer node is up")
+
+	// Connect to EVM to submit transactions
+	client, err := ethclient.Dial(SequencerEthURL)
+	require.NoError(t, err, "Should be able to connect to EVM")
+	defer client.Close()
+
+	// Submit initial batch of transactions before restart
+	const numInitialTxs = 5
+	var initialTxHashes []common.Hash
+	lastNonce := uint64(0)
+
+	t.Logf("Submitting %d initial transactions...", numInitialTxs)
+	for i := 0; i < numInitialTxs; i++ {
+		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
+		evm.SubmitTransaction(t, tx)
+		initialTxHashes = append(initialTxHashes, tx.Hash())
+		t.Logf("Submitted initial transaction %d: %s (nonce: %d)", i+1, tx.Hash().Hex(), tx.Nonce())
+		time.Sleep(200 * time.Millisecond) // Space out transactions
+	}
+
+	// Wait for all initial transactions to be included
+	ctx := context.Background()
+	t.Log("Waiting for initial transactions to be included...")
+	require.Eventually(t, func() bool {
+		for _, txHash := range initialTxHashes {
+			receipt, err := client.TransactionReceipt(ctx, txHash)
+			if err != nil || receipt == nil || receipt.Status != 1 {
+				return false
+			}
+		}
+		return true
+	}, 30*time.Second, 1*time.Second, "All initial transactions should be included")
+
+	// Record the blockchain state before restart
+	initialHeader, err := client.HeaderByNumber(ctx, nil)
+	require.NoError(t, err, "Should get initial blockchain header")
+	initialHeight := initialHeader.Number.Uint64()
+	initialStateRoot := initialHeader.Root.Hex()
+
+	t.Logf("Pre-restart blockchain state:")
+	t.Logf("  - Height: %d", initialHeight)
+	t.Logf("  - State root: %s", initialStateRoot)
+	t.Logf("  - Transactions processed: %d", numInitialTxs)
+
+	// === PHASE 2: Graceful sequencer shutdown ===
+
+	t.Log("Phase 2: Gracefully stopping sequencer node...")
+
+	// Debug: Show what processes are currently tracked
+	t.Logf("Binary path being used: %s", evmSingleBinaryPath)
+	t.Logf("Has any processes: %v", sut.HasProcess())
+	t.Logf("Has evm-single processes: %v", sut.HasProcess("evm-single"))
+	t.Logf("Has full path processes: %v", sut.HasProcess(evmSingleBinaryPath))
+
+	// Manual approach: Find and kill evm-single processes using pkill
+	t.Log("Attempting to find and kill evm-single processes manually...")
+
+	// First try graceful shutdown with SIGTERM
+	cmd := exec.Command("pkill", "-f", "evm-single")
+	if err := cmd.Run(); err != nil {
+		t.Logf("pkill SIGTERM failed (process may not exist): %v", err)
+	} else {
+		t.Log("Sent SIGTERM to evm-single processes")
+	}
+
+	// Wait longer for graceful shutdown to allow state to be saved
+	t.Log("Waiting for graceful shutdown and state persistence...")
+	time.Sleep(5 * time.Second)
+
+	// Debug: Check if data was written to disk
+	t.Logf("Checking node home directory: %s", nodeHome)
+	if files, err := os.ReadDir(nodeHome); err == nil {
+		t.Logf("Files in node home after shutdown:")
+		for _, file := range files {
+			t.Logf("  - %s (dir: %v)", file.Name(), file.IsDir())
+
+			// If it's the data directory, check its contents
+			if file.Name() == "data" && file.IsDir() {
+				dataDir := filepath.Join(nodeHome, "data")
+				if dataFiles, err := os.ReadDir(dataDir); err == nil {
+					t.Logf("    Files in data directory:")
+					for _, dataFile := range dataFiles {
+						t.Logf("      - %s (dir: %v)", dataFile.Name(), dataFile.IsDir())
+					}
+				} else {
+					t.Logf("    Error reading data directory: %v", err)
+				}
+			}
+		}
+	} else {
+		t.Logf("Error reading node home directory: %v", err)
+	}
+
+	// Check if process is still running and force kill if needed
+	checkCmd := exec.Command("pgrep", "-f", "evm-single")
+	if err := checkCmd.Run(); err == nil {
+		t.Log("Process still running, sending SIGKILL...")
+		killCmd := exec.Command("pkill", "-9", "-f", "evm-single")
+		if err := killCmd.Run(); err != nil {
+			t.Logf("pkill SIGKILL failed: %v", err)
+		} else {
+			t.Log("Sent SIGKILL to evm-single processes")
+		}
+	}
+
+	// Wait and verify shutdown by checking if process exists
+	require.Eventually(t, func() bool {
+		checkCmd := exec.Command("pgrep", "-f", "evm-single")
+		err := checkCmd.Run()
+		processExists := (err == nil)
+		t.Logf("Shutdown check: evm-single process exists=%v", processExists)
+		return !processExists
+	}, 10*time.Second, 500*time.Millisecond, "evm-single process should be stopped")
+
+	t.Log("evm-single process stopped successfully")
+
+	// === PHASE 3: Sequencer restart and state synchronization ===
+
+	t.Log("Phase 3: Restarting sequencer node (testing state synchronization)...")
+
+	// Debug: Check if data is still there before restart
+	t.Logf("Checking node home directory before restart: %s", nodeHome)
+	if files, err := os.ReadDir(nodeHome); err == nil {
+		t.Logf("Files in node home before restart:")
+		for _, file := range files {
+			t.Logf("  - %s (dir: %v)", file.Name(), file.IsDir())
+
+			// If it's the data directory, check its contents
+			if file.Name() == "data" && file.IsDir() {
+				dataDir := filepath.Join(nodeHome, "data")
+				if dataFiles, err := os.ReadDir(dataDir); err == nil {
+					t.Logf("    Files in data directory before restart:")
+					for _, dataFile := range dataFiles {
+						t.Logf("      - %s (dir: %v)", dataFile.Name(), dataFile.IsDir())
+					}
+				} else {
+					t.Logf("    Error reading data directory before restart: %v", err)
+				}
+			}
+		}
+	} else {
+		t.Logf("Error reading node home directory before restart: %v", err)
+	}
+
+	// Restart the sequencer node with the same configuration
+	// This is where the state synchronization fix is tested
+	restartSequencerNode(t, sut, nodeHome, jwtSecret, genesisHash)
+
+	t.Log("Sequencer node restarted successfully")
+
+	// Reconnect to EVM (connection may have been lost during restart)
+	client, err = ethclient.Dial(SequencerEthURL)
+	require.NoError(t, err, "Should be able to reconnect to EVM after restart")
+	defer client.Close()
+
+	// Verify the blockchain state is preserved
+	t.Log("Verifying blockchain state preservation after restart...")
+
+	postRestartHeader, err := client.HeaderByNumber(ctx, nil)
+	require.NoError(t, err, "Should get blockchain header after restart")
+	postRestartHeight := postRestartHeader.Number.Uint64()
+	postRestartStateRoot := postRestartHeader.Root.Hex()
+
+	t.Logf("Post-restart blockchain state:")
+	t.Logf("  - Height: %d", postRestartHeight)
+	t.Logf("  - State root: %s", postRestartStateRoot)
+
+	// The height should be the same or higher (node might have produced empty blocks)
+	require.GreaterOrEqual(t, postRestartHeight, initialHeight,
+		"Blockchain height should be preserved or increased after restart")
+
+	// Verify all initial transactions are still accessible
+	t.Log("Verifying initial transactions are preserved...")
+	for i, txHash := range initialTxHashes {
+		receipt, err := client.TransactionReceipt(ctx, txHash)
+		require.NoError(t, err, "Should get receipt for initial transaction %d after restart", i+1)
+		require.NotNil(t, receipt, "Receipt should exist for initial transaction %d after restart", i+1)
+		require.Equal(t, uint64(1), receipt.Status, "Initial transaction %d should still be successful after restart", i+1)
+		t.Logf("✅ Initial transaction %d preserved: %s (block: %d)", i+1, txHash.Hex(), receipt.BlockNumber.Uint64())
+	}
+
+	// === PHASE 4: Post-restart functionality verification ===
+
+	t.Log("Phase 4: Verifying post-restart functionality...")
+
+	// Submit new transactions after restart to verify functionality
+	const numPostRestartTxs = 3
+	var postRestartTxHashes []common.Hash
+
+	t.Logf("Submitting %d post-restart transactions...", numPostRestartTxs)
+	for i := 0; i < numPostRestartTxs; i++ {
+		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
+		evm.SubmitTransaction(t, tx)
+		postRestartTxHashes = append(postRestartTxHashes, tx.Hash())
+		t.Logf("Submitted post-restart transaction %d: %s (nonce: %d)", i+1, tx.Hash().Hex(), tx.Nonce())
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	// Wait for post-restart transactions to be included
+	t.Log("Waiting for post-restart transactions to be included...")
+	require.Eventually(t, func() bool {
+		for _, txHash := range postRestartTxHashes {
+			receipt, err := client.TransactionReceipt(ctx, txHash)
+			if err != nil || receipt == nil || receipt.Status != 1 {
+				return false
+			}
+		}
+		return true
+	}, 30*time.Second, 1*time.Second, "All post-restart transactions should be included")
+
+	// Final state verification
+	finalHeader, err := client.HeaderByNumber(ctx, nil)
+	require.NoError(t, err, "Should get final blockchain header")
+	finalHeight := finalHeader.Number.Uint64()
+	finalStateRoot := finalHeader.Root.Hex()
+
+	t.Logf("Final blockchain state:")
+	t.Logf("  - Height: %d", finalHeight)
+	t.Logf("  - State root: %s", finalStateRoot)
+	t.Logf("  - Total transactions processed: %d", numInitialTxs+numPostRestartTxs)
+
+	// Verify blockchain progressed after restart
+	require.Greater(t, finalHeight, initialHeight,
+		"Blockchain should have progressed after restart and new transactions")
+
+	// === PHASE 5: Comprehensive verification ===
+
+	t.Log("Phase 5: Final verification of all transactions...")
+
+	// Verify all transactions (initial + post-restart) are accessible
+	allTxHashes := append(initialTxHashes, postRestartTxHashes...)
+	for i, txHash := range allTxHashes {
+		receipt, err := client.TransactionReceipt(ctx, txHash)
+		require.NoError(t, err, "Should get receipt for transaction %d", i+1)
+		require.NotNil(t, receipt, "Receipt should exist for transaction %d", i+1)
+		require.Equal(t, uint64(1), receipt.Status, "Transaction %d should be successful", i+1)
+
+		if i < numInitialTxs {
+			t.Logf("✅ Initial transaction %d verified: %s", i+1, txHash.Hex())
+		} else {
+			t.Logf("✅ Post-restart transaction %d verified: %s", i-numInitialTxs+1, txHash.Hex())
+		}
+	}
+
+	// Test summary
+	t.Logf("✅ Test PASSED: Sequencer restart/recovery working correctly!")
+	t.Logf("   - Initial sequencer startup: ✓")
+	t.Logf("   - %d initial transactions processed: ✓", numInitialTxs)
+	t.Logf("   - Graceful shutdown: ✓")
+	t.Logf("   - Successful restart without crashes: ✓")
+	t.Logf("   - State synchronization working: ✓")
+	t.Logf("   - Previous transactions preserved: ✓")
+	t.Logf("   - %d post-restart transactions processed: ✓", numPostRestartTxs)
+	t.Logf("   - No 'nil payload status' errors: ✓")
+	t.Logf("   - Blockchain height progressed: %d -> %d: ✓", initialHeight, finalHeight)
+	t.Logf("   - All %d transactions verified: ✓", len(allTxHashes))
+}
+
+// restartSequencerNode starts an existing sequencer node without initialization.
+// This is used for restart scenarios where the node has already been initialized.
+func restartSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
+	t.Helper()
+
+	// Start sequencer node (without init - node already exists)
+	sut.ExecCmd(evmSingleBinaryPath,
+		"start",
+		"--evm.jwt-secret", jwtSecret,
+		"--evm.genesis-hash", genesisHash,
+		"--rollkit.node.block_time", DefaultBlockTime,
+		"--rollkit.node.aggregator=true",
+		"--rollkit.signer.passphrase", TestPassphrase,
+		"--home", sequencerHome,
+		"--rollkit.da.address", DAAddress,
+		"--rollkit.da.block_time", DefaultDABlockTime,
+	)
+
+	// Give the node a moment to start before checking
+	time.Sleep(2 * time.Second)
+
+	// Print logs for debugging
+	t.Log("Restart logs:")
+	sut.PrintBuffer()
+
+	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
 }

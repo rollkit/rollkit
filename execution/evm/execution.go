@@ -181,16 +181,16 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		txsPayload[i] = "0x" + hex.EncodeToString(tx)
 	}
 
-	_, _, prevGasLimit, _, err := c.getBlockInfo(ctx, blockHeight-1)
+	prevBlockHash, _, prevGasLimit, _, err := c.getBlockInfo(ctx, blockHeight-1)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get block info: %w", err)
 	}
 
 	c.mu.Lock()
 	args := engine.ForkchoiceStateV1{
-		HeadBlockHash:      c.currentHeadBlockHash,
-		SafeBlockHash:      c.currentSafeBlockHash,
-		FinalizedBlockHash: c.currentFinalizedBlockHash,
+		HeadBlockHash:      prevBlockHash,
+		SafeBlockHash:      prevBlockHash,
+		FinalizedBlockHash: prevBlockHash,
 	}
 	c.mu.Unlock()
 
