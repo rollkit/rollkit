@@ -674,39 +674,6 @@ func setupSequencerNodeLazy(t *testing.T, sut *SystemUnderTest, sequencerHome, j
 	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
 }
 
-// verifyNoBlockProduction verifies that no new blocks are being produced over a specified duration.
-// This is used to test lazy mode behavior where blocks should only be produced when
-// transactions are submitted.
-func verifyNoBlockProduction(t *testing.T, client *ethclient.Client, duration time.Duration, nodeName string) {
-	t.Helper()
-
-	ctx := context.Background()
-
-	// Get initial height
-	initialHeader, err := client.HeaderByNumber(ctx, nil)
-	require.NoError(t, err, "Should get initial header from %s", nodeName)
-	initialHeight := initialHeader.Number.Uint64()
-
-	t.Logf("Initial %s height: %d, monitoring for %v", nodeName, initialHeight, duration)
-
-	// Monitor for the specified duration
-	endTime := time.Now().Add(duration)
-	for time.Now().Before(endTime) {
-		currentHeader, err := client.HeaderByNumber(ctx, nil)
-		require.NoError(t, err, "Should get current header from %s", nodeName)
-		currentHeight := currentHeader.Number.Uint64()
-
-		// Verify height hasn't increased
-		require.Equal(t, initialHeight, currentHeight,
-			"%s should not produce new blocks during idle period (started at %d, now at %d)",
-			nodeName, initialHeight, currentHeight)
-
-		time.Sleep(200 * time.Millisecond)
-	}
-
-	t.Logf("✅ %s maintained height %d for %v (no new blocks produced)", nodeName, initialHeight, duration)
-}
-
 // TestEvmLazyModeSequencerE2E tests the lazy mode functionality where blocks are only
 // produced when transactions are submitted, not on a regular timer.
 //
