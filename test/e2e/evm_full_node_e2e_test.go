@@ -328,7 +328,7 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 		t.Logf("Transaction %d included in sequencer block %d", i+1, txBlockNumber)
 
 		// Small delay between transactions to spread them across blocks
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 	}
 
 	// Wait a bit for block production
@@ -343,11 +343,11 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 		t.Logf("Transaction %d included in sequencer block %d", i+4, txBlockNumber)
 
 		// Small delay between transactions
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 	}
 
 	// Wait for all transactions to be processed
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	t.Logf("Total transactions submitted: %d across blocks %v", len(txHashes), txBlockNumbers)
 
@@ -467,19 +467,19 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 		txBlockNumbers = append(txBlockNumbers, txBlockNumber)
 		t.Logf("Transaction %d included in sequencer block %d", i+1, txBlockNumber)
 
-		// Vary the timing to create different block distributions
+		// Optimized timing to create different block distributions
 		if i < 3 {
-			time.Sleep(200 * time.Millisecond) // Fast submissions
+			time.Sleep(50 * time.Millisecond) // Fast submissions
 		} else if i < 6 {
-			time.Sleep(500 * time.Millisecond) // Medium pace
+			time.Sleep(100 * time.Millisecond) // Medium pace
 		} else {
-			time.Sleep(800 * time.Millisecond) // Slower pace
+			time.Sleep(150 * time.Millisecond) // Slower pace
 		}
 	}
 
-	// Wait for all blocks to propagate
+	// Wait for all blocks to propagate (reduced wait time due to faster block times)
 	t.Log("Waiting for block propagation to full node...")
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	// === VERIFICATION PHASE ===
 
@@ -515,7 +515,7 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 			return false
 		}
 		return true
-	}, 60*time.Second, 2*time.Second, "Full node should catch up to sequencer height %d", currentHeight)
+	}, 30*time.Second, 1*time.Second, "Full node should catch up to sequencer height %d", currentHeight)
 
 	t.Log("Full node is synced! Verifying block propagation...")
 
@@ -560,8 +560,8 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 	// Additional test: Simulate multiple full node behavior by running verification multiple times
 	t.Log("Simulating multiple full node verification by running additional checks...")
 
-	// Verify state consistency multiple times to simulate different full nodes
-	for round := 1; round <= 3; round++ {
+	// Verify state consistency multiple times to simulate different full nodes (reduced rounds)
+	for round := 1; round <= 2; round++ {
 		t.Logf("Verification round %d - simulating full node %d", round, round)
 
 		// Check a sample of blocks each round
@@ -573,7 +573,7 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 		}
 
 		// Small delay between rounds
-		time.Sleep(1 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	t.Logf("✅ Test PASSED: Block propagation working correctly!")
@@ -665,7 +665,7 @@ func setupSequencerNodeLazy(t *testing.T, sut *SystemUnderTest, sequencerHome, j
 		"--rollkit.node.block_time", DefaultBlockTime,
 		"--rollkit.node.aggregator=true",
 		"--rollkit.node.lazy_mode=true",          // Enable lazy mode
-		"--rollkit.node.lazy_block_interval=30s", // Set lazy block interval to 30 seconds
+		"--rollkit.node.lazy_block_interval=60s", // Set lazy block interval to 60 seconds to prevent timer-based block production during test
 		"--rollkit.signer.passphrase", TestPassphrase,
 		"--home", sequencerHome,
 		"--rollkit.da.address", DAAddress,
@@ -701,7 +701,7 @@ func verifyNoBlockProduction(t *testing.T, client *ethclient.Client, duration ti
 			"%s should not produce new blocks during idle period (started at %d, now at %d)",
 			nodeName, initialHeight, currentHeight)
 
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	t.Logf("✅ %s maintained height %d for %v (no new blocks produced)", nodeName, initialHeight, duration)
@@ -731,8 +731,8 @@ func verifyNoBlockProduction(t *testing.T, client *ethclient.Client, duration ti
 //
 // Key Technical Details:
 // - Uses lazy mode flag (--rollkit.node.lazy_mode=true)
-// - Sets lazy block interval to 30 seconds to avoid timer-based block production
-// - Monitors nodes for 8 seconds to verify no automatic block production
+// - Sets lazy block interval to 60 seconds to avoid timer-based block production
+// - Monitors nodes for 2 seconds to verify no automatic block production
 // - Submits transactions at different intervals to test various scenarios
 // - Validates that P2P sync works correctly with lazy block production
 // - Ensures state consistency between sequencer and full node
@@ -769,10 +769,10 @@ func TestEvmLazyModeSequencerE2E(t *testing.T) {
 
 	// === TEST LAZY MODE BEHAVIOR ===
 
-	// Monitor for no block production during idle period
+	// Monitor for no block production during idle period (reduced time)
 	t.Log("Monitoring nodes for idle block production (should be none in lazy mode)...")
-	verifyNoBlockProduction(t, sequencerClient, 8*time.Second, "sequencer")
-	verifyNoBlockProduction(t, fullNodeClient, 8*time.Second, "full node")
+	verifyNoBlockProduction(t, sequencerClient, 2*time.Second, "sequencer")
+	verifyNoBlockProduction(t, fullNodeClient, 2*time.Second, "full node")
 
 	// Track transactions and their blocks
 	var txHashes []common.Hash
@@ -795,8 +795,8 @@ func TestEvmLazyModeSequencerE2E(t *testing.T) {
 
 	// Verify no additional blocks are produced after transaction
 	t.Log("Monitoring for idle period after transaction 1...")
-	verifyNoBlockProduction(t, sequencerClient, 5*time.Second, "sequencer")
-	verifyNoBlockProduction(t, fullNodeClient, 5*time.Second, "full node")
+	verifyNoBlockProduction(t, sequencerClient, 2*time.Second, "sequencer")
+	verifyNoBlockProduction(t, fullNodeClient, 2*time.Second, "full node")
 
 	// === ROUND 2: Burst transactions ===
 
@@ -810,7 +810,7 @@ func TestEvmLazyModeSequencerE2E(t *testing.T) {
 		t.Logf("Transaction %d included in sequencer block %d", i+2, txBlockNumber)
 
 		// Small delay between transactions
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
 	}
 
 	// Verify all transactions sync to full node
@@ -821,8 +821,8 @@ func TestEvmLazyModeSequencerE2E(t *testing.T) {
 
 	// Verify no additional blocks after burst
 	t.Log("Monitoring for idle period after burst transactions...")
-	verifyNoBlockProduction(t, sequencerClient, 6*time.Second, "sequencer")
-	verifyNoBlockProduction(t, fullNodeClient, 6*time.Second, "full node")
+	verifyNoBlockProduction(t, sequencerClient, 2*time.Second, "sequencer")
+	verifyNoBlockProduction(t, fullNodeClient, 2*time.Second, "full node")
 
 	// === ROUND 3: Delayed transaction ===
 

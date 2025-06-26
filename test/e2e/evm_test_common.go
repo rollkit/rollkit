@@ -389,7 +389,7 @@ func setupCommonEVMTest(t *testing.T, sut *SystemUnderTest, needsFullNode bool) 
 	}
 	sut.ExecCmd(localDABinary)
 	t.Log("Started local DA")
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	// Start EVM engines
 	jwtSecret := setupTestRethEngineE2E(t)
