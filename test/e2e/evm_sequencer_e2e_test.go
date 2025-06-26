@@ -9,12 +9,20 @@
 // - Double-spend prevention and nonce handling mechanisms
 // - Invalid transaction rejection and validation
 // - Transaction inclusion verification and block production
+// - Sequencer restart and recovery mechanisms
+// - State synchronization after node restarts
+// - Lazy mode sequencer behavior and validation
 //
 // Test Coverage:
 // 1. TestEvmSequencerE2E - Basic sequencer functionality with single transaction
-// 2. TestEvmMultipleTransactionInclusionE2E - High-throughput processing (500 transactions)
+// 2. TestEvmMultipleTransactionInclusionE2E - High-throughput processing (200 transactions)
 // 3. TestEvmDoubleSpendNonceHandlingE2E - Double-spend prevention with duplicate nonces
 // 4. TestEvmInvalidTransactionRejectionE2E - Various invalid transaction type rejections
+// 5. TestEvmSequencerRestartRecoveryE2E - Sequencer restart and recovery validation
+//   - StandardRestart: Normal start -> Normal restart
+//   - LazyModeRestart: Normal start -> Lazy restart
+//   - LazyToStandardRestart: Lazy start -> Normal restart
+//   - LazyToLazyRestart: Lazy start -> Lazy restart
 //
 // Prerequisites:
 // - Docker and Docker Compose (for Reth EVM engine)
@@ -28,6 +36,20 @@
 // - Block production timing and consistency
 // - Error handling for malformed transactions
 // - System stability under various transaction loads
+// - Node restart and state preservation mechanisms
+// - DA layer coordination during restarts
+// - Lazy mode block production patterns
+// - State synchronization between Rollkit and EVM engine
+//
+// Technical Implementation:
+// - Uses Docker Compose for Reth EVM engine orchestration
+// - Implements comprehensive transaction validation testing
+// - Provides restart recovery validation for various mode combinations
+// - Tests high-throughput scenarios with proper nonce management
+// - Validates double-spend prevention mechanisms
+// - Ensures system stability under various load conditions
+// - Tests lazy mode behavior with idle period monitoring
+// - Validates state synchronization across node restarts
 package e2e
 
 import (
@@ -44,29 +66,6 @@ import (
 
 	"github.com/rollkit/rollkit/execution/evm"
 )
-
-var evmSingleBinaryPath string
-
-func init() {
-	flag.StringVar(&evmSingleBinaryPath, "evm-binary", "evm-single", "evm-single binary")
-}
-
-// setupEvmSequencerTest performs setup for EVM sequencer-only tests.
-// This helper sets up DA, EVM engine, and sequencer node for tests that don't need full nodes.
-//
-// Returns: genesisHash for the sequencer
-func setupEvmSequencerTest(t *testing.T, sut *SystemUnderTest, nodeHome string) string {
-	t.Helper()
-
-	// Use common setup (no full node needed)
-	jwtSecret, _, genesisHash := setupCommonEVMTest(t, sut, false)
-
-	// Initialize and start sequencer node
-	setupSequencerNode(t, sut, nodeHome, jwtSecret, genesisHash)
-	t.Log("Sequencer node is up")
-
-	return genesisHash
-}
 
 // TestEvmSequencerE2E tests the basic end-to-end functionality of a single EVM sequencer node.
 //
@@ -92,7 +91,7 @@ func TestEvmSequencerE2E(t *testing.T) {
 	sut := NewSystemUnderTest(t)
 
 	// Setup sequencer
-	genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
+	genesisHash := setupSequencerOnlyTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
 	// Submit a transaction to EVM
@@ -148,7 +147,7 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 	sut := NewSystemUnderTest(t)
 
 	// Setup sequencer
-	genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
+	genesisHash := setupSequencerOnlyTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
 	// Connect to EVM
@@ -315,7 +314,7 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	sut := NewSystemUnderTest(t)
 
 	// Setup sequencer
-	genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
+	genesisHash := setupSequencerOnlyTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
 	// Connect to EVM
@@ -501,7 +500,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	sut := NewSystemUnderTest(t)
 
 	// Setup sequencer
-	genesisHash := setupEvmSequencerTest(t, sut, nodeHome)
+	genesisHash := setupSequencerOnlyTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
 	// Connect to EVM
@@ -678,15 +677,17 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 // when restarting a node due to state desynchronization between Rollkit and EVM engine.
 //
 // Sub-tests:
-// 1. Standard restart: Tests normal restart behavior with regular block production
-// 2. Lazy mode restart: Tests restart behavior when switching to lazy mode on restart
+// 1. StandardRestart: Normal start -> Normal restart
+// 2. LazyModeRestart: Normal start -> Lazy restart
+// 3. LazyToStandardRestart: Lazy start -> Normal restart
+// 4. LazyToLazyRestart: Lazy start -> Lazy restart
 //
 // Test Flow:
-// 1. Sets up Local DA layer and EVM sequencer
+// 1. Sets up Local DA layer and EVM sequencer (in specified initial mode)
 // 2. Submits initial transactions and verifies they are included
 // 3. Records the current blockchain state (height, transactions)
 // 4. Gracefully stops the sequencer node
-// 5. Restarts the sequencer node with different configurations (normal vs lazy mode)
+// 5. Restarts the sequencer node with different configurations
 // 6. Verifies the node starts successfully without crashes
 // 7. Submits new transactions to verify resumed functionality
 // 8. Validates that all previous and new transactions are preserved
@@ -703,17 +704,26 @@ func TestEvmSequencerRestartRecoveryE2E(t *testing.T) {
 	flag.Parse()
 
 	t.Run("StandardRestart", func(t *testing.T) {
-		testSequencerRestartRecovery(t, false) // false = standard mode
+		testSequencerRestartRecovery(t, false, false) // normal -> normal
 	})
 
 	t.Run("LazyModeRestart", func(t *testing.T) {
-		testSequencerRestartRecovery(t, true) // true = lazy mode on restart
+		testSequencerRestartRecovery(t, false, true) // normal -> lazy
+	})
+
+	t.Run("LazyToStandardRestart", func(t *testing.T) {
+		testSequencerRestartRecovery(t, true, false) // lazy -> normal
+	})
+
+	t.Run("LazyToLazyRestart", func(t *testing.T) {
+		testSequencerRestartRecovery(t, true, true) // lazy -> lazy
 	})
 }
 
 // testSequencerRestartRecovery is the core test logic for sequencer restart recovery.
-// The useLazyMode parameter determines if the sequencer should be restarted in lazy mode.
-func testSequencerRestartRecovery(t *testing.T, useLazyMode bool) {
+// The initialLazyMode parameter determines if the sequencer should start in lazy mode.
+// The restartLazyMode parameter determines if the sequencer should be restarted in lazy mode.
+func testSequencerRestartRecovery(t *testing.T, initialLazyMode, restartLazyMode bool) {
 	workDir := t.TempDir()
 	nodeHome := filepath.Join(workDir, "evm-agg")
 	sut := NewSystemUnderTest(t)
@@ -721,20 +731,33 @@ func testSequencerRestartRecovery(t *testing.T, useLazyMode bool) {
 	// Setup DA and EVM engine (these will persist across restart)
 	jwtSecret, _, genesisHash := setupCommonEVMTest(t, sut, false)
 	t.Logf("Genesis hash: %s", genesisHash)
-	t.Logf("Test mode: lazy=%t", useLazyMode)
+	t.Logf("Test mode: initial_lazy=%t, restart_lazy=%t", initialLazyMode, restartLazyMode)
 
 	// === PHASE 1: Initial sequencer startup and transaction processing ===
 
-	t.Log("Phase 1: Starting initial sequencer and processing transactions...")
-
-	// Initialize and start sequencer node (always start in normal mode initially)
-	setupSequencerNode(t, sut, nodeHome, jwtSecret, genesisHash)
-	t.Log("Initial sequencer node is up")
+	if initialLazyMode {
+		t.Log("Phase 1: Starting initial sequencer in LAZY MODE and processing transactions...")
+		setupSequencerNodeLazy(t, sut, nodeHome, jwtSecret, genesisHash)
+		t.Log("Initial sequencer node (lazy mode) is up")
+	} else {
+		t.Log("Phase 1: Starting initial sequencer and processing transactions...")
+		setupSequencerNode(t, sut, nodeHome, jwtSecret, genesisHash)
+		t.Log("Initial sequencer node is up")
+	}
 
 	// Connect to EVM to submit transactions
 	client, err := ethclient.Dial(SequencerEthURL)
 	require.NoError(t, err, "Should be able to connect to EVM")
 	defer client.Close()
+
+	// If starting in lazy mode, wait for any initial blocks to settle, then verify lazy behavior
+	if initialLazyMode {
+		t.Log("Waiting for lazy mode sequencer to settle...")
+		time.Sleep(3 * time.Second) // Allow initial blocks to be produced
+
+		t.Log("Verifying lazy mode behavior: no blocks produced without transactions...")
+		verifyNoBlockProduction(t, client, 2*time.Second, "sequencer")
+	}
 
 	// Submit initial batch of transactions before restart
 	const numInitialTxs = 5
@@ -800,7 +823,7 @@ func testSequencerRestartRecovery(t *testing.T, useLazyMode bool) {
 
 	// === PHASE 3: Sequencer restart and state synchronization ===
 
-	if useLazyMode {
+	if restartLazyMode {
 		t.Log("Phase 3: Restarting DA and sequencer node in LAZY MODE (testing state synchronization)...")
 		restartDAAndSequencerLazy(t, sut, nodeHome, jwtSecret, genesisHash)
 	} else {
@@ -845,8 +868,8 @@ func testSequencerRestartRecovery(t *testing.T, useLazyMode bool) {
 
 	t.Log("Phase 4: Verifying post-restart functionality...")
 
-	// If using lazy mode, verify no blocks are produced without transactions
-	if useLazyMode {
+	// If restarted in lazy mode, verify no blocks are produced without transactions
+	if restartLazyMode {
 		t.Log("Testing lazy mode behavior: verifying no blocks produced without transactions...")
 		verifyNoBlockProduction(t, client, 2*time.Second, "sequencer")
 	}
@@ -856,28 +879,48 @@ func testSequencerRestartRecovery(t *testing.T, useLazyMode bool) {
 	var postRestartTxHashes []common.Hash
 
 	t.Logf("Submitting %d post-restart transactions...", numPostRestartTxs)
-	for i := 0; i < numPostRestartTxs; i++ {
-		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
-		evm.SubmitTransaction(t, tx)
-		postRestartTxHashes = append(postRestartTxHashes, tx.Hash())
-		t.Logf("Submitted post-restart transaction %d: %s (nonce: %d)", i+1, tx.Hash().Hex(), tx.Nonce())
-		time.Sleep(5 * time.Millisecond)
+	if restartLazyMode {
+		// In lazy mode, submit transactions one at a time and wait for each to be included
+		for i := 0; i < numPostRestartTxs; i++ {
+			tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
+			evm.SubmitTransaction(t, tx)
+			postRestartTxHashes = append(postRestartTxHashes, tx.Hash())
+			t.Logf("Submitted post-restart transaction %d: %s (nonce: %d)", i+1, tx.Hash().Hex(), tx.Nonce())
+
+			// Wait for this transaction to be included before submitting the next
+			require.Eventually(t, func() bool {
+				receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+				return err == nil && receipt != nil && receipt.Status == 1
+			}, 30*time.Second, 1*time.Second, "Transaction %d should be included", i+1)
+
+			t.Logf("✅ Post-restart transaction %d included", i+1)
+			time.Sleep(100 * time.Millisecond) // Small delay between transactions
+		}
+	} else {
+		// In normal mode, submit all transactions quickly
+		for i := 0; i < numPostRestartTxs; i++ {
+			tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
+			evm.SubmitTransaction(t, tx)
+			postRestartTxHashes = append(postRestartTxHashes, tx.Hash())
+			t.Logf("Submitted post-restart transaction %d: %s (nonce: %d)", i+1, tx.Hash().Hex(), tx.Nonce())
+			time.Sleep(5 * time.Millisecond)
+		}
+
+		// Wait for all transactions to be included
+		t.Log("Waiting for post-restart transactions to be included...")
+		require.Eventually(t, func() bool {
+			for _, txHash := range postRestartTxHashes {
+				receipt, err := client.TransactionReceipt(ctx, txHash)
+				if err != nil || receipt == nil || receipt.Status != 1 {
+					return false
+				}
+			}
+			return true
+		}, 30*time.Second, 1*time.Second, "All post-restart transactions should be included")
 	}
 
-	// Wait for post-restart transactions to be included
-	t.Log("Waiting for post-restart transactions to be included...")
-	require.Eventually(t, func() bool {
-		for _, txHash := range postRestartTxHashes {
-			receipt, err := client.TransactionReceipt(ctx, txHash)
-			if err != nil || receipt == nil || receipt.Status != 1 {
-				return false
-			}
-		}
-		return true
-	}, 30*time.Second, 1*time.Second, "All post-restart transactions should be included")
-
-	// If using lazy mode, verify that blocks were only produced when transactions were submitted
-	if useLazyMode {
+	// If restarted in lazy mode, verify that blocks were only produced when transactions were submitted
+	if restartLazyMode {
 		t.Log("Verifying lazy mode behavior: transactions triggered block production...")
 
 		// Get current height after transactions
@@ -932,116 +975,30 @@ func testSequencerRestartRecovery(t *testing.T, useLazyMode bool) {
 	}
 
 	// Test summary
-	modeDesc := "standard"
-	if useLazyMode {
-		modeDesc = "lazy"
+	initialModeDesc := "standard"
+	if initialLazyMode {
+		initialModeDesc = "lazy"
+	}
+	restartModeDesc := "standard"
+	if restartLazyMode {
+		restartModeDesc = "lazy"
 	}
 
-	t.Logf("✅ Test PASSED: Sequencer restart/recovery (%s mode) working correctly!", modeDesc)
-	t.Logf("   - Initial sequencer startup: ✓")
+	t.Logf("✅ Test PASSED: Sequencer restart/recovery (%s -> %s mode) working correctly!", initialModeDesc, restartModeDesc)
+	t.Logf("   - Initial sequencer startup in %s mode: ✓", initialModeDesc)
+	if initialLazyMode {
+		t.Logf("   - Initial lazy mode behavior verified: ✓")
+	}
 	t.Logf("   - %d initial transactions processed: ✓", numInitialTxs)
 	t.Logf("   - Graceful shutdown: ✓")
-	t.Logf("   - Successful restart in %s mode without crashes: ✓", modeDesc)
+	t.Logf("   - Successful restart in %s mode without crashes: ✓", restartModeDesc)
 	t.Logf("   - State synchronization working: ✓")
 	t.Logf("   - Previous transactions preserved: ✓")
 	t.Logf("   - %d post-restart transactions processed: ✓", numPostRestartTxs)
-	if useLazyMode {
-		t.Logf("   - Lazy mode behavior verified: ✓")
+	if restartLazyMode {
+		t.Logf("   - Restart lazy mode behavior verified: ✓")
 	}
 	t.Logf("   - No 'nil payload status' errors: ✓")
 	t.Logf("   - Blockchain height progressed: %d -> %d: ✓", initialHeight, finalHeight)
 	t.Logf("   - All %d transactions verified: ✓", len(allTxHashes))
-}
-
-// restartDAAndSequencer restarts both the local DA and sequencer node.
-// This is used for restart scenarios where all processes were shutdown.
-func restartDAAndSequencer(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
-	t.Helper()
-
-	// First restart the local DA
-	localDABinary := "local-da"
-	if evmSingleBinaryPath != "evm-single" {
-		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
-	}
-	sut.ExecCmd(localDABinary)
-	t.Log("Restarted local DA")
-	time.Sleep(100 * time.Millisecond)
-
-	// Then restart the sequencer node (without init - node already exists)
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--evm.jwt-secret", jwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.node.block_time", DefaultBlockTime,
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", TestPassphrase,
-		"--home", sequencerHome,
-		"--rollkit.da.address", DAAddress,
-		"--rollkit.da.block_time", DefaultDABlockTime,
-	)
-
-	// Give the node a moment to start before checking
-	time.Sleep(2 * time.Second)
-
-	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
-}
-
-// restartDAAndSequencerLazy restarts both the local DA and sequencer node in lazy mode.
-// This is used for restart scenarios where all processes were shutdown and we want
-// to restart the sequencer in lazy mode.
-func restartDAAndSequencerLazy(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
-	t.Helper()
-
-	// First restart the local DA
-	localDABinary := "local-da"
-	if evmSingleBinaryPath != "evm-single" {
-		localDABinary = filepath.Join(filepath.Dir(evmSingleBinaryPath), "local-da")
-	}
-	sut.ExecCmd(localDABinary)
-	t.Log("Restarted local DA")
-	time.Sleep(100 * time.Millisecond)
-
-	// Then restart the sequencer node in lazy mode (without init - node already exists)
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--evm.jwt-secret", jwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.node.block_time", DefaultBlockTime,
-		"--rollkit.node.aggregator=true",
-		"--rollkit.node.lazy_mode=true",          // Enable lazy mode
-		"--rollkit.node.lazy_block_interval=60s", // Set lazy block interval to 60 seconds to prevent timer-based block production during test
-		"--rollkit.signer.passphrase", TestPassphrase,
-		"--home", sequencerHome,
-		"--rollkit.da.address", DAAddress,
-		"--rollkit.da.block_time", DefaultDABlockTime,
-	)
-
-	// Give the node a moment to start before checking
-	time.Sleep(2 * time.Second)
-
-	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
-}
-
-// restartSequencerNode starts an existing sequencer node without initialization.
-// This is used for restart scenarios where the node has already been initialized.
-func restartSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
-	t.Helper()
-
-	// Start sequencer node (without init - node already exists)
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--evm.jwt-secret", jwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.node.block_time", DefaultBlockTime,
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase", TestPassphrase,
-		"--home", sequencerHome,
-		"--rollkit.da.address", DAAddress,
-		"--rollkit.da.block_time", DefaultDABlockTime,
-	)
-
-	// Give the node a moment to start before checking
-	time.Sleep(2 * time.Second)
-
-	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
 }
