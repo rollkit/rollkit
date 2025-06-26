@@ -226,7 +226,7 @@ func (s *DockerTestSuite) StartRollkitNode(ctx context.Context, bridgeNode tasto
 		"--rollkit.da.auth_token", authToken,
 		"--rollkit.rpc.address", "0.0.0.0:7331", // bind to 0.0.0.0 so rpc is reachable from test host.
 		"--rollkit.da.namespace", generateValidNamespaceHex(),
-		"--kv-endpoint", "0.0.0.0:8080",
+		"--kv-endpoint", "0.0.0.0:9090",
 	)
 	s.Require().NoError(err)
 }
