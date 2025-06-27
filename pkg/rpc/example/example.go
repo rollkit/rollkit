@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	sdklog "cosmossdk.io/log"
+	sdklog "github.com/rollkit/rollkit/pkg/log"
 	"github.com/rollkit/rollkit/pkg/rpc/client"
 	"github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/store"

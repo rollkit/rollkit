@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 )

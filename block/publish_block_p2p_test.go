@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	syncdb "github.com/ipfs/go-datastore/sync"

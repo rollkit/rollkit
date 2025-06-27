@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"time"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	ds "github.com/ipfs/go-datastore"
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"

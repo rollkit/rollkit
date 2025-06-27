@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/prometheus/client_golang/prometheus"

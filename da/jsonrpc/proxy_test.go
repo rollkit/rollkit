@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	"github.com/rollkit/rollkit/da/internal/mocks"
 	proxy "github.com/rollkit/rollkit/da/jsonrpc"
 	"github.com/stretchr/testify/assert"

@@ -12,7 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"connectrpc.com/grpcreflect"
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	ds "github.com/ipfs/go-datastore"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"

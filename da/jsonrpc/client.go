@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"github.com/rollkit/rollkit/core/da"

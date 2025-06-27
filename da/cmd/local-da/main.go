@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 
 	proxy "github.com/rollkit/rollkit/da/jsonrpc"
 )

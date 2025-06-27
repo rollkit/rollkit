@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )

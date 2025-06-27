@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
