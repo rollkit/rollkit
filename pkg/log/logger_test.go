@@ -1,6 +1,7 @@
 package log
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,21 @@ func TestLogger(t *testing.T) {
 	// Test implementation access
 	impl := logger.Impl()
 	assert.NotNil(t, impl)
+}
+
+func TestLoggerWithCustomDestination(t *testing.T) {
+	// Test logger with custom destination
+	var buf bytes.Buffer
+	logger := NewLogger(&buf)
+	assert.NotNil(t, logger)
+
+	logger.Info("test message", "key", "value")
+	logger.Warn("warning message", "key", "value") 
+	
+	// The buffer should contain log output
+	logOutput := buf.String()
+	assert.Contains(t, logOutput, "test message")
+	assert.Contains(t, logOutput, "warning message")
 }
 
 func TestNopLogger(t *testing.T) {

@@ -2,6 +2,7 @@ package log
 
 import (
 	"io"
+	"os"
 
 	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/rs/zerolog"
@@ -46,7 +47,7 @@ type zapLogger struct {
 func NewLogger(dst io.Writer, options ...Option) Logger {
 	// Apply configuration options
 	config := &Config{
-		Level:      zapcore.InfoLevel,
+		Level:      zapcore.Level(zapcore.InfoLevel),
 		EnableJSON: false,
 		Trace:      false,
 	}
@@ -54,8 +55,30 @@ func NewLogger(dst io.Writer, options ...Option) Logger {
 		opt(config)
 	}
 	
-	// For compatibility, if dst is os.Stdout, use ipfs/go-log's default logger
-	// TODO: In future, we might want to configure the actual output destination
+	// If dst is provided and is not os.Stdout, we need a custom logger that writes to dst
+	if dst != nil && dst != os.Stdout {
+		// Create a custom zap logger that writes to the destination
+		encoderConfig := zap.NewProductionEncoderConfig()
+		encoderConfig.TimeKey = "timestamp"
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		
+		var encoder zapcore.Encoder
+		if config.EnableJSON {
+			encoder = zapcore.NewJSONEncoder(encoderConfig)
+		} else {
+			encoder = zapcore.NewConsoleEncoder(encoderConfig)
+		}
+		
+		core := zapcore.NewCore(encoder, zapcore.AddSync(dst), config.Level)
+		zapLog := zap.New(core)
+		sugaredLogger := zapLog.Sugar()
+		
+		return &zapLogger{
+			logger: &ipfslog.ZapEventLogger{SugaredLogger: *sugaredLogger},
+		}
+	}
+	
+	// For compatibility, if dst is os.Stdout or nil, use ipfs/go-log's default logger
 	logger := ipfslog.Logger("rollkit")
 	
 	// Set log level if specified in config
