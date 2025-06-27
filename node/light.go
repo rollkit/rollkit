@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/pkg/config"

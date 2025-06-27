@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

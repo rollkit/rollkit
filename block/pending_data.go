@@ -3,7 +3,7 @@ package block
 import (
 	"context"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 
 	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"

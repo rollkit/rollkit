@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 	"github.com/ipfs/go-datastore"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"

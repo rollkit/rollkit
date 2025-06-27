@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"cosmossdk.io/log"
+	"github.com/rollkit/rollkit/pkg/log"
 
 	datastore "github.com/ipfs/go-datastore"
 
