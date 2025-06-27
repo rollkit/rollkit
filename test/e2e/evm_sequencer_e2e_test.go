@@ -33,13 +33,21 @@
 // - Transaction validation and inclusion mechanisms
 // - Nonce ordering and duplicate prevention
 // - EVM engine integration via Docker Compose
-// - Block production timing and consistency
+// - Block production timing and consistency (100ms block time)
 // - Error handling for malformed transactions
 // - System stability under various transaction loads
 // - Node restart and state preservation mechanisms
 // - DA layer coordination during restarts
 // - Lazy mode block production patterns
 // - State synchronization between Rollkit and EVM engine
+//
+// Performance Optimizations:
+// - Optimized for 100ms block time (10 blocks/second)
+// - Reduced transaction submission delays (20ms instead of 50ms)
+// - Faster timeout values for rapid block production
+// - Reduced idle monitoring periods for lazy mode tests
+// - Optimized P2P synchronization timeouts
+// - Faster shutdown and restart sequences
 //
 // Technical Implementation:
 // - Uses Docker Compose for Reth EVM engine orchestration
@@ -50,6 +58,7 @@
 // - Ensures system stability under various load conditions
 // - Tests lazy mode behavior with idle period monitoring
 // - Validates state synchronization across node restarts
+// - Includes helper functions optimized for fast block production
 package e2e
 
 import (
@@ -103,7 +112,7 @@ func TestEvmSequencerE2E(t *testing.T) {
 	// Wait for block production and verify transaction inclusion
 	require.Eventually(t, func() bool {
 		return evm.CheckTxIncluded(t, tx.Hash())
-	}, 20*time.Second, 1*time.Second)
+	}, 15*time.Second, 500*time.Millisecond)
 	t.Log("Transaction included in EVM block")
 }
 
@@ -177,7 +186,7 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 		}
 
 		// Optimized delay for faster test execution while maintaining reliability
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
 	}
 
 	// Wait for all transactions to be included and verify order
@@ -203,7 +212,7 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 		}
 
 		return len(receipts) == numTxs
-	}, 60*time.Second, 1*time.Second, "All transactions should be included")
+	}, 45*time.Second, 500*time.Millisecond, "All transactions should be included")
 
 	t.Logf("✅ All %d transactions were successfully included", numTxs)
 
@@ -347,7 +356,7 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	t.Logf("Submitted first transaction (TX1): %s", tx1.Hash().Hex())
 
 	// Small delay between submissions to simulate realistic scenario
-	time.Sleep(50 * time.Millisecond) // Increased delay to ensure first tx is processed
+	time.Sleep(20 * time.Millisecond)
 
 	// Try to submit the second transaction - this should fail with "replacement transaction underpriced" or similar
 	// We expect this to fail, so we'll handle the error gracefully
@@ -385,7 +394,7 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	ctx := context.Background()
 
 	t.Log("Waiting for transactions to be processed...")
-	time.Sleep(3 * time.Second) // Give more time for transaction processing
+	time.Sleep(2 * time.Second)
 
 	// Check current block height to see if blocks are being produced
 	blockNumber, err := client.BlockNumber(ctx)
@@ -444,7 +453,7 @@ func TestEvmDoubleSpendNonceHandlingE2E(t *testing.T) {
 	fromAddress := common.HexToAddress(TestToAddress)
 
 	// Wait for the transaction to be fully processed and nonce updated
-	time.Sleep(1 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 
 	currentNonce, err := client.NonceAt(ctx, fromAddress, nil)
 	require.NoError(t, err, "Should be able to get current nonce")
@@ -614,7 +623,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 
 	// Wait for any transactions to be processed
 	t.Log("Waiting for transaction processing...")
-	time.Sleep(1 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 
 	// Check that none of the invalid transactions were included in blocks
 	invalidTxsIncluded := 0
@@ -647,7 +656,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	require.Eventually(t, func() bool {
 		receipt, err := client.TransactionReceipt(ctx, validTx.Hash())
 		return err == nil && receipt != nil && receipt.Status == 1
-	}, 20*time.Second, 1*time.Second, "Valid transaction should be included after invalid ones were rejected")
+	}, 15*time.Second, 500*time.Millisecond, "Valid transaction should be included after invalid ones were rejected")
 
 	t.Log("✅ Valid transaction included successfully - system stability confirmed")
 
@@ -753,10 +762,10 @@ func testSequencerRestartRecovery(t *testing.T, initialLazyMode, restartLazyMode
 	// If starting in lazy mode, wait for any initial blocks to settle, then verify lazy behavior
 	if initialLazyMode {
 		t.Log("Waiting for lazy mode sequencer to settle...")
-		time.Sleep(3 * time.Second) // Allow initial blocks to be produced
+		time.Sleep(2 * time.Second)
 
 		t.Log("Verifying lazy mode behavior: no blocks produced without transactions...")
-		verifyNoBlockProduction(t, client, 2*time.Second, "sequencer")
+		verifyNoBlockProduction(t, client, 1*time.Second, "sequencer")
 	}
 
 	// Submit initial batch of transactions before restart
@@ -770,7 +779,7 @@ func testSequencerRestartRecovery(t *testing.T, initialLazyMode, restartLazyMode
 		evm.SubmitTransaction(t, tx)
 		initialTxHashes = append(initialTxHashes, tx.Hash())
 		t.Logf("Submitted initial transaction %d: %s (nonce: %d)", i+1, tx.Hash().Hex(), tx.Nonce())
-		time.Sleep(5 * time.Millisecond) // Optimized transaction spacing
+		time.Sleep(2 * time.Millisecond)
 	}
 
 	// Wait for all initial transactions to be included
@@ -784,7 +793,7 @@ func testSequencerRestartRecovery(t *testing.T, initialLazyMode, restartLazyMode
 			}
 		}
 		return true
-	}, 30*time.Second, 1*time.Second, "All initial transactions should be included")
+	}, 20*time.Second, 500*time.Millisecond, "All initial transactions should be included")
 
 	// Record the blockchain state before restart
 	initialHeader, err := client.HeaderByNumber(ctx, nil)
@@ -810,14 +819,14 @@ func testSequencerRestartRecovery(t *testing.T, initialLazyMode, restartLazyMode
 
 	// Wait for graceful shutdown to allow state to be saved
 	t.Log("Waiting for graceful shutdown and state persistence...")
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	// Verify shutdown using SUT's process tracking
 	require.Eventually(t, func() bool {
 		hasAnyProcess := sut.HasProcess()
 		t.Logf("Shutdown check: any processes exist=%v", hasAnyProcess)
 		return !hasAnyProcess
-	}, 15*time.Second, 500*time.Millisecond, "all processes should be stopped")
+	}, 10*time.Second, 250*time.Millisecond, "all processes should be stopped")
 
 	t.Log("All processes stopped successfully")
 
@@ -871,7 +880,7 @@ func testSequencerRestartRecovery(t *testing.T, initialLazyMode, restartLazyMode
 	// If restarted in lazy mode, verify no blocks are produced without transactions
 	if restartLazyMode {
 		t.Log("Testing lazy mode behavior: verifying no blocks produced without transactions...")
-		verifyNoBlockProduction(t, client, 2*time.Second, "sequencer")
+		verifyNoBlockProduction(t, client, 1*time.Second, "sequencer")
 	}
 
 	// Submit new transactions after restart to verify functionality
@@ -891,10 +900,10 @@ func testSequencerRestartRecovery(t *testing.T, initialLazyMode, restartLazyMode
 			require.Eventually(t, func() bool {
 				receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 				return err == nil && receipt != nil && receipt.Status == 1
-			}, 30*time.Second, 1*time.Second, "Transaction %d should be included", i+1)
+			}, 20*time.Second, 500*time.Millisecond, "Transaction %d should be included", i+1)
 
 			t.Logf("✅ Post-restart transaction %d included", i+1)
-			time.Sleep(100 * time.Millisecond) // Small delay between transactions
+			time.Sleep(50 * time.Millisecond)
 		}
 	} else {
 		// In normal mode, submit all transactions quickly
@@ -903,7 +912,7 @@ func testSequencerRestartRecovery(t *testing.T, initialLazyMode, restartLazyMode
 			evm.SubmitTransaction(t, tx)
 			postRestartTxHashes = append(postRestartTxHashes, tx.Hash())
 			t.Logf("Submitted post-restart transaction %d: %s (nonce: %d)", i+1, tx.Hash().Hex(), tx.Nonce())
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(2 * time.Millisecond)
 		}
 
 		// Wait for all transactions to be included
@@ -916,7 +925,7 @@ func testSequencerRestartRecovery(t *testing.T, initialLazyMode, restartLazyMode
 				}
 			}
 			return true
-		}, 30*time.Second, 1*time.Second, "All post-restart transactions should be included")
+		}, 20*time.Second, 500*time.Millisecond, "All post-restart transactions should be included")
 	}
 
 	// If restarted in lazy mode, verify that blocks were only produced when transactions were submitted
@@ -937,7 +946,7 @@ func testSequencerRestartRecovery(t *testing.T, initialLazyMode, restartLazyMode
 
 		// Test idle period again after transactions
 		t.Log("Testing post-transaction idle period in lazy mode...")
-		verifyNoBlockProduction(t, client, 1*time.Second, "sequencer")
+		verifyNoBlockProduction(t, client, 500*time.Millisecond, "sequencer")
 	}
 
 	// Final state verification

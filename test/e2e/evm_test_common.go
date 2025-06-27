@@ -69,9 +69,9 @@ const (
 	RollkitRPCAddress  = "http://127.0.0.1:" + RollkitRPCPort
 
 	// Test configuration
-	DefaultBlockTime   = "1s"
+	DefaultBlockTime   = "100ms"
 	DefaultDABlockTime = "1m"
-	DefaultTestTimeout = 30 * time.Second
+	DefaultTestTimeout = 20 * time.Second
 	DefaultChainID     = "1234"
 	DefaultGasLimit    = 22000
 
@@ -142,7 +142,7 @@ func getAuthToken(jwtSecret []byte) (string, error) {
 func waitForRethContainerAt(t *testing.T, jwtSecret, ethURL, engineURL string) error {
 	t.Helper()
 	client := &http.Client{Timeout: 100 * time.Millisecond}
-	timer := time.NewTimer(DefaultTestTimeout)
+	timer := time.NewTimer(15 * time.Second)
 	defer timer.Stop()
 	for {
 		select {
@@ -566,7 +566,7 @@ func restartDAAndSequencer(t *testing.T, sut *SystemUnderTest, sequencerHome, jw
 	}
 	sut.ExecCmd(localDABinary)
 	t.Log("Restarted local DA")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// Then restart the sequencer node (without init - node already exists)
 	sut.ExecCmd(evmSingleBinaryPath,
@@ -582,7 +582,7 @@ func restartDAAndSequencer(t *testing.T, sut *SystemUnderTest, sequencerHome, jw
 	)
 
 	// Give the node a moment to start before checking
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
 }
@@ -607,7 +607,7 @@ func restartDAAndSequencerLazy(t *testing.T, sut *SystemUnderTest, sequencerHome
 	}
 	sut.ExecCmd(localDABinary)
 	t.Log("Restarted local DA")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// Then restart the sequencer node in lazy mode (without init - node already exists)
 	sut.ExecCmd(evmSingleBinaryPath,
@@ -625,7 +625,7 @@ func restartDAAndSequencerLazy(t *testing.T, sut *SystemUnderTest, sequencerHome
 	)
 
 	// Give the node a moment to start before checking
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
 }
@@ -655,7 +655,7 @@ func restartSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwt
 	)
 
 	// Give the node a moment to start before checking
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
 }
@@ -694,7 +694,7 @@ func verifyNoBlockProduction(t *testing.T, client *ethclient.Client, duration ti
 			"%s should not produce new blocks during idle period (started at %d, now at %d)",
 			nodeName, initialHeight, currentHeight)
 
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	t.Logf("✅ %s maintained height %d for %v (no new blocks produced)", nodeName, initialHeight, duration)
