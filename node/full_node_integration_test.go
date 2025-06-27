@@ -3,12 +3,15 @@
 package node
 
 import (
+	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 )
@@ -480,4 +483,116 @@ func testTwoChainsInOneNamespace(t *testing.T, chainID1 string, chainID2 string)
 	// Cancel all node contexts to signal shutdown and wait for both chains
 	shutdownAndWait(t, cancels1, &runningWg1, 5*time.Second)
 	shutdownAndWait(t, cancels2, &runningWg2, 5*time.Second)
+}
+
+// TestBatchQueueThrottlingWithDAFailure tests that when DA layer fails and MaxPendingHeadersAndData
+// is reached, the system behaves correctly and doesn't run into resource exhaustion.
+// This test uses the dummy sequencer but demonstrates the scenario that would occur
+// with a real single sequencer having queue limits.
+func TestBatchQueueThrottlingWithDAFailure(t *testing.T) {
+	require := require.New(t)
+
+	// Set up configuration with low limits to trigger throttling quickly
+	config := getTestConfig(t, 1)
+	config.Node.MaxPendingHeadersAndData = 2  // Low limit to quickly reach pending limit
+	config.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 100 * time.Millisecond}
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond}
+
+	// Create test components
+	executor, sequencer, dummyDA, p2pClient, ds, _, stopDAHeightTicker := createTestComponents(t, config)
+	defer stopDAHeightTicker()
+
+	// Cast executor to DummyExecutor so we can inject transactions
+	dummyExecutor, ok := executor.(*coreexecutor.DummyExecutor)
+	require.True(ok, "Expected DummyExecutor implementation")
+
+	// Cast dummyDA to our enhanced version so we can make it fail
+	dummyDAImpl, ok := dummyDA.(*coreda.DummyDA)
+	require.True(ok, "Expected DummyDA implementation")
+
+	// Create node with components
+	node, cleanup := createNodeWithCustomComponents(t, config, executor, sequencer, dummyDAImpl, p2pClient, ds, func() {})
+	defer cleanup()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var runningWg sync.WaitGroup
+	startNodeInBackground(t, []*FullNode{node}, []context.Context{ctx}, &runningWg, 0)
+
+	// Wait for the node to start producing blocks
+	require.NoError(waitForFirstBlock(node, Store))
+
+	// Inject some initial transactions to get the system working
+	for i := 0; i < 5; i++ {
+		dummyExecutor.InjectTx([]byte(fmt.Sprintf("initial-tx-%d", i)))
+	}
+
+	// Wait for some initial blocks to be produced and verify normal operation
+	require.NoError(waitForAtLeastNBlocks(node, 2, Store))
+	t.Log("Initial blocks produced successfully")
+
+	// Get the current height before DA failure
+	initialHeight, err := getNodeHeight(node, Store)
+	require.NoError(err)
+	t.Logf("Height before DA failure: %d", initialHeight)
+
+	// Simulate DA layer going down
+	t.Log("Simulating DA layer failure")
+	dummyDAImpl.SetSubmitFailure(true)
+
+	// Continue injecting transactions - this tests the behavior when:
+	// 1. DA layer is down (can't submit blocks to DA)
+	// 2. MaxPendingHeadersAndData limit is reached (stops block production)
+	// 3. Reaper continues trying to submit transactions
+	// In a real single sequencer, this would fill the batch queue and eventually return ErrQueueFull
+	go func() {
+		for i := 0; i < 100; i++ {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				dummyExecutor.InjectTx([]byte(fmt.Sprintf("tx-after-da-failure-%d", i)))
+				time.Sleep(10 * time.Millisecond) // Inject faster than block time
+			}
+		}
+	}()
+
+	// Wait for the pending headers/data to reach the MaxPendingHeadersAndData limit
+	// This should cause block production to stop
+	time.Sleep(3 * config.Node.BlockTime.Duration)
+
+	// Verify that block production has stopped due to MaxPendingHeadersAndData
+	heightAfterDAFailure, err := getNodeHeight(node, Store)
+	require.NoError(err)
+	t.Logf("Height after DA failure: %d", heightAfterDAFailure)
+
+	// Wait a bit more and verify height didn't increase significantly
+	time.Sleep(5 * config.Node.BlockTime.Duration)
+	finalHeight, err := getNodeHeight(node, Store)
+	require.NoError(err)
+	t.Logf("Final height: %d", finalHeight)
+
+	// The height should not have increased much due to MaxPendingHeadersAndData limit
+	// Allow at most 1 additional block due to timing
+	heightIncrease := finalHeight - heightAfterDAFailure
+	require.LessOrEqual(heightIncrease, uint64(1), 
+		"Height should not increase significantly when DA is down and MaxPendingHeadersAndData limit is reached")
+
+	t.Logf("Successfully demonstrated that MaxPendingHeadersAndData prevents runaway block production when DA fails")
+	t.Logf("Height progression: initial=%d, after_DA_failure=%d, final=%d", 
+		initialHeight, heightAfterDAFailure, finalHeight)
+
+	// This test demonstrates the scenario described in the PR:
+	// - DA layer goes down (SetSubmitFailure(true))
+	// - Block production stops when MaxPendingHeadersAndData limit is reached
+	// - Reaper continues injecting transactions (would fill batch queue in real single sequencer)
+	// - In a real single sequencer with queue limits, this would eventually return ErrQueueFull
+	//   preventing unbounded resource consumption
+
+	t.Log("NOTE: This test uses DummySequencer. In a real deployment with SingleSequencer,")
+	t.Log("the batch queue would fill up and return ErrQueueFull, providing backpressure.")
+
+	// Shutdown
+	shutdownAndWait(t, []context.CancelFunc{cancel}, &runningWg, 5*time.Second)
 }

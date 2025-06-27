@@ -48,16 +48,27 @@ func NewSequencer(
 	metrics *Metrics,
 	proposer bool,
 ) (*Sequencer, error) {
-	// Use a reasonable default queue size of 1000 batches to prevent unbounded growth
-	// TODO: Make this configurable via a parameter or config system
-	const defaultMaxQueueSize = 1000
-	
+	return NewSequencerWithQueueSize(ctx, logger, db, da, id, batchTime, metrics, proposer, 1000)
+}
+
+// NewSequencerWithQueueSize creates a new Single Sequencer with configurable queue size
+func NewSequencerWithQueueSize(
+	ctx context.Context,
+	logger log.Logger,
+	db ds.Batching,
+	da coreda.DA,
+	id []byte,
+	batchTime time.Duration,
+	metrics *Metrics,
+	proposer bool,
+	maxQueueSize int,
+) (*Sequencer, error) {
 	s := &Sequencer{
 		logger:    logger,
 		da:        da,
 		batchTime: batchTime,
 		Id:        id,
-		queue:     NewBatchQueue(db, "batches", defaultMaxQueueSize),
+		queue:     NewBatchQueue(db, "batches", maxQueueSize),
 		metrics:   metrics,
 		proposer:  proposer,
 	}
