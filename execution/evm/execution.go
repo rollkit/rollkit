@@ -42,6 +42,7 @@ type EngineClient struct {
 	genesisHash   common.Hash       // Hash of the genesis block
 	initialHeight uint64
 	feeRecipient  common.Address // Address to receive transaction fees
+	blockTime     time.Duration  // Block time for determining timestamp format
 
 	mu                        sync.Mutex  // Mutex to protect concurrent access to block hashes
 	currentHeadBlockHash      common.Hash // Store last non-finalized HeadBlockHash
@@ -56,6 +57,7 @@ func NewEngineExecutionClient(
 	jwtSecret string,
 	genesisHash common.Hash,
 	feeRecipient common.Address,
+	blockTime time.Duration,
 ) (*EngineClient, error) {
 	ethClient, err := ethclient.Dial(ethURL)
 	if err != nil {
@@ -88,6 +90,7 @@ func NewEngineExecutionClient(
 		ethClient:                 ethClient,
 		genesisHash:               genesisHash,
 		feeRecipient:              feeRecipient,
+		blockTime:                 blockTime,
 		currentHeadBlockHash:      genesisHash,
 		currentSafeBlockHash:      genesisHash,
 		currentFinalizedBlockHash: genesisHash,
@@ -186,7 +189,16 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		return nil, 0, fmt.Errorf("failed to get block info: %w", err)
 	}
 
-	ts := uint64(timestamp.Unix())
+	// Decide between seconds and milliseconds based on blockTime configuration
+	var ts uint64
+	if c.blockTime >= time.Second {
+		// If blockTime is 1 second or more, use seconds
+		ts = uint64(timestamp.Unix())
+	} else {
+		// If blockTime is less than 1 second, use milliseconds
+		ts = uint64(timestamp.UnixMilli())
+	}
+
 	if ts <= prevTimestamp {
 		ts = prevTimestamp + 1 // Subsequent blocks must have a higher timestamp.
 	}
