@@ -102,7 +102,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			}
 
 			executor, err := evm.NewEngineExecutionClient( // Use renamed import
-				ethURL, engineURL, jwtSecret, common.HexToHash(genesisHash), common.HexToAddress(feeRecipient),
+				ethURL, engineURL, jwtSecret, common.HexToHash(genesisHash), common.HexToAddress(feeRecipient), nodeConfig.Node.BlockTime.Duration,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create execution client: %w", err)

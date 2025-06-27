@@ -38,12 +38,12 @@ var RunCmd = &cobra.Command{
 			opts = append(opts, log.LevelOption(zl))
 		}
 
-		executor, err := createExecutionClient(cmd)
+		nodeConfig, err := rollcmd.ParseConfig(cmd)
 		if err != nil {
 			return err
 		}
 
-		nodeConfig, err := rollcmd.ParseConfig(cmd)
+		executor, err := createExecutionClient(cmd, nodeConfig)
 		if err != nil {
 			return err
 		}
@@ -60,10 +60,10 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-	singleMetrics, err := single.DefaultMetricsProvider(nodeConfig.Instrumentation.IsPrometheusEnabled())(nodeConfig.ChainID)
-	if err != nil {
-		return err
-	}
+		singleMetrics, err := single.DefaultMetricsProvider(nodeConfig.Instrumentation.IsPrometheusEnabled())(nodeConfig.ChainID)
+		if err != nil {
+			return err
+		}
 
 		sequencer, err := single.NewSequencer(
 			context.Background(),
@@ -98,7 +98,7 @@ func init() {
 	addFlags(RunCmd)
 }
 
-func createExecutionClient(cmd *cobra.Command) (execution.Executor, error) {
+func createExecutionClient(cmd *cobra.Command, nodeConfig config.Config) (execution.Executor, error) {
 	// Read execution client parameters from flags
 	ethURL, err := cmd.Flags().GetString(evm.FlagEvmEthURL)
 	if err != nil {
@@ -125,7 +125,7 @@ func createExecutionClient(cmd *cobra.Command) (execution.Executor, error) {
 	genesisHash := common.HexToHash(genesisHashStr)
 	feeRecipient := common.HexToAddress(feeRecipientStr)
 
-	return evm.NewEngineExecutionClient(ethURL, engineURL, jwtSecret, genesisHash, feeRecipient)
+	return evm.NewEngineExecutionClient(ethURL, engineURL, jwtSecret, genesisHash, feeRecipient, nodeConfig.Node.BlockTime.Duration)
 }
 
 // addFlags adds flags related to the EVM execution client
