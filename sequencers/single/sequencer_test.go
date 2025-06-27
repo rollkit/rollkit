@@ -149,7 +149,7 @@ func TestSequencer_GetNextBatch_NoLastBatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 
 	seq := &Sequencer{
-		queue: NewBatchQueue(db, "batches"),
+		queue: NewBatchQueue(db, "batches", 0), // 0 = unlimited for test
 		Id:    []byte("test"),
 	}
 	defer func() {
@@ -184,7 +184,7 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 
 	seq := &Sequencer{
 		logger: log.NewNopLogger(),
-		queue:  NewBatchQueue(db, "batches"),
+		queue:  NewBatchQueue(db, "batches", 0), // 0 = unlimited for test
 		Id:     []byte("test"),
 	}
 	defer func() {
@@ -246,7 +246,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			Id:       Id,
 			proposer: true,
 			da:       mockDA,
-			queue:    NewBatchQueue(db, "proposer_queue"),
+			queue:    NewBatchQueue(db, "proposer_queue", 0), // 0 = unlimited for test
 		}
 
 		res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
@@ -266,7 +266,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:       Id,
 				proposer: false,
 				da:       mockDA,
-				queue:    NewBatchQueue(db, "valid_proofs_queue"),
+				queue:    NewBatchQueue(db, "valid_proofs_queue", 0),
 			}
 
 			mockDA.On("GetProofs", context.Background(), batchData, Id).Return(proofs, nil).Once()
@@ -286,7 +286,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:       Id,
 				proposer: false,
 				da:       mockDA,
-				queue:    NewBatchQueue(db, "invalid_proof_queue"),
+				queue:    NewBatchQueue(db, "invalid_proof_queue", 0),
 			}
 
 			mockDA.On("GetProofs", context.Background(), batchData, Id).Return(proofs, nil).Once()
@@ -306,7 +306,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:       Id,
 				proposer: false,
 				da:       mockDA,
-				queue:    NewBatchQueue(db, "getproofs_err_queue"),
+				queue:    NewBatchQueue(db, "getproofs_err_queue", 0),
 			}
 			expectedErr := errors.New("get proofs failed")
 
@@ -327,7 +327,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:       Id,
 				proposer: false,
 				da:       mockDA,
-				queue:    NewBatchQueue(db, "validate_err_queue"),
+				queue:    NewBatchQueue(db, "validate_err_queue", 0),
 			}
 			expectedErr := errors.New("validate failed")
 
@@ -349,7 +349,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:       Id,
 				proposer: false,
 				da:       mockDA,
-				queue:    NewBatchQueue(db, "invalid_queue"),
+				queue:    NewBatchQueue(db, "invalid_queue", 0),
 			}
 
 			invalidId := []byte("invalid")
@@ -501,4 +501,239 @@ func TestSequencer_RecordMetrics(t *testing.T) {
 		}
 	})
 
+}
+
+func TestSequencer_QueueLimit_Integration(t *testing.T) {
+	// Test integration between sequencer and queue limits to demonstrate backpressure
+	db := ds.NewMapDatastore()
+	defer db.Close()
+
+	mockDA := &damocks.MockDA{}
+	
+	// Create a sequencer with a small queue limit for testing
+	seq := &Sequencer{
+		logger:    log.NewNopLogger(),
+		da:        mockDA,
+		batchTime: time.Second,
+		Id:        []byte("test"),
+		queue:     NewBatchQueue(db, "test_queue", 2), // Very small limit for testing
+		proposer:  true,
+	}
+
+	ctx := context.Background()
+
+	// Test successful batch submission within limit
+	batch1 := createTestBatch(t, 3)
+	req1 := coresequencer.SubmitBatchTxsRequest{
+		Id:    seq.Id,
+		Batch: &batch1,
+	}
+
+	resp1, err := seq.SubmitBatchTxs(ctx, req1)
+	if err != nil {
+		t.Fatalf("unexpected error submitting first batch: %v", err)
+	}
+	if resp1 == nil {
+		t.Fatal("expected non-nil response")
+	}
+
+	// Test second successful batch submission at limit
+	batch2 := createTestBatch(t, 4)
+	req2 := coresequencer.SubmitBatchTxsRequest{
+		Id:    seq.Id,
+		Batch: &batch2,
+	}
+
+	resp2, err := seq.SubmitBatchTxs(ctx, req2)
+	if err != nil {
+		t.Fatalf("unexpected error submitting second batch: %v", err)
+	}
+	if resp2 == nil {
+		t.Fatal("expected non-nil response")
+	}
+
+	// Test third batch submission should fail due to queue being full
+	batch3 := createTestBatch(t, 5)
+	req3 := coresequencer.SubmitBatchTxsRequest{
+		Id:    seq.Id,
+		Batch: &batch3,
+	}
+
+	resp3, err := seq.SubmitBatchTxs(ctx, req3)
+	if err == nil {
+		t.Error("expected error when queue is full, but got none")
+	}
+	if !errors.Is(err, ErrQueueFull) {
+		t.Errorf("expected ErrQueueFull, got %v", err)
+	}
+	if resp3 != nil {
+		t.Error("expected nil response when submission fails")
+	}
+
+	// Test that getting a batch frees up space
+	nextResp, err := seq.GetNextBatch(ctx, coresequencer.GetNextBatchRequest{Id: seq.Id})
+	if err != nil {
+		t.Fatalf("unexpected error getting next batch: %v", err)
+	}
+	if nextResp == nil || nextResp.Batch == nil {
+		t.Fatal("expected non-nil batch response")
+	}
+
+	// Now the third batch should succeed
+	resp3_retry, err := seq.SubmitBatchTxs(ctx, req3)
+	if err != nil {
+		t.Errorf("unexpected error submitting batch after freeing space: %v", err)
+	}
+	if resp3_retry == nil {
+		t.Error("expected non-nil response after retry")
+	}
+
+	// Test empty batch handling - should not be affected by limits
+	emptyBatch := coresequencer.Batch{Transactions: nil}
+	reqEmpty := coresequencer.SubmitBatchTxsRequest{
+		Id:    seq.Id,
+		Batch: &emptyBatch,
+	}
+
+	respEmpty, err := seq.SubmitBatchTxs(ctx, reqEmpty)
+	if err != nil {
+		t.Errorf("unexpected error submitting empty batch: %v", err)
+	}
+	if respEmpty == nil {
+		t.Error("expected non-nil response for empty batch")
+	}
+}
+
+// TestSequencer_DAFailureAndQueueThrottling_Integration tests the integration scenario
+// where DA layer fails and the batch queue fills up, demonstrating the throttling behavior
+// that prevents resource exhaustion.
+func TestSequencer_DAFailureAndQueueThrottling_Integration(t *testing.T) {
+	// This test simulates the scenario described in the PR:
+	// 1. Start sequencer with dummy DA
+	// 2. Send transactions (simulate reaper behavior)
+	// 3. Make DA layer go down
+	// 4. Continue sending transactions
+	// 5. Eventually batch queue fills up and returns ErrQueueFull
+	
+	db := ds.NewMapDatastore()
+	defer db.Close()
+	
+	// Create a dummy DA that we can make fail
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0, 100*time.Millisecond)
+	dummyDA.StartHeightTicker()
+	defer dummyDA.StopHeightTicker()
+	
+	// Create sequencer with small queue size to trigger throttling quickly
+	queueSize := 3 // Small for testing
+	seq, err := NewSequencerWithQueueSize(
+		context.Background(),
+		log.NewNopLogger(),
+		db,
+		dummyDA,
+		[]byte("test-chain"),
+		100*time.Millisecond,
+		nil, // metrics
+		true, // proposer
+		queueSize,
+	)
+	require.NoError(t, err)
+	
+	ctx := context.Background()
+	
+	// Phase 1: Normal operation - send some batches successfully
+	t.Log("Phase 1: Normal operation")
+	for i := 0; i < queueSize; i++ {
+		batch := createTestBatch(t, i+1)
+		req := coresequencer.SubmitBatchTxsRequest{
+			Id:    []byte("test-chain"),
+			Batch: &batch,
+		}
+		
+		resp, err := seq.SubmitBatchTxs(ctx, req)
+		require.NoError(t, err, "Expected successful batch submission during normal operation")
+		require.NotNil(t, resp)
+	}
+	
+	// At this point the queue should be full (queueSize batches)
+	t.Log("Phase 2: Queue should now be full")
+	
+	// Try to add one more batch - should fail with ErrQueueFull
+	overflowBatch := createTestBatch(t, queueSize+1)
+	overflowReq := coresequencer.SubmitBatchTxsRequest{
+		Id:    []byte("test-chain"),
+		Batch: &overflowBatch,
+	}
+	
+	resp, err := seq.SubmitBatchTxs(ctx, overflowReq)
+	require.Error(t, err, "Expected error when queue is full")
+	require.True(t, errors.Is(err, ErrQueueFull), "Expected ErrQueueFull, got %v", err)
+	require.Nil(t, resp, "Expected nil response when queue is full")
+	
+	t.Log("✅ Successfully demonstrated ErrQueueFull when queue reaches limit")
+	
+	// Phase 3: Simulate DA layer going down (this would be used in block manager)
+	t.Log("Phase 3: Simulating DA layer failure")
+	dummyDA.SetSubmitFailure(true)
+	
+	// Phase 4: Process one batch to free up space, simulating block manager getting batches
+	t.Log("Phase 4: Process one batch to free up space")
+	nextResp, err := seq.GetNextBatch(ctx, coresequencer.GetNextBatchRequest{Id: []byte("test-chain")})
+	require.NoError(t, err)
+	require.NotNil(t, nextResp)
+	require.NotNil(t, nextResp.Batch)
+	
+	// Now we should be able to add the overflow batch
+	resp, err = seq.SubmitBatchTxs(ctx, overflowReq)
+	require.NoError(t, err, "Expected successful submission after freeing space")
+	require.NotNil(t, resp)
+	
+	// Phase 5: Continue adding batches until queue is full again
+	t.Log("Phase 5: Fill queue again to demonstrate continued throttling")
+	
+	// Add batches until queue is full again
+	batchesAdded := 0
+	for i := 0; i < 10; i++ { // Try to add many batches
+		batch := createTestBatch(t, 100+i)
+		req := coresequencer.SubmitBatchTxsRequest{
+			Id:    []byte("test-chain"),
+			Batch: &batch,
+		}
+		
+		resp, err := seq.SubmitBatchTxs(ctx, req)
+		if err != nil {
+			if errors.Is(err, ErrQueueFull) {
+				t.Logf("✅ Queue full again after adding %d more batches", batchesAdded)
+				break
+			} else {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+		}
+		require.NotNil(t, resp, "Expected non-nil response for successful submission")
+		batchesAdded++
+	}
+	
+	// The queue is already full from the overflow batch we added, so we expect 0 additional batches
+	t.Log("✅ Successfully demonstrated that queue throttling prevents unbounded resource consumption")
+	t.Logf("📊 Queue size limit: %d, Additional batches attempted: %d", queueSize, batchesAdded)
+	
+	// Final verification: try one more batch to confirm queue is still full
+	finalBatch := createTestBatch(t, 999)
+	finalReq := coresequencer.SubmitBatchTxsRequest{
+		Id:    []byte("test-chain"),
+		Batch: &finalBatch,
+	}
+	
+	resp, err = seq.SubmitBatchTxs(ctx, finalReq)
+	require.Error(t, err, "Expected final batch to fail due to full queue")
+	require.True(t, errors.Is(err, ErrQueueFull), "Expected final ErrQueueFull")
+	require.Nil(t, resp)
+	
+	t.Log("✅ Final verification: Queue throttling still active")
+	
+	// This test demonstrates the complete integration scenario:
+	// 1. ✅ Sequencer accepts batches normally when queue has space
+	// 2. ✅ Returns ErrQueueFull when queue reaches its limit
+	// 3. ✅ Allows new batches when space is freed (GetNextBatch)
+	// 4. ✅ Continues to throttle when queue fills up again
+	// 5. ✅ Provides backpressure to prevent resource exhaustion
 }

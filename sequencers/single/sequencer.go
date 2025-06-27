@@ -48,12 +48,27 @@ func NewSequencer(
 	metrics *Metrics,
 	proposer bool,
 ) (*Sequencer, error) {
+	return NewSequencerWithQueueSize(ctx, logger, db, da, id, batchTime, metrics, proposer, 1000)
+}
+
+// NewSequencerWithQueueSize creates a new Single Sequencer with configurable queue size
+func NewSequencerWithQueueSize(
+	ctx context.Context,
+	logger log.Logger,
+	db ds.Batching,
+	da coreda.DA,
+	id []byte,
+	batchTime time.Duration,
+	metrics *Metrics,
+	proposer bool,
+	maxQueueSize int,
+) (*Sequencer, error) {
 	s := &Sequencer{
 		logger:    logger,
 		da:        da,
 		batchTime: batchTime,
 		Id:        id,
-		queue:     NewBatchQueue(db, "batches"),
+		queue:     NewBatchQueue(db, "batches", maxQueueSize),
 		metrics:   metrics,
 		proposer:  proposer,
 	}
@@ -83,6 +98,12 @@ func (c *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.Submit
 
 	err := c.queue.AddBatch(ctx, batch)
 	if err != nil {
+		if errors.Is(err, ErrQueueFull) {
+			c.logger.Warn("Batch queue is full, rejecting batch submission",
+				"txCount", len(batch.Transactions),
+				"chainId", string(req.Id))
+			return nil, fmt.Errorf("batch queue is full, cannot accept more batches: %w", err)
+		}
 		return nil, fmt.Errorf("failed to add batch: %w", err)
 	}
 
