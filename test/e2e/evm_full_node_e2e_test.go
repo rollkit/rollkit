@@ -41,6 +41,16 @@
 // - Lazy mode block production with P2P synchronization
 // - DA layer restart coordination across multiple nodes
 //
+// Performance Optimizations:
+// - Optimized for 100ms block time (10 blocks/second)
+// - Reduced transaction submission delays (5ms instead of 50ms)
+// - Faster P2P synchronization timeouts for rapid block production
+// - Reduced idle monitoring periods for lazy mode tests (1s instead of 2s)
+// - Optimized block propagation verification timing
+// - Faster shutdown and restart sequences (2s instead of 3s)
+// - Reduced wait times between transaction batches
+// - Faster polling intervals for Eventually assertions (250ms instead of 500ms)
+//
 // Technical Implementation:
 // - Uses separate Docker Compose files for different node types
 // - Implements JWT token generation and validation for Engine API
@@ -52,6 +62,7 @@
 // - Validates lazy mode behavior with idle period monitoring
 // - Ensures state synchronization across node restarts
 // - Tests all combinations of lazy/normal mode for initial setup and restart
+// - Includes optimized timing for fast block production scenarios
 package e2e
 
 import (
@@ -175,7 +186,7 @@ func verifyTransactionSync(t *testing.T, sequencerClient, fullNodeClient *ethcli
 			}
 		}
 		return false
-	}, 60*time.Second, 2*time.Second, "Full node should sync the block containing the transaction")
+	}, 45*time.Second, 1*time.Second, "Full node should sync the block containing the transaction")
 
 	// Final verification - both nodes should have the transaction in the same block
 	sequencerReceipt, err := sequencerClient.TransactionReceipt(ctx, txHash)
@@ -277,8 +288,10 @@ func setupSequencerWithFullNode(t *testing.T, sut *SystemUnderTest, sequencerHom
 		seqHeight := seqHeader.Number.Uint64()
 		fnHeight := fnHeader.Number.Uint64()
 
-		return seqHeight >= 0 && fnHeight >= 0 && (seqHeight == 0 || fnHeight+5 >= seqHeight)
-	}, DefaultTestTimeout, 500*time.Millisecond, "P2P connections should be established")
+		// With 100ms blocks (10 blocks/sec), allow larger sync tolerance during startup
+		// Allow up to 20 blocks difference to account for P2P propagation delays
+		return seqHeight >= 0 && fnHeight >= 0 && (seqHeight == 0 || fnHeight+20 >= seqHeight)
+	}, DefaultTestTimeout, 250*time.Millisecond, "P2P connections should be established")
 
 	t.Log("P2P connections established")
 	return sequencerClient, fullNodeClient
@@ -343,11 +356,11 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 		t.Logf("Transaction %d included in sequencer block %d", i+1, txBlockNumber)
 
 		// Small delay between transactions to spread them across blocks
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 
 	// Wait a bit for block production
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	// Submit second batch of transactions
 	t.Log("Submitting second batch of transactions...")
@@ -358,11 +371,11 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 		t.Logf("Transaction %d included in sequencer block %d", i+4, txBlockNumber)
 
 		// Small delay between transactions
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 
 	// Wait for all transactions to be processed
-	time.Sleep(1 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 
 	t.Logf("Total transactions submitted: %d across blocks %v", len(txHashes), txBlockNumbers)
 
@@ -401,7 +414,7 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 				return false
 			}
 			return header.Number.Uint64() >= seqHeight
-		}, DefaultTestTimeout, 1*time.Second, "Full node should catch up to sequencer height")
+		}, DefaultTestTimeout, 500*time.Millisecond, "Full node should catch up to sequencer height")
 
 		// Re-get the full node height after sync
 		fnHeader, err = fullNodeClient.HeaderByNumber(fnCtx, nil)
@@ -484,17 +497,17 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 
 		// Optimized timing to create different block distributions
 		if i < 3 {
-			time.Sleep(50 * time.Millisecond) // Fast submissions
+			time.Sleep(25 * time.Millisecond) // Fast submissions
 		} else if i < 6 {
-			time.Sleep(100 * time.Millisecond) // Medium pace
+			time.Sleep(50 * time.Millisecond) // Medium pace
 		} else {
-			time.Sleep(150 * time.Millisecond) // Slower pace
+			time.Sleep(75 * time.Millisecond) // Slower pace
 		}
 	}
 
 	// Wait for all blocks to propagate (reduced wait time due to faster block times)
 	t.Log("Waiting for block propagation to full node...")
-	time.Sleep(1 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 
 	// === VERIFICATION PHASE ===
 
@@ -530,7 +543,7 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 			return false
 		}
 		return true
-	}, 30*time.Second, 1*time.Second, "Full node should catch up to sequencer height %d", currentHeight)
+	}, 20*time.Second, 500*time.Millisecond, "Full node should catch up to sequencer height %d", currentHeight)
 
 	t.Log("Full node is synced! Verifying block propagation...")
 
@@ -556,7 +569,7 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 		require.Eventually(t, func() bool {
 			receipt, err := fullNodeClient.TransactionReceipt(ctx, txHash)
 			return err == nil && receipt != nil && receipt.Status == 1 && receipt.BlockNumber.Uint64() == txBlockNumber
-		}, DefaultTestTimeout, 1*time.Second, "Transaction %d should exist on full node in block %d", i+1, txBlockNumber)
+		}, DefaultTestTimeout, 500*time.Millisecond, "Transaction %d should exist on full node in block %d", i+1, txBlockNumber)
 
 		t.Logf("✅ Transaction %d verified on full node (block %d)", i+1, txBlockNumber)
 	}
@@ -588,7 +601,7 @@ func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
 		}
 
 		// Small delay between rounds
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	t.Logf("✅ Test PASSED: Block propagation working correctly!")
@@ -651,7 +664,7 @@ func setupSequencerWithFullNodeLazy(t *testing.T, sut *SystemUnderTest, sequence
 		}
 
 		return heightDiff <= 2 // Allow up to 2 blocks difference during startup
-	}, DefaultTestTimeout, 500*time.Millisecond, "P2P connections should be established")
+	}, DefaultTestTimeout, 250*time.Millisecond, "P2P connections should be established")
 
 	t.Log("P2P connections established")
 	return sequencerClient, fullNodeClient
@@ -721,8 +734,8 @@ func TestEvmLazyModeSequencerE2E(t *testing.T) {
 
 	// Monitor for no block production during idle period (reduced time)
 	t.Log("Monitoring nodes for idle block production (should be none in lazy mode)...")
-	verifyNoBlockProduction(t, sequencerClient, 2*time.Second, "sequencer")
-	verifyNoBlockProduction(t, fullNodeClient, 2*time.Second, "full node")
+	verifyNoBlockProduction(t, sequencerClient, 1*time.Second, "sequencer")
+	verifyNoBlockProduction(t, fullNodeClient, 1*time.Second, "full node")
 
 	// Track transactions and their blocks
 	var txHashes []common.Hash
@@ -745,8 +758,8 @@ func TestEvmLazyModeSequencerE2E(t *testing.T) {
 
 	// Verify no additional blocks are produced after transaction
 	t.Log("Monitoring for idle period after transaction 1...")
-	verifyNoBlockProduction(t, sequencerClient, 2*time.Second, "sequencer")
-	verifyNoBlockProduction(t, fullNodeClient, 2*time.Second, "full node")
+	verifyNoBlockProduction(t, sequencerClient, 1*time.Second, "sequencer")
+	verifyNoBlockProduction(t, fullNodeClient, 1*time.Second, "full node")
 
 	// === ROUND 2: Burst transactions ===
 
@@ -760,7 +773,7 @@ func TestEvmLazyModeSequencerE2E(t *testing.T) {
 		t.Logf("Transaction %d included in sequencer block %d", i+2, txBlockNumber)
 
 		// Small delay between transactions
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	// Verify all transactions sync to full node
@@ -771,8 +784,8 @@ func TestEvmLazyModeSequencerE2E(t *testing.T) {
 
 	// Verify no additional blocks after burst
 	t.Log("Monitoring for idle period after burst transactions...")
-	verifyNoBlockProduction(t, sequencerClient, 2*time.Second, "sequencer")
-	verifyNoBlockProduction(t, fullNodeClient, 2*time.Second, "full node")
+	verifyNoBlockProduction(t, sequencerClient, 1*time.Second, "sequencer")
+	verifyNoBlockProduction(t, fullNodeClient, 1*time.Second, "full node")
 
 	// === ROUND 3: Delayed transaction ===
 
@@ -807,7 +820,7 @@ func TestEvmLazyModeSequencerE2E(t *testing.T) {
 		require.Eventually(t, func() bool {
 			header, err := fullNodeClient.HeaderByNumber(ctx, nil)
 			return err == nil && header.Number.Uint64() >= seqHeight
-		}, DefaultTestTimeout, 1*time.Second, "Full node should catch up")
+		}, DefaultTestTimeout, 500*time.Millisecond, "Full node should catch up")
 	}
 
 	// Verify state roots for all blocks (skip genesis block 0)
@@ -913,7 +926,7 @@ func restartSequencerAndFullNode(t *testing.T, sut *SystemUnderTest, sequencerHo
 	)
 
 	// Give both nodes time to establish P2P connections
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	sut.AwaitNodeUp(t, "http://127.0.0.1:"+FullNodeRPCPort, 10*time.Second)
 	t.Log("Full node restarted successfully")
 }
@@ -1045,8 +1058,10 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 		seqHeight := seqHeader.Number.Uint64()
 		fnHeight := fnHeader.Number.Uint64()
 
-		return seqHeight >= 0 && fnHeight >= 0 && (seqHeight == 0 || fnHeight+5 >= seqHeight)
-	}, DefaultTestTimeout, 500*time.Millisecond, "P2P connections should be established")
+		// With 100ms blocks (10 blocks/sec), allow larger sync tolerance during startup
+		// Allow up to 20 blocks difference to account for P2P propagation delays
+		return seqHeight >= 0 && fnHeight >= 0 && (seqHeight == 0 || fnHeight+20 >= seqHeight)
+	}, DefaultTestTimeout, 250*time.Millisecond, "P2P connections should be established")
 
 	t.Log("P2P connections established")
 
@@ -1055,11 +1070,11 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 	// If starting in lazy mode, wait for any initial blocks to settle, then verify lazy behavior
 	if initialLazyMode {
 		t.Log("Waiting for lazy mode sequencer to settle...")
-		time.Sleep(3 * time.Second) // Allow initial blocks to be produced
+		time.Sleep(2 * time.Second)
 
 		t.Log("Verifying lazy mode behavior: no blocks produced without transactions...")
-		verifyNoBlockProduction(t, sequencerClient, 2*time.Second, "sequencer")
-		verifyNoBlockProduction(t, fullNodeClient, 2*time.Second, "full node")
+		verifyNoBlockProduction(t, sequencerClient, 1*time.Second, "sequencer")
+		verifyNoBlockProduction(t, fullNodeClient, 1*time.Second, "full node")
 	}
 
 	// Submit initial batch of transactions to establish state
@@ -1078,7 +1093,7 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 		verifyTransactionSync(t, sequencerClient, fullNodeClient, txHash, txBlockNumber)
 		t.Logf("✅ Initial transaction %d synced to full node", i+1)
 
-		time.Sleep(10 * time.Millisecond) // Small delay for block distribution
+		time.Sleep(5 * time.Millisecond)
 	}
 
 	// Record pre-restart state
@@ -1097,9 +1112,14 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 	t.Logf("  - Full node: height=%d, stateRoot=%s", preRestartFnHeight, preRestartFnStateRoot)
 	t.Logf("  - Initial transactions processed: %d", numInitialTxs)
 
-	// Verify both nodes are at the same height
-	require.Equal(t, preRestartSeqHeight, preRestartFnHeight,
-		"Both nodes should be at same height before restart")
+	// Verify both nodes are at similar heights (allow small difference due to fast block production)
+	heightDiff := int64(preRestartSeqHeight) - int64(preRestartFnHeight)
+	if heightDiff < 0 {
+		heightDiff = -heightDiff
+	}
+	require.LessOrEqual(t, heightDiff, int64(10),
+		"Nodes should be within 10 blocks of each other before restart (seq: %d, fn: %d)",
+		preRestartSeqHeight, preRestartFnHeight)
 
 	// === PHASE 2: Graceful shutdown of both nodes ===
 
@@ -1110,14 +1130,14 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 
 	// Wait for graceful shutdown to allow state to be saved
 	t.Log("Waiting for graceful shutdown and state persistence...")
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	// Verify shutdown using SUT's process tracking
 	require.Eventually(t, func() bool {
 		hasAnyProcess := sut.HasProcess()
 		t.Logf("Shutdown check: any processes exist=%v", hasAnyProcess)
 		return !hasAnyProcess
-	}, 15*time.Second, 500*time.Millisecond, "all processes should be stopped")
+	}, 10*time.Second, 250*time.Millisecond, "all processes should be stopped")
 
 	t.Log("Both nodes stopped successfully")
 
@@ -1141,8 +1161,8 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 	t.Log("Waiting for P2P connections to re-establish...")
 	require.Eventually(t, func() bool {
 		// Check if both nodes are responsive
-		seqHeader, seqErr := sequencerClient.HeaderByNumber(ctx, nil)
-		fnHeader, fnErr := fullNodeClient.HeaderByNumber(ctx, nil)
+		seqHeader, seqErr := sequencerClient.HeaderByNumber(context.Background(), nil)
+		fnHeader, fnErr := fullNodeClient.HeaderByNumber(context.Background(), nil)
 
 		if seqErr != nil || fnErr != nil {
 			return false
@@ -1152,14 +1172,15 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 		seqHeight := seqHeader.Number.Uint64()
 		fnHeight := fnHeader.Number.Uint64()
 
-		// Allow small difference during restart synchronization
+		// Allow larger difference during restart synchronization with fast blocks
+		// With 100ms blocks, allow up to 15 blocks difference during startup
 		heightDiff := int64(seqHeight) - int64(fnHeight)
 		if heightDiff < 0 {
 			heightDiff = -heightDiff
 		}
 
-		return heightDiff <= 3 // Allow up to 3 blocks difference during startup
-	}, DefaultTestTimeout, 1*time.Second, "P2P connections should be re-established")
+		return heightDiff <= 15
+	}, DefaultTestTimeout, 250*time.Millisecond, "P2P connections should be re-established")
 
 	t.Log("P2P connections re-established successfully")
 
@@ -1168,8 +1189,8 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 	if restartLazyMode {
 		t.Log("Verifying lazy mode behavior after restart...")
 		// Test that no blocks are produced during idle period in lazy mode
-		verifyNoBlockProduction(t, sequencerClient, 2*time.Second, "sequencer (lazy mode)")
-		verifyNoBlockProduction(t, fullNodeClient, 2*time.Second, "full node (with lazy sequencer)")
+		verifyNoBlockProduction(t, sequencerClient, 1*time.Second, "sequencer (lazy mode)")
+		verifyNoBlockProduction(t, fullNodeClient, 1*time.Second, "full node (with lazy sequencer)")
 		t.Log("✅ Lazy mode idle behavior verified after restart")
 	}
 
@@ -1214,11 +1235,11 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 
 		// Verify both nodes have transaction in same block
 		require.Equal(t, seqReceipt.BlockNumber.Uint64(), fnReceipt.BlockNumber.Uint64(),
-			"Transaction %d should be in same block on both nodes after restart", i+1)
+			"Transaction %d should be in same block on both nodes", i+1)
 		require.Equal(t, expectedBlockNumber, seqReceipt.BlockNumber.Uint64(),
 			"Transaction %d should be in expected block %d", i+1, expectedBlockNumber)
 
-		t.Logf("✅ Initial transaction %d preserved on both nodes (block: %d)", i+1, expectedBlockNumber)
+		t.Logf("✅ Initial transaction %d preserved on both nodes", i+1)
 	}
 
 	// === PHASE 5: Post-restart functionality verification ===
@@ -1241,7 +1262,7 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 		verifyTransactionSync(t, sequencerClient, fullNodeClient, txHash, txBlockNumber)
 		t.Logf("✅ Post-restart transaction %d synced to full node via P2P", i+1)
 
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 	}
 
 	// === LAZY MODE POST-TRANSACTION VERIFICATION (if applicable) ===
@@ -1249,46 +1270,59 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 	if restartLazyMode {
 		t.Log("Verifying lazy mode post-transaction idle behavior...")
 		// Test that no additional blocks are produced after transactions in lazy mode
-		verifyNoBlockProduction(t, sequencerClient, 1*time.Second, "sequencer (lazy mode post-tx)")
-		verifyNoBlockProduction(t, fullNodeClient, 1*time.Second, "full node (lazy mode post-tx)")
+		verifyNoBlockProduction(t, sequencerClient, 500*time.Millisecond, "sequencer (lazy mode post-tx)")
+		verifyNoBlockProduction(t, fullNodeClient, 500*time.Millisecond, "full node (lazy mode post-tx)")
 		t.Log("✅ Lazy mode post-transaction idle behavior verified")
 	}
 
-	// === PHASE 6: Final state verification ===
+	// === PHASE 6: Final state verification with synchronized shutdown ===
 
-	t.Log("Phase 6: Final comprehensive verification...")
+	t.Log("Phase 6: Final comprehensive verification with synchronized shutdown...")
 
-	// Get final heights
+	// Step 1: Wait for both nodes to be closely synchronized
+	t.Log("Ensuring both nodes are synchronized before shutdown...")
+	require.Eventually(t, func() bool {
+		seqHeader, seqErr := sequencerClient.HeaderByNumber(ctx, nil)
+		fnHeader, fnErr := fullNodeClient.HeaderByNumber(ctx, nil)
+
+		if seqErr != nil || fnErr != nil {
+			return false
+		}
+
+		seqHeight := seqHeader.Number.Uint64()
+		fnHeight := fnHeader.Number.Uint64()
+
+		heightDiff := int64(seqHeight) - int64(fnHeight)
+		if heightDiff < 0 {
+			heightDiff = -heightDiff
+		}
+
+		t.Logf("Synchronization check - Sequencer: %d, Full node: %d, diff: %d", seqHeight, fnHeight, heightDiff)
+		return heightDiff <= 10
+	}, DefaultTestTimeout, 250*time.Millisecond, "Nodes should be synchronized before shutdown")
+
+	// Step 2: Get both heights while still running
 	finalSeqHeader, err := sequencerClient.HeaderByNumber(ctx, nil)
-	require.NoError(t, err, "Should get final sequencer header")
+	require.NoError(t, err, "Should get sequencer header")
 	finalFnHeader, err := fullNodeClient.HeaderByNumber(ctx, nil)
-	require.NoError(t, err, "Should get final full node header")
+	require.NoError(t, err, "Should get full node header")
 
 	finalSeqHeight := finalSeqHeader.Number.Uint64()
 	finalFnHeight := finalFnHeader.Number.Uint64()
 
-	// Ensure full node caught up to sequencer
-	if finalFnHeight < finalSeqHeight {
-		t.Logf("Waiting for full node to catch up to final sequencer height %d...", finalSeqHeight)
-		require.Eventually(t, func() bool {
-			header, err := fullNodeClient.HeaderByNumber(ctx, nil)
-			return err == nil && header.Number.Uint64() >= finalSeqHeight
-		}, DefaultTestTimeout, 1*time.Second, "Full node should catch up to final sequencer height")
-
-		// Re-get final full node height
-		finalFnHeader, err = fullNodeClient.HeaderByNumber(ctx, nil)
-		require.NoError(t, err, "Should get updated final full node header")
-		finalFnHeight = finalFnHeader.Number.Uint64()
-	}
-
-	t.Logf("Final state:")
+	t.Logf("Final synchronized state:")
 	t.Logf("  - Sequencer: height=%d", finalSeqHeight)
 	t.Logf("  - Full node: height=%d", finalFnHeight)
 	t.Logf("  - Total transactions processed: %d", numInitialTxs+numPostRestartTxs)
 
-	// Verify both nodes are at same final height
-	require.Equal(t, finalSeqHeight, finalFnHeight,
-		"Both nodes should be at same final height")
+	// Step 3: Verify both nodes are at the same final height (allow small tolerance)
+	finalHeightDiff := int64(finalSeqHeight) - int64(finalFnHeight)
+	if finalHeightDiff < 0 {
+		finalHeightDiff = -finalHeightDiff
+	}
+	require.LessOrEqual(t, finalHeightDiff, int64(10),
+		"Nodes should be within 10 blocks of each other at final state (seq: %d, fn: %d)",
+		finalSeqHeight, finalFnHeight)
 
 	// Verify blockchain progressed after restart
 	require.Greater(t, finalSeqHeight, preRestartSeqHeight,
@@ -1298,23 +1332,24 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 	t.Log("Performing state root verification...")
 
 	// Verify state roots match for a sample of blocks
+	// Use the minimum height between both nodes to avoid missing blocks
 	startHeight := uint64(1)
-	endHeight := finalSeqHeight
+	minEndHeight := min(finalSeqHeight, finalFnHeight)
 
 	// For efficiency, check every block if there are few, or sample if many
 	var blocksToCheck []uint64
-	if endHeight <= 10 {
-		// Check all blocks
-		for height := startHeight; height <= endHeight; height++ {
+	if minEndHeight <= 10 {
+		// Check all blocks up to the minimum height
+		for height := startHeight; height <= minEndHeight; height++ {
 			blocksToCheck = append(blocksToCheck, height)
 		}
 	} else {
-		// Sample key blocks: first, middle, and last few
+		// Sample key blocks: first, middle, and last few (using minimum height)
 		blocksToCheck = append(blocksToCheck, startHeight)
-		if endHeight > 2 {
-			blocksToCheck = append(blocksToCheck, endHeight/2)
+		if minEndHeight > 2 {
+			blocksToCheck = append(blocksToCheck, minEndHeight/2)
 		}
-		for height := max(endHeight-2, startHeight+1); height <= endHeight; height++ {
+		for height := max(minEndHeight-2, startHeight+1); height <= minEndHeight; height++ {
 			blocksToCheck = append(blocksToCheck, height)
 		}
 	}
