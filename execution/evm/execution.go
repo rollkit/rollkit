@@ -186,7 +186,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		return nil, 0, fmt.Errorf("failed to get block info: %w", err)
 	}
 
-	ts := uint64(timestamp.UnixMilli())
+	ts := uint64(timestamp.Unix())
 	if ts <= prevTimestamp {
 		ts = prevTimestamp + 1 // Subsequent blocks must have a higher timestamp.
 	}
