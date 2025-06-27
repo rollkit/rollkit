@@ -3,6 +3,7 @@ package single
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -16,29 +17,41 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
+// ErrQueueFull is returned when the batch queue has reached its maximum size
+var ErrQueueFull = errors.New("batch queue is full")
+
 func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
 	return ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)})
 }
 
 // BatchQueue implements a persistent queue for transaction batches
 type BatchQueue struct {
-	queue []coresequencer.Batch
-	mu    sync.Mutex
-	db    ds.Batching
+	queue        []coresequencer.Batch
+	maxQueueSize int // maximum number of batches allowed in queue (0 = unlimited)
+	mu           sync.Mutex
+	db           ds.Batching
 }
 
-// NewBatchQueue creates a new TransactionQueue
-func NewBatchQueue(db ds.Batching, prefix string) *BatchQueue {
+// NewBatchQueue creates a new BatchQueue with the specified maximum size.
+// If maxSize is 0, the queue will be unlimited.
+func NewBatchQueue(db ds.Batching, prefix string, maxSize int) *BatchQueue {
 	return &BatchQueue{
-		queue: make([]coresequencer.Batch, 0),
-		db:    newPrefixKV(db, prefix),
+		queue:        make([]coresequencer.Batch, 0),
+		maxQueueSize: maxSize,
+		db:           newPrefixKV(db, prefix),
 	}
 }
 
-// AddBatch adds a new transaction to the queue and writes it to the WAL
+// AddBatch adds a new transaction to the queue and writes it to the WAL.
+// Returns ErrQueueFull if the queue has reached its maximum size.
 func (bq *BatchQueue) AddBatch(ctx context.Context, batch coresequencer.Batch) error {
 	bq.mu.Lock()
 	defer bq.mu.Unlock()
+
+	// Check if queue is full (maxQueueSize of 0 means unlimited)
+	if bq.maxQueueSize > 0 && len(bq.queue) >= bq.maxQueueSize {
+		return ErrQueueFull
+	}
 
 	hash, err := batch.Hash()
 	if err != nil {

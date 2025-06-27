@@ -48,12 +48,16 @@ func NewSequencer(
 	metrics *Metrics,
 	proposer bool,
 ) (*Sequencer, error) {
+	// Use a reasonable default queue size of 1000 batches to prevent unbounded growth
+	// TODO: Make this configurable via a parameter or config system
+	const defaultMaxQueueSize = 1000
+	
 	s := &Sequencer{
 		logger:    logger,
 		da:        da,
 		batchTime: batchTime,
 		Id:        id,
-		queue:     NewBatchQueue(db, "batches"),
+		queue:     NewBatchQueue(db, "batches", defaultMaxQueueSize),
 		metrics:   metrics,
 		proposer:  proposer,
 	}
@@ -83,6 +87,12 @@ func (c *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.Submit
 
 	err := c.queue.AddBatch(ctx, batch)
 	if err != nil {
+		if errors.Is(err, ErrQueueFull) {
+			c.logger.Warn("Batch queue is full, rejecting batch submission",
+				"txCount", len(batch.Transactions),
+				"chainId", string(req.Id))
+			return nil, fmt.Errorf("batch queue is full, cannot accept more batches: %w", err)
+		}
 		return nil, fmt.Errorf("failed to add batch: %w", err)
 	}
 

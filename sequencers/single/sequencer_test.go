@@ -149,7 +149,7 @@ func TestSequencer_GetNextBatch_NoLastBatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 
 	seq := &Sequencer{
-		queue: NewBatchQueue(db, "batches"),
+		queue: NewBatchQueue(db, "batches", 0), // 0 = unlimited for test
 		Id:    []byte("test"),
 	}
 	defer func() {
@@ -184,7 +184,7 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 
 	seq := &Sequencer{
 		logger: log.NewNopLogger(),
-		queue:  NewBatchQueue(db, "batches"),
+		queue:  NewBatchQueue(db, "batches", 0), // 0 = unlimited for test
 		Id:     []byte("test"),
 	}
 	defer func() {
@@ -246,7 +246,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 			Id:       Id,
 			proposer: true,
 			da:       mockDA,
-			queue:    NewBatchQueue(db, "proposer_queue"),
+			queue:    NewBatchQueue(db, "proposer_queue", 0), // 0 = unlimited for test
 		}
 
 		res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{Id: seq.Id, BatchData: batchData})
@@ -266,7 +266,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:       Id,
 				proposer: false,
 				da:       mockDA,
-				queue:    NewBatchQueue(db, "valid_proofs_queue"),
+				queue:    NewBatchQueue(db, "valid_proofs_queue", 0),
 			}
 
 			mockDA.On("GetProofs", context.Background(), batchData, Id).Return(proofs, nil).Once()
@@ -286,7 +286,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:       Id,
 				proposer: false,
 				da:       mockDA,
-				queue:    NewBatchQueue(db, "invalid_proof_queue"),
+				queue:    NewBatchQueue(db, "invalid_proof_queue", 0),
 			}
 
 			mockDA.On("GetProofs", context.Background(), batchData, Id).Return(proofs, nil).Once()
@@ -306,7 +306,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:       Id,
 				proposer: false,
 				da:       mockDA,
-				queue:    NewBatchQueue(db, "getproofs_err_queue"),
+				queue:    NewBatchQueue(db, "getproofs_err_queue", 0),
 			}
 			expectedErr := errors.New("get proofs failed")
 
@@ -327,7 +327,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:       Id,
 				proposer: false,
 				da:       mockDA,
-				queue:    NewBatchQueue(db, "validate_err_queue"),
+				queue:    NewBatchQueue(db, "validate_err_queue", 0),
 			}
 			expectedErr := errors.New("validate failed")
 
@@ -349,7 +349,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 				Id:       Id,
 				proposer: false,
 				da:       mockDA,
-				queue:    NewBatchQueue(db, "invalid_queue"),
+				queue:    NewBatchQueue(db, "invalid_queue", 0),
 			}
 
 			invalidId := []byte("invalid")
@@ -501,4 +501,105 @@ func TestSequencer_RecordMetrics(t *testing.T) {
 		}
 	})
 
+}
+
+func TestSequencer_QueueLimit_Integration(t *testing.T) {
+	// Test integration between sequencer and queue limits to demonstrate backpressure
+	db := ds.NewMapDatastore()
+	defer db.Close()
+
+	mockDA := &damocks.MockDA{}
+	
+	// Create a sequencer with a small queue limit for testing
+	seq := &Sequencer{
+		logger:    log.NewNopLogger(),
+		da:        mockDA,
+		batchTime: time.Second,
+		Id:        []byte("test"),
+		queue:     NewBatchQueue(db, "test_queue", 2), // Very small limit for testing
+		proposer:  true,
+	}
+
+	ctx := context.Background()
+
+	// Test successful batch submission within limit
+	batch1 := createTestBatch(t, 3)
+	req1 := coresequencer.SubmitBatchTxsRequest{
+		Id:    seq.Id,
+		Batch: &batch1,
+	}
+
+	resp1, err := seq.SubmitBatchTxs(ctx, req1)
+	if err != nil {
+		t.Fatalf("unexpected error submitting first batch: %v", err)
+	}
+	if resp1 == nil {
+		t.Fatal("expected non-nil response")
+	}
+
+	// Test second successful batch submission at limit
+	batch2 := createTestBatch(t, 4)
+	req2 := coresequencer.SubmitBatchTxsRequest{
+		Id:    seq.Id,
+		Batch: &batch2,
+	}
+
+	resp2, err := seq.SubmitBatchTxs(ctx, req2)
+	if err != nil {
+		t.Fatalf("unexpected error submitting second batch: %v", err)
+	}
+	if resp2 == nil {
+		t.Fatal("expected non-nil response")
+	}
+
+	// Test third batch submission should fail due to queue being full
+	batch3 := createTestBatch(t, 5)
+	req3 := coresequencer.SubmitBatchTxsRequest{
+		Id:    seq.Id,
+		Batch: &batch3,
+	}
+
+	resp3, err := seq.SubmitBatchTxs(ctx, req3)
+	if err == nil {
+		t.Error("expected error when queue is full, but got none")
+	}
+	if !errors.Is(err, ErrQueueFull) {
+		t.Errorf("expected ErrQueueFull, got %v", err)
+	}
+	if resp3 != nil {
+		t.Error("expected nil response when submission fails")
+	}
+
+	// Test that getting a batch frees up space
+	nextResp, err := seq.GetNextBatch(ctx, coresequencer.GetNextBatchRequest{Id: seq.Id})
+	if err != nil {
+		t.Fatalf("unexpected error getting next batch: %v", err)
+	}
+	if nextResp == nil || nextResp.Batch == nil {
+		t.Fatal("expected non-nil batch response")
+	}
+
+	// Now the third batch should succeed
+	resp3_retry, err := seq.SubmitBatchTxs(ctx, req3)
+	if err != nil {
+		t.Errorf("unexpected error submitting batch after freeing space: %v", err)
+	}
+	if resp3_retry == nil {
+		t.Error("expected non-nil response after retry")
+	}
+
+	// Test empty batch handling - should not be affected by limits
+	emptyBatch := coresequencer.Batch{Transactions: nil}
+	reqEmpty := coresequencer.SubmitBatchTxsRequest{
+		Id:    seq.Id,
+		Batch: &emptyBatch,
+	}
+
+	respEmpty, err := seq.SubmitBatchTxs(ctx, reqEmpty)
+	if err != nil {
+		t.Errorf("unexpected error submitting empty batch: %v", err)
+	}
+	if respEmpty == nil {
+		t.Error("expected non-nil response for empty batch")
+	}
 }
