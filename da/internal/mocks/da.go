@@ -2,6 +2,9 @@
 // github.com/vektra/mockery
 // template: testify
 
+//go:build test
+// +build test
+
 package mocks
 
 import (
