@@ -177,9 +177,8 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		ProposerAddress:    proposerAddr,
 	}
 
-	logger := logging.Logger("test") // Using ipfs/go-log
-	// _ = logging.SetLogLevel("test", "debug") // Optionally set level for test debugging
-	p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, mainKV, logger, p2p.NopMetrics()) // Pass logger
+	logger := logging.Logger("test")
+	p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, mainKV, logger, p2p.NopMetrics())
 	require.NoError(t, err)
 
 	// Start p2p client before creating sync service
@@ -197,7 +196,7 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 	headerSyncService, err := rollkitSync.NewHeaderSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, headerSyncLogger) // Pass headerSyncLogger
 	require.NoError(t, err)
 	require.NoError(t, headerSyncService.Start(ctx))
-	dataSyncService, err := rollkitSync.NewDataSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, dataSyncLogger) // Pass dataSyncLogger
+	dataSyncService, err := rollkitSync.NewDataSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, dataSyncLogger)
 	require.NoError(t, err)
 	require.NoError(t, dataSyncService.Start(ctx))
 
@@ -210,7 +209,7 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		&mockExecutor{},
 		coresequencer.NewDummySequencer(),
 		nil,
-		blockManagerLogger, // Pass blockManagerLogger
+		blockManagerLogger,
 		headerSyncService.Store(),
 		dataSyncService.Store(),
 		nil,

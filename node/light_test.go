@@ -38,7 +38,7 @@ func TestLightNodeLifecycle(t *testing.T) {
 	require.NoError(err)
 
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
+	_ = logging.SetLogLevel("test", "FATAL") 
 	p2pMetrics := p2p.NopMetrics()
 
 	db := ds_sync.MutexWrap(ds.NewMapDatastore())

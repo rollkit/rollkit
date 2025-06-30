@@ -388,7 +388,8 @@ func TestStartNodeErrors(t *testing.T) {
 			if tc.cmdModifier != nil {
 				tc.cmdModifier(cmd)
 			}
-			_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior for this specific test section
+			// for this specific test section
+			_ = logging.SetLogLevel("test", "FATAL")
 
 			runFunc := func() {
 				// Pass the final nodeConfig to StartNode
@@ -452,7 +453,7 @@ func newRunNodeCmd(
 		Short:   "Run the rollkit node",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runNodeLogger := logging.Logger("runNodeCmd")
-			_ = logging.SetLogLevel("runNodeCmd", "FATAL") // Attempt NOP behavior
+			_ = logging.SetLogLevel("runNodeCmd", "FATAL")
 			// Use the nodeConfig passed into this function closure
 			return StartNode(runNodeLogger, cmd, executor, sequencer, dac, p2pClient, datastore, nodeConfig, nil)
 		},

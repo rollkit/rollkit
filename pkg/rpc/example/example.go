@@ -15,7 +15,7 @@ import (
 )
 
 // StartStoreServer starts a Store RPC server with the provided store instance
-func StartStoreServer(s store.Store, address string, logger logging.EventLogger) { // logger type updated
+func StartStoreServer(s store.Store, address string, logger logging.EventLogger) {
 	// Create and start the server
 	// Start RPC server
 	rpcAddr := fmt.Sprintf("%s:%d", "localhost", 8080)
@@ -75,7 +75,7 @@ func ExampleClient() {
 // ExampleServer demonstrates how to create and start a Store RPC server
 func ExampleServer(s store.Store) {
 	logger := logging.Logger("exampleServer")
-	_ = logging.SetLogLevel("exampleServer", "FATAL") // Attempt NOP behavior
+	_ = logging.SetLogLevel("exampleServer", "FATAL")
 
 	// Start RPC server
 	rpcAddr := fmt.Sprintf("%s:%d", "localhost", 8080)

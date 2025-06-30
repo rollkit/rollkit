@@ -41,7 +41,6 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 // Returns a minimalistic block manager using a mock DA Client
 func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) (*Manager, *mocks.MockStore) {
 	logger := logging.Logger("test")
-	// As with other tests, specific TestLogger behavior (fail on Error) is not replicated by default.
 	mockStore := mocks.NewMockStore(t)
 	m := &Manager{
 		da:                       da,
