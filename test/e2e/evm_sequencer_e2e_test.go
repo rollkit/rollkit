@@ -23,42 +23,6 @@
 //   - LazyModeRestart: Normal start -> Lazy restart
 //   - LazyToStandardRestart: Lazy start -> Normal restart
 //   - LazyToLazyRestart: Lazy start -> Lazy restart
-//
-// Prerequisites:
-// - Docker and Docker Compose (for Reth EVM engine)
-// - Built binaries: evm-single, local-da
-// - Available ports: 7980 (DA), 7331/46657 (Rollkit RPC), 8545/8551 (EVM)
-//
-// Key Features Tested:
-// - Transaction validation and inclusion mechanisms
-// - Nonce ordering and duplicate prevention
-// - EVM engine integration via Docker Compose
-// - Block production timing and consistency (100ms block time)
-// - Error handling for malformed transactions
-// - System stability under various transaction loads
-// - Node restart and state preservation mechanisms
-// - DA layer coordination during restarts
-// - Lazy mode block production patterns
-// - State synchronization between Rollkit and EVM engine
-//
-// Performance Optimizations:
-// - Optimized for 100ms block time (10 blocks/second)
-// - Reduced transaction submission delays (20ms instead of 50ms)
-// - Faster timeout values for rapid block production
-// - Reduced idle monitoring periods for lazy mode tests
-// - Optimized P2P synchronization timeouts
-// - Faster shutdown and restart sequences
-//
-// Technical Implementation:
-// - Uses Docker Compose for Reth EVM engine orchestration
-// - Implements comprehensive transaction validation testing
-// - Provides restart recovery validation for various mode combinations
-// - Tests high-throughput scenarios with proper nonce management
-// - Validates double-spend prevention mechanisms
-// - Ensures system stability under various load conditions
-// - Tests lazy mode behavior with idle period monitoring
-// - Validates state synchronization across node restarts
-// - Includes helper functions optimized for fast block production
 package e2e
 
 import (

@@ -21,48 +21,6 @@
 //   - LazyModeRestart: Normal start -> Lazy restart
 //   - LazyToStandardRestart: Lazy start -> Normal restart
 //   - LazyToLazyRestart: Lazy start -> Lazy restart
-//
-// Prerequisites:
-// - Docker and Docker Compose (for Reth EVM engine)
-// - Built binaries: evm-single, local-da
-// - Available ports: 7980 (DA), 7331/46657 (Rollkit RPC), 8545/8551/8555/8561 (EVM)
-//
-// Key Features Tested:
-// - P2P peer discovery and connection establishment
-// - Real-time block synchronization between nodes
-// - State root consistency validation across all nodes
-// - Transaction propagation and inclusion verification
-// - Genesis file sharing and chain initialization
-// - JWT authentication for EVM engine communication
-// - Docker Compose orchestration for multiple EVM instances
-// - Network resilience and sync recovery mechanisms
-// - Multi-node block validation and consensus verification
-// - Distributed system restart and state preservation
-// - Lazy mode block production with P2P synchronization
-// - DA layer restart coordination across multiple nodes
-//
-// Performance Optimizations:
-// - Optimized for 100ms block time (10 blocks/second)
-// - Reduced transaction submission delays (5ms instead of 50ms)
-// - Faster P2P synchronization timeouts for rapid block production
-// - Reduced idle monitoring periods for lazy mode tests (1s instead of 2s)
-// - Optimized block propagation verification timing
-// - Faster shutdown and restart sequences (2s instead of 3s)
-// - Reduced wait times between transaction batches
-// - Faster polling intervals for Eventually assertions (250ms instead of 500ms)
-//
-// Technical Implementation:
-// - Uses separate Docker Compose files for different node types
-// - Implements JWT token generation and validation for Engine API
-// - Handles P2P ID extraction from logs with fallback mechanisms
-// - Provides comprehensive state root verification across block ranges
-// - Supports variable transaction timing for realistic block distribution
-// - Includes helper functions for block propagation verification across nodes
-// - Implements distributed restart patterns with proper DA coordination
-// - Validates lazy mode behavior with idle period monitoring
-// - Ensures state synchronization across node restarts
-// - Tests all combinations of lazy/normal mode for initial setup and restart
-// - Includes optimized timing for fast block production scenarios
 package e2e
 
 import (
