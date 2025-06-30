@@ -1018,7 +1018,7 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 
 		// With 100ms blocks (10 blocks/sec), allow larger sync tolerance during startup
 		// Allow up to 20 blocks difference to account for P2P propagation delays
-		return seqHeight >= 0 && fnHeight >= 0 && (seqHeight == 0 || fnHeight+20 >= seqHeight)
+		return seqHeight == 0 || fnHeight+20 >= seqHeight
 	}, DefaultTestTimeout, 250*time.Millisecond, "P2P connections should be established")
 
 	t.Log("P2P connections established")
