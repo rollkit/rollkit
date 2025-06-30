@@ -666,7 +666,7 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 		nil, otherErr,
 	).Times(dAFetcherRetries)
 
-	errorLogged := make(chan struct{})
+	errorLogged := atomic.Bool{}
 	mockLogger.ExpectedCalls = nil
 	// Allow any Debug/Info/Warn
 	for _, level := range []string{"Debug", "Info", "Warn"} {
@@ -678,17 +678,17 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 
 
 	// Mock all expected logger calls in order for the error path
-	mockLogger.On("Debug", "trying to retrieve data from DA", "daHeight", startDAHeight).Times(dAFetcherRetries)
 	// The "Retrieve helper: Failed to get IDs" is logged inside RetrieveWithHelpers.
+	mockLogger.On("Error", "Retrieve helper: Failed to get IDs", "height", startDAHeight, "error", otherErr).Times(dAFetcherRetries)
 	// The RetrieveLoop will log "failed to retrieve data from DALC" for each failed attempt.
-	mockLogger.On("Error", "failed to retrieve data from DALC", "daHeight", startDAHeight, "error", otherErr).Run(func(args mock.Arguments) {
+	mockLogger.On("Error", "failed to retrieve data from DALC", "daHeight", startDAHeight, "errors", mock.AnythingOfType("string")).Run(func(args mock.Arguments) {
 		// Try to close channel only on the last expected call, or make it non-blocking.
 		// For simplicity, we'll let it be called multiple times and check errorLogged after loop.
 		errorLogged.Store(true)
-	}).Times(dAFetcherRetries) // Expect this for each retry
+	}).Once() // Expect this once since the loop aggregates errors
 
 
-	ctx, loopCancel := context.WithCancel(context.Background())
+	ctx, loopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer loopCancel()
 
 	var wg sync.WaitGroup
@@ -698,17 +698,18 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 		manager.RetrieveLoop(ctx)
 	}()
 
+	// Give the goroutine time to start
+	time.Sleep(10 * time.Millisecond)
+	
 	manager.retrieveCh <- struct{}{}
 
-	select {
-	case <-errorLogged:
-		// Success
-	case <-time.After(2 * time.Second):
+	// Wait for the context to timeout or the goroutine to finish
+	wg.Wait()
+
+	// Check if the error was logged
+	if !errorLogged.Load() {
 		t.Fatal("Error was not logged for generic DA error")
 	}
-
-	loopCancel()
-	wg.Wait()
 
 	mockDAClient.AssertExpectations(t)
 	mockLogger.AssertExpectations(t)

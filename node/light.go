@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
@@ -40,7 +40,7 @@ func newLightNode(
 	genesis genesis.Genesis,
 	p2pClient *p2p.Client,
 	database ds.Batching,
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 ) (ln *LightNode, err error) {
 	headerSyncService, err := sync.NewHeaderSyncService(database, conf, genesis, p2pClient, logging.Logger("HeaderSyncService")) // Get HeaderSyncService's own logger
 	if err != nil {

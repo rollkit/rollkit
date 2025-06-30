@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -92,10 +92,8 @@ func TestDASpeed(t *testing.T) {
 func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.MockDA) {
 	mockDAClient := rollmocks.NewMockDA(t)
 	mockStore := rollmocks.NewMockStore(t)
-	logger := logging.Logger("test") // Use ipfs/go-log for testing
-	// For a NopLogger equivalent, one might need to set the level to FATAL or use a null core.
-	// For now, a basic logger instance is created. If tests rely on no output, this might need adjustment.
-	_ = logging.SetLogLevel("test", "FATAL") // Attempt to silence it for NOP behavior
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 
 	headerStore, _ := goheaderstore.NewStore[*types.SignedHeader](ds.NewMapDatastore())
 	dataStore, _ := goheaderstore.NewStore[*types.Data](ds.NewMapDatastore())

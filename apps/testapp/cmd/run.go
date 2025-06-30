@@ -21,16 +21,11 @@ var RunCmd = &cobra.Command{
 	Aliases: []string{"node", "run"},
 	Short:   "Run the testapp node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Logger setup is now primarily handled by rollcmd.SetupLogger using ipfs/go-log/v2
-		// The command line flag config.FlagLogLevel will be read by rollcmd.ParseConfig,
-		// and then rollcmd.SetupLogger will use it.
-
 		nodeConfig, err := rollcmd.ParseConfig(cmd)
 		if err != nil {
 			return err
 		}
 
-		// logger is now logging.EventLogger
 		logger := rollcmd.SetupLogger(nodeConfig.Log)
 
 		// Get KV endpoint flag
@@ -82,7 +77,7 @@ var RunCmd = &cobra.Command{
 
 		sequencer, err := single.NewSequencer(
 			ctx,
-			logger, // Pass logger (logging.EventLogger)
+			logger,
 			datastore,
 			&daJrpc.DA,
 			[]byte(nodeConfig.ChainID),
@@ -94,11 +89,11 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, p2p.NopMetrics()) // Pass logger (logging.EventLogger)
+		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, p2p.NopMetrics())
 		if err != nil {
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, nil) // Pass logger (logging.EventLogger)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, nil)
 	},
 }

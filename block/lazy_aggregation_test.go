@@ -54,8 +54,7 @@ func setupTestManager(t *testing.T, blockTime, lazyTime time.Duration) (*Manager
 	pubMock := &mockPublishBlock{
 		calls: make(chan struct{}, 10), // Buffer to avoid blocking in tests
 	}
-	logger := logging.Logger("test") // Use ipfs/go-log for testing
-	// As with aggregation_test.go, specific TestLogger behavior (fail on Error) is not replicated by default.
+	logger := logging.Logger("test")
 	m := &Manager{
 		logger: logger,
 		config: config.Config{

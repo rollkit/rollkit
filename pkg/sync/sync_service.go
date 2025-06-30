@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"strings"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/celestiaorg/go-header"
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	goheadersync "github.com/celestiaorg/go-header/sync"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -37,7 +37,7 @@ const (
 // Uses the go-header library for handling all P2P logic.
 type SyncService[H header.Header[H]] struct {
 	conf     config.Config
-	logger   logging.EventLogger // Changed type to logging.EventLogger
+	logger   logging.EventLogger
 	syncType syncType
 
 	genesis genesis.Genesis
@@ -65,7 +65,7 @@ func NewDataSyncService(
 	conf config.Config,
 	genesis genesis.Genesis,
 	p2p *p2p.Client,
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 ) (*DataSyncService, error) {
 	return newSyncService[*types.Data](store, dataSync, conf, genesis, p2p, logger)
 }
@@ -76,7 +76,7 @@ func NewHeaderSyncService(
 	conf config.Config,
 	genesis genesis.Genesis,
 	p2p *p2p.Client,
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 ) (*HeaderSyncService, error) {
 	return newSyncService[*types.SignedHeader](store, headerSync, conf, genesis, p2p, logger)
 }
@@ -87,7 +87,7 @@ func newSyncService[H header.Header[H]](
 	conf config.Config,
 	genesis genesis.Genesis,
 	p2p *p2p.Client,
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 ) (*SyncService[H], error) {
 	if p2p == nil {
 		return nil, errors.New("p2p client cannot be nil")
@@ -380,7 +380,7 @@ func (syncService *SyncService[H]) getPeerIDs() []peer.ID {
 	return peerIDs
 }
 
-func getPeers(seeds string, logger logging.EventLogger) []peer.ID { // Changed logger type
+func getPeers(seeds string, logger logging.EventLogger) []peer.ID {
 	var peerIDs []peer.ID
 	sl := strings.Split(seeds, ",")
 	if len(sl) == 0 {

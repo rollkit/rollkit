@@ -3,8 +3,8 @@ package node
 import (
 	"context"
 
-	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -38,7 +38,7 @@ func NewNode(
 	genesis genesis.Genesis,
 	database ds.Batching,
 	metricsProvider MetricsProvider,
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (Node, error) {
 	if conf.Node.Light {

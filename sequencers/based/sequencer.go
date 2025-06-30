@@ -47,7 +47,7 @@ var _ coresequencer.Sequencer = &Sequencer{}
 // and interacting with the Data Availability (DA) layer.
 type Sequencer struct {
 	// logger is used for logging messages and events within the Sequencer.
-	logger logging.EventLogger // Changed type to logging.EventLogger
+	logger logging.EventLogger
 
 	// maxHeightDrift defines the maximum allowable difference between the current
 	// block height and the DA layer's block height.
@@ -73,7 +73,7 @@ type Sequencer struct {
 
 // NewSequencer creates a new Sequencer instance.
 func NewSequencer(
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 	daImpl coreda.DA,
 	Id []byte,
 	daStartHeight uint64,

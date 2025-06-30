@@ -36,7 +36,7 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	mockExec := mocks.NewMockExecutor(t)
 	mockSeq := mocks.NewMockSequencer(t)
 	mockDAC := mocks.NewMockDA(t)
-	logger := logging.Logger("test") // Use ipfs/go-log for testing
+	logger := logging.Logger("test")
 	// To get similar behavior to NewTestLogger, ensure test output is configured if needed.
 	// For now, a basic logger instance is created.
 	// If specific test logging (like failing on Error) is needed, it requires custom setup or a test helper.
@@ -134,7 +134,7 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 	mockSeq := mocks.NewMockSequencer(t)
 	mockDAC := mocks.NewMockDA(t)
 
-	logger := logging.Logger("test") // Use ipfs/go-log for testing
+	logger := logging.Logger("test")
 
 	// Create a basic Manager instance
 	m := &Manager{
