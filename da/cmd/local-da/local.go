@@ -46,13 +46,7 @@ func NewLocalDA(logger logging.EventLogger, opts ...func(*LocalDA) *LocalDA) *Lo
 		data:        make(map[uint64][]kvp),
 		timestamps:  make(map[uint64]time.Time),
 		maxBlobSize: DefaultMaxBlobSize,
-		// ipfs/go-log manages subsystems by logger name.
-		// If the passed-in logger is already for "local-da", this is fine.
-		// If it's a general logger, we'd typically get a new one: logging.Logger("local-da")
-		// Assuming the logger passed in is already appropriately scoped or the caller handles this.
-		// If a specific "local-da" subsystem logger is always desired here,
-		// it should be created using logging.Logger("local-da") instead of using With.
-		logger: logger,
+		logger:      logger,
 	}
 	for _, f := range opts {
 		da = f(da)

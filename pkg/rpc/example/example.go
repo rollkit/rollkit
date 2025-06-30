@@ -19,7 +19,7 @@ func StartStoreServer(s store.Store, address string, logger logging.EventLogger)
 	// Create and start the server
 	// Start RPC server
 	rpcAddr := fmt.Sprintf("%s:%d", "localhost", 8080)
-	handler, err := server.NewServiceHandler(s, nil, logger) // Pass logger
+	handler, err := server.NewServiceHandler(s, nil, logger)
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +79,7 @@ func ExampleServer(s store.Store) {
 
 	// Start RPC server
 	rpcAddr := fmt.Sprintf("%s:%d", "localhost", 8080)
-	handler, err := server.NewServiceHandler(s, nil, logger) // Pass logger
+	handler, err := server.NewServiceHandler(s, nil, logger)
 	if err != nil {
 		panic(err)
 	}

@@ -248,8 +248,8 @@ func runRetryPartialFailuresCase[T any](t *testing.T, tc retryPartialFailuresCas
 	mockStore := mocks.NewMockStore(t)
 	m.store = mockStore
 	m.logger = logging.Logger("test")
-	// No direct TestLogger equivalent for auto-fail, ensure test logic handles errors.
-	_ = logging.SetLogLevel("test", "debug") // Or other appropriate level for test debugging
+
+	_ = logging.SetLogLevel("test", "debug")
 	da := &mocks.MockDA{}
 	m.da = da
 	m.gasPrice = 1.0
@@ -467,8 +467,8 @@ func newPendingHeaders(t *testing.T) *PendingHeaders {
 	kv, err := store.NewDefaultInMemoryKVStore()
 	require.NoError(t, err)
 	logger := logging.Logger("test")
-	// No direct TestLogger equivalent for auto-fail, ensure test logic handles errors.
-	_ = logging.SetLogLevel("test", "debug") // Or other appropriate level for test debugging
+
+	_ = logging.SetLogLevel("test", "debug")
 	pendingHeaders, err := NewPendingHeaders(store.New(kv), logger)
 	require.NoError(t, err)
 	return pendingHeaders
@@ -478,8 +478,7 @@ func newPendingData(t *testing.T) *PendingData {
 	kv, err := store.NewDefaultInMemoryKVStore()
 	require.NoError(t, err)
 	logger := logging.Logger("test")
-	// No direct TestLogger equivalent for auto-fail, ensure test logic handles errors.
-	_ = logging.SetLogLevel("test", "debug") // Or other appropriate level for test debugging
+	_ = logging.SetLogLevel("test", "debug")
 	pendingData, err := NewPendingData(store.New(kv), logger)
 	require.NoError(t, err)
 	return pendingData

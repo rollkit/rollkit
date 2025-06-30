@@ -35,8 +35,7 @@ func TestNewClientWithHost(t *testing.T) {
 	require.NoError(err)
 	ds := dssync.MutexWrap(datastore.NewMapDatastore())
 	logger := logging.Logger("test")
-	// No direct TestLogger equivalent for auto-fail, ensure test logic handles errors.
-	_ = logging.SetLogLevel("test", "debug") // Or other appropriate level for test debugging
+	_ = logging.SetLogLevel("test", "debug")
 	metrics := NopMetrics()
 
 	// Ensure config directory exists for nodeKey loading

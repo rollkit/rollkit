@@ -52,9 +52,6 @@ type BaseService struct {
 // The provided implementation (impl) should be the "subclass" that implements Run.
 func NewBaseService(logger logging.EventLogger, name string, impl Service) *BaseService {
 	if logger == nil {
-		// For ipfs/go-log, a "Nop" equivalent would be a logger with level set to FATAL,
-		// or a logger with a nil core. For simplicity, we'll create a default logger
-		// and set its level if no logger is provided.
 		nopLogger := logging.Logger("nop")
 		_ = logging.SetLogLevel("nop", "FATAL")
 		logger = nopLogger

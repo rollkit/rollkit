@@ -66,13 +66,6 @@ func SetupLogger(config rollconf.LogConfig) logging.EventLogger {
 		logCfg.Level = logging.LevelInfo
 	}
 
-	// Configure stack traces
-	// In go-log/v2 (which uses zap), stacktraces are automatically included for Error level and above.
-	// If config.Trace is true, we can enable it for lower levels if needed,
-	// but for now, we'll rely on the default behavior which is generally sufficient.
-	// If more specific control is needed, we might need to use logging.WithStacktrace
-	// after the logger is created.
-
 	logging.SetupLogging(logCfg)
 
 	// Return a logger instance for the "main" subsystem
