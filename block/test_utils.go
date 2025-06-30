@@ -43,13 +43,19 @@ func (m *MockLogger) Debugf(format string, args ...interface{}) { m.Called(forma
 func (m *MockLogger) Error(args ...interface{})                 { m.Called(args...) }
 func (m *MockLogger) Errorf(format string, args ...interface{}) { m.Called(format, args) }
 func (m *MockLogger) Fatal(args ...interface{})                 { m.Called(args...); panic("fatal error logged") }
-func (m *MockLogger) Fatalf(format string, args ...interface{}) { m.Called(format, args); panic("fatal error logged") }
-func (m *MockLogger) Info(args ...interface{})                  { m.Called(args...) }
-func (m *MockLogger) Infof(format string, args ...interface{})  { m.Called(format, args) }
-func (m *MockLogger) Panic(args ...interface{})                 { m.Called(args...); panic("panic error logged") }
-func (m *MockLogger) Panicf(format string, args ...interface{}) { m.Called(format, args); panic("panic error logged") }
-func (m *MockLogger) Warn(args ...interface{})                  { m.Called(args...) }
-func (m *MockLogger) Warnf(format string, args ...interface{})  { m.Called(format, args) }
+func (m *MockLogger) Fatalf(format string, args ...interface{}) {
+	m.Called(format, args)
+	panic("fatal error logged")
+}
+func (m *MockLogger) Info(args ...interface{})                 { m.Called(args...) }
+func (m *MockLogger) Infof(format string, args ...interface{}) { m.Called(format, args) }
+func (m *MockLogger) Panic(args ...interface{})                { m.Called(args...); panic("panic error logged") }
+func (m *MockLogger) Panicf(format string, args ...interface{}) {
+	m.Called(format, args)
+	panic("panic error logged")
+}
+func (m *MockLogger) Warn(args ...interface{})                 { m.Called(args...) }
+func (m *MockLogger) Warnf(format string, args ...interface{}) { m.Called(format, args) }
 
 // The With method for ipfs/go-log/v2's ZapEventLogger (which wraps zap.SugaredLogger)
 // returns a new logger with added fields. We can mock this by returning a new MockLogger

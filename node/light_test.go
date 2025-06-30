@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -38,7 +38,7 @@ func TestLightNodeLifecycle(t *testing.T) {
 	require.NoError(err)
 
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	p2pMetrics := p2p.NopMetrics()
 
 	db := ds_sync.MutexWrap(ds.NewMapDatastore())

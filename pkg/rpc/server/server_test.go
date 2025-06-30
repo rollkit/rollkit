@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/mock"
@@ -45,7 +45,7 @@ func TestGetBlock(t *testing.T) {
 
 	// Create server with mock store
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	server := NewStoreServer(mockStore, logger)
 
 	// Test GetBlock with height - success case
@@ -138,7 +138,7 @@ func TestGetBlock_Latest(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(t)
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	server := NewStoreServer(mockStore, logger)
 
 	latestHeight := uint64(20)
@@ -195,7 +195,7 @@ func TestGetState(t *testing.T) {
 
 	// Create server with mock store
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	server := NewStoreServer(mockStore, logger)
 
 	// Call GetState
@@ -219,7 +219,7 @@ func TestGetState_Error(t *testing.T) {
 	mockStore := mocks.NewMockStore(t)
 	mockStore.On("GetState", mock.Anything).Return(types.State{}, fmt.Errorf("state error"))
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	server := NewStoreServer(mockStore, logger)
 	resp, err := server.GetState(context.Background(), connect.NewRequest(&emptypb.Empty{}))
 	require.Error(t, err)
@@ -239,7 +239,7 @@ func TestGetMetadata(t *testing.T) {
 
 	// Create server with mock store
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	server := NewStoreServer(mockStore, logger)
 
 	// Call GetMetadata
@@ -258,7 +258,7 @@ func TestGetMetadata_Error(t *testing.T) {
 	mockStore := mocks.NewMockStore(t)
 	mockStore.On("GetMetadata", mock.Anything, "bad").Return(nil, fmt.Errorf("meta error"))
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	server := NewStoreServer(mockStore, logger)
 	resp, err := server.GetMetadata(context.Background(), connect.NewRequest(&pb.GetMetadataRequest{Key: "bad"}))
 	require.Error(t, err)
@@ -320,7 +320,7 @@ func TestHealthLiveEndpoint(t *testing.T) {
 
 	// Create the service handler
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	handler, err := NewServiceHandler(mockStore, mockP2PManager, logger)
 	assert.NoError(err)
 	assert.NotNil(handler)

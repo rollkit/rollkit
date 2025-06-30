@@ -55,9 +55,6 @@ func SetupLogger(config rollconf.LogConfig) logging.EventLogger {
 	// Configure logger format
 	if config.Format == "json" {
 		logCfg.Format = logging.JSONOutput
-	} else {
-		// go-log/v2 defaults to ColorizedOutput if TTY, PlaintextOutput otherwise
-		// This matches previous behavior.
 	}
 
 	// Configure logger level

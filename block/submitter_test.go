@@ -29,7 +29,7 @@ const numItemsToSubmit = 3
 // newTestManagerWithDA creates a Manager instance with a mocked DA layer for testing.
 func newTestManagerWithDA(t *testing.T, da *mocks.MockDA) (m *Manager) {
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	nodeConf := config.DefaultConfig
 
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
@@ -393,7 +393,7 @@ func TestCreateSignedDataToSubmit(t *testing.T) {
 		m := newTestManagerWithDA(t, nil)
 		mockStore := mocks.NewMockStore(t)
 		logger := logging.Logger("test")
-		_ = logging.SetLogLevel("test", "FATAL") 
+		_ = logging.SetLogLevel("test", "FATAL")
 		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
 		mockStore.On("Height", mock.Anything).Return(uint64(1), nil).Once()
 		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(nil, nil, fmt.Errorf("mock error")).Once()

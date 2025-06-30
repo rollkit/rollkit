@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
