@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	syncdb "github.com/ipfs/go-datastore/sync"
@@ -20,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	coreexecution "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
@@ -178,7 +178,7 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		ProposerAddress:    proposerAddr,
 	}
 
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("test")
 	p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, mainKV, logger, p2p.NopMetrics())
 	require.NoError(t, err)
 
@@ -188,10 +188,16 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 
 	const RollkitPrefix = "0"
 	ktds.Wrap(mainKV, ktds.PrefixTransform{Prefix: ds.NewKey(RollkitPrefix)})
-	headerSyncService, err := rollkitSync.NewHeaderSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, logger.With("module", "HeaderSyncService"))
+	// Get subsystem loggers. The With("module", ...) pattern from cosmossdk.io/log
+	// is replaced by getting a named logger from ipfs/go-log.
+	headerSyncLogger := logging.Logger("HeaderSyncService")
+	dataSyncLogger := logging.Logger("DataSyncService")
+	blockManagerLogger := logging.Logger("BlockManager")
+
+	headerSyncService, err := rollkitSync.NewHeaderSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, headerSyncLogger) // Pass headerSyncLogger
 	require.NoError(t, err)
 	require.NoError(t, headerSyncService.Start(ctx))
-	dataSyncService, err := rollkitSync.NewDataSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, logger.With("module", "DataSyncService"))
+	dataSyncService, err := rollkitSync.NewDataSyncService(mainKV, nodeConfig, genesisDoc, p2pClient, dataSyncLogger)
 	require.NoError(t, err)
 	require.NoError(t, dataSyncService.Start(ctx))
 
@@ -204,7 +210,7 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		&mockExecutor{},
 		coresequencer.NewDummySequencer(),
 		nil,
-		logger.With("module", "BlockManager"),
+		blockManagerLogger,
 		headerSyncService.Store(),
 		dataSyncService.Store(),
 		nil,
@@ -234,6 +240,10 @@ func (m mockExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight 
 
 func (m mockExecutor) SetFinal(ctx context.Context, blockHeight uint64) error {
 	return nil
+}
+
+func (m mockExecutor) GetExecutionMode() coreexecution.ExecutionMode {
+	return coreexecution.ExecutionModeDelayed
 }
 
 var rnd = rand.New(rand.NewSource(1)) //nolint:gosec // test code only

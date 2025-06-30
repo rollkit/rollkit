@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 	dsync "github.com/ipfs/go-datastore/sync"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
@@ -23,7 +23,8 @@ func TestReaper_SubmitTxs_Success(t *testing.T) {
 	mockExec := testmocks.NewMockExecutor(t)
 	mockSeq := testmocks.NewMockSequencer(t)
 	store := dsync.MutexWrap(ds.NewMapDatastore())
-	logger := log.NewNopLogger()
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 
@@ -60,7 +61,8 @@ func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
 	mockExec := testmocks.NewMockExecutor(t)
 	mockSeq := testmocks.NewMockSequencer(t)
 	store := dsync.MutexWrap(ds.NewMapDatastore())
-	logger := log.NewNopLogger()
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 
@@ -89,7 +91,8 @@ func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 	mockSeq2 := testmocks.NewMockSequencer(t)
 
 	store := dsync.MutexWrap(ds.NewMapDatastore())
-	logger := log.NewNopLogger()
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 

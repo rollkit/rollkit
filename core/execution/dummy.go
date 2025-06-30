@@ -101,6 +101,12 @@ func (e *DummyExecutor) SetFinal(ctx context.Context, blockHeight uint64) error 
 	return fmt.Errorf("cannot set finalized block at height %d", blockHeight)
 }
 
+// GetExecutionMode returns the execution mode for this executor.
+// DummyExecutor uses delayed execution mode.
+func (e *DummyExecutor) GetExecutionMode() ExecutionMode {
+	return ExecutionModeDelayed
+}
+
 func (e *DummyExecutor) removeExecutedTxs(txs [][]byte) {
 	e.injectedTxs = slices.DeleteFunc(e.injectedTxs, func(tx []byte) bool {
 		return slices.ContainsFunc(txs, func(t []byte) bool { return bytes.Equal(tx, t) })

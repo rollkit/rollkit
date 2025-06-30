@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	sdklog "cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/mock"
@@ -28,7 +28,9 @@ func setupTestServer(t *testing.T, mockStore *mocks.MockStore, mockP2P *mocks.Mo
 	mux := http.NewServeMux()
 
 	// Create the servers
-	storeServer := server.NewStoreServer(mockStore, sdklog.NewTestLogger(t))
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "debug")
+	storeServer := server.NewStoreServer(mockStore, logger)
 	p2pServer := server.NewP2PServer(mockP2P)
 
 	// Register the store service

@@ -14,14 +14,12 @@ replace (
 )
 
 require (
-	cosmossdk.io/log v1.6.0
 	github.com/ethereum/go-ethereum v1.15.0
 	github.com/rollkit/rollkit v0.14.2-0.20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/core v0.0.0-20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/da v0.0.0-20250317130407-e9e0a1b0485e
 	github.com/rollkit/rollkit/execution/evm v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/sequencers/single v0.0.0-00010101000000-000000000000
-	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.9.1
 )
 
@@ -56,14 +54,11 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.17.0 // indirect
 	github.com/buger/goterm v1.0.4 // indirect
-	github.com/bytedance/sonic v1.13.2 // indirect
-	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/celestiaorg/go-header v0.6.6 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2 // indirect
 	github.com/celestiaorg/go-square/v2 v2.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/compose-spec/compose-go/v2 v2.6.0 // indirect
 	github.com/consensys/bavard v0.1.22 // indirect
 	github.com/consensys/gnark-crypto v0.14.0 // indirect
@@ -309,7 +304,6 @@ require (
 	github.com/tonistiigi/go-csvvalue v0.0.0-20240710180619-ddb21b71c0b4 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	github.com/tonistiigi/vt100 v0.0.0-20240514184818-90bafcd6abab // indirect
-	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
@@ -340,7 +334,6 @@ require (
 	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/arch v0.15.0 // indirect
 	golang.org/x/crypto v0.39.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/mod v0.25.0 // indirect
