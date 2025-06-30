@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-datastore"
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -44,7 +44,7 @@ const (
 // Those seed nodes serve Kademlia DHT protocol, and are agnostic to ORU chain. Using DHT
 // peer routing and discovery clients find other peers within ORU network.
 type Client struct {
-	logger log.Logger
+	logger logging.EventLogger // Changed type to logging.EventLogger
 
 	conf    config.P2PConfig
 	chainID string
@@ -66,7 +66,7 @@ func NewClient(
 	conf config.Config,
 	nodeKey *key.NodeKey,
 	ds datastore.Datastore,
-	logger log.Logger,
+	logger logging.EventLogger, // Changed logger type
 	metrics *Metrics,
 ) (*Client, error) {
 	if conf.RootDir == "" {
@@ -96,7 +96,7 @@ func NewClientWithHost(
 	conf config.Config,
 	nodeKey *key.NodeKey,
 	ds datastore.Datastore,
-	logger log.Logger,
+	logger logging.EventLogger, // Changed logger type
 	metrics *Metrics,
 	h host.Host, // injected host (mocknet or custom)
 ) (*Client, error) {

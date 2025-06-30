@@ -7,9 +7,7 @@ import (
 
 	"github.com/rollkit/rollkit/da/jsonrpc"
 	"github.com/rollkit/rollkit/sequencers/single"
-	"github.com/rs/zerolog"
 
-	"cosmossdk.io/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
@@ -28,15 +26,9 @@ var RunCmd = &cobra.Command{
 	Aliases: []string{"node", "run"},
 	Short:   "Run the rollkit node with EVM execution client",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		opts := []log.Option{}
-		logLevel, _ := cmd.Flags().GetString(config.FlagLogLevel)
-		if logLevel != "" {
-			zl, err := zerolog.ParseLevel(logLevel)
-			if err != nil {
-				return err
-			}
-			opts = append(opts, log.LevelOption(zl))
-		}
+		// Logger setup is now primarily handled by rollcmd.SetupLogger using ipfs/go-log/v2
+		// The command line flag config.FlagLogLevel will be read by rollcmd.ParseConfig,
+		// and then rollcmd.SetupLogger will use it.
 
 		executor, err := createExecutionClient(cmd)
 		if err != nil {
@@ -48,8 +40,10 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
+		// logger is now logging.EventLogger
 		logger := rollcmd.SetupLogger(nodeConfig.Log)
 
+		// Pass logger to NewClient, assuming it expects logging.EventLogger or compatible interface
 		daJrpc, err := jsonrpc.NewClient(context.Background(), logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 		if err != nil {
 			return err
@@ -67,7 +61,7 @@ var RunCmd = &cobra.Command{
 
 		sequencer, err := single.NewSequencer(
 			context.Background(),
-			logger,
+			logger, // Pass logger (logging.EventLogger)
 			datastore,
 			&daJrpc.DA,
 			[]byte(nodeConfig.ChainID),
@@ -84,12 +78,12 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, nil)
+		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, nil) // Pass logger (logging.EventLogger)
 		if err != nil {
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, nil)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, nil) // Pass logger (logging.EventLogger)
 	},
 }
 

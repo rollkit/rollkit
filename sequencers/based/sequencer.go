@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 
 	datastore "github.com/ipfs/go-datastore"
 
@@ -47,7 +47,7 @@ var _ coresequencer.Sequencer = &Sequencer{}
 // and interacting with the Data Availability (DA) layer.
 type Sequencer struct {
 	// logger is used for logging messages and events within the Sequencer.
-	logger log.Logger
+	logger logging.EventLogger // Changed type to logging.EventLogger
 
 	// maxHeightDrift defines the maximum allowable difference between the current
 	// block height and the DA layer's block height.
@@ -73,7 +73,7 @@ type Sequencer struct {
 
 // NewSequencer creates a new Sequencer instance.
 func NewSequencer(
-	logger log.Logger,
+	logger logging.EventLogger, // Changed logger type
 	daImpl coreda.DA,
 	Id []byte,
 	daStartHeight uint64,

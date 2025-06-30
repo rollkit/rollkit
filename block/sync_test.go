@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -59,7 +59,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 		genesis:       *genesisDoc,
 		lastState:     initialState,
 		lastStateMtx:  new(sync.RWMutex),
-		logger:        log.NewTestLogger(t),
+		logger:        logging.Logger("test"), // Use ipfs/go-log for testing
 		headerCache:   cache.NewCache[types.SignedHeader](),
 		dataCache:     cache.NewCache[types.Data](),
 		headerInCh:    headerInCh,
@@ -865,7 +865,7 @@ func TestSyncLoop_MultipleHeadersArriveFirst_ThenData(t *testing.T) {
 		genesis:      genesis.Genesis{ChainID: initialState.ChainID},
 		lastState:    initialState,
 		lastStateMtx: new(sync.RWMutex),
-		logger:       log.NewTestLogger(t),
+		logger:       logging.Logger("test"), // Use ipfs/go-log for testing
 		headerCache:  cache.NewCache[types.SignedHeader](),
 		dataCache:    cache.NewCache[types.Data](),
 		headerInCh:   headerInCh,

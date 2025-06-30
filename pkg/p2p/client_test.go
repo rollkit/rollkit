@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	libp2p "github.com/libp2p/go-libp2p"
@@ -34,7 +34,9 @@ func TestNewClientWithHost(t *testing.T) {
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Join(conf.RootDir, "config", "node_key.json"))
 	require.NoError(err)
 	ds := dssync.MutexWrap(datastore.NewMapDatastore())
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("test")
+	// No direct TestLogger equivalent for auto-fail, ensure test logic handles errors.
+	_ = logging.SetLogLevel("test", "debug") // Or other appropriate level for test debugging
 	metrics := NopMetrics()
 
 	// Ensure config directory exists for nodeKey loading
@@ -126,8 +128,10 @@ func TestClientStartup(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
+			testLogger := logging.Logger(testCase.desc) // Use specific logger for test case
+			_ = logging.SetLogLevel(testCase.desc, "debug")
 			client, err := NewClient(testCase.conf, nodeKey,
-				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLogger(t), NopMetrics())
+				dssync.MutexWrap(datastore.NewMapDatastore()), testLogger, NopMetrics())
 			assert.NoError(err)
 			assert.NotNil(client)
 
@@ -144,7 +148,8 @@ func TestClientStartup(t *testing.T) {
 
 func TestBootstrapping(t *testing.T) {
 	assert := assert.New(t)
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("TestBootstrapping")
+	_ = logging.SetLogLevel("TestBootstrapping", "debug")
 
 	clients := startTestNetwork(t.Context(), t, 4, map[int]hostDescr{
 		1: {conns: []int{0}},
@@ -165,7 +170,8 @@ func TestBootstrapping(t *testing.T) {
 
 func TestDiscovery(t *testing.T) {
 	assert := assert.New(t)
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("TestDiscovery")
+	_ = logging.SetLogLevel("TestDiscovery", "debug")
 
 	clients := startTestNetwork(t.Context(), t, 5, map[int]hostDescr{
 		1: {conns: []int{0}, chainID: "ORU2"},
@@ -218,7 +224,8 @@ func TestSeedStringParsing(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
-			logger := log.NewNopLogger()
+			logger := logging.Logger("TestSeedStringParsing")
+			_ = logging.SetLogLevel("TestSeedStringParsing", "FATAL") // Attempt NOP behavior
 			tempDir := t.TempDir()
 			ClientInitFiles(t, tempDir)
 
@@ -282,7 +289,8 @@ func waitForCondition(timeout time.Duration, conditionFunc func() bool) error {
 func TestClientInfoMethods(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("TestClientInfoMethods")
+	_ = logging.SetLogLevel("TestClientInfoMethods", "debug")
 
 	tempDir := t.TempDir()
 	ClientInitFiles(t, tempDir)

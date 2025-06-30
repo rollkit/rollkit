@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/celestiaorg/go-header"
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
 	goheaderstore "github.com/celestiaorg/go-header/store"
@@ -37,7 +37,7 @@ const (
 // Uses the go-header library for handling all P2P logic.
 type SyncService[H header.Header[H]] struct {
 	conf     config.Config
-	logger   log.Logger
+	logger   logging.EventLogger // Changed type to logging.EventLogger
 	syncType syncType
 
 	genesis genesis.Genesis
@@ -65,7 +65,7 @@ func NewDataSyncService(
 	conf config.Config,
 	genesis genesis.Genesis,
 	p2p *p2p.Client,
-	logger log.Logger,
+	logger logging.EventLogger, // Changed logger type
 ) (*DataSyncService, error) {
 	return newSyncService[*types.Data](store, dataSync, conf, genesis, p2p, logger)
 }
@@ -76,7 +76,7 @@ func NewHeaderSyncService(
 	conf config.Config,
 	genesis genesis.Genesis,
 	p2p *p2p.Client,
-	logger log.Logger,
+	logger logging.EventLogger, // Changed logger type
 ) (*HeaderSyncService, error) {
 	return newSyncService[*types.SignedHeader](store, headerSync, conf, genesis, p2p, logger)
 }
@@ -87,7 +87,7 @@ func newSyncService[H header.Header[H]](
 	conf config.Config,
 	genesis genesis.Genesis,
 	p2p *p2p.Client,
-	logger log.Logger,
+	logger logging.EventLogger, // Changed logger type
 ) (*SyncService[H], error) {
 	if p2p == nil {
 		return nil, errors.New("p2p client cannot be nil")
@@ -380,7 +380,7 @@ func (syncService *SyncService[H]) getPeerIDs() []peer.ID {
 	return peerIDs
 }
 
-func getPeers(seeds string, logger log.Logger) []peer.ID {
+func getPeers(seeds string, logger logging.EventLogger) []peer.ID { // Changed logger type
 	var peerIDs []peer.ID
 	if seeds == "" {
 		return peerIDs

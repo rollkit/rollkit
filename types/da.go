@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 )
@@ -20,7 +20,7 @@ var placeholder = []byte("placeholder")
 func SubmitWithHelpers(
 	ctx context.Context,
 	da coreda.DA, // Use the core DA interface
-	logger log.Logger,
+	logger logging.EventLogger, // Changed logger type
 	data [][]byte,
 	gasPrice float64,
 	options []byte,
@@ -101,7 +101,7 @@ func SubmitWithHelpers(
 func RetrieveWithHelpers(
 	ctx context.Context,
 	da coreda.DA,
-	logger log.Logger,
+	logger logging.EventLogger, // Changed logger type
 	dataLayerHeight uint64,
 	namespace []byte,
 ) coreda.ResultRetrieve {

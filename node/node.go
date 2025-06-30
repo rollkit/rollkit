@@ -3,7 +3,7 @@ package node
 import (
 	"context"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
 
 	coreda "github.com/rollkit/rollkit/core/da"
@@ -38,7 +38,7 @@ func NewNode(
 	genesis genesis.Genesis,
 	database ds.Batching,
 	metricsProvider MetricsProvider,
-	logger log.Logger,
+	logger logging.EventLogger, // Changed logger type
 	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (Node, error) {
 	if conf.Node.Light {
