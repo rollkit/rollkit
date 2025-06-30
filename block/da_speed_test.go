@@ -49,14 +49,14 @@ func TestDASpeed(t *testing.T) {
 			var receivedBlockCount atomic.Uint64
 			ids := []coreda.ID{[]byte("dummy-id")}
 			mockDAClient.
-				On("GetIDs", mock.Anything, mock.Anything).
-				Return(func(ctx context.Context, height uint64) (*coreda.GetIDsResult, error) {
+				On("GetIDs", mock.Anything, mock.Anything, mock.Anything).
+				Return(func(ctx context.Context, height uint64, namespace []byte) (*coreda.GetIDsResult, error) {
 					return &coreda.GetIDsResult{IDs: ids, Timestamp: time.Now()}, nil
 				})
 
 			mockDAClient.
-				On("Get", mock.Anything, ids).
-				Return(func(ctx context.Context, ids []coreda.ID) ([]coreda.Blob, error) {
+				On("Get", mock.Anything, ids, mock.Anything).
+				Return(func(ctx context.Context, ids []coreda.ID, namespace []byte) ([]coreda.Blob, error) {
 					time.Sleep(spec.daDelay)
 					// unique headers for cache misses
 					n := receivedBlockCount.Add(1)
@@ -89,9 +89,9 @@ func TestDASpeed(t *testing.T) {
 }
 
 // setupManagerForTest initializes a Manager with mocked dependencies for testing.
-func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.DA) {
-	mockDAClient := rollmocks.NewDA(t)
-	mockStore := rollmocks.NewStore(t)
+func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.MockDA) {
+	mockDAClient := rollmocks.NewMockDA(t)
+	mockStore := rollmocks.NewMockStore(t)
 	mockLogger := log.NewNopLogger()
 
 	headerStore, _ := goheaderstore.NewStore[*types.SignedHeader](ds.NewMapDatastore())

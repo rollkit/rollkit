@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+var _ DA = (*DummyDA)(nil)
+
 // DummyDA is a simple in-memory implementation of the DA interface for testing purposes.
 type DummyDA struct {
 	mu                 sync.RWMutex
@@ -20,9 +22,14 @@ type DummyDA struct {
 	maxBlobSize        uint64
 	gasPrice           float64
 	gasMultiplier      float64
-	height             uint64
-	blockTime          time.Duration
-	stopCh             chan struct{}
+
+	// DA height simulation
+	currentHeight uint64
+	blockTime     time.Duration
+	stopCh        chan struct{}
+
+	// Simulated failure support
+	submitShouldFail bool
 }
 
 var ErrHeightFromFutureStr = fmt.Errorf("given height is from the future")
@@ -38,9 +45,9 @@ func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64, blo
 		maxBlobSize:        maxBlobSize,
 		gasPrice:           gasPrice,
 		gasMultiplier:      gasMultiplier,
-		height:             1,
 		blockTime:          blockTime,
 		stopCh:             make(chan struct{}),
+		currentHeight:      0,
 	}
 }
 
@@ -53,7 +60,7 @@ func (d *DummyDA) StartHeightTicker() {
 			select {
 			case <-ticker.C:
 				d.mu.Lock()
-				d.height++
+				d.currentHeight++
 				d.mu.Unlock()
 			case <-d.stopCh:
 				return
@@ -67,11 +74,6 @@ func (d *DummyDA) StopHeightTicker() {
 	close(d.stopCh)
 }
 
-// MaxBlobSize returns the maximum blob size.
-func (d *DummyDA) MaxBlobSize(ctx context.Context) (uint64, error) {
-	return d.maxBlobSize, nil
-}
-
 // GasPrice returns the gas price for the DA layer.
 func (d *DummyDA) GasPrice(ctx context.Context) (float64, error) {
 	return d.gasPrice, nil
@@ -83,7 +85,7 @@ func (d *DummyDA) GasMultiplier(ctx context.Context) (float64, error) {
 }
 
 // Get returns blobs for the given IDs.
-func (d *DummyDA) Get(ctx context.Context, ids []ID) ([]Blob, error) {
+func (d *DummyDA) Get(ctx context.Context, ids []ID, namespace []byte) ([]Blob, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -99,12 +101,12 @@ func (d *DummyDA) Get(ctx context.Context, ids []ID) ([]Blob, error) {
 }
 
 // GetIDs returns IDs of all blobs at the given height.
-func (d *DummyDA) GetIDs(ctx context.Context, height uint64) (*GetIDsResult, error) {
+func (d *DummyDA) GetIDs(ctx context.Context, height uint64, namespace []byte) (*GetIDsResult, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	if height > d.height {
-		return nil, fmt.Errorf("%w: requested %d, current %d", ErrHeightFromFutureStr, height, d.height)
+	if height > d.currentHeight {
+		return nil, fmt.Errorf("%w: requested %d, current %d", ErrHeightFromFutureStr, height, d.currentHeight)
 	}
 
 	ids, exists := d.blobsByHeight[height]
@@ -122,7 +124,7 @@ func (d *DummyDA) GetIDs(ctx context.Context, height uint64) (*GetIDsResult, err
 }
 
 // GetProofs returns proofs for the given IDs.
-func (d *DummyDA) GetProofs(ctx context.Context, ids []ID) ([]Proof, error) {
+func (d *DummyDA) GetProofs(ctx context.Context, ids []ID, namespace []byte) ([]Proof, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -138,7 +140,7 @@ func (d *DummyDA) GetProofs(ctx context.Context, ids []ID) ([]Proof, error) {
 }
 
 // Commit creates commitments for the given blobs.
-func (d *DummyDA) Commit(ctx context.Context, blobs []Blob) ([]Commitment, error) {
+func (d *DummyDA) Commit(ctx context.Context, blobs []Blob, namespace []byte) ([]Commitment, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -151,14 +153,29 @@ func (d *DummyDA) Commit(ctx context.Context, blobs []Blob) ([]Commitment, error
 	return commitments, nil
 }
 
+// Submit submits blobs to the DA layer.
+func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte) ([]ID, error) {
+	return d.SubmitWithOptions(ctx, blobs, gasPrice, namespace, nil)
+}
+
+// SetSubmitFailure simulates DA layer going down by making Submit calls fail
+func (d *DummyDA) SetSubmitFailure(shouldFail bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.submitShouldFail = shouldFail
+}
+
 // SubmitWithOptions submits blobs to the DA layer with additional options.
-func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, options []byte) ([]ID, error) {
+func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	batchHeight := d.height
-	d.height++
+	// Check if we should simulate failure
+	if d.submitShouldFail {
+		return nil, errors.New("simulated DA layer failure")
+	}
 
+	height := d.currentHeight + 1
 	ids := make([]ID, 0, len(blobs))
 	var currentSize uint64
 
@@ -187,7 +204,7 @@ func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, op
 		commitment := bz[:]
 
 		// Create ID from height and commitment
-		id := makeID(batchHeight, commitment)
+		id := makeID(height, commitment)
 		idStr := string(id)
 
 		d.blobs[idStr] = blob
@@ -197,14 +214,19 @@ func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, op
 		ids = append(ids, id)
 	}
 
-	d.blobsByHeight[batchHeight] = ids
-	d.timestampsByHeight[batchHeight] = time.Now()
+	// Add the IDs to the blobsByHeight map if they don't already exist
+	if existingIDs, exists := d.blobsByHeight[height]; exists {
+		d.blobsByHeight[height] = append(existingIDs, ids...)
+	} else {
+		d.blobsByHeight[height] = ids
+	}
+	d.timestampsByHeight[height] = time.Now()
 
 	return ids, nil
 }
 
 // Validate validates commitments against proofs.
-func (d *DummyDA) Validate(ctx context.Context, ids []ID, proofs []Proof) ([]bool, error) {
+func (d *DummyDA) Validate(ctx context.Context, ids []ID, proofs []Proof, namespace []byte) ([]bool, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 

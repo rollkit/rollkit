@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/store"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -21,7 +21,7 @@ import (
 type pendingBaseTestCase[T any] struct {
 	name     string
 	key      string
-	fetch    func(ctx context.Context, store store.Store, height uint64) (T, error)
+	fetch    func(ctx context.Context, store storepkg.Store, height uint64) (T, error)
 	makeItem func(height uint64) T
 	// For GetBlockData, returns (header, data, error) for a given height
 	mockGetBlockData func(height uint64) (any, any, error)
@@ -29,7 +29,7 @@ type pendingBaseTestCase[T any] struct {
 
 func runPendingBase_InitAndGetLastSubmittedHeight[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	t.Run(tc.name+"/InitAndGetLastSubmittedHeight", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
 		pb, err := newPendingBase(mockStore, logger, tc.key, tc.fetch)
@@ -41,7 +41,7 @@ func runPendingBase_InitAndGetLastSubmittedHeight[T any](t *testing.T, tc pendin
 
 func runPendingBase_GetPending_AllCases[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	t.Run(tc.name+"/GetPending_AllCases", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
 		pb, err := newPendingBase(mockStore, logger, tc.key, tc.fetch)
@@ -98,7 +98,7 @@ func runPendingBase_GetPending_AllCases[T any](t *testing.T, tc pendingBaseTestC
 
 func runPendingBase_isEmpty_numPending[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	t.Run(tc.name+"/isEmpty_numPending", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
 		pb, err := newPendingBase(mockStore, logger, tc.key, tc.fetch)
@@ -123,7 +123,7 @@ func runPendingBase_isEmpty_numPending[T any](t *testing.T, tc pendingBaseTestCa
 
 func runPendingBase_setLastSubmittedHeight[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	t.Run(tc.name+"/setLastSubmittedHeight", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
 		pb, err := newPendingBase(mockStore, logger, tc.key, tc.fetch)
@@ -176,7 +176,7 @@ func runPendingBase_init_cases[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
-				mockStore := mocksStore.NewStore(t)
+				mockStore := mocksStore.NewMockStore(t)
 				logger := log.NewNopLogger()
 				mockStore.On("GetMetadata", mock.Anything, tc.key).Return(c.metaValue, c.metaErr).Once()
 				pb := &pendingBase[T]{store: mockStore, logger: logger, metaKey: tc.key, fetch: tc.fetch}
@@ -194,7 +194,7 @@ func runPendingBase_init_cases[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 
 func runPendingBase_Fetch[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	t.Run(tc.name+"/fetch_success", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		ctx := context.Background()
 		item := tc.makeItem(42)
 		// fetchData: returns (nil, data, nil), fetchSignedHeader: returns (header, nil, nil)
@@ -209,7 +209,7 @@ func runPendingBase_Fetch[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	})
 
 	t.Run(tc.name+"/fetch_error", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		ctx := context.Background()
 		mockStore.On("GetBlockData", ctx, uint64(99)).Return(nil, nil, errors.New("fail")).Once()
 		_, err := tc.fetch(ctx, mockStore, 99)
@@ -217,9 +217,9 @@ func runPendingBase_Fetch[T any](t *testing.T, tc pendingBaseTestCase[T]) {
 	})
 }
 
-func runPendingBase_NewPending[T any](t *testing.T, tc pendingBaseTestCase[T], newPending func(store.Store, log.Logger) (any, error)) {
+func runPendingBase_NewPending[T any](t *testing.T, tc pendingBaseTestCase[T], newPending func(storepkg.Store, log.Logger) (any, error)) {
 	t.Run(tc.name+"/new_pending", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, ds.ErrNotFound).Once()
 		pending, err := newPending(mockStore, logger)
@@ -228,7 +228,7 @@ func runPendingBase_NewPending[T any](t *testing.T, tc pendingBaseTestCase[T], n
 	})
 
 	t.Run(tc.name+"/new_pending_error", func(t *testing.T) {
-		mockStore := mocksStore.NewStore(t)
+		mockStore := mocksStore.NewMockStore(t)
 		logger := log.NewNopLogger()
 		simErr := errors.New("simulated error")
 		mockStore.On("GetMetadata", mock.Anything, tc.key).Return(nil, simErr).Once()
@@ -254,7 +254,7 @@ func TestPendingBase_Generic(t *testing.T) {
 	}
 	headerCase := pendingBaseTestCase[*types.SignedHeader]{
 		name:  "Header",
-		key:   LastSubmittedHeaderHeightKey,
+		key:   storepkg.LastSubmittedHeaderHeightKey,
 		fetch: fetchSignedHeader,
 		makeItem: func(height uint64) *types.SignedHeader {
 			return &types.SignedHeader{Header: types.Header{BaseHeader: types.BaseHeader{Height: height}}}
@@ -275,7 +275,7 @@ func TestPendingBase_Generic(t *testing.T) {
 			runPendingBase_setLastSubmittedHeight(t, tc)
 			runPendingBase_init_cases(t, tc)
 			runPendingBase_Fetch(t, tc)
-			runPendingBase_NewPending(t, tc, func(store store.Store, logger log.Logger) (any, error) { return NewPendingData(store, logger) })
+			runPendingBase_NewPending(t, tc, func(store storepkg.Store, logger log.Logger) (any, error) { return NewPendingData(store, logger) })
 		case pendingBaseTestCase[*types.SignedHeader]:
 			runPendingBase_InitAndGetLastSubmittedHeight(t, tc)
 			runPendingBase_GetPending_AllCases(t, tc)
@@ -283,7 +283,7 @@ func TestPendingBase_Generic(t *testing.T) {
 			runPendingBase_setLastSubmittedHeight(t, tc)
 			runPendingBase_init_cases(t, tc)
 			runPendingBase_Fetch(t, tc)
-			runPendingBase_NewPending(t, tc, func(store store.Store, logger log.Logger) (any, error) { return NewPendingHeaders(store, logger) })
+			runPendingBase_NewPending(t, tc, func(store storepkg.Store, logger log.Logger) (any, error) { return NewPendingHeaders(store, logger) })
 		}
 	}
 }

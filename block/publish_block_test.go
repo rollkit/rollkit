@@ -23,6 +23,7 @@ import (
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer"
 	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -34,12 +35,12 @@ func setupManagerForPublishBlockTest(
 	lastSubmittedHeaderHeight uint64,
 	lastSubmittedDataHeight uint64,
 	logBuffer *bytes.Buffer,
-) (*Manager, *mocks.Store, *mocks.Executor, *mocks.Sequencer, signer.Signer, context.CancelFunc) {
+) (*Manager, *mocks.MockStore, *mocks.MockExecutor, *mocks.MockSequencer, signer.Signer, context.CancelFunc) {
 	require := require.New(t)
 
-	mockStore := mocks.NewStore(t)
-	mockExec := mocks.NewExecutor(t)
-	mockSeq := mocks.NewSequencer(t)
+	mockStore := mocks.NewMockStore(t)
+	mockExec := mocks.NewMockExecutor(t)
+	mockSeq := mocks.NewMockSequencer(t)
 
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
@@ -60,7 +61,7 @@ func setupManagerForPublishBlockTest(
 
 	lastSubmittedHeaderBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(lastSubmittedHeaderBytes, lastSubmittedHeaderHeight)
-	mockStore.On("GetMetadata", mock.Anything, LastSubmittedHeaderHeightKey).Return(lastSubmittedHeaderBytes, nil).Maybe()
+	mockStore.On("GetMetadata", mock.Anything, storepkg.LastSubmittedHeaderHeightKey).Return(lastSubmittedHeaderBytes, nil).Maybe()
 	lastSubmittedDataBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(lastSubmittedDataBytes, lastSubmittedDataHeight)
 	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(lastSubmittedDataBytes, nil).Maybe()
@@ -160,9 +161,9 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup manager with mocks
-	mockStore := mocks.NewStore(t)
-	mockSeq := mocks.NewSequencer(t)
-	mockExec := mocks.NewExecutor(t)
+	mockStore := mocks.NewMockStore(t)
+	mockSeq := mocks.NewMockSequencer(t)
+	mockExec := mocks.NewMockExecutor(t)
 	logger := log.NewTestLogger(t)
 	chainID := "Test_publishBlock_NoBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
@@ -230,9 +231,9 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup manager with mocks
-	mockStore := mocks.NewStore(t)
-	mockSeq := mocks.NewSequencer(t)
-	mockExec := mocks.NewExecutor(t)
+	mockStore := mocks.NewMockStore(t)
+	mockSeq := mocks.NewMockSequencer(t)
+	mockExec := mocks.NewMockExecutor(t)
 	logger := log.NewTestLogger(t)
 	chainID := "Test_publishBlock_EmptyBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
@@ -354,7 +355,7 @@ func Test_publishBlock_Success(t *testing.T) {
 	mockStore.On("SaveBlockData", t.Context(), mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
 	mockStore.On("SetHeight", t.Context(), newHeight).Return(nil).Once()
 	mockStore.On("UpdateState", t.Context(), mock.AnythingOfType("types.State")).Return(nil).Once()
-	mockStore.On("SetMetadata", t.Context(), LastBatchDataKey, mock.AnythingOfType("[]uint8")).Return(nil).Once()
+	mockStore.On("SetMetadata", t.Context(), storepkg.LastBatchDataKey, mock.AnythingOfType("[]uint8")).Return(nil).Once()
 
 	headerCh := make(chan *types.SignedHeader, 1)
 	manager.headerBroadcaster = broadcasterFn[*types.SignedHeader](func(ctx context.Context, payload *types.SignedHeader) error {

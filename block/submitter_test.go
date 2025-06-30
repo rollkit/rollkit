@@ -27,7 +27,7 @@ import (
 const numItemsToSubmit = 3
 
 // newTestManagerWithDA creates a Manager instance with a mocked DA layer for testing.
-func newTestManagerWithDA(t *testing.T, da *mocks.DA) (m *Manager) {
+func newTestManagerWithDA(t *testing.T, da *mocks.MockDA) (m *Manager) {
 	logger := log.NewNopLogger()
 	nodeConf := config.DefaultConfig
 
@@ -66,11 +66,11 @@ type submitToDASuccessCase[T any] struct {
 	fillPending func(ctx context.Context, t *testing.T, m *Manager)
 	getToSubmit func(m *Manager, ctx context.Context) ([]T, error)
 	submitToDA  func(m *Manager, ctx context.Context, items []T) error
-	mockDASetup func(da *mocks.DA)
+	mockDASetup func(da *mocks.MockDA)
 }
 
 func runSubmitToDASuccessCase[T any](t *testing.T, tc submitToDASuccessCase[T]) {
-	da := &mocks.DA{}
+	da := &mocks.MockDA{}
 	m := newTestManagerWithDA(t, da)
 
 	ctx := t.Context()
@@ -97,8 +97,8 @@ func TestSubmitDataToDA_Success(t *testing.T) {
 		submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedData) error {
 			return m.submitDataToDA(ctx, items)
 		},
-		mockDASetup: func(da *mocks.DA) {
-			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		mockDASetup: func(da *mocks.MockDA) {
+			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return([]coreda.ID{getDummyID(1, []byte("commitment"))}, nil)
 		},
 	})
@@ -116,8 +116,8 @@ func TestSubmitHeadersToDA_Success(t *testing.T) {
 		submitToDA: func(m *Manager, ctx context.Context, items []*types.SignedHeader) error {
 			return m.submitHeadersToDA(ctx, items)
 		},
-		mockDASetup: func(da *mocks.DA) {
-			da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		mockDASetup: func(da *mocks.MockDA) {
+			da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return([]coreda.ID{getDummyID(1, []byte("commitment"))}, nil)
 		},
 	})
@@ -131,11 +131,11 @@ type submitToDAFailureCase[T any] struct {
 	submitToDA  func(m *Manager, ctx context.Context, items []T) error
 	errorMsg    string
 	daError     error
-	mockDASetup func(da *mocks.DA, gasPriceHistory *[]float64, daError error)
+	mockDASetup func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error)
 }
 
 func runSubmitToDAFailureCase[T any](t *testing.T, tc submitToDAFailureCase[T]) {
-	da := &mocks.DA{}
+	da := &mocks.MockDA{}
 	m := newTestManagerWithDA(t, da)
 
 	ctx := t.Context()
@@ -185,9 +185,9 @@ func TestSubmitDataToDA_Failure(t *testing.T) {
 				},
 				errorMsg: "failed to submit all data(s) to DA layer",
 				daError:  tc.daError,
-				mockDASetup: func(da *mocks.DA, gasPriceHistory *[]float64, daError error) {
+				mockDASetup: func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error) {
 					da.ExpectedCalls = nil
-					da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Run(func(args mock.Arguments) { *gasPriceHistory = append(*gasPriceHistory, args.Get(2).(float64)) }).
 						Return(nil, daError)
 				},
@@ -220,9 +220,9 @@ func TestSubmitHeadersToDA_Failure(t *testing.T) {
 				},
 				errorMsg: "failed to submit all header(s) to DA layer",
 				daError:  tc.daError,
-				mockDASetup: func(da *mocks.DA, gasPriceHistory *[]float64, daError error) {
+				mockDASetup: func(da *mocks.MockDA, gasPriceHistory *[]float64, daError error) {
 					da.ExpectedCalls = nil
-					da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Run(func(args mock.Arguments) { *gasPriceHistory = append(*gasPriceHistory, args.Get(2).(float64)) }).
 						Return(nil, daError)
 				},
@@ -239,15 +239,15 @@ type retryPartialFailuresCase[T any] struct {
 	submitToDA         func(m *Manager, ctx context.Context, items []T) error
 	getLastSubmitted   func(m *Manager) uint64
 	getPendingToSubmit func(m *Manager, ctx context.Context) ([]T, error)
-	setupStoreAndDA    func(m *Manager, mockStore *mocks.Store, da *mocks.DA)
+	setupStoreAndDA    func(m *Manager, mockStore *mocks.MockStore, da *mocks.MockDA)
 }
 
 func runRetryPartialFailuresCase[T any](t *testing.T, tc retryPartialFailuresCase[T]) {
 	m := newTestManagerWithDA(t, nil)
-	mockStore := mocks.NewStore(t)
+	mockStore := mocks.NewMockStore(t)
 	m.store = mockStore
 	m.logger = log.NewTestLogger(t)
-	da := &mocks.DA{}
+	da := &mocks.MockDA{}
 	m.da = da
 	m.gasPrice = 1.0
 	m.gasMultiplier = 2.0
@@ -262,15 +262,15 @@ func runRetryPartialFailuresCase[T any](t *testing.T, tc retryPartialFailuresCas
 
 	// Set up DA mock: three calls, each time only one item is accepted
 	da.On("GasMultiplier", mock.Anything).Return(2.0, nil).Times(3)
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			t.Logf("DA Submit call 1: args=%#v", args)
 		}).Once().Return([]coreda.ID{getDummyID(1, []byte("commitment2"))}, nil)
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			t.Logf("DA Submit call 2: args=%#v", args)
 		}).Once().Return([]coreda.ID{getDummyID(1, []byte("commitment3"))}, nil)
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			t.Logf("DA Submit call 3: args=%#v", args)
 		}).Once().Return([]coreda.ID{getDummyID(1, []byte("commitment4"))}, nil)
@@ -298,7 +298,7 @@ func TestSubmitToDA_RetryPartialFailures_Generic(t *testing.T) {
 		getPendingToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedData, error) {
 			return m.createSignedDataToSubmit(ctx)
 		},
-		setupStoreAndDA: func(m *Manager, mockStore *mocks.Store, da *mocks.DA) {
+		setupStoreAndDA: func(m *Manager, mockStore *mocks.MockStore, da *mocks.MockDA) {
 			lastSubmittedBytes := make([]byte, 8)
 			lastHeight := uint64(0)
 			binary.LittleEndian.PutUint64(lastSubmittedBytes, lastHeight)
@@ -329,7 +329,7 @@ func TestSubmitToDA_RetryPartialFailures_Generic(t *testing.T) {
 		getPendingToSubmit: func(m *Manager, ctx context.Context) ([]*types.SignedHeader, error) {
 			return m.pendingHeaders.getPendingHeaders(ctx)
 		},
-		setupStoreAndDA: func(m *Manager, mockStore *mocks.Store, da *mocks.DA) {
+		setupStoreAndDA: func(m *Manager, mockStore *mocks.MockStore, da *mocks.MockDA) {
 			lastSubmittedBytes := make([]byte, 8)
 			lastHeight := uint64(0)
 			binary.LittleEndian.PutUint64(lastSubmittedBytes, lastHeight)
@@ -388,7 +388,7 @@ func TestCreateSignedDataToSubmit(t *testing.T) {
 	// getPendingData returns error: should return error and error message should match
 	t.Run("getPendingData returns error", func(t *testing.T) {
 		m := newTestManagerWithDA(t, nil)
-		mockStore := mocks.NewStore(t)
+		mockStore := mocks.NewMockStore(t)
 		logger := log.NewNopLogger()
 		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
 		mockStore.On("Height", mock.Anything).Return(uint64(1), nil).Once()
@@ -478,7 +478,7 @@ func newPendingData(t *testing.T) *PendingData {
 // TestSubmitHeadersToDA_WithMetricsRecorder verifies that submitHeadersToDA calls RecordMetrics
 // when the sequencer implements the MetricsRecorder interface.
 func TestSubmitHeadersToDA_WithMetricsRecorder(t *testing.T) {
-	da := &mocks.DA{}
+	da := &mocks.MockDA{}
 	m := newTestManagerWithDA(t, da)
 
 	// Set up mock sequencer with metrics
@@ -495,7 +495,7 @@ func TestSubmitHeadersToDA_WithMetricsRecorder(t *testing.T) {
 	require.NotEmpty(t, headers)
 
 	// Simulate DA layer successfully accepting the header submission
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return([]coreda.ID{[]byte("id")}, nil)
 
 	// Expect RecordMetrics to be called with the correct parameters
@@ -518,7 +518,7 @@ func TestSubmitHeadersToDA_WithMetricsRecorder(t *testing.T) {
 // TestSubmitDataToDA_WithMetricsRecorder verifies that submitDataToDA calls RecordMetrics
 // when the sequencer implements the MetricsRecorder interface.
 func TestSubmitDataToDA_WithMetricsRecorder(t *testing.T) {
-	da := &mocks.DA{}
+	da := &mocks.MockDA{}
 	m := newTestManagerWithDA(t, da)
 
 	// Set up mock sequencer with metrics
@@ -536,7 +536,7 @@ func TestSubmitDataToDA_WithMetricsRecorder(t *testing.T) {
 
 	// Simulate DA success
 	da.On("GasMultiplier", mock.Anything).Return(2.0, nil)
-	da.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	da.On("SubmitWithOptions", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return([]coreda.ID{[]byte("id")}, nil)
 
 	// Expect RecordMetrics to be called with the correct parameters

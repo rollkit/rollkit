@@ -32,8 +32,8 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
-// GetBlockByHeight returns a block by height
-func (c *Client) GetBlockByHeight(ctx context.Context, height uint64) (*pb.Block, error) {
+// GetBlockByHeight returns the full GetBlockResponse for a block by height
+func (c *Client) GetBlockByHeight(ctx context.Context, height uint64) (*pb.GetBlockResponse, error) {
 	req := connect.NewRequest(&pb.GetBlockRequest{
 		Identifier: &pb.GetBlockRequest_Height{
 			Height: height,
@@ -45,11 +45,11 @@ func (c *Client) GetBlockByHeight(ctx context.Context, height uint64) (*pb.Block
 		return nil, err
 	}
 
-	return resp.Msg.Block, nil
+	return resp.Msg, nil
 }
 
-// GetBlockByHash returns a block by hash
-func (c *Client) GetBlockByHash(ctx context.Context, hash []byte) (*pb.Block, error) {
+// GetBlockByHash returns the full GetBlockResponse for a block by hash
+func (c *Client) GetBlockByHash(ctx context.Context, hash []byte) (*pb.GetBlockResponse, error) {
 	req := connect.NewRequest(&pb.GetBlockRequest{
 		Identifier: &pb.GetBlockRequest_Hash{
 			Hash: hash,
@@ -61,7 +61,7 @@ func (c *Client) GetBlockByHash(ctx context.Context, hash []byte) (*pb.Block, er
 		return nil, err
 	}
 
-	return resp.Msg.Block, nil
+	return resp.Msg, nil
 }
 
 // GetState returns the current state
