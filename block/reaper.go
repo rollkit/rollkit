@@ -78,7 +78,7 @@ func (r *Reaper) SubmitTxs() {
 	// - The transaction data itself
 	// We use a conservative estimate of 90% of the max bytes to account for overhead
 	maxBytes := uint64(appconsts.DefaultMaxBytes) * 9 / 10
-	
+
 	txs, err := r.exec.GetTxs(r.ctx, maxBytes)
 	if err != nil {
 		r.logger.Error("Reaper failed to get txs from executor", "error", err)
