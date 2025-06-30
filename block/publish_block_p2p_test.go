@@ -224,7 +224,7 @@ func (m mockExecutor) InitChain(ctx context.Context, genesisTime time.Time, init
 	return bytesN(32), 10_000, nil
 }
 
-func (m mockExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
+func (m mockExecutor) GetTxs(ctx context.Context, maxBytes uint64) ([][]byte, error) {
 	panic("implement me")
 }
 

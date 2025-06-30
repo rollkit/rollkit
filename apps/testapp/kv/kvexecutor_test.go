@@ -59,7 +59,7 @@ func TestGetTxs(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// First call to GetTxs should retrieve the injected transactions
-	txs, err := exec.GetTxs(ctx)
+	txs, err := exec.GetTxs(ctx, 1000000)
 	if err != nil {
 		t.Fatalf("GetTxs returned error on first call: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestGetTxs(t *testing.T) {
 	}
 
 	// Second call to GetTxs should return no transactions as the channel was drained
-	txsAfterDrain, err := exec.GetTxs(ctx)
+	txsAfterDrain, err := exec.GetTxs(ctx, 1000000)
 	if err != nil {
 		t.Fatalf("GetTxs returned error on second call: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestGetTxs(t *testing.T) {
 	tx3 := []byte("c=3")
 	exec.InjectTx(tx3)
 	time.Sleep(10 * time.Millisecond)
-	txsAfterReinject, err := exec.GetTxs(ctx)
+	txsAfterReinject, err := exec.GetTxs(ctx, 1000000)
 	if err != nil {
 		t.Fatalf("GetTxs returned error after re-inject: %v", err)
 	}

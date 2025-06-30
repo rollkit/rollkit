@@ -33,7 +33,7 @@ func TestReaper_SubmitTxs_Success(t *testing.T) {
 	tx := []byte("tx1")
 
 	// Mock interactions for the first SubmitTxs call
-	mockExec.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
+	mockExec.On("GetTxs", mock.Anything, mock.Anything).Return([][]byte{tx}, nil).Once()
 	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitBatchTxsRequest) bool {
 		return string(req.Id) == chainID && len(req.Batch.Transactions) == 1 && string(req.Batch.Transactions[0]) == string(tx)
 	})
@@ -43,7 +43,7 @@ func TestReaper_SubmitTxs_Success(t *testing.T) {
 	reaper.SubmitTxs()
 	mockSeq.AssertCalled(t, "SubmitBatchTxs", mock.Anything, submitReqMatcher)
 
-	mockExec.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
+	mockExec.On("GetTxs", mock.Anything, mock.Anything).Return([][]byte{tx}, nil).Once()
 
 	// Run again, should not resubmit
 	reaper.SubmitTxs()
@@ -67,7 +67,7 @@ func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
 	reaper := NewReaper(t.Context(), mockExec, mockSeq, chainID, interval, logger, store)
 
 	// Mock GetTxs returning no transactions
-	mockExec.On("GetTxs", mock.Anything).Return([][]byte{}, nil).Once()
+	mockExec.On("GetTxs", mock.Anything, mock.Anything).Return([][]byte{}, nil).Once()
 
 	// Run once and ensure nothing is submitted
 	reaper.SubmitTxs()
@@ -102,7 +102,7 @@ func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 	reaper1 := NewReaper(t.Context(), mockExec1, mockSeq1, chainID, interval, logger, store)
 
 	// Mock interactions for the first instance
-	mockExec1.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
+	mockExec1.On("GetTxs", mock.Anything, mock.Anything).Return([][]byte{tx}, nil).Once()
 	submitReqMatcher := mock.MatchedBy(func(req coresequencer.SubmitBatchTxsRequest) bool {
 		return string(req.Id) == chainID && len(req.Batch.Transactions) == 1 && string(req.Batch.Transactions[0]) == string(tx)
 	})
@@ -119,7 +119,7 @@ func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 	reaper2 := NewReaper(t.Context(), mockExec2, mockSeq2, chainID, interval, logger, store)
 
 	// Mock interactions for the second instance
-	mockExec2.On("GetTxs", mock.Anything).Return([][]byte{tx}, nil).Once()
+	mockExec2.On("GetTxs", mock.Anything, mock.Anything).Return([][]byte{tx}, nil).Once()
 
 	// Should not submit it again
 	reaper2.SubmitTxs()

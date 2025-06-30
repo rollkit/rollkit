@@ -102,7 +102,7 @@ func TestEngineExecution(t *testing.T) {
 				SubmitTransaction(tt, txs[i])
 			}
 
-			payload, err := executionClient.GetTxs(ctx)
+			payload, err := executionClient.GetTxs(ctx, 1000000)
 			require.NoError(tt, err)
 			require.Lenf(tt, payload, nTxs, "expected %d transactions, got %d", nTxs, len(payload))
 

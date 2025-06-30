@@ -11,6 +11,7 @@ import (
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/internal/appconsts"
 )
 
 const DefaultInterval = 1 * time.Second
@@ -70,7 +71,15 @@ func (r *Reaper) Start(ctx context.Context) {
 
 // SubmitTxs retrieves transactions from the executor and submits them to the sequencer.
 func (r *Reaper) SubmitTxs() {
-	txs, err := r.exec.GetTxs(r.ctx)
+	// Account for protobuf encoding overhead when setting max bytes
+	// Each transaction in the protobuf has:
+	// - Field tag (1 byte for field 1)
+	// - Length prefix (varint, typically 1-2 bytes for tx sizes)
+	// - The transaction data itself
+	// We use a conservative estimate of 90% of the max bytes to account for overhead
+	maxBytes := uint64(appconsts.DefaultMaxBytes) * 9 / 10
+	
+	txs, err := r.exec.GetTxs(r.ctx, maxBytes)
 	if err != nil {
 		r.logger.Error("Reaper failed to get txs from executor", "error", err)
 		return

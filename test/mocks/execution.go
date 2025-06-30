@@ -131,8 +131,8 @@ func (_c *MockExecutor_ExecuteTxs_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // GetTxs provides a mock function for the type MockExecutor
-func (_mock *MockExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockExecutor) GetTxs(ctx context.Context, maxBytes uint64) ([][]byte, error) {
+	ret := _mock.Called(ctx, maxBytes)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetTxs")
@@ -140,18 +140,18 @@ func (_mock *MockExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
 
 	var r0 [][]byte
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([][]byte, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint64) ([][]byte, error)); ok {
+		return returnFunc(ctx, maxBytes)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) [][]byte); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint64) [][]byte); ok {
+		r0 = returnFunc(ctx, maxBytes)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([][]byte)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+		r1 = returnFunc(ctx, maxBytes)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -165,18 +165,24 @@ type MockExecutor_GetTxs_Call struct {
 
 // GetTxs is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockExecutor_Expecter) GetTxs(ctx interface{}) *MockExecutor_GetTxs_Call {
-	return &MockExecutor_GetTxs_Call{Call: _e.mock.On("GetTxs", ctx)}
+//   - maxBytes uint64
+func (_e *MockExecutor_Expecter) GetTxs(ctx interface{}, maxBytes interface{}) *MockExecutor_GetTxs_Call {
+	return &MockExecutor_GetTxs_Call{Call: _e.mock.On("GetTxs", ctx, maxBytes)}
 }
 
-func (_c *MockExecutor_GetTxs_Call) Run(run func(ctx context.Context)) *MockExecutor_GetTxs_Call {
+func (_c *MockExecutor_GetTxs_Call) Run(run func(ctx context.Context, maxBytes uint64)) *MockExecutor_GetTxs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 uint64
+		if args[1] != nil {
+			arg1 = args[1].(uint64)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -187,7 +193,7 @@ func (_c *MockExecutor_GetTxs_Call) Return(bytess [][]byte, err error) *MockExec
 	return _c
 }
 
-func (_c *MockExecutor_GetTxs_Call) RunAndReturn(run func(ctx context.Context) ([][]byte, error)) *MockExecutor_GetTxs_Call {
+func (_c *MockExecutor_GetTxs_Call) RunAndReturn(run func(ctx context.Context, maxBytes uint64) ([][]byte, error)) *MockExecutor_GetTxs_Call {
 	_c.Call.Return(run)
 	return _c
 }
