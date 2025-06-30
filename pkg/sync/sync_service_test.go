@@ -44,8 +44,7 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Dir(conf.ConfigPath()))
 	require.NoError(t, err)
 	logger := logging.Logger("test")
-	// No direct TestLogger equivalent for auto-fail, ensure test logic handles errors.
-	_ = logging.SetLogLevel("test", "debug") // Or other appropriate level for test debugging
+	_ = logging.SetLogLevel("test", "debug")
 	priv := nodeKey.PrivKey
 	h, err := mn.AddPeer(priv, nil)
 	require.NoError(t, err)

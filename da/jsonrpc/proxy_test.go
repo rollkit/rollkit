@@ -46,8 +46,7 @@ func TestProxy(t *testing.T) {
 	dummy := coreda.NewDummyDA(100_000, 0, 0, getTestDABlockTime())
 	dummy.StartHeightTicker()
 	logger := logging.Logger("test")
-	// No direct TestLogger equivalent for auto-fail, ensure test logic handles errors.
-	_ = logging.SetLogLevel("test", "debug") // Or other appropriate level for test debugging
+	_ = logging.SetLogLevel("test", "debug")
 	server := proxy.NewServer(logger, ServerHost, ServerPort, dummy)
 	err := server.Start(context.Background())
 	require.NoError(t, err)

@@ -36,10 +36,6 @@ func main() {
 	}
 
 	// create logger
-	// With ipfs/go-log, we'd typically set up global config first, then get a named logger.
-	// For a simple main like this, we can directly get a logger.
-	// The ".With("module", "da")" pattern isn't directly used for subsystem creation.
-	// We'll get a logger named "da".
 	logging.SetupLogging(logging.Config{Stderr: true, Level: logging.LevelInfo}) // Basic setup
 	logger := logging.Logger("da")
 

@@ -29,8 +29,7 @@ func setupTestServer(t *testing.T, mockStore *mocks.MockStore, mockP2P *mocks.Mo
 
 	// Create the servers
 	logger := logging.Logger("test")
-	// No direct TestLogger equivalent for auto-fail, ensure test logic handles errors.
-	_ = logging.SetLogLevel("test", "debug") // Or other appropriate level for test debugging
+	_ = logging.SetLogLevel("test", "debug")
 	storeServer := server.NewStoreServer(mockStore, logger)
 	p2pServer := server.NewP2PServer(mockP2P)
 

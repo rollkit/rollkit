@@ -412,9 +412,6 @@ func TestStartNodeErrors(t *testing.T) {
 				assert.NotPanics(t, runFunc)
 				// Re-check error after NotPanics confirms no panic occurred
 				// Need to re-run StartNode as the original runFunc only checks error if !tc.expectPanic
-				// The currentTestLogger from the runFunc scope is not accessible here.
-				// We need to create a new one or ensure the previous one is passed.
-				// For simplicity, creating a new one for this re-check.
 				checkLogger := logging.Logger("TestStartNodeErrors-check")
 				_ = logging.SetLogLevel("TestStartNodeErrors-check", "FATAL") // NOP behavior
 				err := StartNode(checkLogger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, nil)
