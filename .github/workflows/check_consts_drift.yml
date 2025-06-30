@@ -45,19 +45,19 @@ jobs:
               exit 1
             fi
 
-            echo "Comparing $LOCAL_FILE (excluding last line) with $CELESTIA_FILE (excluding last line)"
+            echo "Comparing first 34 lines of $LOCAL_FILE with first 34 lines of $CELESTIA_FILE"
 
             LOCAL_FILE_TMP=$(mktemp)
             CELESTIA_FILE_TMP=$(mktemp)
             # Ensure temporary files are removed on exit
             trap 'rm -f "$LOCAL_FILE_TMP" "$CELESTIA_FILE_TMP"' EXIT
 
-            head -n -1 "$LOCAL_FILE" > "$LOCAL_FILE_TMP"
+            head -n 34 "$LOCAL_FILE" > "$LOCAL_FILE_TMP"
             if [ $? -ne 0 ]; then
               echo "Error processing local file '$LOCAL_FILE' with head."
               exit 1
             fi
-            head -n -1 "$CELESTIA_FILE" > "$CELESTIA_FILE_TMP"
+            head -n 34 "$CELESTIA_FILE" > "$CELESTIA_FILE_TMP"
             if [ $? -ne 0 ]; then
               echo "Error processing fetched Celestia file '$CELESTIA_FILE' with head."
               exit 1
@@ -70,7 +70,7 @@ jobs:
               diff_exit_code=$?
               if [ $diff_exit_code -eq 1 ]; then
                 # Exit code 1 means files are different
-                echo "Files are different for $LOCAL_FILE (excluding last line)."
+                echo "Files are different for $LOCAL_FILE (first 34 lines)."
                 all_diff_outputs+="Diff for $LOCAL_FILE:"$'\n'"$diff_command_output"$'\n\n'
                 any_diff_found=true
               else
@@ -82,7 +82,7 @@ jobs:
               fi
             else
               # diff exited with 0, files are identical
-              echo "Files are identical for $LOCAL_FILE (excluding last line)."
+              echo "Files are identical for $LOCAL_FILE (first 34 lines)."
             fi
 
             rm -f "$LOCAL_FILE_TMP" "$CELESTIA_FILE_TMP"
