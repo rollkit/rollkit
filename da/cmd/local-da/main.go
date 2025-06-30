@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 
 	proxy "github.com/rollkit/rollkit/da/jsonrpc"
 )
@@ -36,7 +36,8 @@ func main() {
 	}
 
 	// create logger
-	logger := log.NewLogger(os.Stdout).With("module", "da")
+	logging.SetupLogging(logging.Config{Stderr: true, Level: logging.LevelInfo}) // Basic setup
+	logger := logging.Logger("da")
 
 	// Create LocalDA instance with custom maxBlobSize if provided
 	var opts []func(*LocalDA) *LocalDA

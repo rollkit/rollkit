@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -92,7 +92,8 @@ func TestDASpeed(t *testing.T) {
 func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.MockDA) {
 	mockDAClient := rollmocks.NewMockDA(t)
 	mockStore := rollmocks.NewMockStore(t)
-	mockLogger := log.NewNopLogger()
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 
 	headerStore, _ := goheaderstore.NewStore[*types.SignedHeader](ds.NewMapDatastore())
 	dataStore, _ := goheaderstore.NewStore[*types.Data](ds.NewMapDatastore())
@@ -129,7 +130,7 @@ func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollm
 		headerStoreCh: make(chan struct{}),
 		dataStoreCh:   make(chan struct{}),
 		retrieveCh:    make(chan struct{}),
-		logger:        mockLogger,
+		logger:        logger,
 		lastStateMtx:  new(sync.RWMutex),
 		da:            mockDAClient,
 		signer:        noopSigner,

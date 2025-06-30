@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -30,8 +30,9 @@ func TestStartInstrumentationServer(t *testing.T) {
 
 	node := &FullNode{
 		nodeConfig:  config,
-		BaseService: *service.NewBaseService(log.NewTestLogger(t), "TestNode", nil),
+		BaseService: *service.NewBaseService(logging.Logger("test"), "TestNode", nil), // Use ipfs/go-log
 	}
+	// Set log level for testing if needed, e.g., logging.SetLogLevel("test", "debug")
 
 	prometheusSrv, pprofSrv := node.startInstrumentationServer()
 
