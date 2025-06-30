@@ -1,8 +1,10 @@
 module github.com/rollkit/rollkit/execution/evm
 
-go 1.24.0
+go 1.24.1
 
-toolchain go1.24.1
+toolchain go1.24.3
+
+replace github.com/rollkit/rollkit/core => ../../core
 
 require (
 	github.com/ethereum/go-ethereum v1.15.0
@@ -88,7 +90,7 @@ require (
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.4 // indirect
-	github.com/go-viper/mapstructure/v2 v2.0.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/gofrs/flock v0.12.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect

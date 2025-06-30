@@ -29,6 +29,7 @@ func setupTestRethEngineE2E(t *testing.T) string {
 }
 
 func TestEvmAggregatorE2E(t *testing.T) {
+	t.Skip("Skipping EVM aggregator E2E test, requires Docker and Reth engine setup")
 	flag.Parse()
 	workDir := t.TempDir()
 	nodeHome := filepath.Join(workDir, "evm-agg")

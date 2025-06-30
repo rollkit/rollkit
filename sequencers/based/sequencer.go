@@ -168,7 +168,7 @@ OuterLoop:
 			break OuterLoop
 		}
 		// fetch the next batch of transactions from DA using the helper
-		res := types.RetrieveWithHelpers(ctx, s.DA, s.logger, nextDAHeight)
+		res := types.RetrieveWithHelpers(ctx, s.DA, s.logger, nextDAHeight, s.Id)
 		if res.Code == coreda.StatusError {
 			// stop fetching more transactions and return the current batch
 			s.logger.Warn("failed to retrieve transactions from DA layer via helper", "error", res.Message)
@@ -218,13 +218,13 @@ func (s *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 		return nil, ErrInvalidId
 	}
 	// Use stored namespace
-	proofs, err := s.DA.GetProofs(ctx, req.BatchData)
+	proofs, err := s.DA.GetProofs(ctx, req.BatchData, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proofs: %w", err)
 	}
 
 	// verify the proof
-	valid, err := s.DA.Validate(ctx, req.BatchData, proofs)
+	valid, err := s.DA.Validate(ctx, req.BatchData, proofs, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate proof: %w", err)
 	}
@@ -286,7 +286,7 @@ daSubmitRetryLoop:
 		}
 
 		// Attempt to submit the batch to the DA layer
-		res := types.SubmitWithHelpers(ctx, s.DA, s.logger, currentBatch.Transactions, gasPrice, nil)
+		res := types.SubmitWithHelpers(ctx, s.DA, s.logger, currentBatch.Transactions, gasPrice, s.Id)
 
 		gasMultiplier, err := s.DA.GasMultiplier(ctx)
 		if err != nil {

@@ -5,12 +5,9 @@ import (
 
 	"cosmossdk.io/log"
 
-	"github.com/rollkit/rollkit/pkg/store"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 )
-
-// LastSubmittedHeaderHeightKey is the key used for persisting the last submitted header height in store.
-const LastSubmittedHeaderHeightKey = "last-submitted-header-height"
 
 // PendingHeaders maintains headers that need to be published to DA layer
 //
@@ -28,14 +25,14 @@ type PendingHeaders struct {
 	base *pendingBase[*types.SignedHeader]
 }
 
-func fetchSignedHeader(ctx context.Context, store store.Store, height uint64) (*types.SignedHeader, error) {
+func fetchSignedHeader(ctx context.Context, store storepkg.Store, height uint64) (*types.SignedHeader, error) {
 	header, _, err := store.GetBlockData(ctx, height)
 	return header, err
 }
 
 // NewPendingHeaders returns a new PendingHeaders struct
-func NewPendingHeaders(store store.Store, logger log.Logger) (*PendingHeaders, error) {
-	base, err := newPendingBase(store, logger, LastSubmittedHeaderHeightKey, fetchSignedHeader)
+func NewPendingHeaders(store storepkg.Store, logger log.Logger) (*PendingHeaders, error) {
+	base, err := newPendingBase(store, logger, storepkg.LastSubmittedHeaderHeightKey, fetchSignedHeader)
 	if err != nil {
 		return nil, err
 	}

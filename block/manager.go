@@ -26,7 +26,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer"
-	"github.com/rollkit/rollkit/pkg/store"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -49,15 +49,6 @@ const (
 
 	// Applies to the headerInCh and dataInCh, 10000 is a large enough number for headers per DA block.
 	eventInChLength = 10000
-
-	// DAIncludedHeightKey is the key used for persisting the da included height in store.
-	DAIncludedHeightKey = "d"
-
-	// LastBatchDataKey is the key used for persisting the last batch data in store.
-	LastBatchDataKey = "l"
-
-	// RollkitHeightToDAHeightKey is the key used for persisting the mapping rollkit height to da height in store.
-	RollkitHeightToDAHeightKey = "rhb"
 )
 
 var (
@@ -111,7 +102,7 @@ type Manager struct {
 	lastState types.State
 	// lastStateMtx is used by lastState
 	lastStateMtx *sync.RWMutex
-	store        store.Store
+	store        storepkg.Store
 
 	config  config.Config
 	genesis genesis.Genesis
@@ -156,6 +147,8 @@ type Manager struct {
 	metrics *Metrics
 
 	exec coreexecutor.Executor
+	// executionMode caches the execution mode from the executor
+	executionMode coreexecutor.ExecutionMode
 
 	// daIncludedHeight is rollkit height at which all blocks have been included
 	// in the DA
@@ -180,7 +173,7 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
-func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
+func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store storepkg.Store, exec coreexecutor.Executor, logger log.Logger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
 	if signaturePayloadProvider == nil {
 		signaturePayloadProvider = defaultSignaturePayloadProvider
 	}
@@ -284,7 +277,7 @@ func NewManager(
 	signer signer.Signer,
 	config config.Config,
 	genesis genesis.Genesis,
-	store store.Store,
+	store storepkg.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
@@ -347,7 +340,7 @@ func NewManager(
 	}
 
 	// If lastBatchHash is not set, retrieve the last batch hash from store
-	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
+	lastBatchDataBytes, err := store.GetMetadata(ctx, storepkg.LastBatchDataKey)
 	if err != nil && s.LastBlockHeight > 0 {
 		logger.Error("error while retrieving last batch hash", "error", err)
 	}
@@ -359,6 +352,8 @@ func NewManager(
 
 	daH := atomic.Uint64{}
 	daH.Store(s.DAHeight)
+
+	executionMode := exec.GetExecutionMode()
 
 	m := &Manager{
 		signer:            signer,
@@ -389,6 +384,7 @@ func NewManager(
 		metrics:                  seqMetrics,
 		sequencer:                sequencer,
 		exec:                     exec,
+		executionMode:            executionMode,
 		da:                       da,
 		gasPrice:                 gasPrice,
 		gasMultiplier:            gasMultiplier,
@@ -397,7 +393,7 @@ func NewManager(
 	}
 
 	// initialize da included height
-	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
+	if height, err := m.store.GetMetadata(ctx, storepkg.DAIncludedHeightKey); err == nil && len(height) == 8 {
 		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
 	}
 
@@ -508,7 +504,7 @@ func (m *Manager) SetRollkitHeightToDAHeight(ctx context.Context, height uint64)
 		return fmt.Errorf("header hash %s not found in cache", headerHash)
 	}
 	binary.LittleEndian.PutUint64(headerHeightBytes, daHeightForHeader)
-	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/h", RollkitHeightToDAHeightKey, height), headerHeightBytes); err != nil {
+	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/h", storepkg.RollkitHeightToDAHeightKey, height), headerHeightBytes); err != nil {
 		return err
 	}
 	dataHeightBytes := make([]byte, 8)
@@ -522,7 +518,7 @@ func (m *Manager) SetRollkitHeightToDAHeight(ctx context.Context, height uint64)
 		}
 		binary.LittleEndian.PutUint64(dataHeightBytes, daHeightForData)
 	}
-	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/d", RollkitHeightToDAHeightKey, height), dataHeightBytes); err != nil {
+	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/d", storepkg.RollkitHeightToDAHeightKey, height), dataHeightBytes); err != nil {
 		return err
 	}
 	return nil
@@ -565,7 +561,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		}
 		// Even if there are no transactions, update lastBatchData so we don't
 		// repeatedly emit the same empty batch, and persist it to metadata.
-		if err := m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
+		if err := m.store.SetMetadata(ctx, storepkg.LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
 			m.logger.Error("error while setting last batch hash", "error", err)
 		}
 		m.lastBatchData = res.BatchData
@@ -809,22 +805,26 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 	}
 
 	// // Verify that the header's timestamp is strictly greater than the last block's time
-	// headerTime := header.Time()
-	// if header.Height() > 1 && lastState.LastBlockTime.After(headerTime) {
-	// 	return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
-	// 		headerTime.UnixNano(), lastState.LastBlockTime)
-	// }
+	headerTime := header.Time()
+	if header.Height() > 1 && lastState.LastBlockTime.After(headerTime) {
+		return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
+			headerTime.UnixNano(), lastState.LastBlockTime)
+	}
 
-	// // Validate that the header's AppHash matches the lastState's AppHash
-	// // Note: Assumes deferred execution
-	// if !bytes.Equal(header.AppHash, lastState.AppHash) {
-	// 	return fmt.Errorf("app hash mismatch: expected %x, got %x", lastState.AppHash, header.AppHash)
-	// }
+	// Validate AppHash based on execution mode
+	if m.executionMode == coreexecutor.ExecutionModeDelayed {
+		// In delayed mode, AppHash should match the last state's AppHash
+		if !bytes.Equal(header.AppHash, lastState.AppHash) {
+			return fmt.Errorf("appHash mismatch in delayed mode: expected %x, got %x", lastState.AppHash, header.AppHash)
+		}
+	}
+	// Note: For immediate mode, we can't validate AppHash against lastState because
+	// it represents the state after executing the current block's transactions
 
 	return nil
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, _ types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	// Use when batchData is set to data IDs from the DA layer
 	// batchDataIDs := convertBatchDataToBytes(batchData.Data)
 
@@ -849,30 +849,6 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	// Determine if this is an empty block
 	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
 
-	header := &types.SignedHeader{
-		Header: types.Header{
-			Version: types.Version{
-				Block: m.lastState.Version.Block,
-				App:   m.lastState.Version.App,
-			},
-			BaseHeader: types.BaseHeader{
-				ChainID: m.lastState.ChainID,
-				Height:  height,
-				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
-			},
-			LastHeaderHash: lastHeaderHash,
-			// DataHash is set at the end of the function
-			ConsensusHash:   make(types.Hash, 32),
-			AppHash:         m.lastState.AppHash,
-			ProposerAddress: m.genesis.ProposerAddress,
-		},
-		Signature: *lastSignature,
-		Signer: types.Signer{
-			PubKey:  key,
-			Address: m.genesis.ProposerAddress,
-		},
-	}
-
 	// Create block data with appropriate transactions
 	blockData := &types.Data{
 		Txs: make(types.Txs, 0), // Start with empty transaction list
@@ -884,6 +860,54 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		for i := range batchData.Transactions {
 			blockData.Txs[i] = types.Tx(batchData.Transactions[i])
 		}
+	}
+
+	// Determine AppHash based on execution mode
+	var appHash []byte
+	if m.executionMode == coreexecutor.ExecutionModeImmediate && !isEmpty {
+		// For immediate execution, execute transactions now to get the new state root
+		rawTxs := make([][]byte, len(blockData.Txs))
+		for i := range blockData.Txs {
+			rawTxs[i] = blockData.Txs[i]
+		}
+
+		// Execute transactions
+		newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, height, batchData.Time, lastState.AppHash)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to execute transactions for immediate mode: %w", err)
+		}
+		appHash = newStateRoot
+	} else {
+		// For delayed execution or empty blocks, use the app hash from last state
+		appHash = lastState.AppHash
+	}
+
+	header := &types.SignedHeader{
+		Header: types.Header{
+			Version: types.Version{
+				Block: lastState.Version.Block,
+				App:   lastState.Version.App,
+			},
+			BaseHeader: types.BaseHeader{
+				ChainID: lastState.ChainID,
+				Height:  height,
+				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
+			},
+			LastHeaderHash: lastHeaderHash,
+			// DataHash is set below
+			ConsensusHash:   make(types.Hash, 32),
+			AppHash:         appHash,
+			ProposerAddress: m.genesis.ProposerAddress,
+		},
+		Signature: *lastSignature,
+		Signer: types.Signer{
+			PubKey:  key,
+			Address: m.genesis.ProposerAddress,
+		},
+	}
+
+	// Set DataHash
+	if !isEmpty {
 		header.DataHash = blockData.DACommitment()
 	} else {
 		header.DataHash = dataHashForEmptyTxs
@@ -893,15 +917,61 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 }
 
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
-	rawTxs := make([][]byte, len(data.Txs))
-	for i := range data.Txs {
-		rawTxs[i] = data.Txs[i]
-	}
+	var newStateRoot []byte
 
-	ctx = context.WithValue(ctx, types.SignedHeaderContextKey, header)
-	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
-	if err != nil {
-		return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)
+	// Check if we need to execute transactions
+	if m.executionMode == coreexecutor.ExecutionModeImmediate {
+		// For immediate mode, the aggregator already executed during block creation
+		// But syncing nodes need to execute to verify the AppHash
+		// Check if we're the block creator by verifying we signed this block
+		isBlockCreator := false
+		if m.signer != nil {
+			myAddress, err := m.signer.GetAddress()
+			if err == nil && bytes.Equal(header.ProposerAddress, myAddress) {
+				// Also verify this is the current height we're producing
+				currentHeight, err := m.store.Height(ctx)
+				if err == nil && header.Height() == currentHeight+1 {
+					isBlockCreator = true
+				}
+			}
+		}
+
+		if isBlockCreator {
+			// We created this block, so we already executed transactions in execCreateBlock
+			// Just use the AppHash from the header
+			newStateRoot = header.AppHash
+		} else {
+			// We're syncing this block, need to execute to verify AppHash
+			rawTxs := make([][]byte, len(data.Txs))
+			for i := range data.Txs {
+				rawTxs[i] = data.Txs[i]
+			}
+
+			ctx = context.WithValue(ctx, types.SignedHeaderContextKey, header)
+			computedStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
+			if err != nil {
+				return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)
+			}
+
+			// Verify the AppHash matches
+			if !bytes.Equal(header.AppHash, computedStateRoot) {
+				return types.State{}, fmt.Errorf("AppHash mismatch in immediate mode: expected %x, got %x", computedStateRoot, header.AppHash)
+			}
+			newStateRoot = computedStateRoot
+		}
+	} else {
+		// For delayed mode, always execute transactions
+		rawTxs := make([][]byte, len(data.Txs))
+		for i := range data.Txs {
+			rawTxs[i] = data.Txs[i]
+		}
+
+		ctx = context.WithValue(ctx, types.SignedHeaderContextKey, header)
+		var err error
+		newStateRoot, _, err = m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
+		if err != nil {
+			return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)
+		}
 	}
 
 	s, err := lastState.NextState(header, newStateRoot)

@@ -15,54 +15,31 @@ services:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
       - logs:/root/logs
+    entrypoint: /bin/sh -c
     command:
-      - node
-      - --chain
-      - /root/chain/genesis.json
-      - --metrics
-      - 0.0.0.0:9001
-      - --log.file.directory
-      - /root/logs
-      - --authrpc.addr
-      - 0.0.0.0
-      - --authrpc.port
-      - "8551"
-      - --authrpc.jwtsecret
-      - /root/jwt/jwt.hex
-      - --http
-      - --http.addr
-      - 0.0.0.0
-      - --http.port
-      - "8545"
-      - --http.api
-      - eth,net,web3,txpool
-      - --ws
-      - --ws.addr
-      - 0.0.0.0
-      - --ws.port
-      - "8546"
-      - --ws.api
-      - eth,net,web3
-      - --engine.persistence-threshold
-      - "0"
-      - --engine.memory-block-buffer-target
-      - "0"
-      - --disable-discovery
-      - --txpool.pending-max-count
-      - "200000"
-      - --txpool.pending-max-size
-      - "200"
-      - --txpool.queued-max-count
-      - "200000"
-      - --txpool.queued-max-size
-      - "200"
-      - --txpool.max-account-slots
-      - "2048"
-      - --txpool.max-new-txns
-      - "2048"
-      - --txpool.additional-validation-tasks
-      - "16"
-      - --rollkit.enable
+      - |
+          lumen node \
+            --chain /root/chain/genesis.json \
+            --metrics 0.0.0.0:9001 \
+            --log.file.directory /root/logs \
+            --authrpc.addr 0.0.0.0 \
+            --authrpc.port 8551 \
+            --authrpc.jwtsecret /root/jwt/jwt.hex \
+            --http --http.addr 0.0.0.0 --http.port 8545 \
+            --http.api eth,net,web3,txpool \
+            --ws --ws.addr 0.0.0.0 --ws.port 8546 \
+            --ws.api eth,net,web3 \
+            --engine.persistence-threshold 0 \
+            --engine.memory-block-buffer-target 0 \
+            --disable-discovery \
+            --txpool.pending-max-count 200000 \
+            --txpool.pending-max-size 200 \
+            --txpool.queued-max-count 200000 \
+            --txpool.queued-max-size 200 \
+            --txpool.max-account-slots 2048 \
+            --txpool.max-new-txns 2048 \
+            --txpool.additional-validation-tasks 16 \
+            --rollkit.enable
     networks:
       - rollkit-network
 

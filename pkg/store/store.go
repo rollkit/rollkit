@@ -13,16 +13,6 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
-var (
-	headerPrefix    = "h"
-	dataPrefix      = "d"
-	indexPrefix     = "i"
-	signaturePrefix = "c"
-	statePrefix     = "s"
-	metaPrefix      = "m"
-	heightPrefix    = "t"
-)
-
 // DefaultStore is a default store implmementation.
 type DefaultStore struct {
 	db ds.Batching

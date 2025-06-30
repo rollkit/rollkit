@@ -52,7 +52,7 @@ test-docker-e2e: docker-build-if-local
 		echo "--> Verifying Docker image exists locally..."; \
 		docker image inspect rollkit:local-dev >/dev/null 2>&1 || (echo "ERROR: rollkit:local-dev image not found. Run 'make docker-build' first." && exit 1); \
 	fi
-	@cd test/docker-e2e && go test -mod=readonly -failfast -tags='docker_e2e' -timeout=30m ./...
+	@cd test/docker-e2e && go test -mod=readonly -failfast -v -tags='docker_e2e' -timeout=30m ./...
 	@$(MAKE) docker-cleanup-if-local
 
 ## docker-build-if-local: Build Docker image if using local repository
@@ -74,4 +74,3 @@ docker-cleanup-if-local:
 		echo "--> Using remote repository, no cleanup needed"; \
 	fi
 .PHONY: docker-cleanup-if-local
-

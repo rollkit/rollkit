@@ -13,6 +13,7 @@ require (
 	cosmossdk.io/log v1.6.0
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
+	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
 	github.com/rollkit/rollkit/da v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/sequencers/single v0.0.0-00010101000000-000000000000
 	github.com/rs/zerolog v1.34.0
@@ -84,7 +85,7 @@ require (
 	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
 	github.com/libp2p/go-libp2p-kad-dht v0.29.1 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.6.5 // indirect
-	github.com/libp2p/go-libp2p-pubsub v0.14.0 // indirect
+	github.com/libp2p/go-libp2p-pubsub v0.14.1 // indirect
 	github.com/libp2p/go-libp2p-record v0.3.1 // indirect
 	github.com/libp2p/go-libp2p-routing-helpers v0.7.4 // indirect
 	github.com/libp2p/go-msgio v0.3.0 // indirect
@@ -147,7 +148,6 @@ require (
 	github.com/quic-go/quic-go v0.50.1 // indirect
 	github.com/quic-go/webtransport-go v0.8.1-0.20241018022711-4ac2c9250e66 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
-	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect

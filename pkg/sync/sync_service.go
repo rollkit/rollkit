@@ -382,10 +382,11 @@ func (syncService *SyncService[H]) getPeerIDs() []peer.ID {
 
 func getPeers(seeds string, logger log.Logger) []peer.ID {
 	var peerIDs []peer.ID
-	sl := strings.Split(seeds, ",")
-	if len(sl) == 0 {
+	if seeds == "" {
 		return peerIDs
 	}
+	sl := strings.Split(seeds, ",")
+
 	for _, seed := range sl {
 		maddr, err := multiaddr.NewMultiaddr(seed)
 		if err != nil {
