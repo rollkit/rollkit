@@ -54,16 +54,9 @@ func setupManagerForPublishBlockTest(
 	genesis := genesispkg.NewGenesis("testchain", initialHeight, time.Now(), proposerAddr)
 
 	_, cancel := context.WithCancel(context.Background())
-	// Use ipfs/go-log. For buffered output in tests, one might need to configure
-	// the underlying zap core, or use a PipeReader if exact log lines are needed for assertions.
-	// For now, creating a standard logger. If logBuffer assertions are critical, this needs more setup.
 	logger := logging.Logger("test")
-	if logBuffer != nil { // Basic way to try and redirect, though not a perfect NewLogger replacement
-		// This is a simplification. Real buffered logging with ipfs/go-log/v2 for tests
-		// would involve custom zapcore.Core setup.
-		// For now, we'll assume tests primarily check behavior, not exact log lines in a buffer.
-		// If log lines are checked, those tests might need adjustment.
-		_ = logging.SetLogLevel("test", "debug") // Ensure logs are produced if buffer is checked
+	if logBuffer != nil {
+		_ = logging.SetLogLevel("test", "debug")
 	}
 
 	lastSubmittedHeaderBytes := make([]byte, 8)
@@ -153,8 +146,6 @@ func TestPublishBlockInternal_MaxPendingHeadersAndDataReached(t *testing.T) {
 	err := manager.publishBlock(ctx)
 
 	require.Nil(err, "publishBlockInternal should not return an error (otherwise the chain would halt)")
-	// Note: With ipfs/go-log/v2, log buffer testing is not straightforward.
-	// The test verifies behavior by checking that no block creation methods were called.
 
 	mockStore.AssertExpectations(t)
 	mockExec.AssertNotCalled(t, "GetTxs", mock.Anything)
@@ -173,7 +164,7 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	mockSeq := mocks.NewMockSequencer(t)
 	mockExec := mocks.NewMockExecutor(t)
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP/TestLogger behavior
+	_ = logging.SetLogLevel("test", "FATAL")
 	chainID := "Test_publishBlock_NoBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
 	noopSigner, err := noopsigner.NewNoopSigner(privKey)
@@ -244,7 +235,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	mockSeq := mocks.NewMockSequencer(t)
 	mockExec := mocks.NewMockExecutor(t)
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP/TestLogger behavior
+	_ = logging.SetLogLevel("test", "FATAL")
 	chainID := "Test_publishBlock_EmptyBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
 	noopSigner, err := noopsigner.NewNoopSigner(privKey)

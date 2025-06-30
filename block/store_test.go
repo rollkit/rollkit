@@ -56,7 +56,7 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	genDoc, pk, _ := types.GetGenesisWithPrivkey("test") // Use test helper
 
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
+	_ = logging.SetLogLevel("test", "FATAL") 
 	ctx, cancel = context.WithCancel(context.Background())
 
 	// Mock initial metadata reads during manager creation if necessary

@@ -31,7 +31,7 @@ func fetchSignedHeader(ctx context.Context, store storepkg.Store, height uint64)
 }
 
 // NewPendingHeaders returns a new PendingHeaders struct
-func NewPendingHeaders(store storepkg.Store, logger logging.EventLogger) (*PendingHeaders, error) { // logger type updated
+func NewPendingHeaders(store storepkg.Store, logger logging.EventLogger) (*PendingHeaders, error) {
 	base, err := newPendingBase(store, logger, storepkg.LastSubmittedHeaderHeightKey, fetchSignedHeader)
 	if err != nil {
 		return nil, err

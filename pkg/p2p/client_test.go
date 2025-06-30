@@ -225,7 +225,7 @@ func TestSeedStringParsing(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			logger := logging.Logger("TestSeedStringParsing")
-			_ = logging.SetLogLevel("TestSeedStringParsing", "FATAL") // Attempt NOP behavior
+			_ = logging.SetLogLevel("TestSeedStringParsing", "FATAL") 
 			tempDir := t.TempDir()
 			ClientInitFiles(t, tempDir)
 

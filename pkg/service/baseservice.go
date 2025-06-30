@@ -56,7 +56,7 @@ func NewBaseService(logger logging.EventLogger, name string, impl Service) *Base
 		// or a logger with a nil core. For simplicity, we'll create a default logger
 		// and set its level if no logger is provided.
 		nopLogger := logging.Logger("nop")
-		_ = logging.SetLogLevel("nop", "FATAL") // Attempt NOP behavior
+		_ = logging.SetLogLevel("nop", "FATAL") 
 		logger = nopLogger
 	}
 	return &BaseService{

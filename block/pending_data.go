@@ -34,7 +34,7 @@ func fetchData(ctx context.Context, store store.Store, height uint64) (*types.Da
 }
 
 // NewPendingData returns a new PendingData struct
-func NewPendingData(store store.Store, logger logging.EventLogger) (*PendingData, error) { // logger type updated
+func NewPendingData(store store.Store, logger logging.EventLogger) (*PendingData, error) {
 	base, err := newPendingBase(store, logger, LastSubmittedDataHeightKey, fetchData)
 	if err != nil {
 		return nil, err

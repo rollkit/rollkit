@@ -24,7 +24,7 @@ func TestReaper_SubmitTxs_Success(t *testing.T) {
 	mockSeq := testmocks.NewMockSequencer(t)
 	store := dsync.MutexWrap(ds.NewMapDatastore())
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
+	_ = logging.SetLogLevel("test", "FATAL") 
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 
@@ -62,7 +62,7 @@ func TestReaper_SubmitTxs_NoTxs(t *testing.T) {
 	mockSeq := testmocks.NewMockSequencer(t)
 	store := dsync.MutexWrap(ds.NewMapDatastore())
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
+	_ = logging.SetLogLevel("test", "FATAL") 
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 
@@ -92,7 +92,7 @@ func TestReaper_TxPersistence_AcrossRestarts(t *testing.T) {
 
 	store := dsync.MutexWrap(ds.NewMapDatastore())
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
+	_ = logging.SetLogLevel("test", "FATAL") 
 	chainID := "test-chain"
 	interval := 100 * time.Millisecond
 

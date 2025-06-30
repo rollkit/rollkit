@@ -37,9 +37,6 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	mockSeq := mocks.NewMockSequencer(t)
 	mockDAC := mocks.NewMockDA(t)
 	logger := logging.Logger("test")
-	// To get similar behavior to NewTestLogger, ensure test output is configured if needed.
-	// For now, a basic logger instance is created.
-	// If specific test logging (like failing on Error) is needed, it requires custom setup or a test helper.
 
 	m := &Manager{
 		store:     mockStore,

@@ -60,7 +60,7 @@ func createTestComponents(t *testing.T, config rollkitconfig.Config) (coreexecut
 		PubKey:  genesisValidatorKey.GetPublic(),
 	}
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
+	_ = logging.SetLogLevel("test", "FATAL") 
 	p2pClient, err := p2p.NewClient(config, p2pKey, dssync.MutexWrap(datastore.NewMapDatastore()), logger, p2p.NopMetrics())
 	require.NoError(t, err)
 	require.NotNil(t, p2pClient)

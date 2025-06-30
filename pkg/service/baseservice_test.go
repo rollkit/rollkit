@@ -23,7 +23,7 @@ func newDummyService(name string, runError error) *dummyService {
 		runError: runError,
 	}
 	nopLogger := logging.Logger("test-nop")
-	_ = logging.SetLogLevel("test-nop", "FATAL") // Attempt NOP behavior
+	_ = logging.SetLogLevel("test-nop", "FATAL") 
 	d.BaseService = NewBaseService(nopLogger, name, d)
 	return d
 }
@@ -74,7 +74,7 @@ func TestBaseService_Run(t *testing.T) {
 				bs = ds.BaseService
 			} else {
 				nopLogger := logging.Logger("test-nop")
-				_ = logging.SetLogLevel("test-nop", "FATAL") // Attempt NOP behavior
+				_ = logging.SetLogLevel("test-nop", "FATAL") 
 				bs = NewBaseService(nopLogger, "dummy", nil)
 			}
 
@@ -106,7 +106,7 @@ func TestBaseService_Run(t *testing.T) {
 func TestBaseService_String(t *testing.T) {
 	serviceName := "test-service"
 	nopLogger := logging.Logger("test-nop")
-	_ = logging.SetLogLevel("test-nop", "FATAL") // Attempt NOP behavior
+	_ = logging.SetLogLevel("test-nop", "FATAL") 
 	bs := NewBaseService(nopLogger, serviceName, nil)
 
 	if bs.String() != serviceName {

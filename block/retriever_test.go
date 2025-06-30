@@ -368,10 +368,6 @@ func TestProcessNextDAHeaderAndData_UnmarshalHeaderError(t *testing.T) {
 		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 	}
 
-	mockLogger.On("Debug", "failed to unmarshal header", "error", mock.Anything).Return().Once()
-	mockLogger.On("Debug", "failed to unmarshal signed data", "error", mock.Anything).Return().Once()
-
-
 	ctx := context.Background()
 	err := manager.processNextDAHeaderAndData(ctx)
 	require.NoError(t, err)
@@ -434,9 +430,6 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 	}
-
-	mockLogger.On("Debug", "skipping header from unexpected sequencer", "proposer", mock.Anything, "expected_proposer", mock.Anything).Return().Once()
-
 
 	ctx := context.Background()
 	err = manager.processNextDAHeaderAndData(ctx)
@@ -574,7 +567,6 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 	mockLogger.On("Debug", "header already seen", "height", blockHeight, "block hash", headerHash).Return().Maybe()
 	mockLogger.On("Debug", "data already seen", "data hash", dataHash).Return().Maybe()
 
-
 	ctx := context.Background()
 	err = manager.processNextDAHeaderAndData(ctx)
 	require.NoError(t, err)
@@ -676,7 +668,6 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 	}
 
-
 	// Mock all expected logger calls in order for the error path
 	// The "Retrieve helper: Failed to get IDs" is logged inside RetrieveWithHelpers.
 	mockLogger.On("Error", "Retrieve helper: Failed to get IDs", "height", startDAHeight, "error", otherErr).Times(dAFetcherRetries)
@@ -686,7 +677,6 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 		// For simplicity, we'll let it be called multiple times and check errorLogged after loop.
 		errorLogged.Store(true)
 	}).Once() // Expect this once since the loop aggregates errors
-
 
 	ctx, loopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer loopCancel()
@@ -700,7 +690,7 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 
 	// Give the goroutine time to start
 	time.Sleep(10 * time.Millisecond)
-	
+
 	manager.retrieveCh <- struct{}{}
 
 	// Wait for the context to timeout or the goroutine to finish
