@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -56,7 +56,7 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	genDoc, pk, _ := types.GetGenesisWithPrivkey("test") // Use test helper
 
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	ctx, cancel = context.WithCancel(context.Background())
 
 	// Mock initial metadata reads during manager creation if necessary

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
+	logging "github.com/ipfs/go-log/v2"
 	libp2p "github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -225,7 +225,7 @@ func TestSeedStringParsing(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			logger := logging.Logger("TestSeedStringParsing")
-			_ = logging.SetLogLevel("TestSeedStringParsing", "FATAL") 
+			_ = logging.SetLogLevel("TestSeedStringParsing", "FATAL")
 			tempDir := t.TempDir()
 			ClientInitFiles(t, tempDir)
 

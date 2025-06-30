@@ -17,7 +17,7 @@ import (
 
 func TestSubmitWithHelpers(t *testing.T) {
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 
 	testCases := []struct {
 		name           string
@@ -139,7 +139,7 @@ func TestSubmitWithHelpers(t *testing.T) {
 
 func TestRetrieveWithHelpers(t *testing.T) {
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	dataLayerHeight := uint64(100)
 	mockIDs := [][]byte{[]byte("id1"), []byte("id2")}
 	mockBlobs := [][]byte{[]byte("blobA"), []byte("blobB")}
