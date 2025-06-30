@@ -43,14 +43,14 @@ type Service interface {
 
 // BaseService provides a basic implementation of the Service interface.
 type BaseService struct {
-	Logger logging.EventLogger // Changed type to logging.EventLogger
+	Logger logging.EventLogger
 	name   string
 	impl   Service // Implementation that can override Run behavior
 }
 
 // NewBaseService creates a new BaseService.
 // The provided implementation (impl) should be the "subclass" that implements Run.
-func NewBaseService(logger logging.EventLogger, name string, impl Service) *BaseService { // Changed logger type
+func NewBaseService(logger logging.EventLogger, name string, impl Service) *BaseService {
 	if logger == nil {
 		// For ipfs/go-log, a "Nop" equivalent would be a logger with level set to FATAL,
 		// or a logger with a nil core. For simplicity, we'll create a default logger
@@ -67,7 +67,7 @@ func NewBaseService(logger logging.EventLogger, name string, impl Service) *Base
 }
 
 // SetLogger sets the logger.
-func (bs *BaseService) SetLogger(l logging.EventLogger) { // Changed logger type
+func (bs *BaseService) SetLogger(l logging.EventLogger) {
 	bs.Logger = l
 }
 

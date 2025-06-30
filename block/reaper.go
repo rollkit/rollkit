@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -22,14 +22,14 @@ type Reaper struct {
 	sequencer coresequencer.Sequencer
 	chainID   string
 	interval  time.Duration
-	logger    logging.EventLogger // Changed type to logging.EventLogger
+	logger    logging.EventLogger
 	ctx       context.Context
 	seenStore ds.Batching
 	manager   *Manager
 }
 
 // NewReaper creates a new Reaper instance with persistent seenTx storage.
-func NewReaper(ctx context.Context, exec coreexecutor.Executor, sequencer coresequencer.Sequencer, chainID string, interval time.Duration, logger logging.EventLogger, store ds.Batching) *Reaper { // Changed logger type
+func NewReaper(ctx context.Context, exec coreexecutor.Executor, sequencer coresequencer.Sequencer, chainID string, interval time.Duration, logger logging.EventLogger, store ds.Batching) *Reaper {
 	if interval <= 0 {
 		interval = DefaultInterval
 	}

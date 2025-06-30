@@ -388,7 +388,6 @@ func TestStartNodeErrors(t *testing.T) {
 			if tc.cmdModifier != nil {
 				tc.cmdModifier(cmd)
 			}
-			currentLogger := logging.Logger("test")
 			_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior for this specific test section
 
 			runFunc := func() {

@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	testutils "github.com/celestiaorg/utils/test"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
@@ -125,7 +125,7 @@ func newTestNode(
 		genesis,
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
-		logging.Logger("test"), // Use ipfs/go-log for testing
+		logging.Logger("test"),
 		nil,
 	)
 	require.NoError(t, err)
@@ -190,7 +190,7 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 		genesis,
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
-		logging.Logger("test"), // Use ipfs/go-log for testing
+		logging.Logger("test"),
 		nil,
 	)
 	require.NoError(err)
@@ -228,7 +228,7 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 			genesis,
 			dssync.MutexWrap(datastore.NewMapDatastore()),
 			DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
-			logging.Logger("test"), // Use ipfs/go-log for testing
+			logging.Logger("test"),
 			nil,
 		)
 		require.NoError(err)

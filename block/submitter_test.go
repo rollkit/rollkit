@@ -247,7 +247,7 @@ func runRetryPartialFailuresCase[T any](t *testing.T, tc retryPartialFailuresCas
 	m := newTestManagerWithDA(t, nil)
 	mockStore := mocks.NewMockStore(t)
 	m.store = mockStore
-	m.logger = logging.Logger("test") // Use ipfs/go-log for testing
+	m.logger = logging.Logger("test")
 	// No direct TestLogger equivalent for auto-fail, ensure test logic handles errors.
 	_ = logging.SetLogLevel("test", "debug") // Or other appropriate level for test debugging
 	da := &mocks.MockDA{}
@@ -392,8 +392,8 @@ func TestCreateSignedDataToSubmit(t *testing.T) {
 	t.Run("getPendingData returns error", func(t *testing.T) {
 		m := newTestManagerWithDA(t, nil)
 		mockStore := mocks.NewMockStore(t)
-	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
+		logger := logging.Logger("test")
+		_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
 		mockStore.On("GetMetadata", mock.Anything, "last-submitted-data-height").Return(nil, ds.ErrNotFound).Once()
 		mockStore.On("Height", mock.Anything).Return(uint64(1), nil).Once()
 		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(nil, nil, fmt.Errorf("mock error")).Once()

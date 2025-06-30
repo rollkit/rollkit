@@ -26,10 +26,6 @@ var RunCmd = &cobra.Command{
 	Aliases: []string{"node", "run"},
 	Short:   "Run the rollkit node with EVM execution client",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Logger setup is now primarily handled by rollcmd.SetupLogger using ipfs/go-log/v2
-		// The command line flag config.FlagLogLevel will be read by rollcmd.ParseConfig,
-		// and then rollcmd.SetupLogger will use it.
-
 		executor, err := createExecutionClient(cmd)
 		if err != nil {
 			return err
@@ -40,10 +36,8 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		// logger is now logging.EventLogger
 		logger := rollcmd.SetupLogger(nodeConfig.Log)
 
-		// Pass logger to NewClient, assuming it expects logging.EventLogger or compatible interface
 		daJrpc, err := jsonrpc.NewClient(context.Background(), logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 		if err != nil {
 			return err
@@ -54,14 +48,14 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-	singleMetrics, err := single.DefaultMetricsProvider(nodeConfig.Instrumentation.IsPrometheusEnabled())(nodeConfig.ChainID)
-	if err != nil {
-		return err
-	}
+		singleMetrics, err := single.DefaultMetricsProvider(nodeConfig.Instrumentation.IsPrometheusEnabled())(nodeConfig.ChainID)
+		if err != nil {
+			return err
+		}
 
 		sequencer, err := single.NewSequencer(
 			context.Background(),
-			logger, // Pass logger (logging.EventLogger)
+			logger,
 			datastore,
 			&daJrpc.DA,
 			[]byte(nodeConfig.ChainID),
@@ -78,12 +72,12 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, nil) // Pass logger (logging.EventLogger)
+		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, nil)
 		if err != nil {
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, nil) // Pass logger (logging.EventLogger)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, nil)
 	},
 }
 

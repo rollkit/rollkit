@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/rollkit/rollkit/pkg/store"
 )
@@ -17,7 +17,7 @@ import (
 // that need to be published to the DA layer in order. It handles persistence
 // of the last submitted height and provides methods for retrieving pending items.
 type pendingBase[T any] struct {
-	logger     logging.EventLogger // Changed type to logging.EventLogger
+	logger     logging.EventLogger
 	store      store.Store
 	metaKey    string
 	fetch      func(ctx context.Context, store store.Store, height uint64) (T, error)
@@ -25,7 +25,7 @@ type pendingBase[T any] struct {
 }
 
 // newPendingBase constructs a new pendingBase for a given type.
-func newPendingBase[T any](store store.Store, logger logging.EventLogger, metaKey string, fetch func(ctx context.Context, store store.Store, height uint64) (T, error)) (*pendingBase[T], error) { // Changed logger type
+func newPendingBase[T any](store store.Store, logger logging.EventLogger, metaKey string, fetch func(ctx context.Context, store store.Store, height uint64) (T, error)) (*pendingBase[T], error) {
 	pb := &pendingBase[T]{
 		store:   store,
 		logger:  logger,

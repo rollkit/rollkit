@@ -20,7 +20,7 @@ var placeholder = []byte("placeholder")
 func SubmitWithHelpers(
 	ctx context.Context,
 	da coreda.DA, // Use the core DA interface
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 	data [][]byte,
 	gasPrice float64,
 	options []byte,
@@ -101,7 +101,7 @@ func SubmitWithHelpers(
 func RetrieveWithHelpers(
 	ctx context.Context,
 	da coreda.DA,
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 	dataLayerHeight uint64,
 	namespace []byte,
 ) coreda.ResultRetrieve {

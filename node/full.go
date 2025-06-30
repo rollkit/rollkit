@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -80,7 +80,7 @@ func newFullNode(
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
 	metricsProvider MetricsProvider,
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (fn *FullNode, err error) {
 	seqMetrics, _ := metricsProvider(genesis.ChainID)
@@ -154,7 +154,7 @@ func initHeaderSyncService(
 	nodeConfig config.Config,
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 ) (*rollkitsync.HeaderSyncService, error) {
 	headerSyncService, err := rollkitsync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logging.Logger("HeaderSyncService")) // Get HeaderSyncService's own logger
 	if err != nil {
@@ -168,7 +168,7 @@ func initDataSyncService(
 	nodeConfig config.Config,
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 ) (*rollkitsync.DataSyncService, error) {
 	dataSyncService, err := rollkitsync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logging.Logger("DataSyncService")) // Get DataSyncService's own logger
 	if err != nil {
@@ -194,7 +194,7 @@ func initBlockManager(
 	store store.Store,
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
-	logger logging.EventLogger, // Changed logger type
+	logger logging.EventLogger,
 	headerSyncService *rollkitsync.HeaderSyncService,
 	dataSyncService *rollkitsync.DataSyncService,
 	seqMetrics *block.Metrics,
@@ -533,12 +533,12 @@ func (n *FullNode) IsRunning() bool {
 }
 
 // SetLogger sets the logger used by node.
-func (n *FullNode) SetLogger(logger logging.EventLogger) { // Changed logger type
+func (n *FullNode) SetLogger(logger logging.EventLogger) {
 	n.Logger = logger
 }
 
 // GetLogger returns logger.
-func (n *FullNode) GetLogger() logging.EventLogger { // Changed logger type
+func (n *FullNode) GetLogger() logging.EventLogger {
 	return n.Logger
 }
 
