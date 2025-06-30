@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -22,7 +22,9 @@ func newTestSequencer(t *testing.T) *based.Sequencer {
 	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5, getTestDABlockTime())
 	dummyDA.StartHeightTicker()
 	store := ds.NewMapDatastore()
-	seq, err := based.NewSequencer(log.NewNopLogger(), dummyDA, []byte("test1"), 0, 2, store)
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
+	seq, err := based.NewSequencer(logger, dummyDA, []byte("test1"), 0, 2, store)
 	assert.NoError(t, err)
 	return seq
 }
@@ -94,7 +96,9 @@ func TestSequencer_GetNextBatch_Invalid(t *testing.T) {
 func TestSequencer_GetNextBatch_ExceedsMaxDrift(t *testing.T) {
 	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5, 10*time.Second)
 	store := ds.NewMapDatastore()
-	sequencer, err := based.NewSequencer(log.NewNopLogger(), dummyDA, []byte("test1"), 0, 0, store)
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
+	sequencer, err := based.NewSequencer(logger, dummyDA, []byte("test1"), 0, 0, store)
 	assert.NoError(t, err)
 
 	ctx := context.Background()

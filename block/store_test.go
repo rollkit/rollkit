@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -55,7 +55,8 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	nodeConf := config.DefaultConfig
 	genDoc, pk, _ := types.GetGenesisWithPrivkey("test") // Use test helper
 
-	logger := log.NewNopLogger()
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
 	ctx, cancel = context.WithCancel(context.Background())
 
 	// Mock initial metadata reads during manager creation if necessary

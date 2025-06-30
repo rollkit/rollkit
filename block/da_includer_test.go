@@ -24,10 +24,21 @@ func newTestManager(t *testing.T) (*Manager, *mocks.MockStore, *mocks.MockExecut
 	store := mocks.NewMockStore(t)
 	exec := mocks.NewMockExecutor(t)
 	logger := new(MockLogger)
-	logger.On("Debug", mock.Anything, mock.Anything).Maybe()
-	logger.On("Info", mock.Anything, mock.Anything).Maybe()
-	logger.On("Warn", mock.Anything, mock.Anything).Maybe()
-	logger.On("Error", mock.Anything, mock.Anything).Maybe()
+
+	// Allow logging calls with message string and optional key-value pairs (up to 2 pairs / 4 args for simplicity)
+	logger.On("Debug", mock.AnythingOfType("string")).Maybe()
+	logger.On("Debug", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
+	logger.On("Debug", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+	logger.On("Info", mock.AnythingOfType("string")).Maybe()
+	logger.On("Info", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
+	logger.On("Info", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+	logger.On("Warn", mock.AnythingOfType("string")).Maybe()
+	logger.On("Warn", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
+	logger.On("Warn", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+	logger.On("Error", mock.AnythingOfType("string")).Maybe()
+	logger.On("Error", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
+	logger.On("Error", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+
 	// Mock Height to always return a high value so IsDAIncluded works
 	store.On("Height", mock.Anything).Return(uint64(100), nil).Maybe()
 	m := &Manager{
@@ -167,8 +178,16 @@ func TestDAIncluderLoop_StopsOnGetBlockDataError(t *testing.T) {
 	store.On("GetBlockData", mock.Anything, uint64(5)).Return(nil, nil, assert.AnError).Once()
 
 	// Expect the debug log for no more blocks to check
-	mockLogger.ExpectedCalls = nil // Clear any previous expectations
-	mockLogger.On("Debug", "no more blocks to check at this time", mock.Anything).Once()
+	mockLogger.ExpectedCalls = nil // Clear any previous expectations for specific checks
+	// Re-establish general Maybe calls after clearing, then specific Once call
+	mockLogger.On("Debug", mock.AnythingOfType("string")).Maybe()
+	mockLogger.On("Debug", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Debug", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+	// Add other Maybe calls if Info/Warn/Error might also occur and are not asserted
+	mockLogger.On("Info", mock.AnythingOfType("string")).Maybe()
+
+
+	mockLogger.On("Debug", "no more blocks to check at this time").Once() // Adjusted for new MockLogger behavior
 
 	ctx, loopCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer loopCancel()
@@ -224,9 +243,19 @@ func TestIncrementDAIncludedHeight_SetMetadataError(t *testing.T) {
 	store.On("SetMetadata", mock.Anything, storepkg.DAIncludedHeightKey, heightBytes).Return(assert.AnError).Once()
 
 	// Expect the error log for failed to set DA included height
-	mockLogger.ExpectedCalls = nil // Clear any previous expectations
-	mockLogger.On("Error", "failed to set DA included height", []interface{}{"height", expectedDAIncludedHeight, "error", assert.AnError}).Once()
-	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
+	mockLogger.ExpectedCalls = nil // Clear any previous expectations for specific checks
+	// Re-establish general Maybe calls
+	mockLogger.On("Debug", mock.AnythingOfType("string")).Maybe()
+	mockLogger.On("Debug", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Debug", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Info", mock.AnythingOfType("string")).Maybe()
+	mockLogger.On("Warn", mock.AnythingOfType("string")).Maybe() // Add if Warn can occur
+	mockLogger.On("Error", mock.AnythingOfType("string")).Maybe() // General Error maybe
+	mockLogger.On("Error", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Error", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+
+
+	mockLogger.On("Error", "failed to set DA included height", "height", expectedDAIncludedHeight, "error", assert.AnError).Once()
 
 	err := m.incrementDAIncludedHeight(context.Background())
 	assert.Error(t, err)
@@ -251,11 +280,20 @@ func TestIncrementDAIncludedHeight_SetFinalError(t *testing.T) {
 	exec.On("SetFinal", mock.Anything, expectedDAIncludedHeight).Return(setFinalErr).Once()
 	// SetMetadata should NOT be called if SetFinal fails
 
-	mockLogger.ExpectedCalls = nil // Clear any previous expectations
+	mockLogger.ExpectedCalls = nil // Clear any previous expectations for specific checks
+	// Re-establish general Maybe calls
+	mockLogger.On("Debug", mock.AnythingOfType("string")).Maybe()
+	mockLogger.On("Debug", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Debug", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Info", mock.AnythingOfType("string")).Maybe()
+	mockLogger.On("Warn", mock.AnythingOfType("string")).Maybe()
+	mockLogger.On("Error", mock.AnythingOfType("string")).Maybe()
+	mockLogger.On("Error", mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Error", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+
 	// Expect the error log for failed to set final
-	mockLogger.On("Error", "failed to set final", mock.Anything).Once()
-	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
-	mockLogger.On("Error", mock.Anything, mock.Anything).Maybe() // Allow other error logs
+	// The actual log call is logger.Error("failed to set final", "height", heightToFinalize, "error", err)
+	mockLogger.On("Error", "failed to set final", "height", expectedDAIncludedHeight, "error", setFinalErr).Once()
 
 	err := m.incrementDAIncludedHeight(context.Background())
 	assert.Error(t, err)

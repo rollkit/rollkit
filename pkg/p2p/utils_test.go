@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -67,7 +67,7 @@ func getAddr(sk crypto.PrivKey) (multiaddr.Multiaddr, error) {
 	return a, nil
 }
 
-func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hostDescr, logger log.Logger) testNet {
+func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hostDescr, logger logging.EventLogger) testNet { // Changed logger type
 	t.Helper()
 	require := require.New(t)
 

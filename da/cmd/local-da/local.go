@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	coreda "github.com/rollkit/rollkit/core/da"
 )
 
@@ -32,7 +32,7 @@ type LocalDA struct {
 	privKey     ed25519.PrivateKey
 	pubKey      ed25519.PublicKey
 
-	logger log.Logger
+	logger logging.EventLogger // Changed type to logging.EventLogger
 }
 
 type kvp struct {
@@ -40,13 +40,19 @@ type kvp struct {
 }
 
 // NewLocalDA create new instance of DummyDA
-func NewLocalDA(logger log.Logger, opts ...func(*LocalDA) *LocalDA) *LocalDA {
+func NewLocalDA(logger logging.EventLogger, opts ...func(*LocalDA) *LocalDA) *LocalDA { // Changed logger type
 	da := &LocalDA{
 		mu:          new(sync.Mutex),
 		data:        make(map[uint64][]kvp),
 		timestamps:  make(map[uint64]time.Time),
 		maxBlobSize: DefaultMaxBlobSize,
-		logger:      logger.With("module", "local-da"),
+		// ipfs/go-log manages subsystems by logger name.
+		// If the passed-in logger is already for "local-da", this is fine.
+		// If it's a general logger, we'd typically get a new one: logging.Logger("local-da")
+		// Assuming the logger passed in is already appropriately scoped or the caller handles this.
+		// If a specific "local-da" subsystem logger is always desired here,
+		// it should be created using logging.Logger("local-da") instead of using With.
+		logger: logger,
 	}
 	for _, f := range opts {
 		da = f(da)

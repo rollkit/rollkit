@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/pkg/config"
@@ -40,9 +40,9 @@ func newLightNode(
 	genesis genesis.Genesis,
 	p2pClient *p2p.Client,
 	database ds.Batching,
-	logger log.Logger,
+	logger logging.EventLogger, // Changed logger type
 ) (ln *LightNode, err error) {
-	headerSyncService, err := sync.NewHeaderSyncService(database, conf, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := sync.NewHeaderSyncService(database, conf, genesis, p2pClient, logging.Logger("HeaderSyncService")) // Get HeaderSyncService's own logger
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}

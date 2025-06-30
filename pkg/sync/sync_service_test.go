@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	sdklog "cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -43,7 +43,9 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	conf.RootDir = t.TempDir()
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Dir(conf.ConfigPath()))
 	require.NoError(t, err)
-	logger := sdklog.NewTestLogger(t)
+	logger := logging.Logger("test")
+	// No direct TestLogger equivalent for auto-fail, ensure test logic handles errors.
+	_ = logging.SetLogLevel("test", "debug") // Or other appropriate level for test debugging
 	priv := nodeKey.PrivKey
 	h, err := mn.AddPeer(priv, nil)
 	require.NoError(t, err)

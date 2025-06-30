@@ -12,7 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"connectrpc.com/grpcreflect"
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -29,11 +29,11 @@ import (
 // StoreServer implements the StoreService defined in the proto file
 type StoreServer struct {
 	store  store.Store
-	logger log.Logger
+	logger logging.EventLogger // Changed type to logging.EventLogger
 }
 
 // NewStoreServer creates a new StoreServer instance
-func NewStoreServer(store store.Store, logger log.Logger) *StoreServer {
+func NewStoreServer(store store.Store, logger logging.EventLogger) *StoreServer { // Changed logger type
 	return &StoreServer{
 		store:  store,
 		logger: logger,
@@ -239,7 +239,7 @@ func (h *HealthServer) Livez(
 }
 
 // NewServiceHandler creates a new HTTP handler for Store, P2P and Health services
-func NewServiceHandler(store store.Store, peerManager p2p.P2PRPC, logger log.Logger) (http.Handler, error) {
+func NewServiceHandler(store store.Store, peerManager p2p.P2PRPC, logger logging.EventLogger) (http.Handler, error) { // Changed logger type
 	storeServer := NewStoreServer(store, logger)
 	p2pServer := NewP2PServer(peerManager)
 	healthServer := NewHealthServer()

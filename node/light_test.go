@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
 	ds_sync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
@@ -37,7 +37,8 @@ func TestLightNodeLifecycle(t *testing.T) {
 	p2pKey, err := p2p_key.GenerateNodeKey()
 	require.NoError(err)
 
-	logger := log.NewNopLogger()
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL") // Attempt NOP behavior
 	p2pMetrics := p2p.NopMetrics()
 
 	db := ds_sync.MutexWrap(ds.NewMapDatastore())

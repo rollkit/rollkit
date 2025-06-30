@@ -5,14 +5,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"cosmossdk.io/log"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
 	kvexecutor "github.com/rollkit/rollkit/apps/testapp/kv"
 	"github.com/rollkit/rollkit/da/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/store"
@@ -24,21 +21,16 @@ var RunCmd = &cobra.Command{
 	Aliases: []string{"node", "run"},
 	Short:   "Run the testapp node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		opts := []log.Option{}
-		logLevel, _ := cmd.Flags().GetString(config.FlagLogLevel)
-		if logLevel != "" {
-			zl, err := zerolog.ParseLevel(logLevel)
-			if err != nil {
-				return err
-			}
-			opts = append(opts, log.LevelOption(zl))
-		}
+		// Logger setup is now primarily handled by rollcmd.SetupLogger using ipfs/go-log/v2
+		// The command line flag config.FlagLogLevel will be read by rollcmd.ParseConfig,
+		// and then rollcmd.SetupLogger will use it.
 
 		nodeConfig, err := rollcmd.ParseConfig(cmd)
 		if err != nil {
 			return err
 		}
 
+		// logger is now logging.EventLogger
 		logger := rollcmd.SetupLogger(nodeConfig.Log)
 
 		// Get KV endpoint flag
@@ -56,6 +48,7 @@ var RunCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
+		// Pass logger to NewClient, assuming it expects logging.EventLogger or compatible interface
 		daJrpc, err := jsonrpc.NewClient(ctx, logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 		if err != nil {
 			return err
@@ -89,7 +82,7 @@ var RunCmd = &cobra.Command{
 
 		sequencer, err := single.NewSequencer(
 			ctx,
-			logger,
+			logger, // Pass logger (logging.EventLogger)
 			datastore,
 			&daJrpc.DA,
 			[]byte(nodeConfig.ChainID),
@@ -101,11 +94,11 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, p2p.NopMetrics())
+		p2pClient, err := p2p.NewClient(nodeConfig, nodeKey, datastore, logger, p2p.NopMetrics()) // Pass logger (logging.EventLogger)
 		if err != nil {
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, nil)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, nil) // Pass logger (logging.EventLogger)
 	},
 }

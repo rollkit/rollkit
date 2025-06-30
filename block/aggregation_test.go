@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -36,7 +36,10 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	mockExec := mocks.NewMockExecutor(t)
 	mockSeq := mocks.NewMockSequencer(t)
 	mockDAC := mocks.NewMockDA(t)
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("test") // Use ipfs/go-log for testing
+	// To get similar behavior to NewTestLogger, ensure test output is configured if needed.
+	// For now, a basic logger instance is created.
+	// If specific test logging (like failing on Error) is needed, it requires custom setup or a test helper.
 
 	m := &Manager{
 		store:     mockStore,
@@ -131,7 +134,7 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 	mockSeq := mocks.NewMockSequencer(t)
 	mockDAC := mocks.NewMockDA(t)
 
-	mockLogger := log.NewTestLogger(t)
+	logger := logging.Logger("test") // Use ipfs/go-log for testing
 
 	// Create a basic Manager instance
 	m := &Manager{
@@ -139,7 +142,7 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 		exec:      mockExec,
 		sequencer: mockSeq,
 		da:        mockDAC,
-		logger:    mockLogger,
+		logger:    logger,
 		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime: config.DurationWrapper{Duration: blockTime},
