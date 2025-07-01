@@ -70,8 +70,8 @@ const (
 
 	// Test configuration
 	DefaultBlockTime   = "100ms"
-	DefaultDABlockTime = "1m"
-	DefaultTestTimeout = 20 * time.Second
+	DefaultDABlockTime = "1s"
+	DefaultTestTimeout = 10 * time.Second
 	DefaultChainID     = "1234"
 	DefaultGasLimit    = 22000
 
@@ -81,28 +81,27 @@ const (
 	TestPassphrase = "secret"
 )
 
-// setupTestRethEngineE2E sets up a Reth EVM engine for E2E testing using Docker Compose.
-// This creates the sequencer's EVM instance on standard ports (8545/8551).
-//
-// Returns: JWT secret string for authenticating with the EVM engine
+const (
+	FastPollingInterval = 50 * time.Millisecond  // Reduced from 100ms
+	SlowPollingInterval = 250 * time.Millisecond // Reduced from 500ms
+
+	ContainerReadinessTimeout = 3 * time.Second // Reduced from 5s
+	P2PDiscoveryTimeout       = 3 * time.Second // Reduced from 5s
+	NodeStartupTimeout        = 4 * time.Second // Reduced from 8s
+
+	// Log optimization - reduce verbosity for faster I/O
+	LogBufferSize = 1024 // Smaller buffer for faster processing
+)
+
 func setupTestRethEngineE2E(t *testing.T) string {
+	t.Helper()
 	return evm.SetupTestRethEngine(t, dockerPath, "jwt.hex")
 }
 
 // setupTestRethEngineFullNode sets up a Reth EVM engine for full node testing.
-// This creates a separate EVM instance using docker-compose-full-node.yml with:
-// - Different ports (8555/8561) to avoid conflicts with sequencer
-// - Separate JWT token generation and management
-// - Independent Docker network and volumes
-//
-// Returns: JWT secret string for authenticating with the full node's EVM engine
 func setupTestRethEngineFullNode(t *testing.T) string {
-	jwtSecretHex := evm.SetupTestRethEngineFullNode(t, dockerPath, "jwt.hex")
-
-	err := waitForRethContainerAt(t, jwtSecretHex, FullNodeEthURL, FullNodeEngineURL)
-	require.NoError(t, err, "Reth container should be ready at full node ports")
-
-	return jwtSecretHex
+	t.Helper()
+	return evm.SetupTestRethEngineFullNode(t, dockerPath, "jwt.hex")
 }
 
 // decodeSecret decodes a hex-encoded JWT secret string into a byte slice.
@@ -141,8 +140,8 @@ func getAuthToken(jwtSecret []byte) (string, error) {
 // Returns: Error if timeout occurs, nil if both endpoints become ready
 func waitForRethContainerAt(t *testing.T, jwtSecret, ethURL, engineURL string) error {
 	t.Helper()
-	client := &http.Client{Timeout: 100 * time.Millisecond}
-	timer := time.NewTimer(15 * time.Second)
+	client := &http.Client{Timeout: FastPollingInterval}
+	timer := time.NewTimer(ContainerReadinessTimeout)
 	defer timer.Stop()
 	for {
 		select {
@@ -180,7 +179,7 @@ func waitForRethContainerAt(t *testing.T, jwtSecret, ethURL, engineURL string) e
 					return nil
 				}
 			}
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(FastPollingInterval)
 		}
 	}
 }
@@ -199,7 +198,6 @@ func extractP2PID(t *testing.T, sut *SystemUnderTest) string {
 	p2pRegex := regexp.MustCompile(`listening on address=/ip4/127\.0\.0\.1/tcp/7676/p2p/([A-Za-z0-9]+)`)
 	p2pIDRegex := regexp.MustCompile(`/p2p/([A-Za-z0-9]+)`)
 
-	// Use require.Eventually to poll for P2P ID log message instead of hardcoded sleep
 	require.Eventually(t, func() bool {
 		var allLogLines []string
 
@@ -236,7 +234,7 @@ func extractP2PID(t *testing.T, sut *SystemUnderTest) string {
 
 		// Return true if P2P ID found, false to continue polling
 		return p2pID != ""
-	}, 10*time.Second, 200*time.Millisecond, "P2P ID should be available in sequencer logs")
+	}, P2PDiscoveryTimeout, FastPollingInterval, "P2P ID should be available in sequencer logs")
 
 	// If P2P ID found in logs, use it (this would be the ideal case)
 	if p2pID != "" {
@@ -288,7 +286,7 @@ func setupSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSe
 		"--rollkit.da.address", DAAddress,
 		"--rollkit.da.block_time", DefaultDABlockTime,
 	)
-	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
+	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout)
 }
 
 // setupSequencerNodeLazy initializes and starts the sequencer node in lazy mode.
@@ -320,7 +318,7 @@ func setupSequencerNodeLazy(t *testing.T, sut *SystemUnderTest, sequencerHome, j
 		"--rollkit.da.address", DAAddress,
 		"--rollkit.da.block_time", DefaultDABlockTime,
 	)
-	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
+	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout)
 }
 
 // setupFullNode initializes and starts the full node with P2P connection to sequencer.
@@ -369,7 +367,7 @@ func setupFullNode(t *testing.T, sut *SystemUnderTest, fullNodeHome, sequencerHo
 		"--rollkit.da.address", DAAddress,
 		"--rollkit.da.block_time", DefaultDABlockTime,
 	)
-	sut.AwaitNodeUp(t, "http://127.0.0.1:"+FullNodeRPCPort, 10*time.Second)
+	sut.AwaitNodeUp(t, "http://127.0.0.1:"+FullNodeRPCPort, NodeStartupTimeout)
 }
 
 // Global nonce counter to ensure unique nonces across multiple transaction submissions
@@ -405,7 +403,7 @@ func submitTransactionAndGetBlockNumber(t *testing.T, sequencerClient *ethclient
 			return true
 		}
 		return false
-	}, 20*time.Second, 1*time.Second)
+	}, 8*time.Second, SlowPollingInterval)
 
 	return tx.Hash(), txBlockNumber
 }
@@ -430,7 +428,7 @@ func setupCommonEVMTest(t *testing.T, sut *SystemUnderTest, needsFullNode bool) 
 	}
 	sut.ExecCmd(localDABinary)
 	t.Log("Started local DA")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// Start EVM engines
 	jwtSecret := setupTestRethEngineE2E(t)
@@ -566,7 +564,7 @@ func restartDAAndSequencer(t *testing.T, sut *SystemUnderTest, sequencerHome, jw
 	}
 	sut.ExecCmd(localDABinary)
 	t.Log("Restarted local DA")
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(25 * time.Millisecond)
 
 	// Then restart the sequencer node (without init - node already exists)
 	sut.ExecCmd(evmSingleBinaryPath,
@@ -581,10 +579,9 @@ func restartDAAndSequencer(t *testing.T, sut *SystemUnderTest, sequencerHome, jw
 		"--rollkit.da.block_time", DefaultDABlockTime,
 	)
 
-	// Give the node a moment to start before checking
-	time.Sleep(1 * time.Second)
+	time.Sleep(SlowPollingInterval)
 
-	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
+	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout)
 }
 
 // restartDAAndSequencerLazy restarts both the local DA and sequencer node in lazy mode.
@@ -607,7 +604,7 @@ func restartDAAndSequencerLazy(t *testing.T, sut *SystemUnderTest, sequencerHome
 	}
 	sut.ExecCmd(localDABinary)
 	t.Log("Restarted local DA")
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(25 * time.Millisecond)
 
 	// Then restart the sequencer node in lazy mode (without init - node already exists)
 	sut.ExecCmd(evmSingleBinaryPath,
@@ -624,10 +621,9 @@ func restartDAAndSequencerLazy(t *testing.T, sut *SystemUnderTest, sequencerHome
 		"--rollkit.da.block_time", DefaultDABlockTime,
 	)
 
-	// Give the node a moment to start before checking
-	time.Sleep(1 * time.Second)
+	time.Sleep(SlowPollingInterval)
 
-	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
+	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout)
 }
 
 // restartSequencerNode starts an existing sequencer node without initialization.
@@ -654,10 +650,9 @@ func restartSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwt
 		"--rollkit.da.block_time", DefaultDABlockTime,
 	)
 
-	// Give the node a moment to start before checking
-	time.Sleep(1 * time.Second)
+	time.Sleep(SlowPollingInterval)
 
-	sut.AwaitNodeUp(t, RollkitRPCAddress, 10*time.Second)
+	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout)
 }
 
 // verifyNoBlockProduction verifies that no new blocks are being produced over a specified duration.
