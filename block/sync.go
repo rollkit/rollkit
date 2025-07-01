@@ -119,17 +119,17 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 		h := m.headerCache.GetItem(currentHeight + 1)
 		if h == nil {
-			m.logger.Debug("header not found in cache", "height", currentHeight+1)
+			m.logger.Debug("header not found in cache, height:", currentHeight+1)
 			return nil
 		}
 		d := m.dataCache.GetItem(currentHeight + 1)
 		if d == nil {
-			m.logger.Debug("data not found in cache", "height", currentHeight+1)
+			m.logger.Debug("data not found in cache, height:", currentHeight+1)
 			return nil
 		}
 
 		hHeight := h.Height()
-		m.logger.Info("syncing header and data", "height", hHeight)
+		m.logger.Info("syncing header and data, height: ", hHeight)
 		// Validate the received block before applying
 		if err := m.Validate(ctx, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
