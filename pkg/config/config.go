@@ -153,6 +153,16 @@ type DAConfig struct {
 	BlockTime     DurationWrapper `mapstructure:"block_time" yaml:"block_time" comment:"Average block time of the DA chain (duration). Determines frequency of DA layer syncing, maximum backoff time for retries, and is multiplied by MempoolTTL to calculate transaction expiration. Examples: \"15s\", \"30s\", \"1m\", \"2m30s\", \"10m\"."`
 	StartHeight   uint64          `mapstructure:"start_height" yaml:"start_height" comment:"Starting block height on the DA layer from which to begin syncing. Useful when deploying a new chain on an existing DA chain."`
 	MempoolTTL    uint64          `mapstructure:"mempool_ttl" yaml:"mempool_ttl" comment:"Number of DA blocks after which a transaction is considered expired and dropped from the mempool. Controls retry backoff timing."`
+
+	// MaxConsecutiveFailures defines how many consecutive failures for the same DA height
+	// before skipping to the next height to prevent infinite loops (default: 5)
+	MaxConsecutiveFailures int `mapstructure:"max_consecutive_failures" yaml:"max_consecutive_failures" comment:"Maximum number of consecutive failures for the same DA height before skipping to prevent infinite loops. Set to 0 to use default (5)."`
+
+	// RetryBackoffBase is the base duration for exponential backoff between retries (default: 100ms)
+	RetryBackoffBase time.Duration `mapstructure:"retry_backoff_base" yaml:"retry_backoff_base" comment:"Base duration for exponential backoff between retries. Examples: \"100ms\", \"500ms\", \"1s\". Set to 0 to use default (100ms)."`
+
+	// MaxRetryBackoff is the maximum backoff duration (default: 10s)
+	MaxRetryBackoff time.Duration `mapstructure:"max_retry_backoff" yaml:"max_retry_backoff" comment:"Maximum backoff duration for retries. Examples: \"5s\", \"10s\", \"30s\". Set to 0 to use default (10s)."`
 }
 
 // NodeConfig contains all Rollkit specific configuration parameters

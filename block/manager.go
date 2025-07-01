@@ -168,6 +168,9 @@ type Manager struct {
 	// signaturePayloadProvider is used to provide a signature payload for the header.
 	// It is used to sign the header with the provided signer.
 	signaturePayloadProvider types.SignaturePayloadProvider
+
+	// ongoingFetches tracks DA heights that are currently being fetched to prevent duplicate requests
+	ongoingFetches sync.Map
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.

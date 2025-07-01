@@ -106,9 +106,39 @@ func RetrieveWithHelpers(
 	namespace []byte,
 ) coreda.ResultRetrieve {
 
-	// 1. Get IDs
-	idsResult, err := da.GetIDs(ctx, dataLayerHeight, namespace)
+	// 1. Get IDs with timeout handling
+	var idsResult *coreda.GetIDsResult
+	var err error
+
+	// Check if context is already cancelled
+	select {
+	case <-ctx.Done():
+		return coreda.ResultRetrieve{
+			BaseResult: coreda.BaseResult{
+				Code:    coreda.StatusContextCanceled,
+				Message: "context cancelled before GetIDs call",
+				Height:  dataLayerHeight,
+			},
+		}
+	default:
+	}
+
+	logger.Debug("Making RPC call", "height", dataLayerHeight, "method", "GetIDs", "module", "main", "namespace", fmt.Sprintf("%q", namespace))
+
+	idsResult, err = da.GetIDs(ctx, dataLayerHeight, namespace)
 	if err != nil {
+		// Check if context was cancelled during the call
+		if errors.Is(err, context.Canceled) || ctx.Err() != nil {
+			logger.Debug("Retrieve helper: GetIDs cancelled", "height", dataLayerHeight)
+			return coreda.ResultRetrieve{
+				BaseResult: coreda.BaseResult{
+					Code:    coreda.StatusContextCanceled,
+					Message: "GetIDs call was cancelled",
+					Height:  dataLayerHeight,
+				},
+			}
+		}
+
 		// Handle specific "not found" error
 		if strings.Contains(err.Error(), coreda.ErrBlobNotFound.Error()) {
 			logger.Debug("Retrieve helper: Blobs not found at height", "height", dataLayerHeight)
@@ -130,6 +160,21 @@ func RetrieveWithHelpers(
 				},
 			}
 		}
+
+		// Check for timeout/deadline errors
+		if strings.Contains(err.Error(), "context deadline exceeded") ||
+		   strings.Contains(err.Error(), "timeout") ||
+		   errors.Is(err, coreda.ErrContextDeadline) {
+			logger.Debug("Retrieve helper: GetIDs timeout", "height", dataLayerHeight, "error", err)
+			return coreda.ResultRetrieve{
+				BaseResult: coreda.BaseResult{
+					Code:    coreda.StatusContextDeadline,
+					Message: fmt.Sprintf("GetIDs timeout: %s", err.Error()),
+					Height:  dataLayerHeight,
+				},
+			}
+		}
+
 		// Handle other errors during GetIDs
 		logger.Error("Retrieve helper: Failed to get IDs", "height", dataLayerHeight, "error", err)
 		return coreda.ResultRetrieve{
@@ -140,6 +185,8 @@ func RetrieveWithHelpers(
 			},
 		}
 	}
+
+	logger.Debug("RPC call successful", "method", "GetIDs", "module", "main")
 
 	// This check should technically be redundant if GetIDs correctly returns ErrBlobNotFound
 	if idsResult == nil || len(idsResult.IDs) == 0 {
@@ -154,9 +201,37 @@ func RetrieveWithHelpers(
 	}
 
 	// 2. Get Blobs using the retrieved IDs
+	logger.Debug("Making RPC call", "method", "Get", "module", "main", "namespace", fmt.Sprintf("%q", namespace), "num_ids", len(idsResult.IDs))
+
 	blobs, err := da.Get(ctx, idsResult.IDs, namespace)
 	if err != nil {
-		// Handle errors during Get
+		// Check if context was cancelled during the call
+		if errors.Is(err, context.Canceled) || ctx.Err() != nil {
+			logger.Debug("Retrieve helper: Get blobs cancelled", "height", dataLayerHeight, "num_ids", len(idsResult.IDs))
+			return coreda.ResultRetrieve{
+				BaseResult: coreda.BaseResult{
+					Code:    coreda.StatusContextCanceled,
+					Message: "Get blobs call was cancelled",
+					Height:  dataLayerHeight,
+				},
+			}
+		}
+
+		// Check for timeout/deadline errors
+		if strings.Contains(err.Error(), "context deadline exceeded") ||
+		   strings.Contains(err.Error(), "timeout") ||
+		   errors.Is(err, coreda.ErrContextDeadline) {
+			logger.Error("Retrieve helper: Failed to get blobs", "height", dataLayerHeight, "num_ids", len(idsResult.IDs), "error", err)
+			return coreda.ResultRetrieve{
+				BaseResult: coreda.BaseResult{
+					Code:    coreda.StatusContextDeadline,
+					Message: fmt.Sprintf("failed to get blobs: %s", err.Error()),
+					Height:  dataLayerHeight,
+				},
+			}
+		}
+
+		// Handle other errors during Get
 		logger.Error("Retrieve helper: Failed to get blobs", "height", dataLayerHeight, "num_ids", len(idsResult.IDs), "error", err)
 		return coreda.ResultRetrieve{
 			BaseResult: coreda.BaseResult{
@@ -166,6 +241,8 @@ func RetrieveWithHelpers(
 			},
 		}
 	}
+
+	logger.Debug("RPC call successful", "method", "Get", "module", "main")
 
 	// Success
 	logger.Debug("Retrieve helper: Successfully retrieved blobs", "height", dataLayerHeight, "num_blobs", len(blobs))
