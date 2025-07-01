@@ -1,24 +1,19 @@
-version: 2
 updates:
+  # GitHub Actions - Weekly updates for all actions
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
     open-pull-requests-limit: 10
     labels:
       - T:dependencies
     groups:
-      github-actions-patch:
+      actions-patch-updates:
         applies-to: version-updates
         update-types:
           - "patch"
-      rollkit-actions:
-        patterns:
-          - "rollkit/*"
-        update-types:
-          - "patch"
-          - "minor"
 
+  # Go modules - Daily updates for Rollkit dependencies only
   - package-ecosystem: gomod
     directory: "/"
     schedule:
@@ -26,27 +21,41 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - T:dependencies
+    ignore:
+      # Ignore all non-rollkit dependencies for daily updates
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor", "version-update:semver-major"]
+      # But allow rollkit dependencies
+      - dependency-name: "github.com/rollkit/*"
+        update-types: []
     groups:
-      go-patch-updates:
-        applies-to: version-updates
-        update-types:
-          - "patch"
-      rollkit-go-deps:
+      rollkit-dependencies:
         patterns:
           - "github.com/rollkit/*"
         update-types:
           - "patch"
           - "minor"
 
-  - package-ecosystem: docker
+  # Go modules - Weekly updates for non-Rollkit dependencies
+  - package-ecosystem: gomod
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
     open-pull-requests-limit: 10
     labels:
       - T:dependencies
+    ignore:
+      # Ignore rollkit dependencies for weekly updates (handled by daily config)
+      - dependency-name: "github.com/rollkit/*"
     groups:
-      docker-patch-updates:
+      go-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "github.com/rollkit/*"
+      go-patch-updates:
         applies-to: version-updates
         update-types:
           - "patch"
+        exclude-patterns:
+          - "github.com/rollkit/*"
