@@ -22,6 +22,9 @@ type Store interface {
 	// GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
 	GetBlockByHash(ctx context.Context, hash []byte) (*types.SignedHeader, *types.Data, error)
 
+	// GetHeader returns the header at the given height or error if it's not found in Store.
+	GetHeader(ctx context.Context, height uint64) (*types.SignedHeader, error)
+
 	// GetSignature returns signature for a block at given height, or error if it's not found in Store.
 	GetSignature(ctx context.Context, height uint64) (*types.Signature, error)
 	// GetSignatureByHash returns signature for a block with given block header hash, or error if it's not found in Store.

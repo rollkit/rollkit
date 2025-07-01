@@ -314,6 +314,7 @@ func TestMetadata(t *testing.T) {
 	require.Error(err)
 	require.Nil(v)
 }
+
 func TestGetBlockDataErrors(t *testing.T) {
 	t.Parallel()
 	chainID := "TestGetBlockDataErrors"
@@ -333,7 +334,7 @@ func TestGetBlockDataErrors(t *testing.T) {
 			name:      "header get error",
 			mock:      &mockBatchingDatastore{Batching: mustNewInMem(), getError: mockErr("get header")},
 			prepare:   func(_ context.Context, _ *mockBatchingDatastore) {}, // nothing to pre-seed
-			expectSub: "failed to load block header",
+			expectSub: "load block header",
 		},
 		{
 			name: "header unmarshal error",
@@ -341,7 +342,7 @@ func TestGetBlockDataErrors(t *testing.T) {
 			prepare: func(ctx context.Context, m *mockBatchingDatastore) {
 				_ = m.Put(ctx, ds.NewKey(getHeaderKey(header.Height())), []byte("garbage"))
 			},
-			expectSub: "failed to unmarshal block header",
+			expectSub: "unmarshal block header",
 		},
 		{
 			name: "data get error",
@@ -560,4 +561,55 @@ func TestGetMetadataError(t *testing.T) {
 	require.Error(err)
 	require.Contains(err.Error(), mockErrGet.Error())
 	require.Contains(err.Error(), fmt.Sprintf("failed to get metadata for key '%s'", key))
+}
+
+func TestGetHeader(t *testing.T) {
+	t.Parallel()
+	chainID := "TestGetHeader"
+	header, _ := types.GetRandomBlock(1, 0, chainID)
+	headerBlob, _ := header.MarshalBinary()
+
+	mockErr := func(msg string) error { return fmt.Errorf("mock %s error", msg) }
+
+	cases := map[string]struct {
+		mock    *mockBatchingDatastore
+		prepare func(context.Context, *mockBatchingDatastore)
+		expErr  string
+	}{
+		"all good": {
+			mock: &mockBatchingDatastore{Batching: mustNewInMem()},
+			prepare: func(ctx context.Context, db *mockBatchingDatastore) {
+				_ = db.Put(ctx, ds.NewKey(getHeaderKey(header.Height())), headerBlob)
+			},
+		},
+		"db error": {
+			mock:    &mockBatchingDatastore{Batching: mustNewInMem(), getError: mockErr("get header")},
+			prepare: func(_ context.Context, _ *mockBatchingDatastore) {}, // nothing to pre-seed
+			expErr:  "load block header",
+		},
+		"unmarshal error": {
+			mock: &mockBatchingDatastore{Batching: mustNewInMem(), unmarshalErrorOnCall: 1},
+			prepare: func(ctx context.Context, m *mockBatchingDatastore) {
+				_ = m.Put(ctx, ds.NewKey(getHeaderKey(header.Height())), []byte("garbage"))
+			},
+			expErr: "unmarshal block header",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			s := New(tc.mock)
+			tc.prepare(t.Context(), tc.mock)
+
+			gotHeader, gotErr := s.GetHeader(t.Context(), header.Height())
+			if tc.expErr != "" {
+				require.Error(t, gotErr)
+				require.ErrorContains(t, gotErr, tc.expErr)
+				return
+			}
+			require.NoError(t, gotErr)
+			assert.Equal(t, header, gotHeader)
+		})
+	}
 }
