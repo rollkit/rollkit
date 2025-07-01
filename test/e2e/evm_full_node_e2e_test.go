@@ -288,7 +288,6 @@ func setupSequencerWithFullNode(t *testing.T, sut *SystemUnderTest, sequencerHom
 // validates the P2P block propagation mechanism in Rollkit, and ensures that
 // the underlying EVM execution state remains consistent across all nodes.
 func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
-	t.Skip("Skipping EVM full node test for now, needs to be re-enabled after refactoring")
 	flag.Parse()
 	workDir := t.TempDir()
 	sequencerHome := filepath.Join(workDir, "evm-sequencer")
