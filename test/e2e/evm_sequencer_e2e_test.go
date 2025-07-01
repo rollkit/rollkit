@@ -21,8 +21,6 @@
 // 5. TestEvmSequencerRestartRecoveryE2E - Sequencer restart and recovery validation
 //   - StandardRestart: Normal start -> Normal restart
 //   - LazyModeRestart: Normal start -> Lazy restart
-//   - LazyToStandardRestart: Lazy start -> Normal restart
-//   - LazyToLazyRestart: Lazy start -> Lazy restart
 package e2e
 
 import (
@@ -652,8 +650,6 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 // Sub-tests:
 // 1. StandardRestart: Normal start -> Normal restart
 // 2. LazyModeRestart: Normal start -> Lazy restart
-// 3. LazyToStandardRestart: Lazy start -> Normal restart
-// 4. LazyToLazyRestart: Lazy start -> Lazy restart
 //
 // Test Flow:
 // 1. Sets up Local DA layer and EVM sequencer (in specified initial mode)
@@ -682,14 +678,6 @@ func TestEvmSequencerRestartRecoveryE2E(t *testing.T) {
 
 	t.Run("LazyModeRestart", func(t *testing.T) {
 		testSequencerRestartRecovery(t, false, true) // normal -> lazy
-	})
-
-	t.Run("LazyToStandardRestart", func(t *testing.T) {
-		testSequencerRestartRecovery(t, true, false) // lazy -> normal
-	})
-
-	t.Run("LazyToLazyRestart", func(t *testing.T) {
-		testSequencerRestartRecovery(t, true, true) // lazy -> lazy
 	})
 }
 

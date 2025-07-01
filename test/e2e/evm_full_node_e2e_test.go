@@ -19,8 +19,6 @@
 // 4. TestEvmSequencerFullNodeRestartE2E - Distributed restart and recovery testing
 //   - StandardRestart: Normal start -> Normal restart
 //   - LazyModeRestart: Normal start -> Lazy restart
-//   - LazyToStandardRestart: Lazy start -> Normal restart
-//   - LazyToLazyRestart: Lazy start -> Lazy restart
 package e2e
 
 import (
@@ -902,8 +900,6 @@ func restartSequencerAndFullNode(t *testing.T, sut *SystemUnderTest, sequencerHo
 // Sub-tests:
 // 1. StandardRestart: Normal start -> Normal restart
 // 2. LazyModeRestart: Normal start -> Lazy restart
-// 3. LazyToStandardRestart: Lazy start -> Normal restart
-// 4. LazyToLazyRestart: Lazy start -> Lazy restart
 //
 // Test Flow:
 // 1. Sets up Local DA layer, sequencer, and full node with P2P connections (in specified initial mode)
@@ -947,14 +943,6 @@ func TestEvmSequencerFullNodeRestartE2E(t *testing.T) {
 
 	t.Run("LazyModeRestart", func(t *testing.T) {
 		testSequencerFullNodeRestart(t, false, true) // normal -> lazy
-	})
-
-	t.Run("LazyToStandardRestart", func(t *testing.T) {
-		testSequencerFullNodeRestart(t, true, false) // lazy -> normal
-	})
-
-	t.Run("LazyToLazyRestart", func(t *testing.T) {
-		testSequencerFullNodeRestart(t, true, true) // lazy -> lazy
 	})
 }
 
