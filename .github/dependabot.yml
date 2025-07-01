@@ -46,14 +46,13 @@ updates:
     directory: "/"
     schedule:
       interval: daily
-    allow:
-      - dependency-name: "github.com/rollkit/*"
     labels:
       - T:dependencies
     # Group all patch updates into a single PR
     groups:
       rollkit-go-updates:
-        applies-to: version-updates
+        patterns:
+          - "github.com/rollkit/*"
         update-types:
           - "patch"
   - package-ecosystem: docker
