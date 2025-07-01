@@ -46,7 +46,7 @@ Note: Replace `<path_to>` with the actual path to the rollkit repository. If you
 
 The sequencer can be configured using various command-line flags. The most important ones are:
 
-- `--rollkit.node.aggregator`: Set to true to run in sequencer mode
+- `--rollkit.node.aggregator`: Set to true to run in aggregator mode
 - `--rollkit.signer.passphrase`: Passphrase for the signer
 - `--evm.jwt-secret`: JWT secret for EVM communication
 - `--evm.genesis-hash`: Genesis hash of the EVM chain
@@ -85,7 +85,7 @@ The sequencer can be configured using various command-line flags. The most impor
     ```bash
     ./evm-single start \
        --home ~/.evm-single-full-node \
-       --evm.jwt-secret $(cat <path_to>/execution/evm/docker/jwttoken/jwt.hex) \
+       --evm.jwt-secret $(cat ../../../execution/evm/docker/jwttoken/jwt.hex) \
        --evm.genesis-hash 0x2b8bbb1ea1e04f9c9809b4b278a8687806edc061a356c7dbc491930d8e922503 \
        --rollkit.rpc.address=127.0.0.1:46657 \
        --rollkit.p2p.listen_address=/ip4/127.0.0.1/tcp/7677 \

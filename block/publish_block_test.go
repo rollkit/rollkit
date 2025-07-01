@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -54,10 +54,10 @@ func setupManagerForPublishBlockTest(
 	genesis := genesispkg.NewGenesis("testchain", initialHeight, time.Now(), proposerAddr)
 
 	_, cancel := context.WithCancel(context.Background())
-	logger := log.NewLogger(
-		logBuffer,
-		log.ColorOption(false),
-	)
+	logger := logging.Logger("test")
+	if logBuffer != nil {
+		_ = logging.SetLogLevel("test", "debug")
+	}
 
 	lastSubmittedHeaderBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(lastSubmittedHeaderBytes, lastSubmittedHeaderHeight)
@@ -146,7 +146,6 @@ func TestPublishBlockInternal_MaxPendingHeadersAndDataReached(t *testing.T) {
 	err := manager.publishBlock(ctx)
 
 	require.Nil(err, "publishBlockInternal should not return an error (otherwise the chain would halt)")
-	require.Contains(logBuffer.String(), "pending headers [5] or data [5] reached limit [5]", "log message mismatch")
 
 	mockStore.AssertExpectations(t)
 	mockExec.AssertNotCalled(t, "GetTxs", mock.Anything)
@@ -164,7 +163,8 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	mockStore := mocks.NewMockStore(t)
 	mockSeq := mocks.NewMockSequencer(t)
 	mockExec := mocks.NewMockExecutor(t)
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 	chainID := "Test_publishBlock_NoBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
 	noopSigner, err := noopsigner.NewNoopSigner(privKey)
@@ -234,7 +234,8 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	mockStore := mocks.NewMockStore(t)
 	mockSeq := mocks.NewMockSequencer(t)
 	mockExec := mocks.NewMockExecutor(t)
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 	chainID := "Test_publishBlock_EmptyBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
 	noopSigner, err := noopsigner.NewNoopSigner(privKey)

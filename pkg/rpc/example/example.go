@@ -8,14 +8,14 @@ import (
 	"os"
 	"time"
 
-	sdklog "cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/rollkit/rollkit/pkg/rpc/client"
 	"github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/store"
 )
 
 // StartStoreServer starts a Store RPC server with the provided store instance
-func StartStoreServer(s store.Store, address string, logger sdklog.Logger) {
+func StartStoreServer(s store.Store, address string, logger logging.EventLogger) {
 	// Create and start the server
 	// Start RPC server
 	rpcAddr := fmt.Sprintf("%s:%d", "localhost", 8080)
@@ -74,10 +74,12 @@ func ExampleClient() {
 
 // ExampleServer demonstrates how to create and start a Store RPC server
 func ExampleServer(s store.Store) {
+	logger := logging.Logger("exampleServer")
+	_ = logging.SetLogLevel("exampleServer", "FATAL")
 
 	// Start RPC server
 	rpcAddr := fmt.Sprintf("%s:%d", "localhost", 8080)
-	handler, err := server.NewServiceHandler(s, nil, sdklog.NewNopLogger())
+	handler, err := server.NewServiceHandler(s, nil, logger)
 	if err != nil {
 		panic(err)
 	}

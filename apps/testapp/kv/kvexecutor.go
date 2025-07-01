@@ -10,6 +10,7 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	"github.com/rollkit/rollkit/core/execution"
 	"github.com/rollkit/rollkit/pkg/store"
 )
 
@@ -241,6 +242,12 @@ func (k *KVExecutor) SetFinal(ctx context.Context, blockHeight uint64) error {
 	}
 
 	return k.db.Put(ctx, ds.NewKey("/finalizedHeight"), []byte(fmt.Sprintf("%d", blockHeight)))
+}
+
+// GetExecutionMode returns the execution mode for this executor.
+// KVExecutor uses delayed execution mode.
+func (k *KVExecutor) GetExecutionMode() execution.ExecutionMode {
+	return execution.ExecutionModeDelayed
 }
 
 // InjectTx adds a transaction to the mempool channel.

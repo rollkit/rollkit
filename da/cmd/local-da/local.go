@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	coreda "github.com/rollkit/rollkit/core/da"
 )
 
@@ -32,7 +32,7 @@ type LocalDA struct {
 	privKey     ed25519.PrivateKey
 	pubKey      ed25519.PublicKey
 
-	logger log.Logger
+	logger logging.EventLogger
 }
 
 type kvp struct {
@@ -40,13 +40,13 @@ type kvp struct {
 }
 
 // NewLocalDA create new instance of DummyDA
-func NewLocalDA(logger log.Logger, opts ...func(*LocalDA) *LocalDA) *LocalDA {
+func NewLocalDA(logger logging.EventLogger, opts ...func(*LocalDA) *LocalDA) *LocalDA {
 	da := &LocalDA{
 		mu:          new(sync.Mutex),
 		data:        make(map[uint64][]kvp),
 		timestamps:  make(map[uint64]time.Time),
 		maxBlobSize: DefaultMaxBlobSize,
-		logger:      logger.With("module", "local-da"),
+		logger:      logger,
 	}
 	for _, f := range opts {
 		da = f(da)

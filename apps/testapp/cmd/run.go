@@ -5,14 +5,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"cosmossdk.io/log"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
 	kvexecutor "github.com/rollkit/rollkit/apps/testapp/kv"
 	"github.com/rollkit/rollkit/da/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/pkg/store"
@@ -24,16 +21,6 @@ var RunCmd = &cobra.Command{
 	Aliases: []string{"node", "run"},
 	Short:   "Run the testapp node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		opts := []log.Option{}
-		logLevel, _ := cmd.Flags().GetString(config.FlagLogLevel)
-		if logLevel != "" {
-			zl, err := zerolog.ParseLevel(logLevel)
-			if err != nil {
-				return err
-			}
-			opts = append(opts, log.LevelOption(zl))
-		}
-
 		nodeConfig, err := rollcmd.ParseConfig(cmd)
 		if err != nil {
 			return err

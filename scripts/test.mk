@@ -15,9 +15,9 @@ test-all: test test-docker-e2e
 	@echo "--> All tests completed"
 .PHONY: test-all
 
-## test-integration: Running integration tests
+## test-e2e: Running e2e tests
 test-integration:
-	@echo "--> Running integration tests"
+	@echo "--> Running e2e tests"
 	@cd node && go test -mod=readonly -failfast -timeout=15m -tags='integration' ./...
 .PHONY: test-integration
 
