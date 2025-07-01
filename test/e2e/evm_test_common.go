@@ -81,15 +81,10 @@ const (
 	TestPassphrase = "secret"
 )
 
-// OPTIMIZED: Simplified test configuration for faster execution
-
-// OPTIMIZED: Reduced polling and timeout constants for faster execution
 const (
-	// OPTIMIZED: Faster polling intervals (reduced by 50%)
 	FastPollingInterval = 50 * time.Millisecond  // Reduced from 100ms
 	SlowPollingInterval = 250 * time.Millisecond // Reduced from 500ms
 
-	// OPTIMIZED: Reduced timeouts for faster failure detection
 	ContainerReadinessTimeout = 3 * time.Second // Reduced from 5s
 	P2PDiscoveryTimeout       = 3 * time.Second // Reduced from 5s
 	NodeStartupTimeout        = 4 * time.Second // Reduced from 8s
@@ -98,7 +93,6 @@ const (
 	LogBufferSize = 1024 // Smaller buffer for faster processing
 )
 
-// OPTIMIZED: Simplified container setup for faster testing
 func setupTestRethEngineE2E(t *testing.T) string {
 	t.Helper()
 	return evm.SetupTestRethEngine(t, dockerPath, "jwt.hex")
@@ -144,11 +138,10 @@ func getAuthToken(jwtSecret []byte) (string, error) {
 // - engineURL: HTTP endpoint for Engine API calls (e.g., http://localhost:8551)
 //
 // Returns: Error if timeout occurs, nil if both endpoints become ready
-// OPTIMIZED: Faster container readiness checking with reduced timeouts and polling
 func waitForRethContainerAt(t *testing.T, jwtSecret, ethURL, engineURL string) error {
 	t.Helper()
-	client := &http.Client{Timeout: FastPollingInterval} // OPTIMIZED: Use faster timeout
-	timer := time.NewTimer(ContainerReadinessTimeout)    // OPTIMIZED: Reduced from 5s to 3s
+	client := &http.Client{Timeout: FastPollingInterval}
+	timer := time.NewTimer(ContainerReadinessTimeout)
 	defer timer.Stop()
 	for {
 		select {
@@ -186,7 +179,7 @@ func waitForRethContainerAt(t *testing.T, jwtSecret, ethURL, engineURL string) e
 					return nil
 				}
 			}
-			time.Sleep(FastPollingInterval) // OPTIMIZED: Use faster polling interval (50ms)
+			time.Sleep(FastPollingInterval)
 		}
 	}
 }
@@ -241,7 +234,7 @@ func extractP2PID(t *testing.T, sut *SystemUnderTest) string {
 
 		// Return true if P2P ID found, false to continue polling
 		return p2pID != ""
-	}, P2PDiscoveryTimeout, FastPollingInterval, "P2P ID should be available in sequencer logs") // OPTIMIZED: Use faster constants
+	}, P2PDiscoveryTimeout, FastPollingInterval, "P2P ID should be available in sequencer logs")
 
 	// If P2P ID found in logs, use it (this would be the ideal case)
 	if p2pID != "" {
@@ -293,7 +286,7 @@ func setupSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSe
 		"--rollkit.da.address", DAAddress,
 		"--rollkit.da.block_time", DefaultDABlockTime,
 	)
-	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout) // OPTIMIZED: Use 4s
+	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout)
 }
 
 // setupSequencerNodeLazy initializes and starts the sequencer node in lazy mode.
@@ -410,7 +403,7 @@ func submitTransactionAndGetBlockNumber(t *testing.T, sequencerClient *ethclient
 			return true
 		}
 		return false
-	}, 8*time.Second, SlowPollingInterval) // OPTIMIZED: Use faster constants
+	}, 8*time.Second, SlowPollingInterval)
 
 	return tx.Hash(), txBlockNumber
 }
@@ -571,7 +564,7 @@ func restartDAAndSequencer(t *testing.T, sut *SystemUnderTest, sequencerHome, jw
 	}
 	sut.ExecCmd(localDABinary)
 	t.Log("Restarted local DA")
-	time.Sleep(25 * time.Millisecond) // OPTIMIZED from 50ms to 25ms
+	time.Sleep(25 * time.Millisecond)
 
 	// Then restart the sequencer node (without init - node already exists)
 	sut.ExecCmd(evmSingleBinaryPath,
@@ -586,10 +579,9 @@ func restartDAAndSequencer(t *testing.T, sut *SystemUnderTest, sequencerHome, jw
 		"--rollkit.da.block_time", DefaultDABlockTime,
 	)
 
-	// OPTIMIZED: Reduced startup wait time with fast polling
-	time.Sleep(SlowPollingInterval) // OPTIMIZED: Use 250ms instead of 1s
+	time.Sleep(SlowPollingInterval)
 
-	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout) // OPTIMIZED: Use 4s instead of 8s
+	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout)
 }
 
 // restartDAAndSequencerLazy restarts both the local DA and sequencer node in lazy mode.
@@ -612,7 +604,7 @@ func restartDAAndSequencerLazy(t *testing.T, sut *SystemUnderTest, sequencerHome
 	}
 	sut.ExecCmd(localDABinary)
 	t.Log("Restarted local DA")
-	time.Sleep(25 * time.Millisecond) // OPTIMIZED from 50ms to 25ms
+	time.Sleep(25 * time.Millisecond)
 
 	// Then restart the sequencer node in lazy mode (without init - node already exists)
 	sut.ExecCmd(evmSingleBinaryPath,
@@ -629,10 +621,9 @@ func restartDAAndSequencerLazy(t *testing.T, sut *SystemUnderTest, sequencerHome
 		"--rollkit.da.block_time", DefaultDABlockTime,
 	)
 
-	// OPTIMIZED: Reduced startup wait time with fast polling
-	time.Sleep(SlowPollingInterval) // OPTIMIZED: Use 250ms instead of 1s
+	time.Sleep(SlowPollingInterval)
 
-	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout) // OPTIMIZED: Use 4s instead of 8s
+	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout)
 }
 
 // restartSequencerNode starts an existing sequencer node without initialization.
@@ -659,10 +650,9 @@ func restartSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwt
 		"--rollkit.da.block_time", DefaultDABlockTime,
 	)
 
-	// OPTIMIZED: Reduced startup wait time with fast polling
-	time.Sleep(SlowPollingInterval) // OPTIMIZED: Use 250ms instead of 1s
+	time.Sleep(SlowPollingInterval)
 
-	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout) // OPTIMIZED: Use 4s instead of 8s
+	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout)
 }
 
 // verifyNoBlockProduction verifies that no new blocks are being produced over a specified duration.

@@ -139,7 +139,6 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 			t.Logf("Submitted transaction %d: hash=%s, nonce=%d", i+1, tx.Hash().Hex(), tx.Nonce())
 		}
 
-		// Optimized delay for faster test execution while maintaining reliability
 		time.Sleep(20 * time.Millisecond)
 	}
 
