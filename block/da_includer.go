@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"strings"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	storepkg "github.com/rollkit/rollkit/pkg/store"
@@ -57,6 +58,10 @@ func (m *Manager) incrementDAIncludedHeight(ctx context.Context) error {
 	m.logger.Debug("setting final height: ", newHeight)
 	err := m.exec.SetFinal(ctx, newHeight)
 	if err != nil {
+		if strings.Contains(err.Error(), "not yet indexed") {
+			m.logger.Debug("engine not ready yet, will retry later", "height", newHeight)
+			return nil
+		}
 		m.logger.Error("failed to set final height: ", newHeight, "error: ", err)
 		return err
 	}

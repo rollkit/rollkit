@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -33,6 +34,14 @@ var (
 // Ensure EngineAPIExecutionClient implements the execution.Execute interface
 var _ execution.Executor = (*EngineClient)(nil)
 
+// payloadMeta stores execution payload metadata for quick lookup
+type payloadMeta struct {
+	hash      common.Hash
+	stateRoot common.Hash
+	gasLimit  uint64
+	timestamp uint64
+}
+
 // EngineClient represents a client that interacts with an Ethereum execution engine
 // through the Engine API. It manages connections to both the engine and standard Ethereum
 // APIs, and maintains state related to block processing.
@@ -47,6 +56,9 @@ type EngineClient struct {
 	currentHeadBlockHash      common.Hash // Store last non-finalized HeadBlockHash
 	currentSafeBlockHash      common.Hash // Store last non-finalized SafeBlockHash
 	currentFinalizedBlockHash common.Hash // Store last finalized block hash
+
+	indexMu    sync.RWMutex
+	blockIndex map[uint64]*payloadMeta
 }
 
 // NewEngineExecutionClient creates a new instance of EngineAPIExecutionClient
@@ -91,6 +103,7 @@ func NewEngineExecutionClient(
 		currentHeadBlockHash:      genesisHash,
 		currentSafeBlockHash:      genesisHash,
 		currentFinalizedBlockHash: genesisHash,
+		blockIndex:                make(map[uint64]*payloadMeta),
 	}, nil
 }
 
@@ -181,9 +194,14 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		txsPayload[i] = "0x" + hex.EncodeToString(tx)
 	}
 
-	prevBlockHash, _, prevGasLimit, _, err := c.getBlockInfo(ctx, blockHeight-1)
+	prevBlockHash, _, prevGasLimit, prevTimestamp, err := c.getBlockInfo(ctx, blockHeight-1)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get block info: %w", err)
+	}
+
+	ts := uint64(timestamp.Unix())
+	if ts <= prevTimestamp {
+		ts = prevTimestamp + 1
 	}
 
 	c.mu.Lock()
@@ -200,7 +218,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	// Create rollkit-compatible payload attributes with flattened structure
 	rollkitPayloadAttrs := map[string]interface{}{
 		// Standard Ethereum payload attributes (flattened) - using camelCase as expected by JSON
-		"timestamp":             timestamp.Unix(),
+		"timestamp":             ts,
 		"prevRandao":            c.derivePrevRandao(blockHeight),
 		"suggestedFeeRecipient": c.feeRecipient,
 		"withdrawals":           []*types.Withdrawal{},
@@ -256,6 +274,16 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		return nil, 0, err
 	}
 
+	// Record metadata for quick future retrieval
+	c.indexMu.Lock()
+	c.blockIndex[blockHeight] = &payloadMeta{
+		hash:      payloadResult.ExecutionPayload.BlockHash,
+		stateRoot: payloadResult.ExecutionPayload.StateRoot,
+		gasLimit:  payloadResult.ExecutionPayload.GasLimit,
+		timestamp: payloadResult.ExecutionPayload.Timestamp,
+	}
+	c.indexMu.Unlock()
+
 	return payloadResult.ExecutionPayload.StateRoot.Bytes(), payloadResult.ExecutionPayload.GasUsed, nil
 }
 
@@ -295,13 +323,15 @@ func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFi
 
 // SetFinal marks the block at the given height as finalized
 func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
-	fmt.Println("Setting final block at height:", blockHeight)
-	if blockHeight == 1 {
-		_, _, _, _, err := c.getBlockInfo(ctx, blockHeight)
-		if err != nil {
-			return fmt.Errorf("failed to get block info for height 0: %w", err)
-		}
+	// Try cache first
+	c.indexMu.RLock()
+	if meta, ok := c.blockIndex[blockHeight]; ok {
+		c.indexMu.RUnlock()
+		return c.setFinal(ctx, meta.hash, true)
 	}
+	c.indexMu.RUnlock()
+
+	// Fallback to RPC
 	blockHash, _, _, _, err := c.getBlockInfo(ctx, blockHeight)
 	if err != nil {
 		return fmt.Errorf("failed to get block info: %w", err)
@@ -309,9 +339,6 @@ func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
 	return c.setFinal(ctx, blockHash, true)
 }
 
-// GetExecutionMode returns the execution mode for this executor.
-// EngineClient uses immediate execution mode since it calculates the state root
-// during transaction execution via engine_getPayloadV4.
 func (c *EngineClient) GetExecutionMode() execution.ExecutionMode {
 	return execution.ExecutionModeImmediate
 }
@@ -321,13 +348,29 @@ func (c *EngineClient) derivePrevRandao(blockHeight uint64) common.Hash {
 }
 
 func (c *EngineClient) getBlockInfo(ctx context.Context, height uint64) (common.Hash, common.Hash, uint64, uint64, error) {
-	header, err := c.ethClient.HeaderByNumber(ctx, new(big.Int).SetUint64(height))
+	// Fast path – use in-memory index
+	c.indexMu.RLock()
+	if meta, ok := c.blockIndex[height]; ok {
+		c.indexMu.RUnlock()
+		return meta.hash, meta.stateRoot, meta.gasLimit, meta.timestamp, nil
+	}
+	c.indexMu.RUnlock()
 
-	if err != nil {
+	// Slow path – query RPC with a few quick retries
+	const retries = 3
+	for i := 0; i < retries; i++ {
+		header, err := c.ethClient.HeaderByNumber(ctx, new(big.Int).SetUint64(height))
+		if err == nil {
+			return header.Hash(), header.Root, header.GasLimit, header.Time, nil
+		}
+		// If the node hasn’t indexed the block yet, wait a bit and retry
+		if errors.Is(err, ethereum.NotFound) || strings.Contains(err.Error(), "not found") {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
 		return common.Hash{}, common.Hash{}, 0, 0, fmt.Errorf("failed to get block at height %d: %w", height, err)
 	}
-
-	return header.Hash(), header.Root, header.GasLimit, header.Time, nil
+	return common.Hash{}, common.Hash{}, 0, 0, fmt.Errorf("block %d not yet indexed", height)
 }
 
 // decodeSecret decodes a hex-encoded JWT secret string into a byte slice.
