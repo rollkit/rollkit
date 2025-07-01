@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	coreexecution "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/config"
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
@@ -240,10 +239,6 @@ func (m mockExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight 
 
 func (m mockExecutor) SetFinal(ctx context.Context, blockHeight uint64) error {
 	return nil
-}
-
-func (m mockExecutor) GetExecutionMode() coreexecution.ExecutionMode {
-	return coreexecution.ExecutionModeDelayed
 }
 
 var rnd = rand.New(rand.NewSource(1)) //nolint:gosec // test code only

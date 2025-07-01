@@ -5,23 +5,6 @@ import (
 	"time"
 )
 
-// ExecutionMode defines when state transitions are applied relative to block creation
-type ExecutionMode int
-
-const (
-	// ExecutionModeDelayed means the AppHash in block N represents the state after executing block N-1
-	// This is the traditional approach used by CometBFT/Tendermint
-	ExecutionModeDelayed ExecutionMode = iota
-
-	// ExecutionModeImmediate means the AppHash in block N represents the state after executing block N
-	// Transactions are executed during block creation and the resulting state root is included
-	ExecutionModeImmediate
-
-	// ExecutionModeOptimistic means transactions are executed optimistically and finalized later
-	// This allows for faster block creation but requires a finalization step to confirm state
-	// ExecutionModeOptimistic
-)
-
 // Executor defines the interface that execution clients must implement to be compatible with Rollkit.
 // This interface enables the separation between consensus and execution layers, allowing for modular
 // and pluggable execution environments.
@@ -70,7 +53,6 @@ type Executor interface {
 	// - Must maintain deterministic execution
 	// - Must respect context cancellation/timeout
 	// - The rest of the rules are defined by the specific execution layer
-	// - Must verify state root after execution
 	//
 	// Parameters:
 	// - ctx: Context for timeout/cancellation control
@@ -100,17 +82,4 @@ type Executor interface {
 	// Returns:
 	// - error: Any errors during finalization
 	SetFinal(ctx context.Context, blockHeight uint64) error
-
-	// GetExecutionMode returns the execution mode supported by this executor.
-	// This determines when state transitions are applied:
-	// - Delayed: AppHash in block N represents state after executing block N-1
-	// - Immediate: AppHash in block N represents state after executing block N
-	//
-	// Requirements:
-	// - Must return consistent value across all calls
-	// - Mode cannot change after initialization
-	//
-	// Returns:
-	// - ExecutionMode: The execution mode supported by this executor
-	GetExecutionMode() ExecutionMode
 }

@@ -8,7 +8,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/rollkit/rollkit/core/execution"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -127,50 +126,6 @@ func (_c *MockExecutor_ExecuteTxs_Call) Return(updatedStateRoot []byte, maxBytes
 }
 
 func (_c *MockExecutor_ExecuteTxs_Call) RunAndReturn(run func(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) ([]byte, uint64, error)) *MockExecutor_ExecuteTxs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetExecutionMode provides a mock function for the type MockExecutor
-func (_mock *MockExecutor) GetExecutionMode() execution.ExecutionMode {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetExecutionMode")
-	}
-
-	var r0 execution.ExecutionMode
-	if returnFunc, ok := ret.Get(0).(func() execution.ExecutionMode); ok {
-		r0 = returnFunc()
-	} else {
-		r0 = ret.Get(0).(execution.ExecutionMode)
-	}
-	return r0
-}
-
-// MockExecutor_GetExecutionMode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExecutionMode'
-type MockExecutor_GetExecutionMode_Call struct {
-	*mock.Call
-}
-
-// GetExecutionMode is a helper method to define mock.On call
-func (_e *MockExecutor_Expecter) GetExecutionMode() *MockExecutor_GetExecutionMode_Call {
-	return &MockExecutor_GetExecutionMode_Call{Call: _e.mock.On("GetExecutionMode")}
-}
-
-func (_c *MockExecutor_GetExecutionMode_Call) Run(run func()) *MockExecutor_GetExecutionMode_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *MockExecutor_GetExecutionMode_Call) Return(executionMode execution.ExecutionMode) *MockExecutor_GetExecutionMode_Call {
-	_c.Call.Return(executionMode)
-	return _c
-}
-
-func (_c *MockExecutor_GetExecutionMode_Call) RunAndReturn(run func() execution.ExecutionMode) *MockExecutor_GetExecutionMode_Call {
 	_c.Call.Return(run)
 	return _c
 }

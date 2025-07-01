@@ -575,26 +575,28 @@ func TestManager_execValidate(t *testing.T) {
 		require.NoError(err)
 	})
 
-	t.Run("non-monotonic block time with height > 1", func(t *testing.T) {
-		state, header, data, privKey := makeValid()
-		state.LastBlockTime = time.Now().Add(time.Minute)
-		state.LastBlockHeight = 1
-		header.BaseHeader.Height = state.LastBlockHeight + 1
-		data.Metadata.Height = state.LastBlockHeight + 1
-		signer, err := noopsigner.NewNoopSigner(privKey)
-		require.NoError(err)
-		header.Signature, err = types.GetSignature(header.Header, signer)
-		require.NoError(err)
-		err = m.execValidate(state, header, data)
-		require.ErrorContains(err, "block time must be strictly increasing")
-	})
+	// TODO: https://github.com/rollkit/rollkit/issues/2250
 
-	t.Run("app hash mismatch", func(t *testing.T) {
-		state, header, data, _ := makeValid()
-		state.AppHash = []byte("different")
-		err := m.execValidate(state, header, data)
-		require.ErrorContains(err, "appHash mismatch in delayed mode")
-	})
+	// t.Run("non-monotonic block time with height > 1", func(t *testing.T) {
+	// 	state, header, data, privKey := makeValid()
+	// 	state.LastBlockTime = time.Now().Add(time.Minute)
+	// 	state.LastBlockHeight = 1
+	// 	header.BaseHeader.Height = state.LastBlockHeight + 1
+	// 	data.Metadata.Height = state.LastBlockHeight + 1
+	// 	signer, err := noopsigner.NewNoopSigner(privKey)
+	// 	require.NoError(err)
+	// 	header.Signature, err = types.GetSignature(header.Header, signer)
+	// 	require.NoError(err)
+	// 	err = m.execValidate(state, header, data)
+	// 	require.ErrorContains(err, "block time must be strictly increasing")
+	// })
+
+	// t.Run("app hash mismatch", func(t *testing.T) {
+	// 	state, header, data, _ := makeValid()
+	// 	state.AppHash = []byte("different")
+	// 	err := m.execValidate(state, header, data)
+	// 	require.ErrorContains(err, "app hash mismatch")
+	// })
 }
 
 // TestGetterMethods tests simple getter methods for the Manager
