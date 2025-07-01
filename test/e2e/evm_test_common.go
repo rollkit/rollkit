@@ -30,7 +30,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/execution/evm"
@@ -109,21 +108,6 @@ func decodeSecret(jwtSecret string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to decode JWT secret: %w", err)
 	}
 	return secret, nil
-}
-
-// getAuthToken creates a JWT token signed with the provided secret, valid for 1 hour.
-func getAuthToken(jwtSecret []byte) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"exp": time.Now().Add(time.Hour * 1).Unix(), // Expires in 1 hour
-		"iat": time.Now().Unix(),
-	})
-
-	// Sign the token with the decoded secret
-	authToken, err := token.SignedString(jwtSecret)
-	if err != nil {
-		return "", fmt.Errorf("failed to sign JWT token: %w", err)
-	}
-	return authToken, nil
 }
 
 // getNodeP2PAddress uses the net-info command to get the P2P address of a node.
@@ -366,26 +350,6 @@ func setupCommonEVMTest(t *testing.T, sut *SystemUnderTest, needsFullNode bool) 
 	return jwtSecret, fullNodeJwtSecret, genesisHash
 }
 
-// checkTxIncludedAt checks if a transaction was included in a block at the specified EVM endpoint.
-// This utility function connects to the provided EVM endpoint and queries for the
-// transaction receipt to determine if the transaction was successfully included.
-//
-// Parameters:
-// - txHash: Hash of the transaction to check
-// - ethURL: EVM endpoint URL to query (e.g., http://localhost:8545)
-//
-// Returns: true if transaction is included with success status, false otherwise
-func checkTxIncludedAt(t *testing.T, txHash common.Hash, ethURL string) bool {
-	t.Helper()
-	rpcClient, err := ethclient.Dial(ethURL)
-	if err != nil {
-		return false
-	}
-	defer rpcClient.Close()
-	receipt, err := rpcClient.TransactionReceipt(context.Background(), txHash)
-	return err == nil && receipt != nil && receipt.Status == 1
-}
-
 // checkBlockInfoAt retrieves block information at a specific height including state root.
 // This function connects to the specified EVM endpoint and queries for the block header
 // to get the block hash, state root, transaction count, and other block metadata.
@@ -537,35 +501,6 @@ func restartDAAndSequencerLazy(t *testing.T, sut *SystemUnderTest, sequencerHome
 		"--rollkit.node.aggregator=true",
 		"--rollkit.node.lazy_mode=true",          // Enable lazy mode
 		"--rollkit.node.lazy_block_interval=60s", // Set lazy block interval to 60 seconds to prevent timer-based block production during test
-		"--rollkit.signer.passphrase", TestPassphrase,
-		"--home", sequencerHome,
-		"--rollkit.da.address", DAAddress,
-		"--rollkit.da.block_time", DefaultDABlockTime,
-	)
-
-	time.Sleep(SlowPollingInterval)
-
-	sut.AwaitNodeUp(t, RollkitRPCAddress, NodeStartupTimeout)
-}
-
-// restartSequencerNode starts an existing sequencer node without initialization.
-// This is used for restart scenarios where the node has already been initialized.
-//
-// Parameters:
-// - sut: SystemUnderTest instance for managing test processes
-// - sequencerHome: Directory path for sequencer node data
-// - jwtSecret: JWT secret for sequencer's EVM engine authentication
-// - genesisHash: Hash of the genesis block for chain validation
-func restartSequencerNode(t *testing.T, sut *SystemUnderTest, sequencerHome, jwtSecret, genesisHash string) {
-	t.Helper()
-
-	// Start sequencer node (without init - node already exists)
-	sut.ExecCmd(evmSingleBinaryPath,
-		"start",
-		"--evm.jwt-secret", jwtSecret,
-		"--evm.genesis-hash", genesisHash,
-		"--rollkit.node.block_time", DefaultBlockTime,
-		"--rollkit.node.aggregator=true",
 		"--rollkit.signer.passphrase", TestPassphrase,
 		"--home", sequencerHome,
 		"--rollkit.da.address", DAAddress,
