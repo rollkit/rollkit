@@ -1,5 +1,4 @@
 updates:
-  # GitHub Actions - Weekly updates for all actions
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
@@ -13,7 +12,6 @@ updates:
         update-types:
           - "patch"
 
-  # Go modules - Daily updates for Rollkit dependencies only
   - package-ecosystem: gomod
     directory: "/"
     schedule:
@@ -22,10 +20,8 @@ updates:
     labels:
       - T:dependencies
     ignore:
-      # Ignore all non-rollkit dependencies for daily updates
       - dependency-name: "*"
         update-types: ["version-update:semver-patch", "version-update:semver-minor", "version-update:semver-major"]
-      # But allow rollkit dependencies
       - dependency-name: "github.com/rollkit/*"
         update-types: []
     groups:
@@ -36,7 +32,6 @@ updates:
           - "patch"
           - "minor"
 
-  # Go modules - Weekly updates for non-Rollkit dependencies
   - package-ecosystem: gomod
     directory: "/"
     schedule:
@@ -45,7 +40,6 @@ updates:
     labels:
       - T:dependencies
     ignore:
-      # Ignore rollkit dependencies for weekly updates (handled by daily config)
       - dependency-name: "github.com/rollkit/*"
     groups:
       go-dependencies:
