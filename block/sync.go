@@ -173,7 +173,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 		if headerHeight > 1 {
 			_, lastData, err := m.store.GetBlockData(ctx, headerHeight-1)
 			if err != nil {
-				m.logger.Debug("previous block not applied yet", "current height", headerHeight, "previous height", headerHeight-1, "error", err)
+				m.logger.Debug("previous block not applied yet, current height: ", headerHeight, "previous height: ", headerHeight-1, "error: ", err)
 			}
 			if lastData != nil {
 				lastDataHash = lastData.Hash()

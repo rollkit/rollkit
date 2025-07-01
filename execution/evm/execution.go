@@ -181,14 +181,9 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		txsPayload[i] = "0x" + hex.EncodeToString(tx)
 	}
 
-	prevBlockHash, _, prevGasLimit, prevTimestamp, err := c.getBlockInfo(ctx, blockHeight-1)
+	prevBlockHash, _, prevGasLimit, _, err := c.getBlockInfo(ctx, blockHeight-1)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get block info: %w", err)
-	}
-
-	ts := uint64(timestamp.Unix())
-	if ts <= prevTimestamp {
-		ts = prevTimestamp + 1 // Subsequent blocks must have a higher timestamp.
 	}
 
 	c.mu.Lock()
@@ -205,7 +200,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	// Create rollkit-compatible payload attributes with flattened structure
 	rollkitPayloadAttrs := map[string]interface{}{
 		// Standard Ethereum payload attributes (flattened) - using camelCase as expected by JSON
-		"timestamp":             ts,
+		"timestamp":             timestamp.Unix(),
 		"prevRandao":            c.derivePrevRandao(blockHeight),
 		"suggestedFeeRecipient": c.feeRecipient,
 		"withdrawals":           []*types.Withdrawal{},
@@ -300,6 +295,13 @@ func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFi
 
 // SetFinal marks the block at the given height as finalized
 func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
+	fmt.Println("Setting final block at height:", blockHeight)
+	if blockHeight == 1 {
+		_, _, _, _, err := c.getBlockInfo(ctx, blockHeight)
+		if err != nil {
+			return fmt.Errorf("failed to get block info for height 0: %w", err)
+		}
+	}
 	blockHash, _, _, _, err := c.getBlockInfo(ctx, blockHeight)
 	if err != nil {
 		return fmt.Errorf("failed to get block info: %w", err)

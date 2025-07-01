@@ -36,7 +36,7 @@ func (m *Manager) DAIncluderLoop(ctx context.Context, errCh chan<- error) {
 				}
 				// Both header and data are DA-included, so we can advance the height
 				if err := m.incrementDAIncludedHeight(ctx); err != nil {
-					errCh <- fmt.Errorf("error while incrementing DA included height: %w", err)
+					errCh <- fmt.Errorf("while incrementing DA included height: %w", err)
 					return
 				}
 

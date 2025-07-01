@@ -118,7 +118,7 @@ func submitToDA[T any](
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer", itemType), "gasPrice", gasPrice, "count", res.SubmittedCount)
+			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer,", itemType), "gasPrice ", gasPrice, "count", res.SubmittedCount)
 			if res.SubmittedCount == uint64(remLen) {
 				submittedAll = true
 			}
