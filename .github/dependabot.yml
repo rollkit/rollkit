@@ -56,6 +56,126 @@ updates:
         update-types:
           - "patch"
           - "minor"
+  - package-ecosystem: gomod
+    directory: "/core"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/da"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/execution/evm"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/sequencers/based"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/sequencers/single"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/apps/testapp"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/apps/evm/single"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/apps/evm/based"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/test/e2e"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/test/docker-e2e"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
   - package-ecosystem: docker
     directory: "/docker"
     schedule:
