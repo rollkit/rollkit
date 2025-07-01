@@ -65,7 +65,7 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
 					m.logger.Info("No batch retrieved from sequencer, skipping block production")
 					return nil
 				}
-				m.logger.Info("Creating empty block: ", "height", newHeight)
+				m.logger.Info("Creating empty block. height", newHeight)
 			} else {
 				return fmt.Errorf("failed to get transactions from batch: %w", err)
 			}
@@ -73,7 +73,7 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
 			if batchData.Before(lastHeaderTime) {
 				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 			}
-			m.logger.Info("Creating and publishing block", "height", newHeight)
+			m.logger.Info("Creating and publishing block, height: ", newHeight)
 			m.logger.Debug("block info", "num_tx", len(batchData.Batch.Transactions))
 		}
 
