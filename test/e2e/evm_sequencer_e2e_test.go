@@ -15,11 +15,6 @@
 //   - Phase 1: Basic transaction processing (1 transaction)
 //   - Phase 2: High-throughput processing (200 transactions)
 //   - Phase 3: Invalid transaction rejection (4 scenarios + stability test)
-//
-// Performance Optimization:
-// This test eliminates Docker container restart overhead by running all test scenarios
-// in a single container setup, providing ~73% performance improvement compared to
-// running individual tests separately while maintaining complete test coverage.
 package e2e
 
 import (
