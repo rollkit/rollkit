@@ -120,7 +120,7 @@ func createExecutionClient(cmd *cobra.Command) (execution.Executor, error) {
 func addFlags(cmd *cobra.Command) {
 	cmd.Flags().String(evm.FlagEvmEthURL, "http://localhost:8545", "URL of the Ethereum JSON-RPC endpoint")
 	cmd.Flags().String(evm.FlagEvmEngineURL, "http://localhost:8551", "URL of the Engine API endpoint")
-	cmd.Flags().String(evm.FlagEvmJWTSecret, "", "Path to the JWT secret file for authentication with the execution client")
+	cmd.Flags().String(evm.FlagEvmJWTSecret, "", "The JWT secret for authentication with the execution client")
 	cmd.Flags().String(evm.FlagEvmGenesisHash, "", "Hash of the genesis block")
 	cmd.Flags().String(evm.FlagEvmFeeRecipient, "", "Address that will receive transaction fees")
 }
