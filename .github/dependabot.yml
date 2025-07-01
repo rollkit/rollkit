@@ -1,56 +1,73 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
+    target-branch: main
     directory: "/"
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
     labels:
       - T:dependencies
+    # Group all patch updates into a single PR
     groups:
-      actions-patch-updates:
+      patch-updates:
         applies-to: version-updates
         update-types:
           - "patch"
-
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: daily
+    allow:
+      - dependency-name: "rollkit/*"
+    labels:
+      - T:dependencies
+    # Group all patch updates into a single PR
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+          - "minor"
+  - package-ecosystem: gomod
+    target-branch: main
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    # Group all patch updates into a single PR
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
   - package-ecosystem: gomod
     directory: "/"
+    schedule:
+      interval: daily
+    allow:
+      - dependency-name: "github.com/rollkit/*"
+    labels:
+      - T:dependencies
+    # Group all patch updates into a single PR
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+          - "minor"
+  - package-ecosystem: docker
+    directory: "/docker"
     schedule:
       interval: daily
     open-pull-requests-limit: 10
     labels:
       - T:dependencies
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-patch", "version-update:semver-minor", "version-update:semver-major"]
-      - dependency-name: "github.com/rollkit/*"
-        update-types: []
+    # Group all patch updates into a single PR
     groups:
-      rollkit-dependencies:
-        patterns:
-          - "github.com/rollkit/*"
-        update-types:
-          - "patch"
-          - "minor"
-
-  - package-ecosystem: gomod
-    directory: "/"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    labels:
-      - T:dependencies
-    ignore:
-      - dependency-name: "github.com/rollkit/*"
-    groups:
-      go-dependencies:
-        patterns:
-          - "*"
-        exclude-patterns:
-          - "github.com/rollkit/*"
-      go-patch-updates:
+      patch-updates:
         applies-to: version-updates
         update-types:
           - "patch"
-        exclude-patterns:
-          - "github.com/rollkit/*"
