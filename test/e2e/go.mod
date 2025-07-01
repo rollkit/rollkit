@@ -3,6 +3,8 @@ module github.com/rollkit/rollkit/test/e2e
 go 1.24.2
 
 require (
+	github.com/ethereum/go-ethereum v1.15.0
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/libp2p/go-libp2p v0.41.1
 	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/execution/evm v0.0.0-20250602130019-2a732cf903a5
@@ -82,7 +84,6 @@ require (
 	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.3 // indirect
-	github.com/ethereum/go-ethereum v1.15.0 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsevents v0.2.0 // indirect
@@ -97,7 +98,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/gofrs/flock v0.12.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
