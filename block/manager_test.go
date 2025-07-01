@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -40,7 +40,7 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 
 // Returns a minimalistic block manager using a mock DA Client
 func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) (*Manager, *mocks.MockStore) {
-	logger := logging.Logger("test")
+	logger := log.NewTestLogger(t)
 	mockStore := mocks.NewMockStore(t)
 	m := &Manager{
 		da:                       da,
@@ -68,7 +68,7 @@ func TestInitialStateClean(t *testing.T) {
 
 	// Create genesis document
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateClean")
-	logger := logging.Logger("test")
+	logger := log.NewTestLogger(t)
 	es, _ := storepkg.NewDefaultInMemoryKVStore()
 	emptyStore := storepkg.New(es)
 	mockExecutor := mocks.NewMockExecutor(t)
@@ -104,7 +104,7 @@ func TestInitialStateStored(t *testing.T) {
 	store := storepkg.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	logger := logging.Logger("test")
+	logger := log.NewTestLogger(t)
 	mockExecutor := mocks.NewMockExecutor(t)
 
 	// getInitialState should not call InitChain if state exists
@@ -120,7 +120,7 @@ func TestInitialStateStored(t *testing.T) {
 // TestInitialStateUnexpectedHigherGenesis verifies that getInitialState returns an error if the genesis initial height is higher than the stored state's last block height.
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
-	logger := logging.Logger("test")
+	logger := log.NewTestLogger(t)
 	ctx := context.Background()
 
 	// Create genesis document with initial height 2

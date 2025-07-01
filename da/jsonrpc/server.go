@@ -7,15 +7,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"cosmossdk.io/log"
 	"github.com/filecoin-project/go-jsonrpc"
-	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/rollkit/rollkit/core/da"
 )
 
 // Server is a jsonrpc service that can serve the DA interface
 type Server struct {
-	logger   logging.EventLogger
+	logger   log.Logger
 	srv      *http.Server
 	rpc      *jsonrpc.RPCServer
 	listener net.Listener
@@ -26,7 +26,7 @@ type Server struct {
 
 // serverInternalAPI provides the actual RPC methods.
 type serverInternalAPI struct {
-	logger logging.EventLogger
+	logger log.Logger
 	daImpl da.DA
 }
 
@@ -85,7 +85,7 @@ func (s *serverInternalAPI) GasMultiplier(ctx context.Context) (float64, error) 
 }
 
 // NewServer accepts the host address port and the DA implementation to serve as a jsonrpc service
-func NewServer(logger logging.EventLogger, address, port string, daImplementation da.DA) *Server {
+func NewServer(logger log.Logger, address, port string, daImplementation da.DA) *Server {
 	rpc := jsonrpc.NewServer(jsonrpc.WithServerErrors(getKnownErrorsMapping()))
 	srv := &Server{
 		rpc:    rpc,

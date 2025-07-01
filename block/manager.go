@@ -13,9 +13,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"cosmossdk.io/log"
 	goheader "github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"golang.org/x/sync/errgroup"
 
@@ -135,7 +135,7 @@ type Manager struct {
 	// daIncluderCh is used to notify sync goroutine (DAIncluderLoop) that it needs to set DA included height
 	daIncluderCh chan struct{}
 
-	logger logging.EventLogger
+	logger log.Logger
 
 	// For usage by Lazy Aggregator mode
 	txsAvailable bool
@@ -171,7 +171,7 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
-func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store storepkg.Store, exec coreexecutor.Executor, logger logging.EventLogger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
+func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store storepkg.Store, exec coreexecutor.Executor, logger log.Logger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
 	if signaturePayloadProvider == nil {
 		signaturePayloadProvider = defaultSignaturePayloadProvider
 	}
@@ -279,7 +279,7 @@ func NewManager(
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
-	logger logging.EventLogger,
+	logger log.Logger,
 	headerStore goheader.Store[*types.SignedHeader],
 	dataStore goheader.Store[*types.Data],
 	headerBroadcaster broadcaster[*types.SignedHeader],

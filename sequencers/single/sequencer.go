@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
-	logging "github.com/ipfs/go-log/v2"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -23,7 +23,7 @@ var _ coresequencer.Sequencer = &Sequencer{}
 
 // Sequencer implements core sequencing interface
 type Sequencer struct {
-	logger logging.EventLogger
+	logger log.Logger
 
 	proposer bool
 
@@ -40,7 +40,7 @@ type Sequencer struct {
 // NewSequencer creates a new Single Sequencer
 func NewSequencer(
 	ctx context.Context,
-	logger logging.EventLogger,
+	logger log.Logger,
 	db ds.Batching,
 	da coreda.DA,
 	id []byte,
@@ -54,7 +54,7 @@ func NewSequencer(
 // NewSequencerWithQueueSize creates a new Single Sequencer with configurable queue size
 func NewSequencerWithQueueSize(
 	ctx context.Context,
-	logger logging.EventLogger,
+	logger log.Logger,
 	db ds.Batching,
 	da coreda.DA,
 	id []byte,

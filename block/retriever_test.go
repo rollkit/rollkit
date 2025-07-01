@@ -34,13 +34,10 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 	mockDAClient := rollmocks.NewMockDA(t)
 	mockStore := rollmocks.NewMockStore(t)
 	mockLogger := new(MockLogger)
-	// Allow logging calls with message string and optional key-value pairs up to 3 pairs for .Maybe()
-	for _, level := range []string{"Debug", "Info", "Warn", "Error"} {
-		mockLogger.On(level, mock.AnythingOfType("string")).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-	}
+	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Info", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Warn", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Error", mock.Anything, mock.Anything).Maybe()
 
 	headerStore, _ := goheaderstore.NewStore[*types.SignedHeader](ds.NewMapDatastore())
 	dataStore, _ := goheaderstore.NewStore[*types.Data](ds.NewMapDatastore())
@@ -360,13 +357,9 @@ func TestProcessNextDAHeaderAndData_UnmarshalHeaderError(t *testing.T) {
 	).Once()
 
 	mockLogger.ExpectedCalls = nil
-	// Re-establish general Maybe calls after clearing, then specific Once calls
-	for _, level := range []string{"Debug", "Info", "Warn", "Error"} {
-		mockLogger.On(level, mock.AnythingOfType("string")).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-	}
+	mockLogger.On("Debug", "failed to unmarshal header", mock.Anything).Return().Once()
+	mockLogger.On("Debug", "failed to unmarshal signed data", mock.Anything).Return().Once()
+	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
 
 	ctx := context.Background()
 	err := manager.processNextDAHeaderAndData(ctx)
@@ -423,13 +416,8 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	).Once()
 
 	mockLogger.ExpectedCalls = nil
-	// Re-establish general Maybe calls
-	for _, level := range []string{"Debug", "Info", "Warn", "Error"} {
-		mockLogger.On(level, mock.AnythingOfType("string")).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-	}
+	mockLogger.On("Debug", "skipping header from unexpected sequencer", mock.Anything).Return().Once()
+	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe() // Allow other debug logs
 
 	ctx := context.Background()
 	err = manager.processNextDAHeaderAndData(ctx)
@@ -556,16 +544,7 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 	).Once()
 
 	// Add debug logging expectations
-	// For this specific test, we expect "header already seen" and "data already seen" logs.
-	// Allow these specific logs, plus general Maybe for others.
-	for _, level := range []string{"Debug", "Info", "Warn", "Error"} {
-		mockLogger.On(level, mock.AnythingOfType("string")).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-	}
-	mockLogger.On("Debug", "header already seen", "height", blockHeight, "block hash", headerHash).Return().Maybe()
-	mockLogger.On("Debug", "data already seen", "data hash", dataHash).Return().Maybe()
+	mockLogger.On("Debug", mock.Anything, mock.Anything, mock.Anything).Return()
 
 	ctx := context.Background()
 	err = manager.processNextDAHeaderAndData(ctx)
@@ -609,20 +588,12 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 
 	errorLogged := atomic.Bool{}
 	mockLogger.ExpectedCalls = nil
-	// Allow any Debug/Info/Warn
-	for _, level := range []string{"Debug", "Info", "Warn"} { // Note: Error handled specifically below
-		mockLogger.On(level, mock.AnythingOfType("string")).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-	}
-	// Expect the specific error log for "failed to retrieve data from DALC" only if it's NOT ErrHeightFromFuture
-	// Since this test is for ErrHeightFromFuture, this specific Error log should NOT be hit.
-	// The error is handled within RetrieveWithHelpers and a different status code is returned.
-	// The RetrieveLoop itself might log an info/debug that processing failed but not a top-level error for this case.
-	mockLogger.On("Error", "failed to retrieve data from DALC", "daHeight", startDAHeight, "error", futureErr).Run(func(args mock.Arguments) {
+	mockLogger.On("Error", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		errorLogged.Store(true)
-	}).Maybe() // This should ideally not be called if the error is ErrHeightFromFuture as RetrieveWithHelpers handles it.
+	}).Return().Maybe()
+	mockLogger.On("Debug", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Info", mock.Anything, mock.Anything).Maybe()
+	mockLogger.On("Warn", mock.Anything, mock.Anything).Maybe()
 
 	ctx, loopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer loopCancel()
@@ -658,27 +629,26 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 		nil, otherErr,
 	).Times(dAFetcherRetries)
 
-	errorLogged := atomic.Bool{}
+	errorLogged := make(chan struct{})
 	mockLogger.ExpectedCalls = nil
-	// Allow any Debug/Info/Warn
-	for _, level := range []string{"Debug", "Info", "Warn"} {
-		mockLogger.On(level, mock.AnythingOfType("string")).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-		mockLogger.On(level, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
-	}
 
-	// Mock all expected logger calls in order for the error path
-	// The "Retrieve helper: Failed to get IDs" is logged inside RetrieveWithHelpers.
-	mockLogger.On("Error", "Retrieve helper: Failed to get IDs", "height", startDAHeight, "error", otherErr).Times(dAFetcherRetries)
-	// The RetrieveLoop will log "failed to retrieve data from DALC" for each failed attempt.
-	mockLogger.On("Error", "failed to retrieve data from DALC", "daHeight", startDAHeight, "errors", mock.AnythingOfType("string")).Run(func(args mock.Arguments) {
-		// Try to close channel only on the last expected call, or make it non-blocking.
-		// For simplicity, we'll let it be called multiple times and check errorLogged after loop.
-		errorLogged.Store(true)
-	}).Once() // Expect this once since the loop aggregates errors
+	// Mock all expected logger calls in order
+	mockLogger.On("Debug", "trying to retrieve data from DA", mock.Anything).Return()
+	mockLogger.On("Error", "Retrieve helper: Failed to get IDs",
+		mock.MatchedBy(func(args []interface{}) bool {
+			return true // Accept any args for simplicity
+		}),
+	).Return()
+	mockLogger.On("Error", "failed to retrieve data from DALC", mock.Anything).Run(func(args mock.Arguments) {
+		close(errorLogged)
+	}).Return()
 
-	ctx, loopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	// Allow any other debug/info/warn calls
+	mockLogger.On("Debug", mock.Anything, mock.Anything).Return().Maybe()
+	mockLogger.On("Info", mock.Anything, mock.Anything).Return().Maybe()
+	mockLogger.On("Warn", mock.Anything, mock.Anything).Return().Maybe()
+
+	ctx, loopCancel := context.WithCancel(context.Background())
 	defer loopCancel()
 
 	var wg sync.WaitGroup
@@ -688,18 +658,17 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 		manager.RetrieveLoop(ctx)
 	}()
 
-	// Give the goroutine time to start
-	time.Sleep(10 * time.Millisecond)
-
 	manager.retrieveCh <- struct{}{}
 
-	// Wait for the context to timeout or the goroutine to finish
-	wg.Wait()
-
-	// Check if the error was logged
-	if !errorLogged.Load() {
+	select {
+	case <-errorLogged:
+		// Success
+	case <-time.After(2 * time.Second):
 		t.Fatal("Error was not logged for generic DA error")
 	}
+
+	loopCancel()
+	wg.Wait()
 
 	mockDAClient.AssertExpectations(t)
 	mockLogger.AssertExpectations(t)

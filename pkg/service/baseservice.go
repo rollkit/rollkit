@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	logging "github.com/ipfs/go-log/v2"
+	"cosmossdk.io/log"
 )
 
 /*
@@ -43,18 +43,16 @@ type Service interface {
 
 // BaseService provides a basic implementation of the Service interface.
 type BaseService struct {
-	Logger logging.EventLogger
+	Logger log.Logger
 	name   string
 	impl   Service // Implementation that can override Run behavior
 }
 
 // NewBaseService creates a new BaseService.
 // The provided implementation (impl) should be the "subclass" that implements Run.
-func NewBaseService(logger logging.EventLogger, name string, impl Service) *BaseService {
+func NewBaseService(logger log.Logger, name string, impl Service) *BaseService {
 	if logger == nil {
-		nopLogger := logging.Logger("nop")
-		_ = logging.SetLogLevel("nop", "FATAL")
-		logger = nopLogger
+		logger = log.NewNopLogger()
 	}
 	return &BaseService{
 		Logger: logger,
@@ -64,7 +62,7 @@ func NewBaseService(logger logging.EventLogger, name string, impl Service) *Base
 }
 
 // SetLogger sets the logger.
-func (bs *BaseService) SetLogger(l logging.EventLogger) {
+func (bs *BaseService) SetLogger(l log.Logger) {
 	bs.Logger = l
 }
 
