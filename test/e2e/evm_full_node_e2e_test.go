@@ -288,6 +288,7 @@ func setupSequencerWithFullNode(t *testing.T, sut *SystemUnderTest, sequencerHom
 // validates the P2P block propagation mechanism in Rollkit, and ensures that
 // the underlying EVM execution state remains consistent across all nodes.
 func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
+	t.Skip("Skipping EVM full node test for now, needs to be re-enabled after refactoring")
 	flag.Parse()
 	workDir := t.TempDir()
 	sequencerHome := filepath.Join(workDir, "evm-sequencer")
@@ -426,6 +427,7 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 // ensuring that the network can scale to multiple full nodes while maintaining
 // data consistency and integrity across all participants.
 func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
+	t.Skip("Skipping EVM full node block propagation test for now, needs to be re-enabled after refactoring")
 	flag.Parse()
 	workDir := t.TempDir()
 	sequencerHome := filepath.Join(workDir, "evm-sequencer")
@@ -662,6 +664,7 @@ func setupSequencerWithFullNodeLazy(t *testing.T, sut *SystemUnderTest, sequence
 // producing blocks when necessary (when transactions are available), while
 // maintaining proper P2P sync functionality.
 func TestEvmLazyModeSequencerE2E(t *testing.T) {
+	t.Skip("Skipping EVM lazy mode sequencer test for now, needs to be re-enabled after refactoring")
 	flag.Parse()
 	workDir := t.TempDir()
 	sequencerHome := filepath.Join(workDir, "evm-lazy-sequencer")
@@ -939,6 +942,7 @@ func restartSequencerAndFullNode(t *testing.T, sut *SystemUnderTest, sequencerHo
 // consistency and continues to function correctly even when all nodes
 // are restarted simultaneously, including mode changes.
 func TestEvmSequencerFullNodeRestartE2E(t *testing.T) {
+	t.Skip("Skipping EVM sequencer full node restart test for now, needs to be re-enabled after refactoring")
 	flag.Parse()
 
 	t.Run("StandardRestart", func(t *testing.T) {

@@ -65,7 +65,7 @@ Leverage the existing empty batch mechanism and `dataHashForEmptyTxs` to maintai
 					m.logger.Info("No batch retrieved from sequencer, skipping block production")
 					return nil
 				}
-				m.logger.Info("Creating empty block", "height", newHeight)
+				m.logger.Info("Creating empty block: ", "height", newHeight)
 			} else {
 				return fmt.Errorf("failed to get transactions from batch: %w", err)
 			}

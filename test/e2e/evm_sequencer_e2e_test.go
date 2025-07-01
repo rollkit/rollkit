@@ -14,11 +14,9 @@
 // - Lazy mode sequencer behavior and validation
 //
 // Test Coverage:
-// 1. TestEvmSequencerE2E - Basic sequencer functionality with single transaction
-// 2. TestEvmMultipleTransactionInclusionE2E - High-throughput processing (200 transactions)
-// 3. TestEvmDoubleSpendNonceHandlingE2E - Double-spend prevention with duplicate nonces
-// 4. TestEvmInvalidTransactionRejectionE2E - Various invalid transaction type rejections
-// 5. TestEvmSequencerRestartRecoveryE2E - Sequencer restart and recovery validation
+// 1. TestEvmMultipleTransactionInclusionE2E - High-throughput processing (200 transactions)
+// 2. TestEvmInvalidTransactionRejectionE2E - Various invalid transaction type rejections
+// 3. TestEvmSequencerRestartRecoveryE2E - Sequencer restart and recovery validation
 //   - StandardRestart: Normal start -> Normal restart
 //   - LazyModeRestart: Normal start -> Lazy restart
 //   - LazyToStandardRestart: Lazy start -> Normal restart
