@@ -82,15 +82,14 @@ const (
 )
 
 const (
-	FastPollingInterval = 50 * time.Millisecond  // Reduced from 100ms
-	SlowPollingInterval = 250 * time.Millisecond // Reduced from 500ms
+	FastPollingInterval = 50 * time.Millisecond
+	SlowPollingInterval = 250 * time.Millisecond
 
-	ContainerReadinessTimeout = 3 * time.Second // Reduced from 5s
-	P2PDiscoveryTimeout       = 3 * time.Second // Reduced from 5s
-	NodeStartupTimeout        = 4 * time.Second // Reduced from 8s
+	ContainerReadinessTimeout = 3 * time.Second
+	P2PDiscoveryTimeout       = 3 * time.Second
+	NodeStartupTimeout        = 4 * time.Second
 
-	// Log optimization - reduce verbosity for faster I/O
-	LogBufferSize = 1024 // Smaller buffer for faster processing
+	LogBufferSize = 1024
 )
 
 func setupTestRethEngineE2E(t *testing.T) string {

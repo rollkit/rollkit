@@ -68,7 +68,7 @@ func main() {
 	// Parse command line arguments
 	cleanOnExit := flag.Bool("clean-on-exit", true, "Remove node directories on exit")
 	logLevel := flag.String("log-level", "info", "Log level (debug, info, warn, error)")
-	numNodes := flag.Int("nodes", 1, "Number of nodes to run (1 = sequencer only, 2+ = sequencer + full nodes)")
+	numNodes := flag.Int("nodes", 2, "Number of nodes to run (1 = sequencer only, 2+ = sequencer + full nodes)")
 	flag.Parse()
 
 	// Validate number of nodes
