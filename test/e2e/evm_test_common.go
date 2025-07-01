@@ -21,7 +21,6 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -125,62 +124,6 @@ func getAuthToken(jwtSecret []byte) (string, error) {
 		return "", fmt.Errorf("failed to sign JWT token: %w", err)
 	}
 	return authToken, nil
-}
-
-// waitForRethContainerAt waits for the Reth container to be ready by polling HTTP endpoints.
-// This function polls both the ETH JSON-RPC endpoint and the Engine API endpoint with JWT authentication
-// to ensure both are fully ready before proceeding with tests.
-//
-// Parameters:
-// - jwtSecret: JWT secret for engine authentication
-// - ethURL: HTTP endpoint for ETH JSON-RPC calls (e.g., http://localhost:8545)
-// - engineURL: HTTP endpoint for Engine API calls (e.g., http://localhost:8551)
-//
-// Returns: Error if timeout occurs, nil if both endpoints become ready
-func waitForRethContainerAt(t *testing.T, jwtSecret, ethURL, engineURL string) error {
-	t.Helper()
-	client := &http.Client{Timeout: FastPollingInterval}
-	timer := time.NewTimer(ContainerReadinessTimeout)
-	defer timer.Stop()
-	for {
-		select {
-		case <-timer.C:
-			return fmt.Errorf("timeout waiting for reth container to be ready")
-		default:
-			// Check ETH RPC endpoint
-			rpcReq := strings.NewReader(`{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}`)
-			resp, err := client.Post(ethURL, "application/json", rpcReq)
-			if err == nil && resp.StatusCode == http.StatusOK {
-				if err := resp.Body.Close(); err != nil {
-					return fmt.Errorf("failed to close response body: %w", err)
-				}
-
-				// Also check the engine URL with JWT authentication
-				req, err := http.NewRequest("POST", engineURL, strings.NewReader(`{"jsonrpc":"2.0","method":"engine_getClientVersionV1","params":[],"id":1}`))
-				if err != nil {
-					return err
-				}
-				req.Header.Set("Content-Type", "application/json")
-				secret, err := decodeSecret(jwtSecret)
-				if err != nil {
-					return err
-				}
-				authToken, err := getAuthToken(secret)
-				if err != nil {
-					return err
-				}
-				req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken))
-				resp, err := client.Do(req)
-				if err == nil && resp.StatusCode == http.StatusOK {
-					if err := resp.Body.Close(); err != nil {
-						return fmt.Errorf("failed to close response body: %w", err)
-					}
-					return nil
-				}
-			}
-			time.Sleep(FastPollingInterval)
-		}
-	}
 }
 
 // getNodeP2PAddress uses the net-info command to get the P2P address of a node.

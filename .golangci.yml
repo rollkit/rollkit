@@ -1,6 +1,10 @@
 version: "2"
 run:
   modules-download-mode: readonly
+  build-tags:
+    - evm
+    - e2e
+    - docker
 linters:
   enable:
     - errorlint
