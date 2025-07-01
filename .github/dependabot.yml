@@ -13,21 +13,6 @@ updates:
         applies-to: version-updates
         update-types:
           - "patch"
-  - package-ecosystem: github-actions
-    directory: "/"
-    schedule:
-      interval: daily
-    allow:
-      - dependency-name: "rollkit/*"
-    labels:
-      - T:dependencies
-    # Group all patch updates into a single PR
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        update-types:
-          - "patch"
-          - "minor"
   - package-ecosystem: gomod
     directory: "/"
     schedule:
@@ -40,25 +25,18 @@ updates:
       go-dependencies:
         patterns:
           - "*"
-      patch-updates:
-        applies-to: version-updates
-        update-types:
-          - "patch"
-  - package-ecosystem: gomod
-    directory: "/"
-    schedule:
-      interval: daily
-    allow:
-      - dependency-name: "github.com/rollkit/*"
-    labels:
-      - T:dependencies
-    # Group all patch updates into a single PR
-    groups:
-      patch-updates:
-        applies-to: version-updates
+        exclude-patterns:
+          - "github.com/rollkit/*"
+      rollkit-dependencies:
+        patterns:
+          - "github.com/rollkit/*"
         update-types:
           - "patch"
           - "minor"
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
   - package-ecosystem: gomod
     directory: "/core"
     schedule:
