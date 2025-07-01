@@ -22,19 +22,15 @@ import (
 )
 
 const (
-	// Sequencer ports
-	sequencerRPCPort   = 7331
-	sequencerP2PPort   = 7676
-	sequencerEVMRPC    = 8545
-	sequencerEVMEngine = 8551
-	sequencerEVMWS     = 8546
+	// Base ports - will be incremented for each node
+	baseRPCPort   = 7331
+	baseP2PPort   = 7676
+	baseEVMRPC    = 8545
+	baseEVMEngine = 8551
+	baseEVMWS     = 8546
 
-	// Full node ports
-	fullNodeRPCPort   = 7332
-	fullNodeP2PPort   = 7677
-	fullNodeEVMRPC    = 8555
-	fullNodeEVMEngine = 8561
-	fullNodeEVMWS     = 8556
+	// Port offsets between nodes
+	portOffset = 10
 
 	// Common ports
 	daPort = 7980
@@ -43,6 +39,17 @@ const (
 	genesisHash = "0x2b8bbb1ea1e04f9c9809b4b278a8687806edc061a356c7dbc491930d8e922503"
 )
 
+type nodeConfig struct {
+	name        string
+	rpcPort     int
+	p2pPort     int
+	evmRPC      int
+	evmEngine   int
+	evmWS       int
+	homeDir     string
+	isSequencer bool
+}
+
 type nodeManager struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
@@ -50,6 +57,8 @@ type nodeManager struct {
 	jwtPath       string
 	cleanOnExit   bool
 	logLevel      string
+	numNodes      int
+	nodes         []nodeConfig
 	processes     []*exec.Cmd
 	nodeDirs      []string
 	dockerCleanup []string
@@ -59,12 +68,20 @@ func main() {
 	// Parse command line arguments
 	cleanOnExit := flag.Bool("clean-on-exit", true, "Remove node directories on exit")
 	logLevel := flag.String("log-level", "info", "Log level (debug, info, warn, error)")
+	numNodes := flag.Int("nodes", 1, "Number of nodes to run (1 = sequencer only, 2+ = sequencer + full nodes)")
 	flag.Parse()
+
+	// Validate number of nodes
+	if *numNodes < 1 {
+		log.Fatal("Number of nodes must be at least 1")
+	}
 
 	// Create node manager
 	nm := &nodeManager{
 		cleanOnExit: *cleanOnExit,
 		logLevel:    *logLevel,
+		numNodes:    *numNodes,
+		nodes:       make([]nodeConfig, 0, *numNodes),
 		processes:   make([]*exec.Cmd, 0),
 		nodeDirs:    make([]string, 0),
 	}
@@ -110,30 +127,38 @@ func (nm *nodeManager) run() error {
 		return fmt.Errorf("failed to setup JWT: %w", err)
 	}
 
+	// 2. Configure nodes
+	nm.configureNodes()
+
 	// 3. Start Local DA
 	if err := nm.startLocalDA(); err != nil {
 		return fmt.Errorf("failed to start local DA: %w", err)
 	}
 
-	// 4. Start EVM execution layers
-	if err := nm.startEVMExecutionLayers(); err != nil {
-		return fmt.Errorf("failed to start EVM execution layers: %w", err)
+	// 4. Start EVM execution layers for all nodes
+	for i := range nm.nodes {
+		if err := nm.startEVMExecutionLayer(&nm.nodes[i]); err != nil {
+			return fmt.Errorf("failed to start EVM execution layer for %s: %w", nm.nodes[i].name, err)
+		}
 	}
 
 	// 5. Initialize and start sequencer
-	sequencerP2PAddr, err := nm.startSequencer()
+	sequencerP2PAddr, err := nm.startNode(&nm.nodes[0], "")
 	if err != nil {
 		return fmt.Errorf("failed to start sequencer: %w", err)
 	}
 
-	// 6. Initialize and start full node
-	if err := nm.startFullNode(sequencerP2PAddr); err != nil {
-		return fmt.Errorf("failed to start full node: %w", err)
+	// 6. Initialize and start full nodes (if any)
+	for i := 1; i < len(nm.nodes); i++ {
+		if _, err := nm.startNode(&nm.nodes[i], sequencerP2PAddr); err != nil {
+			return fmt.Errorf("failed to start %s: %w", nm.nodes[i].name, err)
+		}
 	}
 
 	log.Println("All nodes started successfully!")
-	log.Printf("Sequencer RPC: http://localhost:%d", sequencerRPCPort)
-	log.Printf("Full Node RPC: http://localhost:%d", fullNodeRPCPort)
+	for _, node := range nm.nodes {
+		log.Printf("%s RPC: http://localhost:%d", node.name, node.rpcPort)
+	}
 
 	// Monitor processes
 	return nm.monitorProcesses()
@@ -186,23 +211,38 @@ func (nm *nodeManager) startLocalDA() error {
 	return nil
 }
 
-func (nm *nodeManager) startEVMExecutionLayers() error {
-	// Start sequencer's EVM layer
-	log.Println("Starting sequencer's EVM execution layer...")
-	if err := nm.startEVMDocker("sequencer", sequencerEVMRPC, sequencerEVMEngine, sequencerEVMWS); err != nil {
-		return fmt.Errorf("failed to start sequencer EVM: %w", err)
+func (nm *nodeManager) configureNodes() {
+	for i := 0; i < nm.numNodes; i++ {
+		isSequencer := i == 0
+		var name string
+		if isSequencer {
+			name = "sequencer"
+		} else {
+			name = fmt.Sprintf("fullnode-%d", i)
+		}
+
+		node := nodeConfig{
+			name:        name,
+			rpcPort:     baseRPCPort + (i * portOffset),
+			p2pPort:     baseP2PPort + (i * portOffset),
+			evmRPC:      baseEVMRPC + (i * portOffset),
+			evmEngine:   baseEVMEngine + (i * portOffset),
+			evmWS:       baseEVMWS + (i * portOffset),
+			homeDir:     filepath.Join(nm.projectRoot, fmt.Sprintf(".evm-single-%s", name)),
+			isSequencer: isSequencer,
+		}
+		nm.nodes = append(nm.nodes, node)
+	}
+}
+
+func (nm *nodeManager) startEVMExecutionLayer(node *nodeConfig) error {
+	log.Printf("Starting %s's EVM execution layer...", node.name)
+	if err := nm.startEVMDocker(node.name, node.evmRPC, node.evmEngine, node.evmWS); err != nil {
+		return fmt.Errorf("failed to start EVM: %w", err)
 	}
 
-	// Start full node's EVM layer
-	log.Println("Starting full node's EVM execution layer...")
-	if err := nm.startEVMDocker("fullnode", fullNodeEVMRPC, fullNodeEVMEngine, fullNodeEVMWS); err != nil {
-		return fmt.Errorf("failed to start full node EVM: %w", err)
-	}
-
-	// Wait for EVM layers to initialize
-	log.Println("Waiting for EVM layers to initialize...")
-	time.Sleep(5 * time.Second)
-
+	// Wait for EVM layer to initialize
+	time.Sleep(3 * time.Second)
 	return nil
 }
 
@@ -256,30 +296,57 @@ func (nm *nodeManager) startEVMDocker(name string, rpcPort, enginePort, wsPort i
 	return nil
 }
 
-func (nm *nodeManager) startSequencer() (string, error) {
-	log.Println("Initializing sequencer node...")
+func (nm *nodeManager) startNode(node *nodeConfig, sequencerP2PAddr string) (string, error) {
+	log.Printf("Initializing %s node...", node.name)
 
-	sequencerHome := filepath.Join(nm.projectRoot, ".evm-single-sequencer")
-	nm.nodeDirs = append(nm.nodeDirs, sequencerHome)
+	nm.nodeDirs = append(nm.nodeDirs, node.homeDir)
 
 	// Remove existing directory
-	os.RemoveAll(sequencerHome)
+	os.RemoveAll(node.homeDir)
 
 	evmSinglePath := filepath.Join(nm.projectRoot, "build", "evm-single")
 
-	// Initialize sequencer
+	// Initialize node
 	initArgs := []string{
 		"init",
-		fmt.Sprintf("--home=%s", sequencerHome),
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase=secret",
+		fmt.Sprintf("--home=%s", node.homeDir),
+	}
+
+	if node.isSequencer {
+		initArgs = append(initArgs,
+			"--rollkit.node.aggregator=true",
+			"--rollkit.signer.passphrase=secret",
+		)
 	}
 
 	initCmd := exec.Command(evmSinglePath, initArgs...)
 	initCmd.Stdout = os.Stdout
 	initCmd.Stderr = os.Stderr
 	if err := initCmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to initialize sequencer: %w", err)
+		return "", fmt.Errorf("failed to initialize %s: %w", node.name, err)
+	}
+
+	// If this is a full node, copy genesis from sequencer
+	if !node.isSequencer && len(nm.nodes) > 0 {
+		log.Printf("Copying genesis from sequencer to %s...", node.name)
+		sequencerGenesis := filepath.Join(nm.nodes[0].homeDir, "config", "genesis.json")
+		nodeGenesis := filepath.Join(node.homeDir, "config", "genesis.json")
+
+		srcFile, err := os.Open(sequencerGenesis)
+		if err != nil {
+			return "", fmt.Errorf("failed to open sequencer genesis: %w", err)
+		}
+		defer srcFile.Close()
+
+		dstFile, err := os.Create(nodeGenesis)
+		if err != nil {
+			return "", fmt.Errorf("failed to create %s genesis: %w", node.name, err)
+		}
+		defer dstFile.Close()
+
+		if _, err := io.Copy(dstFile, srcFile); err != nil {
+			return "", fmt.Errorf("failed to copy genesis: %w", err)
+		}
 	}
 
 	// Read JWT secret from file
@@ -288,21 +355,31 @@ func (nm *nodeManager) startSequencer() (string, error) {
 		return "", fmt.Errorf("failed to read JWT secret: %w", err)
 	}
 
-	// Start sequencer
-	log.Println("Starting sequencer node...")
+	// Start node
+	log.Printf("Starting %s node...", node.name)
 	runArgs := []string{
 		"start",
-		fmt.Sprintf("--home=%s", sequencerHome),
+		fmt.Sprintf("--home=%s", node.homeDir),
 		fmt.Sprintf("--evm.jwt-secret=%s", string(jwtContent)),
 		fmt.Sprintf("--evm.genesis-hash=%s", genesisHash),
-		"--rollkit.node.block_time=1s",
-		"--rollkit.node.aggregator=true",
-		"--rollkit.signer.passphrase=secret",
-		fmt.Sprintf("--rollkit.rpc.address=127.0.0.1:%d", sequencerRPCPort),
-		fmt.Sprintf("--rollkit.p2p.listen_address=/ip4/127.0.0.1/tcp/%d", sequencerP2PPort),
+		fmt.Sprintf("--rollkit.rpc.address=127.0.0.1:%d", node.rpcPort),
+		fmt.Sprintf("--rollkit.p2p.listen_address=/ip4/127.0.0.1/tcp/%d", node.p2pPort),
 		fmt.Sprintf("--rollkit.da.address=http://localhost:%d", daPort),
-		fmt.Sprintf("--evm.eth-url=http://localhost:%d", sequencerEVMRPC),
-		fmt.Sprintf("--evm.engine-url=http://localhost:%d", sequencerEVMEngine),
+		fmt.Sprintf("--evm.eth-url=http://localhost:%d", node.evmRPC),
+		fmt.Sprintf("--evm.engine-url=http://localhost:%d", node.evmEngine),
+	}
+
+	if node.isSequencer {
+		runArgs = append(runArgs,
+			"--rollkit.node.block_time=1s",
+			"--rollkit.node.aggregator=true",
+			"--rollkit.signer.passphrase=secret",
+		)
+	} else {
+		// Full node needs to connect to sequencer
+		runArgs = append(runArgs,
+			fmt.Sprintf("--rollkit.p2p.peers=%s", sequencerP2PAddr),
+		)
 	}
 
 	runCmd := exec.CommandContext(nm.ctx, evmSinglePath, runArgs...)
@@ -310,135 +387,62 @@ func (nm *nodeManager) startSequencer() (string, error) {
 	runCmd.Stderr = os.Stderr
 
 	if err := runCmd.Start(); err != nil {
-		return "", fmt.Errorf("failed to start sequencer: %w", err)
+		return "", fmt.Errorf("failed to start %s: %w", node.name, err)
 	}
 
 	nm.processes = append(nm.processes, runCmd)
 
 	// Wait for node to initialize
-	log.Println("Waiting for sequencer to initialize...")
-	time.Sleep(5 * time.Second)
-
-	// Get node info to extract P2P address
-	netInfoCmd := exec.Command(evmSinglePath, "net-info",
-		fmt.Sprintf("--home=%s", sequencerHome))
-	netInfoOutput, err := netInfoCmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("failed to get net-info: %w, output: %s", err, string(netInfoOutput))
+	log.Printf("Waiting for %s to initialize...", node.name)
+	waitTime := 5 * time.Second
+	if !node.isSequencer {
+		waitTime = 3 * time.Second
 	}
+	time.Sleep(waitTime)
 
-	// Parse the output to extract the full address
-	netInfoStr := string(netInfoOutput)
-	lines := strings.Split(netInfoStr, "\n")
+	// Only get P2P address for sequencer
+	if node.isSequencer {
+		// Get node info to extract P2P address
+		netInfoCmd := exec.Command(evmSinglePath, "net-info",
+			fmt.Sprintf("--home=%s", node.homeDir))
+		netInfoOutput, err := netInfoCmd.CombinedOutput()
+		if err != nil {
+			return "", fmt.Errorf("failed to get net-info: %w, output: %s", err, string(netInfoOutput))
+		}
 
-	var p2pAddress string
-	for _, line := range lines {
-		// Look for the listen address line with the full P2P address
-		if strings.Contains(line, "Addr:") && strings.Contains(line, "/p2p/") {
-			// Extract everything after "Addr: "
-			addrIdx := strings.Index(line, "Addr:")
-			if addrIdx != -1 {
-				addrPart := line[addrIdx+5:] // Skip "Addr:"
-				addrPart = strings.TrimSpace(addrPart)
+		// Parse the output to extract the full address
+		netInfoStr := string(netInfoOutput)
+		lines := strings.Split(netInfoStr, "\n")
 
-				// If this line contains the full P2P address format
-				if strings.Contains(addrPart, "/ip4/") && strings.Contains(addrPart, "/tcp/") && strings.Contains(addrPart, "/p2p/") {
-					// Remove ANSI color codes
-					p2pAddress = stripANSI(addrPart)
-					break
+		var p2pAddress string
+		for _, line := range lines {
+			// Look for the listen address line with the full P2P address
+			if strings.Contains(line, "Addr:") && strings.Contains(line, "/p2p/") {
+				// Extract everything after "Addr: "
+				addrIdx := strings.Index(line, "Addr:")
+				if addrIdx != -1 {
+					addrPart := line[addrIdx+5:] // Skip "Addr:"
+					addrPart = strings.TrimSpace(addrPart)
+
+					// If this line contains the full P2P address format
+					if strings.Contains(addrPart, "/ip4/") && strings.Contains(addrPart, "/tcp/") && strings.Contains(addrPart, "/p2p/") {
+						// Remove ANSI color codes
+						p2pAddress = stripANSI(addrPart)
+						break
+					}
 				}
 			}
 		}
+
+		if p2pAddress == "" {
+			return "", fmt.Errorf("could not extract P2P address from netinfo output: %s", netInfoStr)
+		}
+
+		log.Printf("%s P2P address: %s", node.name, p2pAddress)
+		return p2pAddress, nil
 	}
 
-	if p2pAddress == "" {
-		return "", fmt.Errorf("could not extract P2P address from netinfo output: %s", netInfoStr)
-	}
-
-	log.Printf("Sequencer P2P address: %s", p2pAddress)
-	return p2pAddress, nil
-}
-
-func (nm *nodeManager) startFullNode(sequencerP2PAddr string) error {
-	log.Println("Initializing full node...")
-
-	fullNodeHome := filepath.Join(nm.projectRoot, ".evm-single-fullnode")
-	nm.nodeDirs = append(nm.nodeDirs, fullNodeHome)
-
-	// Remove existing directory
-	os.RemoveAll(fullNodeHome)
-
-	evmSinglePath := filepath.Join(nm.projectRoot, "build", "evm-single")
-
-	// Initialize full node
-	initArgs := []string{
-		"init",
-		fmt.Sprintf("--home=%s", fullNodeHome),
-	}
-
-	initCmd := exec.Command(evmSinglePath, initArgs...)
-	initCmd.Stdout = os.Stdout
-	initCmd.Stderr = os.Stderr
-	if err := initCmd.Run(); err != nil {
-		return fmt.Errorf("failed to initialize full node: %w", err)
-	}
-
-	// Copy genesis from sequencer
-	log.Println("Copying genesis from sequencer to full node...")
-	sequencerGenesis := filepath.Join(nm.projectRoot, ".evm-single-sequencer", "config", "genesis.json")
-	fullNodeGenesis := filepath.Join(fullNodeHome, "config", "genesis.json")
-
-	srcFile, err := os.Open(sequencerGenesis)
-	if err != nil {
-		return fmt.Errorf("failed to open sequencer genesis: %w", err)
-	}
-	defer srcFile.Close()
-
-	dstFile, err := os.Create(fullNodeGenesis)
-	if err != nil {
-		return fmt.Errorf("failed to create full node genesis: %w", err)
-	}
-	defer dstFile.Close()
-
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return fmt.Errorf("failed to copy genesis: %w", err)
-	}
-
-	// Read JWT secret from file
-	jwtContent, err := os.ReadFile(nm.jwtPath)
-	if err != nil {
-		return fmt.Errorf("failed to read JWT secret: %w", err)
-	}
-
-	// Start full node
-	log.Println("Starting full node...")
-	runArgs := []string{
-		"start",
-		fmt.Sprintf("--home=%s", fullNodeHome),
-		fmt.Sprintf("--evm.jwt-secret=%s", string(jwtContent)),
-		fmt.Sprintf("--evm.genesis-hash=%s", genesisHash),
-		fmt.Sprintf("--rollkit.rpc.address=127.0.0.1:%d", fullNodeRPCPort),
-		fmt.Sprintf("--rollkit.p2p.listen_address=/ip4/127.0.0.1/tcp/%d", fullNodeP2PPort),
-		fmt.Sprintf("--rollkit.p2p.peers=%s", sequencerP2PAddr),
-		fmt.Sprintf("--rollkit.da.address=http://localhost:%d", daPort),
-		fmt.Sprintf("--evm.eth-url=http://localhost:%d", fullNodeEVMRPC),
-		fmt.Sprintf("--evm.engine-url=http://localhost:%d", fullNodeEVMEngine),
-	}
-
-	runCmd := exec.CommandContext(nm.ctx, evmSinglePath, runArgs...)
-	runCmd.Stdout = os.Stdout
-	runCmd.Stderr = os.Stderr
-
-	if err := runCmd.Start(); err != nil {
-		return fmt.Errorf("failed to start full node: %w", err)
-	}
-
-	nm.processes = append(nm.processes, runCmd)
-
-	// Wait a bit for the node to start
-	time.Sleep(3 * time.Second)
-
-	return nil
+	return "", nil
 }
 
 func (nm *nodeManager) monitorProcesses() error {
