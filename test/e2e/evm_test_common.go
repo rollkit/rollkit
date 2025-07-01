@@ -69,7 +69,7 @@ const (
 	RollkitRPCAddress  = "http://127.0.0.1:" + RollkitRPCPort
 
 	// Test configuration
-	DefaultBlockTime   = "100ms"
+	DefaultBlockTime   = "150ms"
 	DefaultDABlockTime = "1s"
 	DefaultTestTimeout = 10 * time.Second
 	DefaultChainID     = "1234"
@@ -184,71 +184,51 @@ func waitForRethContainerAt(t *testing.T, jwtSecret, ethURL, engineURL string) e
 	}
 }
 
-// extractP2PID extracts the P2P ID from sequencer logs for establishing peer connections.
-// This function handles complex scenarios including:
-// - P2P IDs split across multiple log lines due to terminal output wrapping
-// - Multiple regex patterns to catch different log formats
-// - Fallback to deterministic test P2P ID when sequencer P2P isn't active yet
+// getNodeP2PAddress uses the net-info command to get the P2P address of a node.
+// This is more reliable than parsing logs as it directly queries the node's state.
 //
-// Returns: A valid P2P ID string that can be used for peer connections
-func extractP2PID(t *testing.T, sut *SystemUnderTest) string {
+// Parameters:
+// - nodeHome: Directory path for the node data
+//
+// Returns: The full P2P address (e.g., /ip4/127.0.0.1/tcp/7676/p2p/12D3KooW...)
+func getNodeP2PAddress(t *testing.T, sut *SystemUnderTest, nodeHome string) string {
 	t.Helper()
 
-	var p2pID string
-	p2pRegex := regexp.MustCompile(`listening on address=/ip4/127\.0\.0\.1/tcp/7676/p2p/([A-Za-z0-9]+)`)
-	p2pIDRegex := regexp.MustCompile(`/p2p/([A-Za-z0-9]+)`)
+	// Run net-info command to get node network information
+	output, err := sut.RunCmd(evmSingleBinaryPath,
+		"net-info",
+		"--home", nodeHome,
+	)
+	require.NoError(t, err, "failed to get net-info", output)
 
-	require.Eventually(t, func() bool {
-		var allLogLines []string
+	// Parse the output to extract the full P2P address
+	lines := strings.Split(output, "\n")
 
-		// Collect all available logs from both buffers
-		sut.outBuff.Do(func(v any) {
-			if v != nil {
-				line := v.(string)
-				allLogLines = append(allLogLines, line)
-				if matches := p2pRegex.FindStringSubmatch(line); len(matches) == 2 {
-					p2pID = matches[1]
+	var p2pAddress string
+	for _, line := range lines {
+		// Look for the listen address line with the full P2P address
+		if strings.Contains(line, "Addr:") && strings.Contains(line, "/p2p/") {
+			// Extract everything after "Addr: "
+			addrIdx := strings.Index(line, "Addr:")
+			if addrIdx != -1 {
+				addrPart := line[addrIdx+5:] // Skip "Addr:"
+				addrPart = strings.TrimSpace(addrPart)
+
+				// If this line contains the full P2P address format
+				if strings.Contains(addrPart, "/ip4/") && strings.Contains(addrPart, "/tcp/") && strings.Contains(addrPart, "/p2p/") {
+					// Remove ANSI color codes if present
+					ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+					p2pAddress = ansiRegex.ReplaceAllString(addrPart, "")
+					break
 				}
-			}
-		})
-
-		sut.errBuff.Do(func(v any) {
-			if v != nil {
-				line := v.(string)
-				allLogLines = append(allLogLines, line)
-				if matches := p2pRegex.FindStringSubmatch(line); len(matches) == 2 {
-					p2pID = matches[1]
-				}
-			}
-		})
-
-		// Handle split lines by combining logs and trying different patterns
-		if p2pID == "" {
-			combinedLogs := strings.Join(allLogLines, "")
-			if matches := p2pRegex.FindStringSubmatch(combinedLogs); len(matches) == 2 {
-				p2pID = matches[1]
-			} else if matches := p2pIDRegex.FindStringSubmatch(combinedLogs); len(matches) == 2 {
-				p2pID = matches[1]
 			}
 		}
-
-		// Return true if P2P ID found, false to continue polling
-		return p2pID != ""
-	}, P2PDiscoveryTimeout, FastPollingInterval, "P2P ID should be available in sequencer logs")
-
-	// If P2P ID found in logs, use it (this would be the ideal case)
-	if p2pID != "" {
-		t.Logf("Successfully extracted P2P ID from logs: %s", p2pID)
-		return p2pID
 	}
 
-	// Pragmatic approach: The sequencer doesn't start P2P services until there are peers
-	// Generate a deterministic P2P ID for the test
-	fallbackID := "12D3KooWSequencerTestNode123456789012345678901234567890"
-	t.Logf("⚠️  Failed to extract P2P ID from sequencer logs, using fallback test P2P ID: %s", fallbackID)
-	t.Logf("⚠️  This indicates that P2P ID logging may have changed or failed - please verify log parsing is working correctly")
+	require.NotEmpty(t, p2pAddress, "could not extract P2P address from net-info output: %s", output)
 
-	return fallbackID
+	t.Logf("Extracted P2P address: %s", p2pAddress)
+	return p2pAddress
 }
 
 // setupSequencerNode initializes and starts the sequencer node with proper configuration.
@@ -335,7 +315,7 @@ func setupSequencerNodeLazy(t *testing.T, sut *SystemUnderTest, sequencerHome, j
 // - fullNodeJwtSecret: JWT secret for full node's EVM engine
 // - genesisHash: Hash of the genesis block for chain validation
 // - p2pID: P2P ID of the sequencer node to connect to
-func setupFullNode(t *testing.T, sut *SystemUnderTest, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, p2pID string) {
+func setupFullNode(t *testing.T, sut *SystemUnderTest, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, sequencerP2PAddress string) {
 	t.Helper()
 
 	// Initialize full node
@@ -361,7 +341,7 @@ func setupFullNode(t *testing.T, sut *SystemUnderTest, fullNodeHome, sequencerHo
 		"--evm.genesis-hash", genesisHash,
 		"--rollkit.rpc.address", "127.0.0.1:"+FullNodeRPCPort,
 		"--rollkit.p2p.listen_address", "/ip4/127.0.0.1/tcp/"+FullNodeP2PPort,
-		"--rollkit.p2p.peers", "/ip4/127.0.0.1/tcp/"+RollkitP2PPort+"/p2p/"+p2pID,
+		"--rollkit.p2p.peers", sequencerP2PAddress,
 		"--evm.engine-url", FullNodeEngineURL,
 		"--evm.eth-url", FullNodeEthURL,
 		"--rollkit.da.address", DAAddress,
