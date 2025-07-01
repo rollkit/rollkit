@@ -24,7 +24,7 @@ test-integration:
 ## test-e2e: Running e2e tests
 test-e2e: build build-da build-evm-single
 	@echo "--> Running e2e tests"
-	@cd test/e2e && go test -mod=readonly -failfast -timeout=15m -tags='e2e evm' -v ./... --binary=$(CURDIR)/build/testapp --evm-binary=$(CURDIR)/build/evm-single
+	@cd test/e2e && go test -mod=readonly -failfast -timeout=15m -tags='e2e evm' ./... --binary=$(CURDIR)/build/testapp --evm-binary=$(CURDIR)/build/evm-single
 .PHONY: test-e2e
 
 ## test-integration-cover: generate code coverage report for integration tests.
