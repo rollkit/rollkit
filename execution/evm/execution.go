@@ -181,16 +181,21 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		txsPayload[i] = "0x" + hex.EncodeToString(tx)
 	}
 
-	_, _, prevGasLimit, _, err := c.getBlockInfo(ctx, blockHeight-1)
+	prevBlockHash, _, prevGasLimit, prevTimestamp, err := c.getBlockInfo(ctx, blockHeight-1)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get block info: %w", err)
 	}
 
+	ts := uint64(timestamp.Unix())
+	if ts <= prevTimestamp {
+		ts = prevTimestamp + 1 // Subsequent blocks must have a higher timestamp.
+	}
+
 	c.mu.Lock()
 	args := engine.ForkchoiceStateV1{
-		HeadBlockHash:      c.currentHeadBlockHash,
-		SafeBlockHash:      c.currentSafeBlockHash,
-		FinalizedBlockHash: c.currentFinalizedBlockHash,
+		HeadBlockHash:      prevBlockHash,
+		SafeBlockHash:      prevBlockHash,
+		FinalizedBlockHash: prevBlockHash,
 	}
 	c.mu.Unlock()
 
@@ -200,7 +205,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	// Create rollkit-compatible payload attributes with flattened structure
 	rollkitPayloadAttrs := map[string]interface{}{
 		// Standard Ethereum payload attributes (flattened) - using camelCase as expected by JSON
-		"timestamp":             uint64(timestamp.Unix()),
+		"timestamp":             ts,
 		"prevRandao":            c.derivePrevRandao(blockHeight),
 		"suggestedFeeRecipient": c.feeRecipient,
 		"withdrawals":           []*types.Withdrawal{},
@@ -300,13 +305,6 @@ func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
 		return fmt.Errorf("failed to get block info: %w", err)
 	}
 	return c.setFinal(ctx, blockHash, true)
-}
-
-// GetExecutionMode returns the execution mode for this executor.
-// EngineClient uses immediate execution mode since it calculates the state root
-// during transaction execution via engine_getPayloadV4.
-func (c *EngineClient) GetExecutionMode() execution.ExecutionMode {
-	return execution.ExecutionModeImmediate
 }
 
 func (c *EngineClient) derivePrevRandao(blockHeight uint64) common.Hash {

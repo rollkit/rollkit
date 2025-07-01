@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -80,7 +80,7 @@ func newFullNode(
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
 	metricsProvider MetricsProvider,
-	logger logging.EventLogger,
+	logger log.Logger,
 	signaturePayloadProvider types.SignaturePayloadProvider,
 ) (fn *FullNode, err error) {
 	seqMetrics, _ := metricsProvider(genesis.ChainID)
@@ -125,7 +125,7 @@ func newFullNode(
 		sequencer,
 		genesis.ChainID,
 		nodeConfig.Node.BlockTime.Duration,
-		logging.Logger("Reaper"), // Get Reaper's own logger
+		logger.With("module", "Reaper"),
 		mainKV,
 	)
 
@@ -154,9 +154,9 @@ func initHeaderSyncService(
 	nodeConfig config.Config,
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
-	logger logging.EventLogger,
+	logger log.Logger,
 ) (*rollkitsync.HeaderSyncService, error) {
-	headerSyncService, err := rollkitsync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logging.Logger("HeaderSyncService"))
+	headerSyncService, err := rollkitsync.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -168,9 +168,9 @@ func initDataSyncService(
 	nodeConfig config.Config,
 	genesis genesispkg.Genesis,
 	p2pClient *p2p.Client,
-	logger logging.EventLogger,
+	logger log.Logger,
 ) (*rollkitsync.DataSyncService, error) {
-	dataSyncService, err := rollkitsync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logging.Logger("DataSyncService"))
+	dataSyncService, err := rollkitsync.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing DataSyncService: %w", err)
 	}
@@ -194,7 +194,7 @@ func initBlockManager(
 	store store.Store,
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
-	logger logging.EventLogger,
+	logger log.Logger,
 	headerSyncService *rollkitsync.HeaderSyncService,
 	dataSyncService *rollkitsync.DataSyncService,
 	seqMetrics *block.Metrics,
@@ -213,7 +213,7 @@ func initBlockManager(
 		exec,
 		sequencer,
 		da,
-		logging.Logger("BlockManager"), // Get BlockManager's own logger
+		logger.With("module", "BlockManager"),
 		headerSyncService.Store(),
 		dataSyncService.Store(),
 		headerSyncService,
@@ -533,12 +533,12 @@ func (n *FullNode) IsRunning() bool {
 }
 
 // SetLogger sets the logger used by node.
-func (n *FullNode) SetLogger(logger logging.EventLogger) {
+func (n *FullNode) SetLogger(logger log.Logger) {
 	n.Logger = logger
 }
 
 // GetLogger returns logger.
-func (n *FullNode) GetLogger() logging.EventLogger {
+func (n *FullNode) GetLogger() log.Logger {
 	return n.Logger
 }
 

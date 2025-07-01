@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
+	"cosmossdk.io/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -16,8 +16,7 @@ import (
 )
 
 func TestSubmitWithHelpers(t *testing.T) {
-	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL")
+	logger := log.NewNopLogger()
 
 	testCases := []struct {
 		name           string
@@ -138,8 +137,7 @@ func TestSubmitWithHelpers(t *testing.T) {
 }
 
 func TestRetrieveWithHelpers(t *testing.T) {
-	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL")
+	logger := log.NewNopLogger()
 	dataLayerHeight := uint64(100)
 	mockIDs := [][]byte{[]byte("id1"), []byte("id2")}
 	mockBlobs := [][]byte{[]byte("blobA"), []byte("blobB")}

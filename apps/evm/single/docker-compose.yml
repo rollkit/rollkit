@@ -52,14 +52,14 @@ services:
       - rollkit-network
 
   rollkit-evm-single:
-    image: ghcr.io/rollkit/rollkit-evm-single:v0.1.6
+    image: ghcr.io/rollkit/rollkit-evm-single:pr-2394
     depends_on:
       rollkit-reth:
         condition: service_started
       local-da:
         condition: service_started
     volumes:
-      - evm-single-data:/data
+      - evm-single-data:/root/.evm-single/
     entrypoint: /usr/bin/entrypoint.sh
     environment:
       - EVM_ENGINE_URL=http://rollkit-reth:8551

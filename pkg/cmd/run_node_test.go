@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
@@ -293,8 +293,7 @@ func TestCentralizedAddresses(t *testing.T) {
 
 func TestStartNodeErrors(t *testing.T) {
 	baseCtx := context.Background()
-	// logger variable was declared but not used here, StartNode is called with a new NopLogger below.
-	// I'll create the logger for StartNode when it's called.
+	logger := log.NewNopLogger() // Use NopLogger for tests unless specific logging output is needed
 
 	// Common setup
 	executor, sequencer, dac, _, p2pClient, ds, stopDAHeightTicker := createTestComponents(baseCtx, t)
@@ -388,14 +387,10 @@ func TestStartNodeErrors(t *testing.T) {
 			if tc.cmdModifier != nil {
 				tc.cmdModifier(cmd)
 			}
-			// for this specific test section
-			_ = logging.SetLogLevel("test", "FATAL")
 
 			runFunc := func() {
 				// Pass the final nodeConfig to StartNode
-				currentTestLogger := logging.Logger("TestStartNodeErrors")
-				_ = logging.SetLogLevel("TestStartNodeErrors", "FATAL") // NOP behavior
-				err := StartNode(currentTestLogger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, nil)
+				err := StartNode(logger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, nil)
 				if tc.expectedError != "" {
 					assert.ErrorContains(t, err, tc.expectedError)
 				} else {
@@ -412,9 +407,7 @@ func TestStartNodeErrors(t *testing.T) {
 				assert.NotPanics(t, runFunc)
 				// Re-check error after NotPanics confirms no panic occurred
 				// Need to re-run StartNode as the original runFunc only checks error if !tc.expectPanic
-				checkLogger := logging.Logger("TestStartNodeErrors-check")
-				_ = logging.SetLogLevel("TestStartNodeErrors-check", "FATAL") // NOP behavior
-				err := StartNode(checkLogger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, nil)
+				err := StartNode(logger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, nil)
 				if tc.expectedError != "" {
 					assert.ErrorContains(t, err, tc.expectedError)
 				}
@@ -449,10 +442,8 @@ func newRunNodeCmd(
 		Aliases: []string{"node", "run"},
 		Short:   "Run the rollkit node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runNodeLogger := logging.Logger("runNodeCmd")
-			_ = logging.SetLogLevel("runNodeCmd", "FATAL")
 			// Use the nodeConfig passed into this function closure
-			return StartNode(runNodeLogger, cmd, executor, sequencer, dac, p2pClient, datastore, nodeConfig, nil)
+			return StartNode(log.NewNopLogger(), cmd, executor, sequencer, dac, p2pClient, datastore, nodeConfig, nil)
 		},
 	}
 

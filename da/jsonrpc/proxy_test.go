@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
+	"cosmossdk.io/log"
 	"github.com/rollkit/rollkit/da/internal/mocks"
 	proxy "github.com/rollkit/rollkit/da/jsonrpc"
 	"github.com/stretchr/testify/assert"
@@ -45,8 +45,7 @@ func getTestDABlockTime() time.Duration {
 func TestProxy(t *testing.T) {
 	dummy := coreda.NewDummyDA(100_000, 0, 0, getTestDABlockTime())
 	dummy.StartHeightTicker()
-	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "debug")
+	logger := log.NewTestLogger(t)
 	server := proxy.NewServer(logger, ServerHost, ServerPort, dummy)
 	err := server.Start(context.Background())
 	require.NoError(t, err)
@@ -242,8 +241,7 @@ func TestSubmitWithOptions(t *testing.T) {
 		client.DA.Internal.SubmitWithOptions = internalAPI.SubmitWithOptions
 		client.DA.Namespace = testNamespace
 		client.DA.MaxBlobSize = testMaxBlobSize
-		client.DA.Logger = logging.Logger("test")
-		_ = logging.SetLogLevel("test", "debug") // For test verbosity
+		client.DA.Logger = log.NewTestLogger(t)
 		return client
 	}
 

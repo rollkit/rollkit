@@ -7,7 +7,9 @@ import (
 
 	"github.com/rollkit/rollkit/da/jsonrpc"
 	"github.com/rollkit/rollkit/sequencers/single"
+	"github.com/rs/zerolog"
 
+	"cosmossdk.io/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
@@ -26,6 +28,16 @@ var RunCmd = &cobra.Command{
 	Aliases: []string{"node", "run"},
 	Short:   "Run the rollkit node with EVM execution client",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		opts := []log.Option{}
+		logLevel, _ := cmd.Flags().GetString(config.FlagLogLevel)
+		if logLevel != "" {
+			zl, err := zerolog.ParseLevel(logLevel)
+			if err != nil {
+				return err
+			}
+			opts = append(opts, log.LevelOption(zl))
+		}
+
 		executor, err := createExecutionClient(cmd)
 		if err != nil {
 			return err
@@ -48,10 +60,10 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		singleMetrics, err := single.DefaultMetricsProvider(nodeConfig.Instrumentation.IsPrometheusEnabled())(nodeConfig.ChainID)
-		if err != nil {
-			return err
-		}
+	singleMetrics, err := single.DefaultMetricsProvider(nodeConfig.Instrumentation.IsPrometheusEnabled())(nodeConfig.ChainID)
+	if err != nil {
+		return err
+	}
 
 		sequencer, err := single.NewSequencer(
 			context.Background(),
