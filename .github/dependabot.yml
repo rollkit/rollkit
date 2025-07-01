@@ -10,7 +10,7 @@ updates:
       - T:dependencies
     # Group all patch updates into a single PR
     groups:
-      patch-updates:
+      actions-patch-updates:
         applies-to: version-updates
         update-types:
           - "patch"
@@ -24,11 +24,10 @@ updates:
       - T:dependencies
     # Group all patch updates into a single PR
     groups:
-      patch-updates:
+      rollkit-actions-updates:
         applies-to: version-updates
         update-types:
           - "patch"
-          - "minor"
   - package-ecosystem: gomod
     target-branch: main
     directory: "/"
@@ -39,7 +38,7 @@ updates:
       - T:dependencies
     # Group all patch updates into a single PR
     groups:
-      patch-updates:
+      go-patch-updates:
         applies-to: version-updates
         update-types:
           - "patch"
@@ -53,13 +52,12 @@ updates:
       - T:dependencies
     # Group all patch updates into a single PR
     groups:
-      patch-updates:
+      rollkit-go-updates:
         applies-to: version-updates
         update-types:
           - "patch"
-          - "minor"
   - package-ecosystem: docker
-    directory: "/docker"
+    directory: "/"
     schedule:
       interval: daily
     open-pull-requests-limit: 10
@@ -67,7 +65,7 @@ updates:
       - T:dependencies
     # Group all patch updates into a single PR
     groups:
-      patch-updates:
+      docker-patch-updates:
         applies-to: version-updates
         update-types:
           - "patch"
