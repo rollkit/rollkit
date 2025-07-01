@@ -38,6 +38,7 @@ updates:
     groups:
       patch-updates:
         patterns:
+          - "github.com/rollkit/rollkit*"
           - "github.com/rollkit/*"
         update-types:
           - "patch"
