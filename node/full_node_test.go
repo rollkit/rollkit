@@ -30,9 +30,8 @@ func TestStartInstrumentationServer(t *testing.T) {
 
 	node := &FullNode{
 		nodeConfig:  config,
-		BaseService: *service.NewBaseService(logging.Logger("test"), "TestNode", nil), // Use ipfs/go-log
+		BaseService: *service.NewBaseService(logging.Logger("test"), "TestNode", nil),
 	}
-	// Set log level for testing if needed, e.g., logging.SetLogLevel("test", "debug")
 
 	prometheusSrv, pprofSrv := node.startInstrumentationServer()
 
@@ -52,7 +51,7 @@ func TestStartInstrumentationServer(t *testing.T) {
 	assert.Equal(http.StatusOK, resp.StatusCode, "Prometheus metrics endpoint should return 200 OK")
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(err)
-	assert.Contains(string(body), "# HELP", "Prometheus metrics body should contain HELP lines") // Check for typical metrics content
+	assert.Contains(string(body), "# HELP", "Prometheus metrics body should contain HELP lines")
 
 	resp, err = http.Get(fmt.Sprintf("http://%s/debug/pprof/", config.Instrumentation.PprofListenAddr))
 	require.NoError(err, "Failed to get Pprof index")
