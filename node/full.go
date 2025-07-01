@@ -82,6 +82,7 @@ func newFullNode(
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 	signaturePayloadProvider types.SignaturePayloadProvider,
+	validatorHasher types.ValidatorHasher,
 ) (fn *FullNode, err error) {
 	seqMetrics, _ := metricsProvider(genesis.ChainID)
 
@@ -114,6 +115,7 @@ func newFullNode(
 		nodeConfig.DA.GasPrice,
 		nodeConfig.DA.GasMultiplier,
 		signaturePayloadProvider,
+		validatorHasher,
 	)
 	if err != nil {
 		return nil, err
@@ -201,6 +203,7 @@ func initBlockManager(
 	gasPrice float64,
 	gasMultiplier float64,
 	signaturePayloadProvider types.SignaturePayloadProvider,
+	validatorHasher types.ValidatorHasher,
 ) (*block.Manager, error) {
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
 
@@ -222,6 +225,7 @@ func initBlockManager(
 		gasPrice,
 		gasMultiplier,
 		signaturePayloadProvider,
+		validatorHasher,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)

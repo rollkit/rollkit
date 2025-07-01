@@ -97,6 +97,7 @@ func StartNode(
 	datastore datastore.Batching,
 	nodeConfig rollconf.Config,
 	signaturePayloadProvider types.SignaturePayloadProvider,
+	validatorHasher types.ValidatorHasher,
 ) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
@@ -141,6 +142,7 @@ func StartNode(
 		metrics,
 		logger,
 		signaturePayloadProvider,
+		validatorHasher,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create node: %w", err)

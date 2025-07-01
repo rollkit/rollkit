@@ -168,6 +168,9 @@ type Manager struct {
 	// signaturePayloadProvider is used to provide a signature payload for the header.
 	// It is used to sign the header with the provided signer.
 	signaturePayloadProvider types.SignaturePayloadProvider
+
+	// validatorHasher is used to hash the validators.
+	validatorHasher types.ValidatorHasher
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
@@ -288,9 +291,14 @@ func NewManager(
 	gasPrice float64,
 	gasMultiplier float64,
 	signaturePayloadProvider types.SignaturePayloadProvider,
+	validatorHasher types.ValidatorHasher,
 ) (*Manager, error) {
 	if signaturePayloadProvider == nil {
 		signaturePayloadProvider = defaultSignaturePayloadProvider
+	}
+
+	if validatorHasher == nil {
+		validatorHasher = types.DefaultValidatorHasher
 	}
 
 	s, err := getInitialState(ctx, genesis, signer, store, exec, logger, signaturePayloadProvider)
@@ -385,6 +393,7 @@ func NewManager(
 		gasMultiplier:            gasMultiplier,
 		txNotifyCh:               make(chan struct{}, 1), // Non-blocking channel
 		signaturePayloadProvider: signaturePayloadProvider,
+		validatorHasher:          validatorHasher,
 	}
 
 	// initialize da included height
@@ -815,7 +824,7 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 	return nil
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, _ types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, state types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	// Use when batchData is set to data IDs from the DA layer
 	// batchDataIDs := convertBatchDataToBytes(batchData.Data)
 
@@ -838,24 +847,43 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	}
 
 	// Determine if this is an empty block
-	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
+	var isEmpty bool
+	if batchData == nil {
+		isEmpty = true
+	} else {
+		isEmpty = batchData.Batch == nil || len(batchData.Transactions) == 0
+	}
+
+	validatorHash, err := m.validatorHasher()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to hash validators: %w", err)
+	}
+
+	// Get block time - use current time if batchData is nil
+	var blockTime uint64
+	if batchData != nil {
+		blockTime = uint64(batchData.UnixNano()) //nolint:gosec // why is time unix? (tac0turtle)
+	} else {
+		blockTime = uint64(time.Now().UnixNano()) //nolint:gosec
+	}
 
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
-				Block: m.lastState.Version.Block,
-				App:   m.lastState.Version.App,
+				Block: state.Version.Block,
+				App:   state.Version.App,
 			},
 			BaseHeader: types.BaseHeader{
-				ChainID: m.lastState.ChainID,
+				ChainID: state.ChainID,
 				Height:  height,
-				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
+				Time:    blockTime,
 			},
 			LastHeaderHash: lastHeaderHash,
 			// DataHash is set at the end of the function
 			ConsensusHash:   make(types.Hash, 32),
-			AppHash:         m.lastState.AppHash,
+			AppHash:         state.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
+			ValidatorHash:   validatorHash,
 		},
 		Signature: *lastSignature,
 		Signer: types.Signer{

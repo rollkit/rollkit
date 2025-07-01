@@ -9,6 +9,12 @@ var (
 	leafPrefix = []byte{0}
 )
 
+type ValidatorHasher func() (Hash, error)
+
+func DefaultValidatorHasher() (Hash, error) {
+	return nil, nil
+}
+
 // Hash returns hash of the header
 func (h *Header) Hash() Hash {
 	bytes, err := h.MarshalBinary()

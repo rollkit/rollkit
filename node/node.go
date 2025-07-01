@@ -40,6 +40,7 @@ func NewNode(
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 	signaturePayloadProvider types.SignaturePayloadProvider,
+	validatorHasher types.ValidatorHasher,
 ) (Node, error) {
 	if conf.Node.Light {
 		return newLightNode(conf, genesis, p2pClient, database, logger)
@@ -58,5 +59,6 @@ func NewNode(
 		metricsProvider,
 		logger,
 		signaturePayloadProvider,
+		validatorHasher,
 	)
 }
