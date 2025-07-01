@@ -8,11 +8,13 @@
 // - High-throughput transaction handling with nonce ordering
 // - Invalid transaction rejection and validation
 // - Transaction inclusion verification and block production
+// - Performance-optimized comprehensive testing with container reuse
 //
 // Test Coverage:
-// 1. TestEvmSequencerE2E - Basic sequencer functionality with single transaction
-// 2. TestEvmMultipleTransactionInclusionE2E - High-throughput processing (200 transactions)
-// 3. TestEvmInvalidTransactionRejectionE2E - Various invalid transaction type rejections
+// TestEvmSequencerComprehensiveE2E - Consolidated comprehensive test covering:
+//   - Phase 1: Basic transaction processing (1 transaction)
+//   - Phase 2: High-throughput processing (200 transactions)
+//   - Phase 3: Invalid transaction rejection (4 scenarios + stability test)
 package e2e
 
 import (
@@ -30,65 +32,61 @@ import (
 	"github.com/rollkit/rollkit/execution/evm"
 )
 
-// TestEvmMultipleTransactionInclusionE2E tests high-throughput transaction processing
-// to ensure multiple transactions submitted in quick succession are all included
-// and maintain correct ordering without any loss or corruption.
+// TestEvmSequencerComprehensiveE2E runs a comprehensive test suite that combines
+// basic transaction processing, high-throughput testing, and invalid transaction
+// rejection in a single container setup to optimize execution time.
 //
-// Test Configuration:
-// - Submits 500 transactions in rapid succession (10ms intervals)
-// - Each transaction has sequential nonces (0-499)
-// - Uses proper chain ID (1234) for transaction signing
-// - Extended timeout (120s) to handle large transaction volume
+// Test Phases:
+// 1. Basic Transaction Test - Single transaction processing
+// 2. High-Throughput Test - Multiple transaction processing with nonce ordering
+// 3. Invalid Transaction Test - Various invalid transaction rejection scenarios
 //
-// Test Flow:
-// 1. Sets up Local DA layer and EVM sequencer
-// 2. Submits 500 transactions rapidly with 10ms delays between submissions
-// 3. Waits for all transactions to be included in blocks
-// 4. Verifies each transaction maintains correct nonce ordering
-// 5. Analyzes transaction distribution across blocks
-// 6. Ensures no transactions are lost or reordered
-//
-// Validation Criteria:
-// - All 500 transactions are successfully included
-// - Nonce sequence is perfectly maintained (0, 1, 2, ..., 499)
-// - No transaction loss occurs under high-frequency submission
-// - Transaction receipts show success status for all transactions
-// - Block distribution is reasonable and logged for analysis
-//
-// Performance Expectations:
-// - ~50 transactions per second submission rate
-// - ~55 transactions per block average packing
-// - Total test execution under 20 seconds
-// - Consistent performance across multiple runs
-//
-// This test validates that Rollkit can handle production-level burst transaction loads
-// while maintaining all ordering guarantees and preventing transaction loss.
-func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
+// This consolidated approach eliminates Docker container restart overhead
+// and provides comprehensive validation of EVM sequencer functionality.
+func TestEvmSequencerComprehensiveE2E(t *testing.T) {
 	flag.Parse()
 	workDir := t.TempDir()
 	nodeHome := filepath.Join(workDir, "evm-agg")
 	sut := NewSystemUnderTest(t)
 
-	// Setup sequencer
+	// Setup sequencer once for all test phases
 	genesisHash := setupSequencerOnlyTest(t, sut, nodeHome)
 	t.Logf("Genesis hash: %s", genesisHash)
 
-	// Connect to EVM
+	// Connect to EVM once for all phases
 	client, err := ethclient.Dial(SequencerEthURL)
 	require.NoError(t, err, "Should be able to connect to EVM")
 	defer client.Close()
+
+	ctx := context.Background()
+	var globalNonce uint64 = 0
+
+	// ===== PHASE 1: Basic Transaction Test =====
+	t.Log("🔄 PHASE 1: Basic Transaction Test")
+
+	// Submit a single transaction to EVM
+	tx1 := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &globalNonce)
+	evm.SubmitTransaction(t, tx1)
+	t.Log("Submitted basic test transaction to EVM")
+
+	// Wait for block production and verify transaction inclusion
+	require.Eventually(t, func() bool {
+		return evm.CheckTxIncluded(t, tx1.Hash())
+	}, 15*time.Second, 500*time.Millisecond)
+	t.Log("✅ Basic transaction included in EVM block")
+
+	// ===== PHASE 2: High-Throughput Transaction Test =====
+	t.Log("🔄 PHASE 2: High-Throughput Transaction Test (200 transactions)")
 
 	// Submit multiple transactions in quick succession
 	const numTxs = 200
 	var txHashes []common.Hash
 	var expectedNonces []uint64
-	lastNonce := uint64(0)
-	ctx := context.Background()
 
 	t.Logf("Submitting %d transactions in quick succession...", numTxs)
 	for i := 0; i < numTxs; i++ {
 		// Create transaction with proper chain ID
-		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
+		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &globalNonce)
 
 		evm.SubmitTransaction(t, tx)
 		txHashes = append(txHashes, tx.Hash())
@@ -105,7 +103,7 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 	// Wait for all transactions to be included and verify order
 	var receipts []*common.Hash
 
-	t.Log("Waiting for all transactions to be included...")
+	t.Log("Waiting for all high-throughput transactions to be included...")
 	require.Eventually(t, func() bool {
 		receipts = receipts[:0] // Clear slice
 
@@ -125,15 +123,15 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 		}
 
 		return len(receipts) == numTxs
-	}, 45*time.Second, 500*time.Millisecond, "All transactions should be included")
+	}, 45*time.Second, 500*time.Millisecond, "All high-throughput transactions should be included")
 
-	t.Logf("✅ All %d transactions were successfully included", numTxs)
+	t.Logf("✅ All %d high-throughput transactions were successfully included", numTxs)
 
 	// Verify transaction order by checking nonces
 	var actualNonces []uint64
 	var blockNumbers []uint64
 
-	t.Log("Verifying transaction nonces and block inclusion...")
+	t.Log("Verifying high-throughput transaction nonces and block inclusion...")
 	for i, txHash := range txHashes {
 		receipt, err := client.TransactionReceipt(ctx, txHash)
 		require.NoError(t, err, "Should get receipt for transaction %d", i+1)
@@ -162,7 +160,7 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 	// Verify no transactions were lost
 	require.Equal(t, numTxs, len(actualNonces), "All %d transactions should be included", numTxs)
 
-	// Log block distribution
+	// Log block distribution summary
 	blockCounts := make(map[uint64]int)
 	var minBlock, maxBlock uint64 = ^uint64(0), 0
 
@@ -176,85 +174,21 @@ func TestEvmMultipleTransactionInclusionE2E(t *testing.T) {
 		}
 	}
 
-	t.Logf("Transaction distribution across %d blocks (blocks %d-%d):", len(blockCounts), minBlock, maxBlock)
 	totalBlocks := len(blockCounts)
-	if totalBlocks <= 20 {
-		// Show all blocks if reasonable number
-		for blockNum := minBlock; blockNum <= maxBlock; blockNum++ {
-			if count, exists := blockCounts[blockNum]; exists {
-				t.Logf("  Block %d: %d transactions", blockNum, count)
-			}
-		}
-	} else {
-		// Show summary for large number of blocks
-		t.Logf("  Average transactions per block: %.2f", float64(numTxs)/float64(totalBlocks))
-		t.Logf("  First 5 blocks:")
-		for blockNum := minBlock; blockNum < minBlock+5 && blockNum <= maxBlock; blockNum++ {
-			if count, exists := blockCounts[blockNum]; exists {
-				t.Logf("    Block %d: %d transactions", blockNum, count)
-			}
-		}
-		t.Logf("  Last 5 blocks:")
-		for blockNum := maxBlock - 4; blockNum <= maxBlock && blockNum >= minBlock; blockNum++ {
-			if count, exists := blockCounts[blockNum]; exists {
-				t.Logf("    Block %d: %d transactions", blockNum, count)
-			}
-		}
-	}
+	t.Logf("✅ High-throughput test completed:")
+	t.Logf("   - %d transactions across %d blocks (blocks %d-%d)", numTxs, totalBlocks, minBlock, maxBlock)
+	t.Logf("   - Average transactions per block: %.2f", float64(numTxs)/float64(totalBlocks))
 
-	t.Logf("✅ Test PASSED: All %d transactions included in correct nonce order", numTxs)
-}
+	// ===== PHASE 3: Invalid Transaction Rejection Test =====
+	t.Log("🔄 PHASE 3: Invalid Transaction Rejection Test")
 
-// TestEvmInvalidTransactionRejectionE2E tests the system's ability to properly reject
-// various types of invalid transactions and ensure they are not included in any blocks.
-//
-// Test Purpose:
-// - Confirm that invalid transactions are rejected and not included in blocks
-// - Test various types of invalid transactions (bad signature, insufficient funds, malformed data)
-// - Ensure system stability when processing invalid transactions
-// - Validate that valid transactions still work after invalid ones are rejected
-//
-// Test Flow:
-//  1. Sets up Local DA layer and EVM sequencer
-//  2. Submits various invalid transactions:
-//     a. Transaction with invalid signature
-//     b. Transaction with insufficient funds (from empty account)
-//     c. Transaction with invalid nonce (too high)
-//     d. Transaction with invalid gas limit (too low)
-//  3. Verifies that all invalid transactions are rejected
-//  4. Submits a valid transaction to confirm system stability
-//  5. Ensures the valid transaction is processed correctly
-//
-// Expected Behavior:
-// - All invalid transactions should be rejected at submission or processing
-// - No invalid transactions should appear in any blocks
-// - Valid transactions should continue to work normally
-// - System should remain stable and responsive after rejecting invalid transactions
-//
-// This test validates Rollkit's transaction validation and rejection mechanisms.
-func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
-	flag.Parse()
-	workDir := t.TempDir()
-	nodeHome := filepath.Join(workDir, "evm-agg")
-	sut := NewSystemUnderTest(t)
-
-	// Setup sequencer
-	genesisHash := setupSequencerOnlyTest(t, sut, nodeHome)
-	t.Logf("Genesis hash: %s", genesisHash)
-
-	// Connect to EVM
-	client, err := ethclient.Dial(SequencerEthURL)
-	require.NoError(t, err, "Should be able to connect to EVM")
-	defer client.Close()
-
-	ctx := context.Background()
 	var invalidTxHashes []common.Hash
 	var invalidTxErrors []string
 
 	t.Log("Testing various invalid transaction types...")
 
 	// Test invalid signature transaction
-	t.Log("7a. Testing transaction with invalid signature...")
+	t.Log("3a. Testing transaction with invalid signature...")
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -265,8 +199,8 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 
 		// Try to submit with a bad signature by creating a transaction with wrong private key
 		badPrivKey := "1111111111111111111111111111111111111111111111111111111111111111"
-		lastNonce := uint64(0)
-		badTx := evm.GetRandomTransaction(t, badPrivKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
+		tempNonce := uint64(0) // Use separate nonce for invalid transactions
+		badTx := evm.GetRandomTransaction(t, badPrivKey, TestToAddress, DefaultChainID, DefaultGasLimit, &tempNonce)
 
 		err := client.SendTransaction(ctx, badTx)
 		if err != nil {
@@ -279,7 +213,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	}()
 
 	// Test insufficient funds transaction
-	t.Log("7b. Testing transaction with insufficient funds...")
+	t.Log("3b. Testing transaction with insufficient funds...")
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -290,8 +224,8 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 
 		// Use an empty account that has no funds
 		emptyAccountPrivKey := "2222222222222222222222222222222222222222222222222222222222222222"
-		lastNonce := uint64(0)
-		tx := evm.GetRandomTransaction(t, emptyAccountPrivKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
+		tempNonce := uint64(0)
+		tx := evm.GetRandomTransaction(t, emptyAccountPrivKey, TestToAddress, DefaultChainID, DefaultGasLimit, &tempNonce)
 
 		err := client.SendTransaction(ctx, tx)
 		if err != nil {
@@ -304,7 +238,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	}()
 
 	// Test invalid nonce transaction (way too high)
-	t.Log("7c. Testing transaction with invalid nonce...")
+	t.Log("3c. Testing transaction with invalid nonce...")
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -314,8 +248,8 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 		}()
 
 		// Use a very high nonce that's way ahead of the current account nonce
-		lastNonce := uint64(999999)
-		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
+		tempNonce := uint64(999999)
+		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &tempNonce)
 
 		err := client.SendTransaction(ctx, tx)
 		if err != nil {
@@ -328,7 +262,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	}()
 
 	// Test invalid gas limit transaction (too low)
-	t.Log("7d. Testing transaction with invalid gas limit...")
+	t.Log("3d. Testing transaction with invalid gas limit...")
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -338,8 +272,8 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 		}()
 
 		// Use an extremely low gas limit that's insufficient for basic transfer
-		lastNonce := uint64(0)
-		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, 1000, &lastNonce) // Very low gas
+		tempNonce := uint64(0)
+		tx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, 1000, &tempNonce) // Very low gas
 
 		err := client.SendTransaction(ctx, tx)
 		if err != nil {
@@ -352,7 +286,7 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 	}()
 
 	// Wait for any transactions to be processed
-	t.Log("Waiting for transaction processing...")
+	t.Log("Waiting for invalid transaction processing...")
 	time.Sleep(500 * time.Millisecond)
 
 	// Check that none of the invalid transactions were included in blocks
@@ -374,31 +308,38 @@ func TestEvmInvalidTransactionRejectionE2E(t *testing.T) {
 		}
 	}
 
-	// Submit a valid transaction to verify system stability
-	t.Log("Testing system stability with valid transaction...")
-	lastNonce := uint64(0)
-	validTx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &lastNonce)
+	// Submit a valid transaction to verify system stability after invalid ones
+	t.Log("Testing system stability with final valid transaction...")
+	validTx := evm.GetRandomTransaction(t, TestPrivateKey, TestToAddress, DefaultChainID, DefaultGasLimit, &globalNonce)
 
 	evm.SubmitTransaction(t, validTx)
-	t.Logf("Submitted valid transaction: %s", validTx.Hash().Hex())
+	t.Logf("Submitted final valid transaction: %s", validTx.Hash().Hex())
 
 	// Wait for valid transaction to be included
 	require.Eventually(t, func() bool {
 		receipt, err := client.TransactionReceipt(ctx, validTx.Hash())
 		return err == nil && receipt != nil && receipt.Status == 1
-	}, 15*time.Second, 500*time.Millisecond, "Valid transaction should be included after invalid ones were rejected")
+	}, 15*time.Second, 500*time.Millisecond, "Final valid transaction should be included after invalid ones were rejected")
 
-	t.Log("✅ Valid transaction included successfully - system stability confirmed")
+	t.Log("✅ Final valid transaction included successfully - system stability confirmed")
 
 	// Final verification
 	validReceipt, err := client.TransactionReceipt(ctx, validTx.Hash())
-	require.NoError(t, err, "Should get receipt for valid transaction")
-	require.Equal(t, uint64(1), validReceipt.Status, "Valid transaction should be successful")
+	require.NoError(t, err, "Should get receipt for final valid transaction")
+	require.Equal(t, uint64(1), validReceipt.Status, "Final valid transaction should be successful")
 
-	t.Logf("✅ Test PASSED: Invalid transaction rejection working correctly")
-	t.Logf("   - %d invalid transactions properly rejected", len(invalidTxErrors))
-	t.Logf("   - No invalid transactions included in any blocks")
-	t.Logf("   - Valid transactions continue to work normally")
-	t.Logf("   - System maintains stability after rejecting invalid transactions")
-	t.Logf("   - Transaction validation mechanisms functioning properly")
+	// ===== COMPREHENSIVE TEST SUMMARY =====
+	totalValidTxs := 1 + numTxs + 1 // basic + high-throughput + final valid
+	t.Logf("🎉 COMPREHENSIVE TEST PASSED: All phases completed successfully!")
+	t.Logf("   📊 Test Statistics:")
+	t.Logf("      - Phase 1 (Basic): 1 transaction ✓")
+	t.Logf("      - Phase 2 (High-throughput): %d transactions ✓", numTxs)
+	t.Logf("      - Phase 3 (Invalid rejection): %d invalid txs rejected ✓", len(invalidTxErrors))
+	t.Logf("      - Phase 3 (System stability): 1 final transaction ✓")
+	t.Logf("      - Total valid transactions processed: %d", totalValidTxs)
+	t.Logf("   🚀 Performance Benefits:")
+	t.Logf("      - Single container setup (no restarts)")
+	t.Logf("      - Continuous nonce management across phases")
+	t.Logf("      - Comprehensive validation in one test execution")
+	t.Logf("   ✅ All EVM sequencer functionality validated successfully!")
 }
