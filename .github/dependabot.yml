@@ -13,21 +13,6 @@ updates:
         applies-to: version-updates
         update-types:
           - "patch"
-  - package-ecosystem: github-actions
-    directory: "/"
-    schedule:
-      interval: daily
-    allow:
-      - dependency-name: "rollkit/*"
-    labels:
-      - T:dependencies
-    # Group all patch updates into a single PR
-    groups:
-      patch-updates:
-        applies-to: version-updates
-        update-types:
-          - "patch"
-          - "minor"
   - package-ecosystem: gomod
     directory: "/"
     schedule:
@@ -35,27 +20,173 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - T:dependencies
-    # Group all patch updates into a single PR
+    # Group updates across all go modules
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "github.com/rollkit/*"
+      rollkit-dependencies:
+        patterns:
+          - "github.com/rollkit/*"
+        update-types:
+          - "patch"
+          - "minor"
+      go-patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/core"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
           - "patch"
   - package-ecosystem: gomod
-    directory: "/"
+    directory: "/da"
     schedule:
-      interval: daily
-    allow:
-      - dependency-name: "github.com/rollkit/*"
+      interval: weekly
+    open-pull-requests-limit: 10
     labels:
       - T:dependencies
-    # Group all patch updates into a single PR
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
           - "patch"
-          - "minor"
+  - package-ecosystem: gomod
+    directory: "/execution/evm"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/sequencers/based"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/sequencers/single"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/apps/testapp"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/apps/evm/single"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/apps/evm/based"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/test/e2e"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+  - package-ecosystem: gomod
+    directory: "/test/docker-e2e"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - T:dependencies
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
   - package-ecosystem: docker
     directory: "/docker"
     schedule:
