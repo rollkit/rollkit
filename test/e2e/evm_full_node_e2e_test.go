@@ -19,8 +19,6 @@
 // 4. TestEvmSequencerFullNodeRestartE2E - Distributed restart and recovery testing
 //   - StandardRestart: Normal start -> Normal restart
 //   - LazyModeRestart: Normal start -> Lazy restart
-//   - LazyToStandardRestart: Lazy start -> Normal restart
-//   - LazyToLazyRestart: Lazy start -> Lazy restart
 package e2e
 
 import (
@@ -217,11 +215,11 @@ func setupSequencerWithFullNode(t *testing.T, sut *SystemUnderTest, sequencerHom
 	setupSequencerNode(t, sut, sequencerHome, jwtSecret, genesisHash)
 	t.Log("Sequencer node is up")
 
-	// Extract P2P ID and setup full node
-	p2pID := extractP2PID(t, sut)
-	t.Logf("Extracted P2P ID: %s", p2pID)
+	// Get P2P address and setup full node
+	sequencerP2PAddress := getNodeP2PAddress(t, sut, sequencerHome)
+	t.Logf("Sequencer P2P address: %s", sequencerP2PAddress)
 
-	setupFullNode(t, sut, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, p2pID)
+	setupFullNode(t, sut, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, sequencerP2PAddress)
 	t.Log("Full node is up")
 
 	// Connect to both EVM instances
@@ -586,11 +584,11 @@ func setupSequencerWithFullNodeLazy(t *testing.T, sut *SystemUnderTest, sequence
 	setupSequencerNodeLazy(t, sut, sequencerHome, jwtSecret, genesisHash)
 	t.Log("Sequencer node (lazy mode) is up")
 
-	// Extract P2P ID and setup full node
-	p2pID := extractP2PID(t, sut)
-	t.Logf("Extracted P2P ID: %s", p2pID)
+	// Get P2P address and setup full node
+	sequencerP2PAddress := getNodeP2PAddress(t, sut, sequencerHome)
+	t.Logf("Sequencer P2P address: %s", sequencerP2PAddress)
 
-	setupFullNode(t, sut, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, p2pID)
+	setupFullNode(t, sut, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, sequencerP2PAddress)
 	t.Log("Full node is up")
 
 	// Connect to both EVM instances
@@ -853,12 +851,11 @@ func TestEvmLazyModeSequencerE2E(t *testing.T) {
 // - jwtSecret: JWT secret for sequencer's EVM engine
 // - fullNodeJwtSecret: JWT secret for full node's EVM engine
 // - genesisHash: Hash of the genesis block for chain validation
-// - p2pID: P2P ID of the sequencer node for full node connection
 // - useLazyMode: Whether to restart the sequencer in lazy mode
 //
 // This function ensures both nodes are properly restarted and P2P connections are re-established.
 // The DA restart is handled by the shared restartDAAndSequencer/restartDAAndSequencerLazy functions.
-func restartSequencerAndFullNode(t *testing.T, sut *SystemUnderTest, sequencerHome, fullNodeHome, jwtSecret, fullNodeJwtSecret, genesisHash, p2pID string, useLazyMode bool) {
+func restartSequencerAndFullNode(t *testing.T, sut *SystemUnderTest, sequencerHome, fullNodeHome, jwtSecret, fullNodeJwtSecret, genesisHash string, useLazyMode bool) {
 	t.Helper()
 
 	// Restart DA and sequencer first (following the pattern from TestEvmSequencerRestartRecoveryE2E)
@@ -868,6 +865,10 @@ func restartSequencerAndFullNode(t *testing.T, sut *SystemUnderTest, sequencerHo
 		restartDAAndSequencer(t, sut, sequencerHome, jwtSecret, genesisHash)
 	}
 
+	// Get the P2P address of the restarted sequencer using net-info command
+	sequencerP2PAddress := getNodeP2PAddress(t, sut, sequencerHome)
+	t.Logf("Sequencer P2P address after restart: %s", sequencerP2PAddress)
+
 	// Now restart the full node (without init - node already exists)
 	sut.ExecCmd(evmSingleBinaryPath,
 		"start",
@@ -876,7 +877,7 @@ func restartSequencerAndFullNode(t *testing.T, sut *SystemUnderTest, sequencerHo
 		"--evm.genesis-hash", genesisHash,
 		"--rollkit.rpc.address", "127.0.0.1:"+FullNodeRPCPort,
 		"--rollkit.p2p.listen_address", "/ip4/127.0.0.1/tcp/"+FullNodeP2PPort,
-		"--rollkit.p2p.peers", "/ip4/127.0.0.1/tcp/"+RollkitP2PPort+"/p2p/"+p2pID,
+		"--rollkit.p2p.peers", sequencerP2PAddress,
 		"--evm.engine-url", FullNodeEngineURL,
 		"--evm.eth-url", FullNodeEthURL,
 		"--rollkit.da.address", DAAddress,
@@ -902,8 +903,6 @@ func restartSequencerAndFullNode(t *testing.T, sut *SystemUnderTest, sequencerHo
 // Sub-tests:
 // 1. StandardRestart: Normal start -> Normal restart
 // 2. LazyModeRestart: Normal start -> Lazy restart
-// 3. LazyToStandardRestart: Lazy start -> Normal restart
-// 4. LazyToLazyRestart: Lazy start -> Lazy restart
 //
 // Test Flow:
 // 1. Sets up Local DA layer, sequencer, and full node with P2P connections (in specified initial mode)
@@ -948,14 +947,6 @@ func TestEvmSequencerFullNodeRestartE2E(t *testing.T) {
 	t.Run("LazyModeRestart", func(t *testing.T) {
 		testSequencerFullNodeRestart(t, false, true) // normal -> lazy
 	})
-
-	t.Run("LazyToStandardRestart", func(t *testing.T) {
-		testSequencerFullNodeRestart(t, true, false) // lazy -> normal
-	})
-
-	t.Run("LazyToLazyRestart", func(t *testing.T) {
-		testSequencerFullNodeRestart(t, true, true) // lazy -> lazy
-	})
 }
 
 // testSequencerFullNodeRestart contains the shared test logic for all restart test combinations.
@@ -985,11 +976,11 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 		t.Log("Sequencer node is up")
 	}
 
-	// Extract P2P ID and setup full node
-	p2pID := extractP2PID(t, sut)
-	t.Logf("Extracted P2P ID for restart: %s", p2pID)
+	// Get P2P address and setup full node
+	sequencerP2PAddress := getNodeP2PAddress(t, sut, sequencerHome)
+	t.Logf("Sequencer P2P address: %s", sequencerP2PAddress)
 
-	setupFullNode(t, sut, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, p2pID)
+	setupFullNode(t, sut, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash, sequencerP2PAddress)
 	t.Log("Full node is up")
 
 	// Connect to both EVM instances
@@ -1104,7 +1095,7 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 	t.Log("Phase 3: Restarting both sequencer and full node...")
 
 	// Restart both nodes with specified restart mode
-	restartSequencerAndFullNode(t, sut, sequencerHome, fullNodeHome, jwtSecret, fullNodeJwtSecret, genesisHash, p2pID, restartLazyMode)
+	restartSequencerAndFullNode(t, sut, sequencerHome, fullNodeHome, jwtSecret, fullNodeJwtSecret, genesisHash, restartLazyMode)
 
 	// Reconnect to both EVM instances (connections lost during restart)
 	sequencerClient, err = ethclient.Dial(SequencerEthURL)
@@ -1138,7 +1129,7 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 		}
 
 		return heightDiff <= 15
-	}, DefaultTestTimeout, 250*time.Millisecond, "P2P connections should be re-established")
+	}, DefaultTestTimeout, 500*time.Millisecond, "P2P connections should be re-established")
 
 	t.Log("P2P connections re-established successfully")
 

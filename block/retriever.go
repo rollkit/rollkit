@@ -111,18 +111,18 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 	var headerPb pb.SignedHeader
 	err := proto.Unmarshal(bz, &headerPb)
 	if err != nil {
-		m.logger.Debug("failed to unmarshal header", "error", err)
+		m.logger.Debug("failed to unmarshal header, error", err)
 		return false
 	}
 	err = header.FromProto(&headerPb)
 	if err != nil {
 		// treat as handled, but not valid
-		m.logger.Debug("failed to decode unmarshalled header", "error", err)
+		m.logger.Debug("failed to decode unmarshalled header, error", err)
 		return true
 	}
 	// Stronger validation: check for obviously invalid headers using ValidateBasic
 	if err := header.ValidateBasic(); err != nil {
-		m.logger.Debug("blob does not look like a valid header", "daHeight", daHeight, "error", err)
+		m.logger.Debug("blob does not look like a valid header, daHeight: ", daHeight, "error", err)
 		return false
 	}
 	// early validation to reject junk headers
@@ -135,13 +135,13 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 	headerHash := header.Hash().String()
 	m.headerCache.SetDAIncluded(headerHash, daHeight)
 	m.sendNonBlockingSignalToDAIncluderCh()
-	m.logger.Info("header marked as DA included", "headerHeight", header.Height(), "headerHash", headerHash)
+	m.logger.Info("header marked as DA included, headerHeight: ", header.Height(), "headerHash: ", headerHash)
 	if !m.headerCache.IsSeen(headerHash) {
 		select {
 		case <-ctx.Done():
 			return true
 		default:
-			m.logger.Warn("headerInCh backlog full, dropping header", "daHeight", daHeight)
+			m.logger.Warn("headerInCh backlog full, dropping header: daHeight ", daHeight)
 		}
 		m.headerInCh <- NewHeaderEvent{header, daHeight}
 	}
@@ -153,24 +153,24 @@ func (m *Manager) handlePotentialData(ctx context.Context, bz []byte, daHeight u
 	var signedData types.SignedData
 	err := signedData.UnmarshalBinary(bz)
 	if err != nil {
-		m.logger.Debug("failed to unmarshal signed data", "error", err)
+		m.logger.Debug("failed to unmarshal signed data, error", err)
 		return
 	}
 	if len(signedData.Txs) == 0 {
-		m.logger.Debug("ignoring empty signed data", "daHeight", daHeight)
+		m.logger.Debug("ignoring empty signed data, daHeight: ", daHeight)
 		return
 	}
 
 	// Early validation to reject junk data
 	if !m.isValidSignedData(&signedData) {
-		m.logger.Debug("invalid data signature", "daHeight", daHeight)
+		m.logger.Debug("invalid data signature, daHeight: ", daHeight)
 		return
 	}
 
 	dataHashStr := signedData.Data.DACommitment().String()
 	m.dataCache.SetDAIncluded(dataHashStr, daHeight)
 	m.sendNonBlockingSignalToDAIncluderCh()
-	m.logger.Info("signed data marked as DA included", "dataHash", dataHashStr, "daHeight", daHeight, "height", signedData.Height())
+	m.logger.Info("signed data marked as DA included, dataHash: ", dataHashStr, "daHeight: ", daHeight, "height: ", signedData.Height())
 	if !m.dataCache.IsSeen(dataHashStr) {
 		select {
 		case <-ctx.Done():

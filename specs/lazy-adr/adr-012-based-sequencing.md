@@ -199,7 +199,7 @@ This design ensures:
 
 - Fee accountability: Users pay for DA inclusion via standard gas fees.
 - Node neutrality: Any full node can relay a transaction and get compensated.
-- No execution-layer changes: Works with unmodified reth/op-geth clients.
+- No execution-layer changes: Works with a modified reth clients.
 - Security: Users retain flexibility to either self-submit or rely on decentralized relayers.
 
 Additional enhancements like dynamic fee markets, relayer reputation, or chain-native incentives can be layered atop this base mechanism in the future.

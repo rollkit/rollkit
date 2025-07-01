@@ -171,6 +171,9 @@ func TestNodeRestartPersistence(t *testing.T) {
 
 	state, err := c.GetState(ctx)
 	require.NoError(t, err)
+	if state.LastBlockHeight == 1 {
+		time.Sleep(100 * time.Millisecond)
+	}
 	require.Greater(t, state.LastBlockHeight, uint64(1))
 
 	// Wait for some blocks to be produced

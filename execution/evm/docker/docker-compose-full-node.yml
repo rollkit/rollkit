@@ -8,9 +8,9 @@ services:
       - ./jwttoken:/jwt
     healthcheck:
       test: ["CMD", "test", "-f", "/jwt/jwt.hex"]
-      interval: 5s
-      timeout: 5s
-      retries: 3
+      interval: 2s
+      timeout: 2s
+      retries: 2
     command: >
       /bin/sh -c "mkdir -p /jwt &&
       if [ ! -f /jwt/jwt.hex ]; then
@@ -35,6 +35,8 @@ services:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
       - logs-full-node:/root/logs
+    environment:
+      - RUST_LOG=warn,lumen_rollkit=info
     entrypoint: /bin/sh -c
     command:
       - |
