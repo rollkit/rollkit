@@ -95,7 +95,8 @@ func NewEngineExecutionClient(
 		return nil, err
 	}
 
-	return &EngineClient{
+	// Instantiate client and pre-fill cache
+	cli := &EngineClient{
 		engineClient:              engineClient,
 		ethClient:                 ethClient,
 		genesisHash:               genesisHash,
@@ -104,7 +105,12 @@ func NewEngineExecutionClient(
 		currentSafeBlockHash:      genesisHash,
 		currentFinalizedBlockHash: genesisHash,
 		blockIndex:                make(map[uint64]*payloadMeta),
-	}, nil
+	}
+	// Best-effort pre-fill with the tip (and tip-1) so cache is warm
+	if headHeight, err := cli.ethClient.BlockNumber(context.Background()); err == nil {
+		cli.rebuildIndexLight(context.Background(), headHeight)
+	}
+	return cli, nil
 }
 
 // InitChain initializes the blockchain with the given genesis parameters
@@ -369,6 +375,34 @@ func (c *EngineClient) getBlockInfo(ctx context.Context, height uint64) (common.
 		return common.Hash{}, common.Hash{}, 0, 0, fmt.Errorf("failed to get block at height %d: %w", height, err)
 	}
 	return common.Hash{}, common.Hash{}, 0, 0, fmt.Errorf("block %d not yet indexed", height)
+}
+
+// rebuildIndexLight caches the head and head-1 block metadata
+func (c *EngineClient) rebuildIndexLight(ctx context.Context, headHeight uint64) {
+	// Cache the head block
+	if header, err := c.ethClient.HeaderByNumber(ctx, new(big.Int).SetUint64(headHeight)); err == nil {
+		c.indexMu.Lock()
+		c.blockIndex[headHeight] = &payloadMeta{
+			hash:      header.Hash(),
+			stateRoot: header.Root,
+			gasLimit:  header.GasLimit,
+			timestamp: header.Time,
+		}
+		c.indexMu.Unlock()
+	}
+	// Cache head-1 as well if possible (helps SetFinal on first DA include)
+	if headHeight > 0 {
+		if header, err := c.ethClient.HeaderByNumber(ctx, new(big.Int).SetUint64(headHeight-1)); err == nil {
+			c.indexMu.Lock()
+			c.blockIndex[headHeight-1] = &payloadMeta{
+				hash:      header.Hash(),
+				stateRoot: header.Root,
+				gasLimit:  header.GasLimit,
+				timestamp: header.Time,
+			}
+			c.indexMu.Unlock()
+		}
+	}
 }
 
 // decodeSecret decodes a hex-encoded JWT secret string into a byte slice.
