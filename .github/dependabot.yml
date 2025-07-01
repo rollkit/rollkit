@@ -35,8 +35,11 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - T:dependencies
-    # Group all patch updates into a single PR
+    # Group updates across all go modules
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
@@ -64,6 +67,9 @@ updates:
     labels:
       - T:dependencies
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
@@ -76,6 +82,9 @@ updates:
     labels:
       - T:dependencies
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
@@ -88,6 +97,9 @@ updates:
     labels:
       - T:dependencies
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
@@ -100,6 +112,9 @@ updates:
     labels:
       - T:dependencies
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
@@ -112,6 +127,9 @@ updates:
     labels:
       - T:dependencies
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
@@ -124,6 +142,9 @@ updates:
     labels:
       - T:dependencies
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
@@ -136,6 +157,9 @@ updates:
     labels:
       - T:dependencies
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
@@ -148,6 +172,9 @@ updates:
     labels:
       - T:dependencies
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
@@ -160,6 +187,9 @@ updates:
     labels:
       - T:dependencies
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
@@ -172,6 +202,9 @@ updates:
     labels:
       - T:dependencies
     groups:
+      go-dependencies:
+        patterns:
+          - "*"
       patch-updates:
         applies-to: version-updates
         update-types:
