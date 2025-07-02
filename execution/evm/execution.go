@@ -96,13 +96,54 @@ func NewEngineExecutionClient(
 
 // InitChain initializes the blockchain with the given genesis parameters
 func (c *EngineClient) InitChain(ctx context.Context, genesisTime time.Time, initialHeight uint64, chainID string) ([]byte, uint64, error) {
+	// Check if reth has pre-existing state by getting the latest block
+	latestHeader, err := c.ethClient.HeaderByNumber(ctx, nil)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get latest block header: %w", err)
+	}
+
+	currentHeight := latestHeader.Number.Uint64()
+
+	// If reth has blocks beyond genesis, we need to sync to its current state
+	if currentHeight > 0 {
+		// Use the current head as our starting point
+		currentHash := latestHeader.Hash()
+
+		// Update our internal state to match reth's current head
+		c.mu.Lock()
+		c.currentHeadBlockHash = currentHash
+		c.currentSafeBlockHash = currentHash
+		c.currentFinalizedBlockHash = currentHash
+		c.mu.Unlock()
+
+		// Acknowledge the current head block
+		var forkchoiceResult engine.ForkChoiceResponse
+		err := c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
+			engine.ForkchoiceStateV1{
+				HeadBlockHash:      currentHash,
+				SafeBlockHash:      currentHash,
+				FinalizedBlockHash: currentHash,
+			},
+			nil,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("engine_forkchoiceUpdatedV3 failed for existing state: %w", err)
+		}
+
+		// Set initial height to match reth's current height + 1 (next block to be produced)
+		c.initialHeight = currentHeight + 1
+
+		return latestHeader.Root.Bytes(), latestHeader.GasLimit, nil
+	}
+
+	// Original genesis initialization for fresh chains
 	if initialHeight != 1 {
-		return nil, 0, fmt.Errorf("initialHeight must be 1, got %d", initialHeight)
+		return nil, 0, fmt.Errorf("initialHeight must be 1 for fresh chains, got %d", initialHeight)
 	}
 
 	// Acknowledge the genesis block
 	var forkchoiceResult engine.ForkChoiceResponse
-	err := c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
+	err = c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
 		engine.ForkchoiceStateV1{
 			HeadBlockHash:      c.genesisHash,
 			SafeBlockHash:      c.genesisHash,
@@ -305,6 +346,11 @@ func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
 		return fmt.Errorf("failed to get block info: %w", err)
 	}
 	return c.setFinal(ctx, blockHash, true)
+}
+
+// GetInitialHeight returns the initial height set during InitChain
+func (c *EngineClient) GetInitialHeight() uint64 {
+	return c.initialHeight
 }
 
 func (c *EngineClient) derivePrevRandao(blockHeight uint64) common.Hash {

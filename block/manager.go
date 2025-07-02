@@ -22,6 +22,7 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/execution/evm"
 	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
@@ -182,11 +183,19 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 	if errors.Is(err, ds.ErrNotFound) {
 		logger.Info("No state found in store, initializing new state")
 
-		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
-		// TODO(tzdybal): handle max bytes
-		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
+		// Initialize chain - this may return a different initial height if connecting to pre-existing reth state
+		stateRoot, gasLimit, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
 			return types.State{}, fmt.Errorf("failed to initialize chain: %w", err)
+		}
+
+		// For EVM execution client, check if we're connecting to pre-existing state
+		// by attempting to get the actual initial height from the executor
+		actualInitialHeight := genesis.InitialHeight
+		if evmClient, ok := exec.(*evm.EngineClient); ok {
+			// The EVM client sets its internal initialHeight during InitChain
+			// We need to access this to determine the correct starting height
+			actualInitialHeight = evmClient.GetInitialHeight()
 		}
 
 		// Initialize genesis block explicitly
@@ -196,7 +205,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			ProposerAddress: genesis.ProposerAddress,
 			BaseHeader: types.BaseHeader{
 				ChainID: genesis.ChainID,
-				Height:  genesis.InitialHeight,
+				Height:  actualInitialHeight,
 				Time:    uint64(genesis.GenesisDAStartTime.UnixNano()),
 			},
 		}
@@ -247,8 +256,8 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 		s := types.State{
 			Version:         types.Version{},
 			ChainID:         genesis.ChainID,
-			InitialHeight:   genesis.InitialHeight,
-			LastBlockHeight: genesis.InitialHeight - 1,
+			InitialHeight:   actualInitialHeight,
+			LastBlockHeight: actualInitialHeight - 1,
 			LastBlockTime:   genesis.GenesisDAStartTime,
 			AppHash:         stateRoot,
 			DAHeight:        0,
