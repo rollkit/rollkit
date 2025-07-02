@@ -1,0 +1,88 @@
+name: Rust Tests
+
+on:
+  pull_request:
+    paths:
+      - 'client/**'
+      - 'proto/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/rust-*.yml'
+  push:
+    branches:
+      - main
+      - release/*
+    paths:
+      - 'client/**'
+      - 'proto/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/rust-*.yml'
+
+jobs:
+  test:
+    name: Test Rust Client
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - beta
+          - nightly
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: ./.github/actions/rust-setup
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+          cache-key: test
+
+      - name: Build
+        run: cargo build --workspace --all-features --verbose
+
+      - name: Run tests
+        run: cargo test --workspace --all-features --verbose
+
+      - name: Run doc tests
+        run: cargo test --workspace --doc --verbose
+
+      - name: Check examples
+        run: |
+          cd client/crates/rollkit-client
+          cargo check --examples --verbose
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.1"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate code coverage
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          flags: rust
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}

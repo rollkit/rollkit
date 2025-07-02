@@ -2,6 +2,14 @@
 name = "rollkit-types"
 version = "0.1.0"
 edition = "2021"
+authors = ["Rollkit Contributors"]
+description = "Protocol buffer generated types for Rollkit"
+documentation = "https://docs.rs/rollkit-types"
+homepage = "https://rollkit.dev"
+repository = "https://github.com/rollkit/rollkit"
+license = "Apache-2.0"
+keywords = ["rollkit", "blockchain", "protobuf", "grpc"]
+categories = ["api-bindings", "encoding"]
 
 [build-dependencies]
 tonic-build = { workspace = true }

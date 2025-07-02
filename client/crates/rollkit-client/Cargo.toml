@@ -6,6 +6,10 @@ authors = ["Rollkit Contributors"]
 description = "Rust client library for interacting with Rollkit nodes via gRPC"
 license = "Apache-2.0"
 repository = "https://github.com/rollkit/rollkit"
+homepage = "https://rollkit.dev"
+documentation = "https://docs.rs/rollkit-client"
+keywords = ["rollkit", "blockchain", "client", "grpc", "api"]
+categories = ["api-bindings", "network-programming"]
 
 [dependencies]
 rollkit-types = { path = "../rollkit-types" }

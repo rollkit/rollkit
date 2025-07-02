@@ -1,0 +1,100 @@
+name: Rust Proto Generation Check
+
+on:
+  pull_request:
+    paths:
+      - 'proto/**'
+      - 'client/crates/rollkit-types/build.rs'
+      - 'client/crates/rollkit-types/src/proto/**'
+      - '.github/workflows/rust-proto-check.yml'
+  push:
+    branches:
+      - main
+      - release/*
+    paths:
+      - 'proto/**'
+      - 'client/crates/rollkit-types/build.rs'
+      - 'client/crates/rollkit-types/src/proto/**'
+      - '.github/workflows/rust-proto-check.yml'
+
+jobs:
+  check-proto-generation:
+    name: Check Proto Generation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.1"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-proto-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-proto-
+
+      - name: Remove existing generated files
+        run: |
+          rm -rf client/crates/rollkit-types/src/proto/*.rs
+
+      - name: Generate proto files
+        run: |
+          cd client/crates/rollkit-types
+          cargo build
+
+      - name: Check for uncommitted changes
+        run: |
+          if ! git diff --exit-code client/crates/rollkit-types/src/proto/; then
+            echo "::error::Generated proto files are not up to date. Please run 'cargo build' in client/crates/rollkit-types and commit the changes."
+            echo "Differences found:"
+            git diff client/crates/rollkit-types/src/proto/
+            exit 1
+          fi
+
+  proto-breaking-changes:
+    name: Check Proto Breaking Changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for breaking changes
+        run: |
+          # Create buf.yaml if it doesn't exist
+          if [ ! -f buf.yaml ]; then
+            cat > buf.yaml << EOF
+          version: v1
+          breaking:
+            use:
+              - FILE
+          lint:
+            use:
+              - DEFAULT
+          EOF
+          fi
+          
+          # Check for breaking changes against main branch
+          git fetch origin main
+          buf breaking proto --against .git#branch=origin/main,subdir=proto || echo "::warning::Breaking changes detected in proto files"
