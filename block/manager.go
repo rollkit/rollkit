@@ -184,7 +184,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 		logger.Info("No state found in store, initializing new state")
 
 		// Initialize chain - this may return a different initial height if connecting to pre-existing reth state
-		stateRoot, gasLimit, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
+		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartTime, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
 			return types.State{}, fmt.Errorf("failed to initialize chain: %w", err)
 		}
