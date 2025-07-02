@@ -773,13 +773,34 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	m.recordMetrics(data)
 
 	m.logger.Debug("Broadcasting header and data")
-	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return m.headerBroadcaster.WriteToStoreAndBroadcast(ctx, header) })
-	g.Go(func() error { return m.dataBroadcaster.WriteToStoreAndBroadcast(ctx, data) })
+	g, broadcastCtx := errgroup.WithContext(ctx)
+
+	// Add timeout to prevent hanging on broadcasting
+	broadcastCtx, cancel := context.WithTimeout(broadcastCtx, 5*time.Second)
+	defer cancel()
+
+	g.Go(func() error {
+		err := m.headerBroadcaster.WriteToStoreAndBroadcast(broadcastCtx, header)
+		if err != nil {
+			m.logger.Debug("Header broadcasting error", "error", err)
+		}
+		return err
+	})
+	g.Go(func() error {
+		err := m.dataBroadcaster.WriteToStoreAndBroadcast(broadcastCtx, data)
+		if err != nil {
+			m.logger.Debug("Data broadcasting error", "error", err)
+		}
+		return err
+	})
+
 	if err := g.Wait(); err != nil {
 		m.logger.Error("Error in broadcasting", "error", err)
-		return err
+		// Don't return the error - continue with block production even if broadcasting fails
+		// This allows the chain to continue progressing
+		m.logger.Warn("Continuing block production despite broadcasting error")
 	}
+	m.logger.Debug("Broadcasting completed")
 
 	m.logger.Debug("successfully proposed header", "proposer", hex.EncodeToString(header.ProposerAddress), "height", headerHeight)
 	return nil
