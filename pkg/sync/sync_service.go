@@ -169,8 +169,18 @@ func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context,
 	return nil
 }
 
-func (syncService *SyncService[H]) isInitialized() bool {
-	return syncService.store.Height() > 0
+func (syncService *SyncService[H]) isInitialized() (initialized bool) {
+	// Handle the case where store has no head (empty store)
+	defer func() {
+		if r := recover(); r != nil {
+			// If Height() panics, the store is not initialized
+			initialized = false
+		}
+	}()
+
+	// Try to get height, if it panics the store is not initialized
+	height := syncService.store.Height()
+	return height > 0
 }
 
 // Start is a part of Service interface.
