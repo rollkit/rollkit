@@ -366,8 +366,20 @@ func (syncService *SyncService[H]) StartSyncer(ctx context.Context) error {
 	if syncService.syncerStatus.isStarted() {
 		return nil
 	}
+
+	// Check if the store is initialized before starting the syncer
+	if !syncService.isInitialized() {
+		syncService.logger.Debug("store not initialized, skipping syncer start")
+		return nil
+	}
+
 	err := syncService.syncer.Start(ctx)
 	if err != nil {
+		// If the error is related to no chain head, log it but don't fail
+		if strings.Contains(err.Error(), "no chain head") {
+			syncService.logger.Debug("syncer start failed due to no chain head, will retry when store is initialized", "error", err)
+			return nil
+		}
 		return err
 	}
 	syncService.syncerStatus.started.Store(true)
