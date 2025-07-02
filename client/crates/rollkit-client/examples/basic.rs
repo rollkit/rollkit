@@ -9,7 +9,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Connect to a Rollkit node
     let endpoint =
         std::env::var("ROLLKIT_ENDPOINT").unwrap_or_else(|_| "http://localhost:50051".to_string());
-    println!("Connecting to Rollkit node at: {}", endpoint);
+    println!("Connecting to Rollkit node at: {endpoint}");
 
     let client = RollkitClient::connect(&endpoint).await?;
     println!("Successfully connected to Rollkit node");
@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("Health status: {:?}", health_response.status());
             println!("Node is healthy: {}", health.is_healthy().await?);
         }
-        Err(e) => println!("Failed to get health status: {}", e),
+        Err(e) => println!("Failed to get health status: {e}"),
     }
 
     // Get P2P information
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("Listen addresses: {:?}", net_info.listen_addresses);
             println!("Connected peers: {:?}", net_info.connected_peers);
         }
-        Err(e) => println!("Failed to get network info: {}", e),
+        Err(e) => println!("Failed to get network info: {e}"),
     }
 
     match p2p.get_peer_info().await {
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("  Peer ID: {}, Address: {}", peer.id, peer.address);
             }
         }
-        Err(e) => println!("Failed to get peer info: {}", e),
+        Err(e) => println!("Failed to get peer info: {e}"),
     }
 
     // Get signer information
@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Ok(pubkey) => {
             println!("Public key (hex): {}", hex::encode(&pubkey));
         }
-        Err(e) => println!("Failed to get public key: {}", e),
+        Err(e) => println!("Failed to get public key: {e}"),
     }
 
     // Example: Sign a message
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("Message signed successfully");
             println!("Signature (hex): {}", hex::encode(&signature));
         }
-        Err(e) => println!("Failed to sign message: {}", e),
+        Err(e) => println!("Failed to sign message: {e}"),
     }
 
     // Get store information
@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             );
         }
         Ok(None) => println!("No block found at height 0"),
-        Err(e) => println!("Failed to get block: {}", e),
+        Err(e) => println!("Failed to get block: {e}"),
     }
 
     // Get current state
@@ -95,7 +95,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("  Last block height: {}", state.last_block_height);
         }
         Ok(None) => println!("No state found"),
-        Err(e) => println!("Failed to get state: {}", e),
+        Err(e) => println!("Failed to get state: {e}"),
     }
 
     // Get metadata by key
@@ -103,7 +103,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Ok(value) => {
             println!("Metadata value: {}", hex::encode(&value));
         }
-        Err(e) => println!("Failed to get metadata: {}", e),
+        Err(e) => println!("Failed to get metadata: {e}"),
     }
 
     Ok(())
@@ -112,6 +112,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 // Helper function to encode bytes as hex (you'll need to add 'hex' to dev-dependencies)
 mod hex {
     pub fn encode(bytes: &[u8]) -> String {
-        bytes.iter().map(|b| format!("{:02x}", b)).collect()
+        bytes.iter().map(|b| format!("{b:02x}")).collect()
     }
 }

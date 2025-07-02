@@ -8,7 +8,7 @@ async fn test_client_creation() {
 
     match result.unwrap_err() {
         RollkitClientError::Transport(_) => {}
-        e => panic!("Expected Transport error, got: {:?}", e),
+        e => panic!("Expected Transport error, got: {e:?}"),
     }
 }
 

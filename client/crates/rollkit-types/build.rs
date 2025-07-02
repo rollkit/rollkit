@@ -7,7 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into_iter()
         .filter_map(|entry| {
             let path = entry.ok()?.path().to_path_buf();
-            if path.extension().map_or(false, |ext| ext == "proto") {
+            if path.extension().is_some_and(|ext| ext == "proto") {
                 Some(path)
             } else {
                 None
