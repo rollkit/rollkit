@@ -614,15 +614,32 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	} else {
 		lastSignature, err = m.store.GetSignature(ctx, height)
 		if err != nil {
-			return fmt.Errorf("error while loading last commit: %w, height: %d", err, height)
+			// If we can't find the signature, it might be because we're connecting to pre-existing reth state
+			// In this case, use an empty signature and continue
+			if errors.Is(err, ds.ErrNotFound) {
+				m.logger.Warn("signature not found for previous block, using empty signature", "height", height)
+				lastSignature = &types.Signature{}
+			} else {
+				return fmt.Errorf("error while loading last commit: %w, height: %d", err, height)
+			}
 		}
 		lastHeader, lastData, err := m.store.GetBlockData(ctx, height)
 		if err != nil {
-			return fmt.Errorf("error while loading last block: %w, height: %d", err, height)
+			// If we can't find the block data, it might be because we're connecting to pre-existing reth state
+			// In this case, use zero hashes and current time
+			if errors.Is(err, ds.ErrNotFound) {
+				m.logger.Warn("block data not found for previous block, using zero hashes", "height", height)
+				lastHeaderHash = types.Hash{}
+				lastDataHash = types.Hash{}
+				lastHeaderTime = time.Now()
+			} else {
+				return fmt.Errorf("error while loading last block: %w, height: %d", err, height)
+			}
+		} else {
+			lastHeaderHash = lastHeader.Hash()
+			lastDataHash = lastData.Hash()
+			lastHeaderTime = lastHeader.Time()
 		}
-		lastHeaderHash = lastHeader.Hash()
-		lastDataHash = lastData.Hash()
-		lastHeaderTime = lastHeader.Time()
 	}
 
 	var (
