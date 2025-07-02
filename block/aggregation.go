@@ -113,12 +113,17 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 			start := time.Now()
 			m.logger.Debug("Block timer fired, producing block")
 
-			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
-				return fmt.Errorf("error while publishing block: %w", err)
+			err := m.publishBlock(ctx)
+			if err != nil {
+				m.logger.Error("Error in publishBlock", "error", err)
+				if ctx.Err() == nil {
+					return fmt.Errorf("error while publishing block: %w", err)
+				}
 			}
+			m.logger.Debug("publishBlock completed successfully")
 
-			// Reset the blockTimer to signal the next block production
-			// period based on the block time.
+			// Always reset the blockTimer regardless of whether we used a pending block or created a new one
+			// This ensures continuous block production
 			nextInterval := getRemainingSleep(start, m.config.Node.BlockTime.Duration)
 			m.logger.Debug("Resetting block timer", "nextInterval", nextInterval)
 			blockTimer.Reset(nextInterval)
