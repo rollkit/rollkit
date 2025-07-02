@@ -1,6 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
+    target-branch: main
     directory: "/"
     schedule:
       interval: weekly
@@ -29,6 +30,7 @@ updates:
           - "patch"
           - "minor"
   - package-ecosystem: gomod
+    target-branch: main
     directory: "/"
     schedule:
       interval: weekly
@@ -55,9 +57,8 @@ updates:
         applies-to: version-updates
         update-types:
           - "patch"
-          - "minor"
   - package-ecosystem: docker
-    directory: "/docker"
+    directory: "/"
     schedule:
       interval: daily
     open-pull-requests-limit: 10
