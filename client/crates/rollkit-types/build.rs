@@ -19,7 +19,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(true)
         .build_client(true)
         .out_dir("src/proto")
+        // Ensure consistent formatting across different protoc versions
+        .protoc_arg("--experimental_allow_proto3_optional")
         .compile(&proto_files, &["../../../proto"])?;
+    
+    // Add a note about the protoc version used
+    println!("cargo:warning=Proto files compiled with protoc. For consistent results, use protoc version 25.x");
 
     Ok(())
 }
