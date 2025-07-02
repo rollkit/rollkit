@@ -864,11 +864,14 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 
 	// Determine AppHash based on execution mode
 	var appHash []byte
-	if m.executionMode == coreexecutor.ExecutionModeImmediate && !isEmpty {
-		// For immediate execution, execute transactions now to get the new state root
+	if m.executionMode == coreexecutor.ExecutionModeImmediate {
+
 		rawTxs := make([][]byte, len(blockData.Txs))
-		for i := range blockData.Txs {
-			rawTxs[i] = blockData.Txs[i]
+		if !isEmpty {
+			// For immediate execution, execute transactions now to get the new state root
+			for i := range blockData.Txs {
+				rawTxs[i] = blockData.Txs[i]
+			}
 		}
 
 		// Execute transactions

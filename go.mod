@@ -21,7 +21,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.14.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/multiformats/go-multiaddr v0.16.0
-	github.com/prometheus/client_golang v1.21.1
+	github.com/prometheus/client_golang v1.22.0
 	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
