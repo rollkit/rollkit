@@ -1,0 +1,22 @@
+[package]
+name = "rollkit-client"
+version = "0.1.0"
+edition = "2021"
+authors = ["Rollkit Contributors"]
+description = "Rust client library for interacting with Rollkit nodes via gRPC"
+license = "Apache-2.0"
+repository = "https://github.com/rollkit/rollkit"
+
+[dependencies]
+rollkit-types = { path = "../rollkit-types" }
+tonic = { workspace = true, features = ["transport", "tls"] }
+tokio = { version = "1.45", features = ["full"] }
+tower = { version = "0.4", features = ["full"] }
+thiserror = "1.0"
+tracing = "0.1"
+futures = "0.3"
+async-trait = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tracing-subscriber = "0.3"
