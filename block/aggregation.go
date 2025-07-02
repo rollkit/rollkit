@@ -23,6 +23,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, errCh chan<- error) {
 		delay = time.Until(lastBlockTime.Add(m.config.Node.BlockTime.Duration))
 	}
 
+	m.logger.Debug("Initial delay calculation", "delay", delay, "height", height, "initialHeight", initialHeight)
 	if delay > 0 {
 		m.logger.Info("waiting to produce block", "delay", delay)
 		time.Sleep(delay)
@@ -33,6 +34,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, errCh chan<- error) {
 	// can be taken into account.
 	blockTimer := time.NewTimer(0)
 	defer blockTimer.Stop()
+	m.logger.Debug("Block timer created and starting aggregation loop")
 
 	// Lazy Sequencer mode.
 	// In Lazy Sequencer mode, blocks are built only when there are

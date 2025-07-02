@@ -582,6 +582,7 @@ func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) boo
 // It's assigned to the publishBlock field by default.
 // Any error will be returned, unless the error is due to a publishing error.
 func (m *Manager) publishBlockInternal(ctx context.Context) error {
+	m.logger.Debug("publishBlockInternal called")
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
