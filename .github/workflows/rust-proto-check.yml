@@ -3,19 +3,14 @@ name: Rust Proto Generation Check
 on:
   pull_request:
     paths:
-      - 'proto/**'
-      - 'client/crates/rollkit-types/build.rs'
-      - 'client/crates/rollkit-types/src/proto/**'
-      - '.github/workflows/rust-proto-check.yml'
+      - "proto/**"
+      - "client/crates/rollkit-types/build.rs"
+      - "client/crates/rollkit-types/src/proto/**"
+      - ".github/workflows/rust-proto-check.yml"
   push:
     branches:
       - main
       - release/*
-    paths:
-      - 'proto/**'
-      - 'client/crates/rollkit-types/build.rs'
-      - 'client/crates/rollkit-types/src/proto/**'
-      - '.github/workflows/rust-proto-check.yml'
 
 jobs:
   check-proto-generation:
@@ -94,7 +89,7 @@ jobs:
               - DEFAULT
           EOF
           fi
-          
+
           # Check for breaking changes against main branch
           git fetch origin main
           buf breaking proto --against .git#branch=origin/main,subdir=proto || echo "::warning::Breaking changes detected in proto files"
