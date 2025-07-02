@@ -660,10 +660,24 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		if err != nil {
 			if errors.Is(err, ErrNoBatch) {
 				if batchData == nil {
-					m.logger.Info("no batch retrieved from sequencer, skipping block production")
-					return nil
+					// In aggregator mode, create an empty block even when no batch is available
+					if m.config.Node.Aggregator {
+						m.logger.Debug("no batch retrieved from sequencer, creating empty block", "height", newHeight)
+						// Create empty batch data with current timestamp
+						batchData = &BatchData{
+							Batch: &coresequencer.Batch{
+								Transactions: [][]byte{},
+							},
+							Time: time.Now(),
+							Data: [][]byte{},
+						}
+					} else {
+						m.logger.Info("no batch retrieved from sequencer, skipping block production")
+						return nil
+					}
+				} else {
+					m.logger.Debug("creating empty block, height: ", newHeight)
 				}
-				m.logger.Debug("creating empty block, height: ", newHeight)
 			} else {
 				m.logger.Warn("failed to get transactions from batch", "error", err)
 				return nil
