@@ -549,6 +549,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 
 	res, err := m.sequencer.GetNextBatch(ctx, req)
 	if err != nil {
+		m.logger.Debug("Error retrieving batch from sequencer", "error", err)
 		return nil, err
 	}
 
@@ -571,6 +572,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		m.lastBatchData = res.BatchData
 		return &BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData}, errRetrieveBatch
 	}
+	m.logger.Debug("No batch available from sequencer")
 	return nil, ErrNoBatch
 }
 
