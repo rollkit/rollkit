@@ -6,7 +6,7 @@ repository = "https://github.com/rollkit/rollkit"
 
 [workspace]
 members = ["crates/rollkit-types"]
-resolver = "3"
+resolver = "2"
 
 [workspace.dependencies]
 prost = "0.12"
