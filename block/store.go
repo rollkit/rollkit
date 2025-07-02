@@ -12,7 +12,7 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 	// height is always > 0
 	initialHeight, err := m.store.Height(ctx)
 	if err != nil {
-		m.logger.Error("failed to get initial store height for DataStoreRetrieveLoop", "error", err)
+		m.logger.Error("failed to get initial store height for HeaderStoreRetrieveLoop", "error", err)
 		return
 	}
 	lastHeaderStoreHeight := initialHeight
@@ -22,7 +22,19 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 			return
 		case <-m.headerStoreCh:
 		}
-		headerStoreHeight := m.headerStore.Height()
+
+		// Get header store height with error handling for empty stores
+		headerStoreHeight := uint64(0)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					m.logger.Debug("header store height recovery", "error", r)
+					headerStoreHeight = 0
+				}
+			}()
+			headerStoreHeight = m.headerStore.Height()
+		}()
+
 		if headerStoreHeight > lastHeaderStoreHeight {
 			headers, err := m.getHeadersFromHeaderStore(ctx, lastHeaderStoreHeight+1, headerStoreHeight)
 			if err != nil {
@@ -69,7 +81,19 @@ func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
 			return
 		case <-m.dataStoreCh:
 		}
-		dataStoreHeight := m.dataStore.Height()
+
+		// Get data store height with error handling for empty stores
+		dataStoreHeight := uint64(0)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					m.logger.Debug("data store height recovery", "error", r)
+					dataStoreHeight = 0
+				}
+			}()
+			dataStoreHeight = m.dataStore.Height()
+		}()
+
 		if dataStoreHeight > lastDataStoreHeight {
 			data, err := m.getDataFromDataStore(ctx, lastDataStoreHeight+1, dataStoreHeight)
 			if err != nil {
