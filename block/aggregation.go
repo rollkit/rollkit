@@ -101,6 +101,7 @@ func (m *Manager) produceBlock(ctx context.Context, mode string, lazyTimer, bloc
 }
 
 func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Timer) error {
+	m.logger.Debug("Starting normal aggregation loop", "blockTime", m.config.Node.BlockTime.Duration)
 	for {
 		select {
 		case <-ctx.Done():
@@ -108,6 +109,7 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 		case <-blockTimer.C:
 			// Define the start time for the block production period
 			start := time.Now()
+			m.logger.Debug("Block timer fired, producing block")
 
 			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
 				return fmt.Errorf("error while publishing block: %w", err)
@@ -115,13 +117,16 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 
 			// Reset the blockTimer to signal the next block production
 			// period based on the block time.
-			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
+			nextInterval := getRemainingSleep(start, m.config.Node.BlockTime.Duration)
+			m.logger.Debug("Resetting block timer", "nextInterval", nextInterval)
+			blockTimer.Reset(nextInterval)
 
 		case <-m.txNotifyCh:
 			// Transaction notifications are intentionally ignored in normal mode
 			// to avoid triggering block production outside the scheduled intervals.
 			// We just update the txsAvailable flag for tracking purposes
 			m.txsAvailable = true
+			m.logger.Debug("Received transaction notification in normal mode")
 		}
 	}
 }
