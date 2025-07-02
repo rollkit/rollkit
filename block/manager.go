@@ -849,37 +849,18 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 	// Determine if this is an empty block
 	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
 
-	// Create block data with appropriate transactions
-	blockData := &types.Data{
-		Txs: make(types.Txs, 0), // Start with empty transaction list
-	}
-
-	// Only add transactions if this is not an empty block
-	if !isEmpty {
-		blockData.Txs = make(types.Txs, len(batchData.Transactions))
-		for i := range batchData.Transactions {
-			blockData.Txs[i] = types.Tx(batchData.Transactions[i])
-		}
-	}
-
 	// Determine AppHash based on execution mode
 	var appHash []byte
-	if m.executionMode == coreexecutor.ExecutionModeImmediate && !isEmpty {
-
-		rawTxs := make([][]byte, len(blockData.Txs))
-		// For immediate execution, execute transactions now to get the new state root
-		for i := range blockData.Txs {
-			rawTxs[i] = blockData.Txs[i]
-		}
+	if m.executionMode == coreexecutor.ExecutionModeImmediate {
 
 		// Execute transactions
-		newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, height, batchData.Time, lastState.AppHash)
+		newStateRoot, _, err := m.exec.ExecuteTxs(ctx, batchData.Transactions, height, batchData.Time, lastState.AppHash)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to execute transactions for immediate mode: %w", err)
 		}
 		appHash = newStateRoot
 	} else {
-		// For delayed execution or empty blocks, use the app hash from last state
+		// For delayed execution, use the app hash from last state
 		appHash = lastState.AppHash
 	}
 
@@ -907,8 +888,17 @@ func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignat
 		},
 	}
 
+	// Create block data with appropriate transactions
+	blockData := &types.Data{
+		Txs: make(types.Txs, 0), // Start with empty transaction list
+	}
+
 	// Set DataHash
 	if !isEmpty {
+		blockData.Txs = make(types.Txs, len(batchData.Transactions))
+		for i := range batchData.Transactions {
+			blockData.Txs[i] = types.Tx(batchData.Transactions[i])
+		}
 		header.DataHash = blockData.DACommitment()
 	} else {
 		header.DataHash = dataHashForEmptyTxs
