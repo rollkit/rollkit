@@ -724,10 +724,13 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return fmt.Errorf("header validation error: %w", err)
 	}
 
+	m.logger.Debug("Applying block to executor", "height", header.Height())
 	newState, err := m.applyBlock(ctx, header, data)
 	if err != nil {
+		m.logger.Error("Error applying block", "error", err)
 		return fmt.Errorf("error applying block: %w", err)
 	}
+	m.logger.Debug("Block applied successfully", "height", header.Height())
 
 	// append metadata to Data before validating and saving
 	data.Metadata = &types.Metadata{
@@ -752,11 +755,13 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return fmt.Errorf("failed to save block: %w", err)
 	}
 
+	m.logger.Debug("Setting store height", "height", headerHeight)
 	// Update the store height before submitting to the DA layer but after committing to the DB
 	if err = m.store.SetHeight(ctx, headerHeight); err != nil {
 		return err
 	}
 
+	m.logger.Debug("Updating state")
 	newState.DAHeight = m.daHeight.Load()
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
@@ -764,12 +769,15 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return fmt.Errorf("failed to update state: %w", err)
 	}
 
+	m.logger.Debug("Recording metrics")
 	m.recordMetrics(data)
 
+	m.logger.Debug("Broadcasting header and data")
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return m.headerBroadcaster.WriteToStoreAndBroadcast(ctx, header) })
 	g.Go(func() error { return m.dataBroadcaster.WriteToStoreAndBroadcast(ctx, data) })
 	if err := g.Wait(); err != nil {
+		m.logger.Error("Error in broadcasting", "error", err)
 		return err
 	}
 
