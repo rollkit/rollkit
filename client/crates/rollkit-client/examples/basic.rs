@@ -1,18 +1,19 @@
-use rollkit_client::{RollkitClient, HealthClient, P2PClient, SignerClient, StoreClient};
+use rollkit_client::{HealthClient, P2PClient, RollkitClient, SignerClient, StoreClient};
 use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize tracing for better debugging
     tracing_subscriber::fmt::init();
-    
+
     // Connect to a Rollkit node
-    let endpoint = std::env::var("ROLLKIT_ENDPOINT").unwrap_or_else(|_| "http://localhost:50051".to_string());
+    let endpoint =
+        std::env::var("ROLLKIT_ENDPOINT").unwrap_or_else(|_| "http://localhost:50051".to_string());
     println!("Connecting to Rollkit node at: {}", endpoint);
-    
+
     let client = RollkitClient::connect(&endpoint).await?;
     println!("Successfully connected to Rollkit node");
-    
+
     // Check health status
     println!("\n=== Health Check ===");
     let mut health = HealthClient::new(&client);
@@ -23,7 +24,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Err(e) => println!("Failed to get health status: {}", e),
     }
-    
+
     // Get P2P information
     println!("\n=== P2P Information ===");
     let mut p2p = P2PClient::new(&client);
@@ -35,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Err(e) => println!("Failed to get network info: {}", e),
     }
-    
+
     match p2p.get_peer_info().await {
         Ok(peers) => {
             println!("Number of peers: {}", peers.len());
@@ -45,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Err(e) => println!("Failed to get peer info: {}", e),
     }
-    
+
     // Get signer information
     println!("\n=== Signer Information ===");
     let mut signer = SignerClient::new(&client);
@@ -55,7 +56,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Err(e) => println!("Failed to get public key: {}", e),
     }
-    
+
     // Example: Sign a message
     let message = b"Hello, Rollkit!";
     match signer.sign(message.to_vec()).await {
@@ -65,21 +66,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Err(e) => println!("Failed to sign message: {}", e),
     }
-    
+
     // Get store information
     println!("\n=== Store Information ===");
     let mut store = StoreClient::new(&client);
-    
+
     // Try to get the latest block (height 0 for genesis)
     match store.get_block_by_height(0).await {
         Ok(Some(block)) => {
             println!("Genesis block found:");
-            println!("  Height: {}", block.header.as_ref().map(|h| h.header.as_ref().map(|hdr| hdr.height).unwrap_or(0)).unwrap_or(0));
+            println!(
+                "  Height: {}",
+                block
+                    .header
+                    .as_ref()
+                    .map(|h| h.header.as_ref().map(|hdr| hdr.height).unwrap_or(0))
+                    .unwrap_or(0)
+            );
         }
         Ok(None) => println!("No block found at height 0"),
         Err(e) => println!("Failed to get block: {}", e),
     }
-    
+
     // Get current state
     match store.get_state().await {
         Ok(Some(state)) => {
@@ -89,7 +97,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Ok(None) => println!("No state found"),
         Err(e) => println!("Failed to get state: {}", e),
     }
-    
+
     // Get metadata by key
     match store.get_metadata("test_key".to_string()).await {
         Ok(value) => {
@@ -97,7 +105,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Err(e) => println!("Failed to get metadata: {}", e),
     }
-    
+
     Ok(())
 }
 

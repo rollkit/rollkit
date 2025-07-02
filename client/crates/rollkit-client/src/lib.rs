@@ -1,12 +1,12 @@
 //! Rollkit Rust Client Library
-//! 
+//!
 //! This library provides a Rust client for interacting with Rollkit nodes via gRPC.
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```no_run
 //! use rollkit_client::{RollkitClient, HealthClient};
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Connect to a Rollkit node
@@ -30,7 +30,7 @@ pub mod store;
 
 // Re-export main types for convenience
 pub use client::RollkitClient;
-pub use error::{RollkitClientError, Result};
+pub use error::{Result, RollkitClientError};
 pub use health::HealthClient;
 pub use p2p::P2PClient;
 pub use signer::SignerClient;
