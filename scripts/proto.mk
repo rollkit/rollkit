@@ -5,6 +5,7 @@ DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bu
 proto-gen:
 	@echo "--> Generating Protobuf files"
 	buf generate --path="./proto/rollkit" --template="buf.gen.yaml" --config="buf.yaml"
+	cargo build
 .PHONY: proto-gen
 
 ## proto-lint: Lint protobuf files. Requires docker.
