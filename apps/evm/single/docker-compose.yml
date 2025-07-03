@@ -14,14 +14,14 @@ services:
     volumes:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
-      - logs:/root/logs
+      - reth:/home/reth/eth-home
     entrypoint: /bin/sh -c
     command:
       - |
           lumen node \
             --chain /root/chain/genesis.json \
+            --datadir /home/reth/eth-home \
             --metrics 0.0.0.0:9001 \
-            --log.file.directory /root/logs \
             --authrpc.addr 0.0.0.0 \
             --authrpc.port 8551 \
             --authrpc.jwtsecret /root/jwt/jwt.hex \
@@ -52,7 +52,7 @@ services:
       - rollkit-network
 
   rollkit-evm-single:
-    image: ghcr.io/rollkit/rollkit-evm-single:pr-2394
+    image: ghcr.io/rollkit/rollkit-evm-single:main
     depends_on:
       rollkit-reth:
         condition: service_started
@@ -75,9 +75,8 @@ services:
       - rollkit-network
 
 volumes:
-  logs:
-    driver: local
   evm-single-data:
+  reth:
 
 networks:
   rollkit-network:

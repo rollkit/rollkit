@@ -34,7 +34,7 @@ services:
     volumes:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
-      - logs-full-node:/root/logs
+      - reth:/home/reth/eth-home
     environment:
       - RUST_LOG=warn,lumen_rollkit=info
     entrypoint: /bin/sh -c
@@ -42,8 +42,8 @@ services:
       - |
           lumen node \
             --chain /root/chain/genesis.json \
+            --datadir /home/reth/eth-home \
             --metrics 0.0.0.0:9001 \
-            --log.file.directory /root/logs \
             --authrpc.addr 0.0.0.0 \
             --authrpc.port 8551 \
             --authrpc.jwtsecret /root/jwt/jwt.hex \
@@ -64,5 +64,4 @@ services:
             --rollkit.enable
 
 volumes:
-  logs-full-node:
-    driver: local
+  reth:
