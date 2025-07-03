@@ -2,8 +2,10 @@
 
 [![Rust Tests](https://github.com/rollkit/rollkit/actions/workflows/rust-test.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/rust-test.yml)
 [![Rust Lint](https://github.com/rollkit/rollkit/actions/workflows/rust-lint.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/rust-lint.yml)
+<!-- markdown-link-check-disable -->
 [![crates.io](https://img.shields.io/crates/v/rollkit-client.svg)](https://crates.io/crates/rollkit-client)
 [![docs.rs](https://docs.rs/rollkit-client/badge.svg)](https://docs.rs/rollkit-client)
+<!-- markdown-link-check-enable -->
 
 A Rust client library for interacting with Rollkit nodes via gRPC.
 
@@ -36,12 +38,12 @@ use rollkit_client::{RollkitClient, HealthClient};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Connect to a Rollkit node
     let client = RollkitClient::connect("http://localhost:50051").await?;
-    
+
     // Check health
     let mut health = HealthClient::new(&client);
     let is_healthy = health.is_healthy().await?;
     println!("Node healthy: {}", is_healthy);
-    
+
     Ok(())
 }
 ```
@@ -68,18 +70,22 @@ let client = RollkitClient::connect_with_config(
 The client provides wrappers for all Rollkit gRPC services:
 
 ### Health Service
+
 - `livez()` - Check if the node is alive
 - `is_healthy()` - Check if the node is healthy
 
 ### P2P Service
+
 - `get_peer_info()` - Get information about connected peers
 - `get_net_info()` - Get network information
 
 ### Signer Service
+
 - `sign(message)` - Sign a message
 - `get_public_key()` - Get the node's public key
 
 ### Store Service
+
 - `get_block(height)` - Get a block by height
 - `get_state(height)` - Get state at a specific height
 - `get_metadata(initial_height, latest_height)` - Get metadata for a height range
@@ -95,6 +101,7 @@ cargo run --example basic
 ## Error Handling
 
 All methods return `Result<T, RollkitClientError>` where `RollkitClientError` encompasses:
+
 - Transport errors
 - RPC errors
 - Connection errors

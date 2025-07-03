@@ -28,11 +28,13 @@ cargo build
 **Important**: The CI uses protoc version 25.1. If your local protoc version differs, you may see formatting differences in the generated files.
 
 To check your protoc version:
+
 ```bash
 protoc --version
 ```
 
 To ensure consistency with CI:
+
 1. Install protoc version 25.1
 2. Use the provided script: `./client/scripts/generate-protos.sh`
 3. Or use the Makefile: `make rust-proto-gen`
@@ -40,17 +42,20 @@ To ensure consistency with CI:
 ### Common Issues
 
 If you see differences in generated files between local and CI:
+
 - It's usually due to protoc version differences
 - Different versions may format the generated code slightly differently
 - The functionality remains the same, only formatting changes
 
 To avoid this:
+
 - Use the same protoc version as CI (25.1)
 - Or accept the formatting from your version and update CI if needed
 
 ## Dependencies
 
 This crate requires:
+
 - `protoc` (Protocol Buffers compiler)
 - `tonic-build` for code generation
 - `prost` for runtime support
