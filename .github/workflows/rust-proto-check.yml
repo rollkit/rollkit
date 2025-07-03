@@ -11,6 +11,8 @@ on:
     branches:
       - main
       - release/*
+permissions:
+  contents: read
 
 jobs:
   check-proto-generation:

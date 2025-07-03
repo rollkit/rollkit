@@ -1,21 +1,21 @@
-name: 'Setup Rust'
-description: 'Setup Rust toolchain with caching and protoc'
+name: "Setup Rust"
+description: "Setup Rust toolchain with caching and protoc"
 inputs:
   toolchain:
-    description: 'Rust toolchain to install'
+    description: "Rust toolchain to install"
     required: false
-    default: 'stable'
+    default: "stable"
   components:
-    description: 'Rust components to install'
+    description: "Rust components to install"
     required: false
-    default: ''
+    default: ""
   cache-key:
-    description: 'Additional cache key for dependencies'
+    description: "Additional cache key for dependencies"
     required: false
-    default: 'default'
+    default: "default"
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@master
