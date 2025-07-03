@@ -1,0 +1,51 @@
+name: "Setup Rust"
+description: "Setup Rust toolchain with caching and protoc"
+inputs:
+  toolchain:
+    description: "Rust toolchain to install"
+    required: false
+    default: "stable"
+  components:
+    description: "Rust components to install"
+    required: false
+    default: ""
+  cache-key:
+    description: "Additional cache key for dependencies"
+    required: false
+    default: "default"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        components: ${{ inputs.components }}
+
+    - name: Install protoc
+      uses: arduino/setup-protoc@v3
+      with:
+        version: "25.1"
+        repo-token: ${{ github.token }}
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ inputs.toolchain }}-${{ inputs.cache-key }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ inputs.toolchain }}-${{ inputs.cache-key }}-
+          ${{ runner.os }}-cargo-${{ inputs.toolchain }}-
+
+    - name: Display Rust version
+      shell: bash
+      run: |
+        rustc --version
+        cargo --version
+        protoc --version

@@ -50,6 +50,7 @@ go build -tags run_evm -o run-evm-nodes scripts/run-evm-nodes.go
      - Full Node EVM: ports 8555 (RPC), 8561 (Engine), 8556 (WS)
 
 3. **Rollkit Nodes**:
+   <!-- markdown-link-check-disable -->
    - Initializes and starts the sequencer node:
      - RPC: <http://localhost:36657>
      - P2P: 127.0.0.1:7676
@@ -57,6 +58,7 @@ go build -tags run_evm -o run-evm-nodes scripts/run-evm-nodes.go
      - RPC: <http://localhost:46657>
      - P2P: 127.0.0.1:7677
      - Automatically connects to sequencer via P2P
+     <!-- markdown-link-check-enable -->
 
 4. **Monitoring**:
    - Monitors all processes for unexpected exits

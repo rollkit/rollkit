@@ -1,0 +1,3 @@
+# Ensure consistent line endings for generated files
+src/proto/*.rs text eol=lf
+*.proto text eol=lf

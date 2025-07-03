@@ -1,0 +1,98 @@
+name: Publish Rust Crates
+
+on:
+  push:
+    tags:
+      - 'rust-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Perform a dry run without publishing'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: ./.github/actions/rust-setup
+        with:
+          cache-key: publish
+
+      - name: Check crate versions
+        run: |
+          echo "=== Checking crate versions ==="
+          echo "rollkit-types version: $(cargo pkgid -p rollkit-types | cut -d# -f2)"
+          echo "rollkit-client version: $(cargo pkgid -p rollkit-client | cut -d# -f2)"
+
+      - name: Run tests
+        run: cargo test --workspace --all-features
+
+      - name: Package crates
+        run: |
+          cargo package -p rollkit-types --allow-dirty
+          cargo package -p rollkit-client --allow-dirty
+
+      - name: Publish rollkit-types (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: |
+          cd client/crates/rollkit-types
+          cargo publish --dry-run
+
+      - name: Publish rollkit-client (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: |
+          cd client/crates/rollkit-client
+          cargo publish --dry-run
+
+      - name: Publish rollkit-types
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          cd client/crates/rollkit-types
+          cargo publish
+
+      - name: Wait for rollkit-types to be available
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        run: |
+          echo "Waiting for rollkit-types to be available on crates.io..."
+          sleep 30
+
+      - name: Publish rollkit-client
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          cd client/crates/rollkit-client
+          cargo publish
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Rust Client ${{ github.ref_name }}
+          body: |
+            # Rust Client Release
+
+            This release includes:
+            - `rollkit-types`: Proto-generated types for Rollkit
+            - `rollkit-client`: High-level Rust client for Rollkit gRPC services
+
+            ## Installation
+
+            Add to your `Cargo.toml`:
+            ```toml
+            [dependencies]
+            rollkit-client = "<version>"
+            ```
+
+            See the [README](https://github.com/rollkit/rollkit/tree/main/client/crates/rollkit-client) for usage examples.
+          draft: false
+          prerelease: false
