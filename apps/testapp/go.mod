@@ -25,7 +25,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/celestiaorg/go-header v0.6.6 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2 // indirect
-	github.com/celestiaorg/go-square/v2 v2.2.0 // indirect
+	github.com/celestiaorg/go-square/v2 v2.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect

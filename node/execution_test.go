@@ -89,7 +89,7 @@ func getExecutorFromNode(t *testing.T, node *FullNode) coreexecutor.Executor {
 }
 
 func getTransactions(t *testing.T, executor coreexecutor.Executor, ctx context.Context) [][]byte {
-	txs, err := executor.GetTxs(ctx)
+	txs, err := executor.GetTxs(ctx, 1000000)
 	require.NoError(t, err)
 	return txs
 }

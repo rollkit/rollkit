@@ -125,7 +125,7 @@ func (c *EngineClient) InitChain(ctx context.Context, genesisTime time.Time, ini
 }
 
 // GetTxs retrieves transactions from the current execution payload
-func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
+func (c *EngineClient) GetTxs(ctx context.Context, maxBytes uint64) ([][]byte, error) {
 	var result struct {
 		Pending map[string]map[string]*types.Transaction `json:"pending"`
 		Queued  map[string]map[string]*types.Transaction `json:"queued"`
@@ -136,6 +136,7 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 	}
 
 	var txs [][]byte
+	totalBytes := uint64(0)
 
 	// add pending txs
 	for _, accountTxs := range result.Pending {
@@ -166,7 +167,15 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal transaction: %w", err)
 			}
+			
+			txSize := uint64(len(txBytes))
+			if totalBytes+txSize > maxBytes {
+				// Stop adding transactions if we would exceed maxBytes
+				return txs, nil
+			}
+			
 			txs = append(txs, txBytes)
+			totalBytes += txSize
 		}
 	}
 	return txs, nil

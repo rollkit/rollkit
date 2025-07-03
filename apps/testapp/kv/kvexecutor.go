@@ -144,7 +144,7 @@ func (k *KVExecutor) InitChain(ctx context.Context, genesisTime time.Time, initi
 
 // GetTxs retrieves available transactions from the mempool channel.
 // It drains the channel in a non-blocking way.
-func (k *KVExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
+func (k *KVExecutor) GetTxs(ctx context.Context, maxBytes uint64) ([][]byte, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -153,10 +153,24 @@ func (k *KVExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
 
 	// Drain the channel efficiently
 	txs := make([][]byte, 0, len(k.txChan)) // Pre-allocate roughly
+	totalBytes := uint64(0)
+	
 	for {
 		select {
 		case tx := <-k.txChan:
+			txSize := uint64(len(tx))
+			if totalBytes+txSize > maxBytes {
+				// Put the transaction back if it exceeds the limit
+				select {
+				case k.txChan <- tx:
+				default:
+					// Channel is full, transaction will be lost
+					// This is acceptable as transactions can be resubmitted
+				}
+				return txs, nil
+			}
 			txs = append(txs, tx)
+			totalBytes += txSize
 		default: // Channel is empty or context is done
 			// Check context again in case it was cancelled during drain
 			select {

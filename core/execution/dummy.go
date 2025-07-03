@@ -45,12 +45,22 @@ func (e *DummyExecutor) InitChain(ctx context.Context, genesisTime time.Time, in
 }
 
 // GetTxs returns the list of transactions (types.Tx) within the DummyExecutor instance and an error if any.
-func (e *DummyExecutor) GetTxs(context.Context) ([][]byte, error) {
+func (e *DummyExecutor) GetTxs(ctx context.Context, maxBytes uint64) ([][]byte, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	txs := make([][]byte, len(e.injectedTxs))
-	copy(txs, e.injectedTxs) // Create a copy to avoid external modifications
+	var txs [][]byte
+	totalBytes := uint64(0)
+	
+	for _, tx := range e.injectedTxs {
+		txSize := uint64(len(tx))
+		if totalBytes+txSize > maxBytes {
+			break
+		}
+		txs = append(txs, tx)
+		totalBytes += txSize
+	}
+	
 	return txs, nil
 }
 

@@ -44,7 +44,7 @@ type Executor interface {
 	// Returns:
 	// - []types.Tx: Slice of valid transactions
 	// - error: Any errors during transaction retrieval
-	GetTxs(ctx context.Context) ([][]byte, error)
+	GetTxs(ctx context.Context, maxBytes uint64) ([][]byte, error)
 
 	// ExecuteTxs processes transactions to produce a new block state.
 	// Requirements:

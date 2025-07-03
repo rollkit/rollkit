@@ -69,7 +69,7 @@ func TestHandleTx(t *testing.T) {
 				// Allow a moment for the channel send to potentially complete
 				time.Sleep(10 * time.Millisecond)
 				ctx := context.Background()
-				retrievedTxs, err := exec.GetTxs(ctx)
+				retrievedTxs, err := exec.GetTxs(ctx, 1000000)
 				if err != nil {
 					t.Fatalf("GetTxs failed: %v", err)
 				}
@@ -81,7 +81,7 @@ func TestHandleTx(t *testing.T) {
 			} else if tt.method == http.MethodPost {
 				// If it was a POST but not accepted, ensure nothing ended up in the channel
 				ctx := context.Background()
-				retrievedTxs, err := exec.GetTxs(ctx)
+				retrievedTxs, err := exec.GetTxs(ctx, 1000000)
 				if err != nil {
 					t.Fatalf("GetTxs failed: %v", err)
 				}

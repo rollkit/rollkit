@@ -66,7 +66,7 @@ func TestInjectTxAndGetTxs(t *testing.T) {
 	ctx := context.Background()
 
 	// Test with empty transactions
-	txs, err := executor.GetTxs(ctx)
+	txs, err := executor.GetTxs(ctx, 1000000)
 	if err != nil {
 		t.Fatalf("GetTxs returned error: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestInjectTxAndGetTxs(t *testing.T) {
 	executor.InjectTx(tx3)
 
 	// Verify transactions were injected
-	txs, err = executor.GetTxs(ctx)
+	txs, err = executor.GetTxs(ctx, 1000000)
 	if err != nil {
 		t.Fatalf("GetTxs returned error: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestInjectTxAndGetTxs(t *testing.T) {
 	}
 
 	// Verify that GetTxs returns a copy, not the original slice
-	originalTxs, _ := executor.GetTxs(ctx)
+	originalTxs, _ := executor.GetTxs(ctx, 1000000)
 	if len(originalTxs) == 0 {
 		t.Fatal("Expected transactions, got none")
 	}
@@ -114,7 +114,7 @@ func TestInjectTxAndGetTxs(t *testing.T) {
 	originalTxs[0] = []byte("modified")
 
 	// Get transactions again and verify they weren't modified
-	newTxs, _ := executor.GetTxs(ctx)
+	newTxs, _ := executor.GetTxs(ctx, 1000000)
 	if bytes.Equal(newTxs[0], originalTxs[0]) {
 		t.Error("GetTxs should return a copy of transactions, not the original slice")
 	}
@@ -154,7 +154,7 @@ func TestExecuteTxs(t *testing.T) {
 	}
 
 	// Verify that executed transactions were removed from injectedTxs
-	remainingTxs, _ := executor.GetTxs(ctx)
+	remainingTxs, _ := executor.GetTxs(ctx, 1000000)
 	if len(remainingTxs) != 1 {
 		t.Fatalf("Expected 1 remaining transaction, got %d", len(remainingTxs))
 	}
@@ -266,7 +266,7 @@ func TestConcurrentOperations(t *testing.T) {
 	for i := 0; i < numOps; i++ {
 		go func() {
 			defer wg.Done()
-			_, err := executor.GetTxs(ctx)
+			_, err := executor.GetTxs(ctx, 1000000)
 			if err != nil {
 				t.Errorf("GetTxs returned error: %v", err)
 			}
@@ -285,7 +285,7 @@ func TestConcurrentOperations(t *testing.T) {
 	wg.Wait()
 
 	// Verify that we have the expected number of transactions
-	txs, _ := executor.GetTxs(ctx)
+	txs, _ := executor.GetTxs(ctx, 1000000)
 	if len(txs) != numOps {
 		t.Errorf("Expected %d transactions, got %d", numOps, len(txs))
 	}
@@ -351,7 +351,7 @@ func TestRemoveExecutedTxs(t *testing.T) {
 	executor.InjectTx(tx4)
 
 	// Verify initial transactions
-	txs, _ := executor.GetTxs(context.Background())
+	txs, _ := executor.GetTxs(context.Background(), 1000000)
 	if len(txs) != 4 {
 		t.Fatalf("Expected 4 transactions, got %d", len(txs))
 	}
@@ -361,7 +361,7 @@ func TestRemoveExecutedTxs(t *testing.T) {
 	executor.removeExecutedTxs(txsToRemove)
 
 	// Verify remaining transactions
-	remainingTxs, _ := executor.GetTxs(context.Background())
+	remainingTxs, _ := executor.GetTxs(context.Background(), 1000000)
 	if len(remainingTxs) != 2 {
 		t.Fatalf("Expected 2 remaining transactions, got %d", len(remainingTxs))
 	}
@@ -388,7 +388,7 @@ func TestRemoveExecutedTxs(t *testing.T) {
 	executor.removeExecutedTxs(remainingTxs)
 
 	// Verify no transactions remain
-	finalTxs, _ := executor.GetTxs(context.Background())
+	finalTxs, _ := executor.GetTxs(context.Background(), 1000000)
 	if len(finalTxs) != 0 {
 		t.Errorf("Expected 0 transactions after removing all, got %d", len(finalTxs))
 	}
