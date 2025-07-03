@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -30,7 +30,7 @@ func TestStartInstrumentationServer(t *testing.T) {
 
 	node := &FullNode{
 		nodeConfig:  config,
-		BaseService: *service.NewBaseService(log.NewTestLogger(t), "TestNode", nil),
+		BaseService: *service.NewBaseService(logging.Logger("test"), "TestNode", nil),
 	}
 
 	prometheusSrv, pprofSrv := node.startInstrumentationServer()
@@ -51,7 +51,7 @@ func TestStartInstrumentationServer(t *testing.T) {
 	assert.Equal(http.StatusOK, resp.StatusCode, "Prometheus metrics endpoint should return 200 OK")
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(err)
-	assert.Contains(string(body), "# HELP", "Prometheus metrics body should contain HELP lines") // Check for typical metrics content
+	assert.Contains(string(body), "# HELP", "Prometheus metrics body should contain HELP lines")
 
 	resp, err = http.Get(fmt.Sprintf("http://%s/debug/pprof/", config.Instrumentation.PprofListenAddr))
 	require.NoError(err, "Failed to get Pprof index")

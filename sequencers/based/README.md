@@ -10,7 +10,7 @@ This implementation supports EVM execution via `go-execution-evm` and allows con
 
 - Modular Rollkit node launcher
 - Supports **based sequencing** via Celestia or dummy DA
-- Integrated with EVM execution (reth + op-geth compatible)
+- Integrated with EVM execution (reth + geth compatible)
 - Configurable DA layers (chain and based)
 - Lightweight node initialization
 - RPC and P2P setup out of the box

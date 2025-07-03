@@ -63,7 +63,7 @@ func (s *SystemUnderTest) RunCmd(cmd string, args ...string) (string, error) {
 		args...,
 	)
 	// Use CombinedOutput to capture both stdout and stderr
-	combinedOutput, err := c.CombinedOutput() // Changed from c.Output()
+	combinedOutput, err := c.CombinedOutput()
 
 	return string(combinedOutput), err
 }
