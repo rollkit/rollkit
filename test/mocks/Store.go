@@ -234,6 +234,74 @@ func (_c *MockStore_GetBlockData_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// GetHeader provides a mock function for the type MockStore
+func (_mock *MockStore) GetHeader(ctx context.Context, height uint64) (*types.SignedHeader, error) {
+	ret := _mock.Called(ctx, height)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetHeader")
+	}
+
+	var r0 *types.SignedHeader
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint64) (*types.SignedHeader, error)); ok {
+		return returnFunc(ctx, height)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint64) *types.SignedHeader); ok {
+		r0 = returnFunc(ctx, height)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.SignedHeader)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+		r1 = returnFunc(ctx, height)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStore_GetHeader_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetHeader'
+type MockStore_GetHeader_Call struct {
+	*mock.Call
+}
+
+// GetHeader is a helper method to define mock.On call
+//   - ctx context.Context
+//   - height uint64
+func (_e *MockStore_Expecter) GetHeader(ctx interface{}, height interface{}) *MockStore_GetHeader_Call {
+	return &MockStore_GetHeader_Call{Call: _e.mock.On("GetHeader", ctx, height)}
+}
+
+func (_c *MockStore_GetHeader_Call) Run(run func(ctx context.Context, height uint64)) *MockStore_GetHeader_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uint64
+		if args[1] != nil {
+			arg1 = args[1].(uint64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStore_GetHeader_Call) Return(signedHeader *types.SignedHeader, err error) *MockStore_GetHeader_Call {
+	_c.Call.Return(signedHeader, err)
+	return _c
+}
+
+func (_c *MockStore_GetHeader_Call) RunAndReturn(run func(ctx context.Context, height uint64) (*types.SignedHeader, error)) *MockStore_GetHeader_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMetadata provides a mock function for the type MockStore
 func (_mock *MockStore) GetMetadata(ctx context.Context, key string) ([]byte, error) {
 	ret := _mock.Called(ctx, key)

@@ -5,13 +5,11 @@ package evm
 
 import (
 	"context"
-	"math/big"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
@@ -259,34 +257,4 @@ func checkLatestBlock(t *testing.T, ctx context.Context) (uint64, common.Hash, i
 
 	//t.Logf("Latest block: height=%d, hash=%s, txs=%d", blockNumber, blockHash.Hex(), txCount)
 	return blockNumber, blockHash, txCount
-}
-
-func TestSubmitTransaction(t *testing.T) {
-	t.Skip("Use this test to submit a transaction manually to the Ethereum client")
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	rpcClient, err := ethclient.Dial(TEST_ETH_URL)
-	require.NoError(t, err)
-	defer rpcClient.Close()
-	height, err := rpcClient.BlockNumber(ctx)
-	require.NoError(t, err)
-
-	privateKey, err := crypto.HexToECDSA(TEST_PRIVATE_KEY)
-	require.NoError(t, err)
-
-	address := crypto.PubkeyToAddress(privateKey.PublicKey)
-	lastNonce, err := rpcClient.NonceAt(ctx, address, new(big.Int).SetUint64(height))
-	require.NoError(t, err)
-
-	for s := 0; s < 30; s++ {
-		startTime := time.Now()
-		for i := 0; i < 100; i++ {
-			tx := GetRandomTransaction(t, TEST_PRIVATE_KEY, TEST_TO_ADDRESS, CHAIN_ID, 22000, &lastNonce)
-			SubmitTransaction(t, tx)
-		}
-		elapsed := time.Since(startTime)
-		if elapsed < time.Second {
-			time.Sleep(time.Second - elapsed)
-		}
-	}
 }

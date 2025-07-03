@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -40,7 +40,7 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 
 // Returns a minimalistic block manager using a mock DA Client
 func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) (*Manager, *mocks.MockStore) {
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("test")
 	mockStore := mocks.NewMockStore(t)
 	m := &Manager{
 		da:                       da,
@@ -68,7 +68,7 @@ func TestInitialStateClean(t *testing.T) {
 
 	// Create genesis document
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateClean")
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("test")
 	es, _ := storepkg.NewDefaultInMemoryKVStore()
 	emptyStore := storepkg.New(es)
 	mockExecutor := mocks.NewMockExecutor(t)
@@ -104,7 +104,7 @@ func TestInitialStateStored(t *testing.T) {
 	store := storepkg.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("test")
 	mockExecutor := mocks.NewMockExecutor(t)
 
 	// getInitialState should not call InitChain if state exists
@@ -120,7 +120,7 @@ func TestInitialStateStored(t *testing.T) {
 // TestInitialStateUnexpectedHigherGenesis verifies that getInitialState returns an error if the genesis initial height is higher than the stored state's last block height.
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
-	logger := log.NewTestLogger(t)
+	logger := logging.Logger("test")
 	ctx := context.Background()
 
 	// Create genesis document with initial height 2
@@ -575,28 +575,26 @@ func TestManager_execValidate(t *testing.T) {
 		require.NoError(err)
 	})
 
-	// TODO: https://github.com/rollkit/rollkit/issues/2250
+	t.Run("non-monotonic block time with height > 1", func(t *testing.T) {
+		state, header, data, privKey := makeValid()
+		state.LastBlockTime = time.Now().Add(time.Minute)
+		state.LastBlockHeight = 1
+		header.BaseHeader.Height = state.LastBlockHeight + 1
+		data.Metadata.Height = state.LastBlockHeight + 1
+		signer, err := noopsigner.NewNoopSigner(privKey)
+		require.NoError(err)
+		header.Signature, err = types.GetSignature(header.Header, signer)
+		require.NoError(err)
+		err = m.execValidate(state, header, data)
+		require.ErrorContains(err, "block time must be strictly increasing")
+	})
 
-	// t.Run("non-monotonic block time with height > 1", func(t *testing.T) {
-	// 	state, header, data, privKey := makeValid()
-	// 	state.LastBlockTime = time.Now().Add(time.Minute)
-	// 	state.LastBlockHeight = 1
-	// 	header.BaseHeader.Height = state.LastBlockHeight + 1
-	// 	data.Metadata.Height = state.LastBlockHeight + 1
-	// 	signer, err := noopsigner.NewNoopSigner(privKey)
-	// 	require.NoError(err)
-	// 	header.Signature, err = types.GetSignature(header.Header, signer)
-	// 	require.NoError(err)
-	// 	err = m.execValidate(state, header, data)
-	// 	require.ErrorContains(err, "block time must be strictly increasing")
-	// })
-
-	// t.Run("app hash mismatch", func(t *testing.T) {
-	// 	state, header, data, _ := makeValid()
-	// 	state.AppHash = []byte("different")
-	// 	err := m.execValidate(state, header, data)
-	// 	require.ErrorContains(err, "app hash mismatch")
-	// })
+	t.Run("app hash mismatch", func(t *testing.T) {
+		state, header, data, _ := makeValid()
+		state.AppHash = []byte("different")
+		err := m.execValidate(state, header, data)
+		require.ErrorContains(err, "appHash mismatch in delayed execution mode")
+	})
 }
 
 // TestGetterMethods tests simple getter methods for the Manager
