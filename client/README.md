@@ -4,7 +4,7 @@ This directory contains client libraries for interacting with Rollkit nodes in v
 
 ## Structure
 
-```
+```ascii
 client/
 ├── crates/           # Rust client libraries
 │   ├── rollkit-types/    # Generated protobuf types for Rust
@@ -23,6 +23,7 @@ Contains all the protobuf-generated types and service definitions. This crate is
 ### rollkit-client
 
 A high-level client library that provides:
+
 - Easy-to-use wrappers around the gRPC services
 - Connection management with configurable timeouts
 - Type-safe interfaces
