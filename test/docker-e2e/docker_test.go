@@ -210,6 +210,11 @@ func (s *DockerTestSuite) FundWallet(ctx context.Context, wallet tastoratypes.Wa
 
 // StartRollkitNode initializes and starts a Rollkit node.
 func (s *DockerTestSuite) StartRollkitNode(ctx context.Context, bridgeNode tastoratypes.DANode, rollkitNode tastoratypes.RollkitNode) {
+	s.StartRollkitNodeWithNamespace(ctx, bridgeNode, rollkitNode, generateValidNamespaceHex())
+}
+
+// StartRollkitNodeWithNamespace initializes and starts a Rollkit node with a specific namespace.
+func (s *DockerTestSuite) StartRollkitNodeWithNamespace(ctx context.Context, bridgeNode tastoratypes.DANode, rollkitNode tastoratypes.RollkitNode, namespace string) {
 	err := rollkitNode.Init(ctx)
 	s.Require().NoError(err)
 
@@ -225,8 +230,34 @@ func (s *DockerTestSuite) StartRollkitNode(ctx context.Context, bridgeNode tasto
 		"--rollkit.da.gas_price", "0.025",
 		"--rollkit.da.auth_token", authToken,
 		"--rollkit.rpc.address", "0.0.0.0:7331", // bind to 0.0.0.0 so rpc is reachable from test host.
-		"--rollkit.da.namespace", generateValidNamespaceHex(),
+		"--rollkit.da.namespace", namespace,
 		"--kv-endpoint", "0.0.0.0:8080",
+	)
+	s.Require().NoError(err)
+}
+
+// StartRollkitFullNode initializes and starts a Rollkit full node that syncs from DA without P2P gossip.
+func (s *DockerTestSuite) StartRollkitFullNode(ctx context.Context, bridgeNode tastoratypes.DANode, rollkitNode tastoratypes.RollkitNode, namespace string) {
+	err := rollkitNode.Init(ctx)
+	s.Require().NoError(err)
+
+	bridgeNodeHostName, err := bridgeNode.GetInternalHostName()
+	s.Require().NoError(err)
+
+	authToken, err := bridgeNode.GetAuthToken()
+	s.Require().NoError(err)
+
+	daAddress := fmt.Sprintf("http://%s:26658", bridgeNodeHostName)
+	err = rollkitNode.Start(ctx,
+		"--rollkit.da.address", daAddress,
+		"--rollkit.da.gas_price", "0.025",
+		"--rollkit.da.auth_token", authToken,
+		"--rollkit.rpc.address", "0.0.0.0:7332", // Use different port for full node
+		"--rollkit.da.namespace", namespace, // Use same namespace as sequencer
+		"--kv-endpoint", "0.0.0.0:8081", // Use different port for full node
+		"--rollkit.node.aggregator", "false", // Not an aggregator/sequencer
+		"--rollkit.p2p.listen_address", "", // Disable P2P to force DA-only sync
+		"--rollkit.log.level", "debug", // Enable debug logging to catch any issues
 	)
 	s.Require().NoError(err)
 }
