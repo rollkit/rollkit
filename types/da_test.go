@@ -182,6 +182,13 @@ func TestRetrieveWithHelpers(t *testing.T) {
 			expectedHeight: dataLayerHeight,
 		},
 		{
+			name:           "new celestia height from future error format",
+			getIDsErr:      errors.New("node is not ready (height 6853457 is not yet available)"),
+			expectedCode:   coreda.StatusHeightFromFuture,
+			expectedErrMsg: coreda.ErrHeightFromFuture.Error(),
+			expectedHeight: dataLayerHeight,
+		},
+		{
 			name:           "generic error during GetIDs",
 			getIDsErr:      errors.New("failed to connect to DA"),
 			expectedCode:   coreda.StatusError,

@@ -620,7 +620,7 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 	// Since this test is for ErrHeightFromFuture, this specific Error log should NOT be hit.
 	// The error is handled within RetrieveWithHelpers and a different status code is returned.
 	// The RetrieveLoop itself might log an info/debug that processing failed but not a top-level error for this case.
-	mockLogger.On("Error", "failed to retrieve data from DALC", "daHeight", startDAHeight, "error", futureErr).Run(func(args mock.Arguments) {
+	mockLogger.On("Error", "failed to retrieve data from DALC", "daHeight", startDAHeight, "errors", mock.AnythingOfType("string"), "consecutiveFailures", mock.AnythingOfType("int")).Run(func(args mock.Arguments) {
 		errorLogged.Store(true)
 	}).Maybe() // This should ideally not be called if the error is ErrHeightFromFuture as RetrieveWithHelpers handles it.
 
@@ -672,7 +672,7 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	// The "Retrieve helper: Failed to get IDs" is logged inside RetrieveWithHelpers.
 	mockLogger.On("Error", "Retrieve helper: Failed to get IDs", "height", startDAHeight, "error", otherErr).Times(dAFetcherRetries)
 	// The RetrieveLoop will log "failed to retrieve data from DALC" for each failed attempt.
-	mockLogger.On("Error", "failed to retrieve data from DALC", "daHeight", startDAHeight, "errors", mock.AnythingOfType("string")).Run(func(args mock.Arguments) {
+	mockLogger.On("Error", "failed to retrieve data from DALC", "daHeight", startDAHeight, "errors", mock.AnythingOfType("string"), "consecutiveFailures", mock.AnythingOfType("int")).Run(func(args mock.Arguments) {
 		// Try to close channel only on the last expected call, or make it non-blocking.
 		// For simplicity, we'll let it be called multiple times and check errorLogged after loop.
 		errorLogged.Store(true)
