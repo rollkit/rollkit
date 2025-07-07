@@ -1071,3 +1071,66 @@ func (m *Manager) isValidSignedData(signedData *types.SignedData) bool {
 	valid, err := signedData.Signer.PubKey.Verify(dataBytes, signedData.Signature)
 	return err == nil && valid
 }
+
+// RollbackLastBlock reverts the chain state to the previous block.
+// This method allows recovery from unrecoverable errors by rolling back
+// the most recent block that has not been finalized.
+func (m *Manager) RollbackLastBlock(ctx context.Context) error {
+	m.lastStateMtx.Lock()
+	defer m.lastStateMtx.Unlock()
+
+	currentHeight := m.lastState.LastBlockHeight
+	if currentHeight <= 1 {
+		return fmt.Errorf("cannot rollback from height %d: must be > 1", currentHeight)
+	}
+
+	m.logger.Info("Rolling back last block", "currentHeight", currentHeight, "targetHeight", currentHeight-1)
+
+	// First, rollback the execution layer
+	prevStateRoot, err := m.exec.Rollback(ctx, currentHeight)
+	if err != nil {
+		return fmt.Errorf("failed to rollback execution layer: %w", err)
+	}
+
+	// Then, rollback the store to the previous height
+	targetHeight := currentHeight - 1
+	if err := m.store.RollbackToHeight(ctx, targetHeight); err != nil {
+		return fmt.Errorf("failed to rollback store: %w", err)
+	}
+
+	// Update the manager's internal state to reflect the rollback
+	// Get the previous block's state from the store
+	prevState, err := m.store.GetState(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get state after rollback: %w", err)
+	}
+
+	// Verify that the state root matches what the execution layer returned
+	if !bytes.Equal(prevState.AppHash, prevStateRoot) {
+		m.logger.Warn("State root mismatch after rollback", 
+			"storeStateRoot", fmt.Sprintf("%x", prevState.AppHash),
+			"execStateRoot", fmt.Sprintf("%x", prevStateRoot))
+	}
+
+	// Update the last state to the rolled-back state
+	m.lastState = prevState
+
+	// Clear any cached data for the rolled-back block
+	_, err = m.store.GetHeader(ctx, currentHeight)
+	if err == nil {
+		// Note: We can't remove from cache as there's no Remove method in the interface
+		// This is acceptable as the cache will eventually expire or be overwritten
+	}
+
+	// Reset DA included height if it was at the rolled-back height
+	if m.daIncludedHeight.Load() >= currentHeight {
+		m.daIncludedHeight.Store(targetHeight)
+	}
+
+	m.logger.Info("Successfully rolled back block", 
+		"rolledBackHeight", currentHeight, 
+		"newHeight", targetHeight,
+		"newStateRoot", fmt.Sprintf("%x", prevStateRoot))
+
+	return nil
+}

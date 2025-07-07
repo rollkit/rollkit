@@ -305,6 +305,52 @@ func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
 	return c.setFinal(ctx, blockHash, true)
 }
 
+// Rollback reverts the execution state to the previous block height.
+// This method allows recovery from unrecoverable errors by rolling back
+// the most recent block that has not been finalized.
+func (c *EngineClient) Rollback(ctx context.Context, currentHeight uint64) ([]byte, error) {
+	if currentHeight <= 1 {
+		return nil, fmt.Errorf("cannot rollback from height %d: must be > 1", currentHeight)
+	}
+
+	// Get the previous block (target of rollback)
+	prevHeight := currentHeight - 1
+	prevBlockHash, prevStateRoot, _, _, err := c.getBlockInfo(ctx, prevHeight)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get previous block info at height %d: %w", prevHeight, err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Update forkchoice to the previous block as the new head
+	// This effectively "rolls back" the chain to the previous block
+	args := engine.ForkchoiceStateV1{
+		HeadBlockHash:      prevBlockHash,
+		SafeBlockHash:      prevBlockHash,
+		FinalizedBlockHash: c.currentFinalizedBlockHash, // Keep finalized block unchanged
+	}
+
+	// Update internal state tracking
+	c.currentHeadBlockHash = prevBlockHash
+	c.currentSafeBlockHash = prevBlockHash
+
+	var forkchoiceResult engine.ForkChoiceResponse
+	err = c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
+		args,
+		nil, // No payload attributes needed for rollback
+	)
+	if err != nil {
+		return nil, fmt.Errorf("forkchoice update for rollback failed: %w", err)
+	}
+
+	if forkchoiceResult.PayloadStatus.Status != engine.VALID {
+		return nil, fmt.Errorf("rollback forkchoice update returned invalid status: %s", forkchoiceResult.PayloadStatus.Status)
+	}
+
+	return prevStateRoot.Bytes(), nil
+}
+
 func (c *EngineClient) derivePrevRandao(blockHeight uint64) common.Hash {
 	return common.BigToHash(new(big.Int).SetUint64(blockHeight))
 }
