@@ -1,0 +1,26 @@
+name: Rust CI Status
+
+on:
+  workflow_run:
+    workflows: ["Rust Tests", "Rust Lint", "Rust Proto Generation Check"]
+    types:
+      - completed
+
+jobs:
+  status:
+    name: Update CI Status
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: github.event.workflow_run.conclusion != 'skipped'
+    steps:
+      - name: Report status
+        run: |
+          echo "Workflow: ${{ github.event.workflow_run.name }}"
+          echo "Status: ${{ github.event.workflow_run.conclusion }}"
+          echo "Branch: ${{ github.event.workflow_run.head_branch }}"
+
+          if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+            echo "::error::Rust CI workflow failed"
+            exit 1
+          fi
