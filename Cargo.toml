@@ -1,0 +1,17 @@
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/rollkit/rollkit"
+
+[workspace]
+members = ["client/crates/rollkit-types", "client/crates/rollkit-client"]
+resolver = "2"
+
+[workspace.dependencies]
+prost = "0.12"
+prost-build = "0.12"
+prost-types = "0.12"
+tonic = { version = "0.10", features = ["transport"] }
+tonic-build = "0.10"
+walkdir = "2.5.0"
