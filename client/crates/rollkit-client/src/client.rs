@@ -113,7 +113,6 @@ impl RollkitClientBuilder {
         self
     }
 
-
     /// Build the RollkitClient
     pub async fn build(self) -> Result<RollkitClient> {
         if self.endpoint.is_empty() {

@@ -14,7 +14,7 @@ fn test_grpc_types_available() {
     use rollkit_types::v1::p2p_service_client::P2pServiceClient;
     use rollkit_types::v1::signer_service_client::SignerServiceClient;
     use rollkit_types::v1::store_service_client::StoreServiceClient;
-    
+
     // Just verify the types exist
     let _ = std::any::type_name::<HealthServiceClient<tonic::transport::Channel>>();
     let _ = std::any::type_name::<P2pServiceClient<tonic::transport::Channel>>();
