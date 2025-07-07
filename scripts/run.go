@@ -255,7 +255,7 @@ func main() {
 			time.Sleep(3 * time.Second)
 
 			// Get node ID of the first node to use for peer connections
-			nodeIdCmd := exec.Command(appPath, "node-info", fmt.Sprintf("--home=%s", nodeHome))
+			nodeIdCmd := exec.Command(appPath, "net-info", fmt.Sprintf("--home=%s", nodeHome))
 			nodeInfoOutput, err := nodeIdCmd.CombinedOutput()
 			if err != nil {
 				log.Printf("Error getting node info for node %d: %v, output: %s", i, err, string(nodeInfoOutput))
