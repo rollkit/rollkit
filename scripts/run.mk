@@ -8,5 +8,5 @@ run-n: build build-da
 ## Usage: make run-evm-nodes
 run-evm-nodes: build-da build-evm-single
 	@echo "Starting EVM nodes..."
-	@go run -tags=run_evm scripts/run-evm-nodes.go
+	@go run -tags=run_evm scripts/run-evm-nodes.go --nodes=$(or $(NODES),1)
 .PHONY: run-evm-nodes
