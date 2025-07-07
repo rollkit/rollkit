@@ -1,3 +1,9 @@
 pub mod v1 {
-    include!("proto/rollkit.v1.rs");
+    // Always include the pure message types (no tonic dependencies)
+    #[cfg(not(feature = "grpc"))]
+    include!("proto/rollkit.v1.messages.rs");
+    
+    // Include the full version with gRPC services when the feature is enabled
+    #[cfg(feature = "grpc")]
+    include!("proto/rollkit.v1.services.rs");
 }

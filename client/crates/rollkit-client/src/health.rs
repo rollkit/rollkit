@@ -16,23 +16,23 @@ impl HealthClient {
     }
 
     /// Check if the node is alive and get its health status
-    pub async fn livez(&mut self) -> Result<HealthStatus> {
+    pub async fn livez(&self) -> Result<HealthStatus> {
         let request = Request::new(());
-        let response = self.inner.livez(request).await?;
+        let response = self.inner.clone().livez(request).await?;
 
         Ok(response.into_inner().status())
     }
 
     /// Get the full health response
-    pub async fn get_health(&mut self) -> Result<GetHealthResponse> {
+    pub async fn get_health(&self) -> Result<GetHealthResponse> {
         let request = Request::new(());
-        let response = self.inner.livez(request).await?;
+        let response = self.inner.clone().livez(request).await?;
 
         Ok(response.into_inner())
     }
 
     /// Check if the node is healthy (status is PASS)
-    pub async fn is_healthy(&mut self) -> Result<bool> {
+    pub async fn is_healthy(&self) -> Result<bool> {
         let status = self.livez().await?;
         Ok(status == HealthStatus::Pass)
     }

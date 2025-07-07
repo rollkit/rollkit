@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = RollkitClient::connect("http://localhost:50051").await?;
 
     // Check health
-    let mut health = HealthClient::new(&client);
+    let health = HealthClient::new(&client);
     let is_healthy = health.is_healthy().await?;
     println!("Node healthy: {}", is_healthy);
 
@@ -48,12 +48,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Advanced Configuration
+### Using the Builder Pattern
 
 ```rust
 use rollkit_client::RollkitClient;
 use std::time::Duration;
 
+// Create a client with custom timeouts
+let client = RollkitClient::builder()
+    .endpoint("http://localhost:50051")
+    .timeout(Duration::from_secs(30))
+    .connect_timeout(Duration::from_secs(10))
+    .build()
+    .await?;
+```
+
+### TLS Configuration
+
+```rust
+use rollkit_client::{RollkitClient, ClientTlsConfig};
+
+// Enable TLS with default configuration
+let client = RollkitClient::builder()
+    .endpoint("https://secure-node.rollkit.dev")
+    .tls()
+    .build()
+    .await?;
+
+// Or with custom TLS configuration
+let tls_config = ClientTlsConfig::new()
+    .domain_name("secure-node.rollkit.dev");
+
+let client = RollkitClient::builder()
+    .endpoint("https://secure-node.rollkit.dev")
+    .tls_config(tls_config)
+    .build()
+    .await?;
+```
+
+### Legacy Connection Method
+
+```rust
+use rollkit_client::RollkitClient;
+use std::time::Duration;
+
+// Still supported for backward compatibility
 let client = RollkitClient::connect_with_config(
     "http://localhost:50051",
     |endpoint| {
@@ -67,7 +106,7 @@ let client = RollkitClient::connect_with_config(
 
 ## Services
 
-The client provides wrappers for all Rollkit gRPC services:
+The client provides wrappers for all Rollkit gRPC services. All service methods are now thread-safe and can be called concurrently:
 
 ### Health Service
 
@@ -86,9 +125,10 @@ The client provides wrappers for all Rollkit gRPC services:
 
 ### Store Service
 
-- `get_block(height)` - Get a block by height
-- `get_state(height)` - Get state at a specific height
-- `get_metadata(initial_height, latest_height)` - Get metadata for a height range
+- `get_block_by_height(height)` - Get a block by height
+- `get_block_by_hash(hash)` - Get a block by hash
+- `get_state()` - Get the current state
+- `get_metadata(key)` - Get metadata by key
 
 ## Examples
 
@@ -96,6 +136,38 @@ See the `examples` directory for more detailed usage examples:
 
 ```bash
 cargo run --example basic
+```
+
+### Concurrent Usage Example
+
+```rust
+use rollkit_client::{RollkitClient, StoreClient};
+use tokio::task;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = RollkitClient::connect("http://localhost:50051").await?;
+    let store = StoreClient::new(&client);
+
+    // Service clients can be used concurrently
+    let mut handles = vec![];
+    
+    for height in 0..10 {
+        let store_clone = store.clone();
+        let handle = task::spawn(async move {
+            store_clone.get_block_by_height(height).await
+        });
+        handles.push(handle);
+    }
+
+    // Wait for all tasks to complete
+    for handle in handles {
+        let result = handle.await??;
+        println!("Got block: {:?}", result);
+    }
+
+    Ok(())
+}
 ```
 
 ## Error Handling

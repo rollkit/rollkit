@@ -1,4 +1,4 @@
-use std::{env, path::Path};
+use std::{env, fs, path::Path};
 use walkdir::WalkDir;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -15,13 +15,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             (p.extension()?.to_str()? == "proto").then_some(p)
         })
         .collect();
-
+    
+    // Create output directories
+    let proto_dir = manifest_dir.join("src/proto");
+    fs::create_dir_all(&proto_dir)?;
+    
+    // Always generate both versions and keep them checked in
+    // This way users don't need to regenerate based on features
+    
+    // 1. Generate pure message types (no tonic dependencies)
+    let mut prost_config = prost_build::Config::new();
+    prost_config.out_dir(&proto_dir);
+    // Important: we need to rename the output to avoid conflicts
+    prost_config.compile_protos(&proto_files, &[proto_root.as_path()])?;
+    
+    // Rename the generated file to messages.rs
+    let generated_file = proto_dir.join("rollkit.v1.rs");
+    let messages_file = proto_dir.join("rollkit.v1.messages.rs");
+    if generated_file.exists() {
+        fs::rename(&generated_file, &messages_file)?;
+    }
+    
+    // 2. Generate full code with gRPC services (always generate, conditionally include)
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
-        .out_dir("src/proto")
-        // pass the absolute include dir
+        .out_dir(&proto_dir)
         .compile(&proto_files, &[proto_root.as_path()])?;
+    
+    // Rename to services.rs
+    let services_file = proto_dir.join("rollkit.v1.services.rs");
+    if generated_file.exists() {
+        fs::rename(&generated_file, &services_file)?;
+    }
 
     println!("cargo:rerun-if-changed={}", proto_root.display());
     Ok(())

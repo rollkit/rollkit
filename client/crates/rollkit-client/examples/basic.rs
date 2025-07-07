@@ -1,4 +1,4 @@
-use rollkit_client::{HealthClient, P2PClient, RollkitClient, SignerClient, StoreClient};
+use rollkit_client::{HealthClient, P2PClient, RollkitClient, StoreClient};
 use std::error::Error;
 
 #[tokio::main]
@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Check health status
     println!("\n=== Health Check ===");
-    let mut health = HealthClient::new(&client);
+    let health = HealthClient::new(&client);
     match health.get_health().await {
         Ok(health_response) => {
             println!("Health status: {:?}", health_response.status());
@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Get P2P information
     println!("\n=== P2P Information ===");
-    let mut p2p = P2PClient::new(&client);
+    let p2p = P2PClient::new(&client);
     match p2p.get_net_info().await {
         Ok(net_info) => {
             println!("Network ID: {}", net_info.id);
@@ -47,29 +47,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Err(e) => println!("Failed to get peer info: {e}"),
     }
 
-    // Get signer information
-    println!("\n=== Signer Information ===");
-    let mut signer = SignerClient::new(&client);
-    match signer.get_public_key().await {
-        Ok(pubkey) => {
-            println!("Public key (hex): {}", hex::encode(&pubkey));
-        }
-        Err(e) => println!("Failed to get public key: {e}"),
-    }
-
-    // Example: Sign a message
-    let message = b"Hello, Rollkit!";
-    match signer.sign(message.to_vec()).await {
-        Ok(signature) => {
-            println!("Message signed successfully");
-            println!("Signature (hex): {}", hex::encode(&signature));
-        }
-        Err(e) => println!("Failed to sign message: {e}"),
-    }
-
     // Get store information
     println!("\n=== Store Information ===");
-    let mut store = StoreClient::new(&client);
+    let store = StoreClient::new(&client);
 
     // Try to get the latest block (height 0 for genesis)
     match store.get_block_by_height(0).await {
