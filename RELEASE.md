@@ -1,38 +1,321 @@
-# Release
+# Rollkit Release Process
 
-## Release Steps
+This document outlines the release process for all Go packages in the Rollkit repository. The packages must be released in a specific order due to inter-dependencies.
 
-* Update config version in [config/defaults.go](https://github.com/rollkit/rollkit/blob/main/pkg/config/defaults.go)
-* Release new Rollkit version
-* Update [Rollkit/Cosmos-SDK](https://github.com/rollkit/cosmos-sdk) with the newly released Rollkit version
-* Release new Rollkit/Cosmos-SDK version
+## Package Dependency Graph
 
-## Releasing a new Rollkit version
+```ascii
+                        ┌──────────┐
+                        │   core   │ (zero dependencies)
+                        └────┬─────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+        ▼                    ▼                    ▼
+   ┌─────────┐         ┌─────────┐      ┌──────────────┐
+   │   da    │         │ rollkit │      │execution/evm │
+   └─────────┘         └────┬────┘      └──────────────┘
+                            │
+                ┌───────────┴───────────┐
+                │                       │
+                ▼                       ▼
+      ┌─────────────────┐     ┌─────────────────┐
+      │sequencers/based │     │sequencers/single│
+      └────────┬────────┘     └────────┬────────┘
+               │                       │
+               ▼                       ▼
+      ┌─────────────────┐     ┌─────────────────┐
+      │apps/evm/based   │     │apps/evm/single  │
+      └─────────────────┘     └─────────────────┘
+```
 
-### Two ways
+## Release Order
 
-* [CI and Release Github Actions Workflows](https://github.com/rollkit/rollkit/actions/workflows/ci_release.yml)
-* [Manual](https://github.com/rollkit/rollkit/releases)
+Packages must be released in the following order to ensure dependencies are satisfied:
 
-#### CI and Release Actions Workflows
+### Phase 1: Core Package
+1. **github.com/rollkit/rollkit/core**
+   - Path: `./core`
+   - Dependencies: None (zero-dependency package)
+   - This is the foundation package containing all interfaces and types
 
-The CI and Release workflow involves using GitHub Actions to automate the release process. This automated process runs tests, builds the project, and handles versioning and release creation. To use this method, navigate to the GitHub Actions tab in the repository, select the CI and Release workflow, and trigger it with appropriate parameters.
+### Phase 2: First-Level Dependencies
+These packages only depend on `core` and can be released in parallel after `core`:
 
-#### Manual
+2. **github.com/rollkit/rollkit/da**
+   - Path: `./da`
+   - Dependencies: `rollkit/core`
 
-To manually create a release, navigate to the Releases section in the GitHub repository. Click on "Draft a new release", fill in the tag version, write a title and description for your release, and select the target branch. You can also attach binaries or other assets to the release.
+3. **github.com/rollkit/rollkit**
+   - Path: `./` (root)
+   - Dependencies: `rollkit/core`
 
-The manual release process also allows for creating release candidates and pre-releases by selecting the appropriate options in the release form. This gives you full control over the release process, allowing you to add detailed release notes and customize all aspects of the release.
+4. **github.com/rollkit/rollkit/execution/evm**
+   - Path: `./execution/evm`
+   - Dependencies: `rollkit/core`
 
-## Update Rollkit/Cosmos-SDK
+### Phase 3: Sequencer Packages
+These packages depend on both `core` and the main `rollkit` package:
 
-### Update Steps
+5. **github.com/rollkit/rollkit/sequencers/based**
+   - Path: `./sequencers/based`
+   - Dependencies: `rollkit/core`, `rollkit`
 
-* Navigate to the branch that you want to update. e.g., [release/v0.47.x](https://github.com/rollkit/cosmos-sdk/tree/release/v0.47.x) or [release/v0.47.x](https://github.com/rollkit/cosmos-sdk/tree/release/v0.50.x)
-* Modify go.mod with the newly released rollkit version. e.g., `github.com/rollkit/rollkit v0.10.4`
-* Run `go mod tidy` for updating the dependencies for the newly added rollkit version
-* Make a pull request/commit the changes
+6. **github.com/rollkit/rollkit/sequencers/single**
+   - Path: `./sequencers/single`
+   - Dependencies: `rollkit/core`, `rollkit`
 
-## Release new Rollkit/Cosmos-SDK version
+### Phase 4: Application Packages
+These packages have the most dependencies and should be released last:
 
-Make a new release of the Rollkit/Cosmos-SDK by [drafting new release](https://github.com/rollkit/cosmos-sdk/releases)
+7. **github.com/rollkit/rollkit/apps/evm/based**
+   - Path: `./apps/evm/based`
+   - Dependencies: `rollkit/core`, `rollkit/da`, `rollkit/execution/evm`, `rollkit`, `rollkit/sequencers/based`
+
+8. **github.com/rollkit/rollkit/apps/evm/single**
+   - Path: `./apps/evm/single`
+   - Dependencies: `rollkit/core`, `rollkit/da`, `rollkit/execution/evm`, `rollkit`, `rollkit/sequencers/single`
+
+9. **github.com/rollkit/rollkit/apps/testapp**
+   - Path: `./apps/testapp`
+   - Dependencies: `rollkit`
+
+## Release Process Workflow
+
+**IMPORTANT**: Each module must be fully released and available before updating dependencies in dependent modules.
+
+### Phase 1: Release Core Package
+
+#### 1. Release `core` module
+```bash
+cd core
+
+# Run pre-release checks
+make test
+make lint
+go mod tidy
+
+# Create and push tag
+git tag core/v<version>
+git push origin core/v<version>
+
+# Wait for Go proxy (5-10 minutes)
+# Verify availability
+go list -m github.com/rollkit/rollkit/core@v<version>
+```
+
+### Phase 2: Release First-Level Dependencies
+
+After core is available, update and release modules that only depend on core:
+
+#### 2. Update and release `da` module
+```bash
+cd da
+
+# Update core dependency
+go get github.com/rollkit/rollkit/core@v<version>
+go mod tidy
+
+# Run pre-release checks
+make test
+make lint
+
+# Create and push tag
+git tag da/v<version>
+git push origin da/v<version>
+
+# Verify availability
+go list -m github.com/rollkit/rollkit/da@v<version>
+```
+
+#### 3. Update and release main `rollkit` module
+```bash
+cd . # root directory
+
+# Update core dependency
+go get github.com/rollkit/rollkit/core@v<version>
+go mod tidy
+
+# Run pre-release checks
+make test
+make lint
+
+# Create and push tag
+git tag v<version>
+git push origin v<version>
+
+# Verify availability
+go list -m github.com/rollkit/rollkit@v<version>
+```
+
+#### 4. Update and release `execution/evm` module
+```bash
+cd execution/evm
+
+# Update core dependency
+go get github.com/rollkit/rollkit/core@v<version>
+go mod tidy
+
+# Run pre-release checks
+make test
+make lint
+
+# Create and push tag
+git tag execution/evm/v<version>
+git push origin execution/evm/v<version>
+
+# Verify availability
+go list -m github.com/rollkit/rollkit/execution/evm@v<version>
+```
+
+### Phase 3: Release Sequencer Packages
+
+After core and main rollkit are available, update and release sequencers:
+
+#### 5. Update and release `sequencers/based`
+```bash
+cd sequencers/based
+
+# Update dependencies
+go get github.com/rollkit/rollkit/core@v<version>
+go get github.com/rollkit/rollkit@v<version>
+go mod tidy
+
+# Run pre-release checks
+make test
+make lint
+
+# Create and push tag
+git tag sequencers/based/v<version>
+git push origin sequencers/based/v<version>
+
+# Verify availability
+go list -m github.com/rollkit/rollkit/sequencers/based@v<version>
+```
+
+#### 6. Update and release `sequencers/single`
+```bash
+cd sequencers/single
+
+# Update dependencies
+go get github.com/rollkit/rollkit/core@v<version>
+go get github.com/rollkit/rollkit@v<version>
+go mod tidy
+
+# Run pre-release checks
+make test
+make lint
+
+# Create and push tag
+git tag sequencers/single/v<version>
+git push origin sequencers/single/v<version>
+
+# Verify availability
+go list -m github.com/rollkit/rollkit/sequencers/single@v<version>
+```
+
+### Phase 4: Release Application Packages
+
+After all dependencies are available, update and release applications:
+
+#### 7. Update and release `apps/evm/based`
+```bash
+cd apps/evm/based
+
+# Update all dependencies
+go get github.com/rollkit/rollkit/core@v<version>
+go get github.com/rollkit/rollkit/da@v<version>
+go get github.com/rollkit/rollkit/execution/evm@v<version>
+go get github.com/rollkit/rollkit@v<version>
+go get github.com/rollkit/rollkit/sequencers/based@v<version>
+go mod tidy
+
+# Run pre-release checks
+make test
+make lint
+
+# Create and push tag
+git tag apps/evm/based/v<version>
+git push origin apps/evm/based/v<version>
+
+# Verify availability
+go list -m github.com/rollkit/rollkit/apps/evm/based@v<version>
+```
+
+#### 8. Update and release `apps/evm/single`
+```bash
+cd apps/evm/single
+
+# Update all dependencies
+go get github.com/rollkit/rollkit/core@v<version>
+go get github.com/rollkit/rollkit/da@v<version>
+go get github.com/rollkit/rollkit/execution/evm@v<version>
+go get github.com/rollkit/rollkit@v<version>
+go get github.com/rollkit/rollkit/sequencers/single@v<version>
+go mod tidy
+
+# Run pre-release checks
+make test
+make lint
+
+# Create and push tag
+git tag apps/evm/single/v<version>
+git push origin apps/evm/single/v<version>
+
+# Verify availability
+go list -m github.com/rollkit/rollkit/apps/evm/single@v<version>
+```
+
+#### 9. Update and release `apps/testapp`
+```bash
+cd apps/testapp
+
+# Update dependency
+go get github.com/rollkit/rollkit@v<version>
+go mod tidy
+
+# Run pre-release checks
+make test
+make lint
+
+# Create and push tag
+git tag apps/testapp/v<version>
+git push origin apps/testapp/v<version>
+
+# Verify availability
+go list -m github.com/rollkit/rollkit/apps/testapp@v<version>
+```
+
+### Post-Release: Update Replace Directives
+
+After all modules are released, restore local replace directives for development:
+
+```bash
+# Create a branch for updating replace directives
+git checkout -b update-replace-directives
+
+# For each go.mod file, ensure replace directives point to local paths
+# but update the version constraints to match released versions
+# Example in da/go.mod:
+# replace github.com/rollkit/rollkit/core => ../core
+# require github.com/rollkit/rollkit/core v1.0.0
+
+# Commit and push changes
+git add .
+git commit -m "chore: update replace directives for development"
+git push origin update-replace-directives
+
+# Create PR to merge these changes
+```
+
+## Important Notes
+
+1. **Version Synchronization**: While modules can have independent versions, all packages must keep major versions synchronized across related modules for easier dependency management.
+
+2. **Breaking Changes**: If a module introduces breaking changes, all dependent modules must be updated and released with appropriate version bumps.
+
+3. **Testing**: Always test the release process in a separate branch first, especially when updating multiple modules.
+
+4. **Go Proxy Cache**: The Go module proxy may take up to 30 minutes to fully propagate new versions. Be patient and verify availability before proceeding to dependent modules.
+
+5. **Rollback Plan**: If issues are discovered after tagging, you are required to create a new tag, replacing can cause issues:
