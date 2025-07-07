@@ -84,6 +84,8 @@ These packages have the most dependencies and should be released last:
 
 When starting the release process make sure that a protected version branch is created. For major versions we will have `vX`, if we have a minor breaking changes that creates an icompatability with the major version we can create a `vX.Y` branch.
 
+Changelogs should be kept up to date, when preparing the release, ensure that all changes are reflected in the changelog and that they are properly categorized.
+
 ### Phase 1: Release Core Package
 
 #### 1. Release `core` module
