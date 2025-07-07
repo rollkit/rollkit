@@ -76,25 +76,22 @@ These packages have the most dependencies and should be released last:
    - Path: `./apps/evm/single`
    - Dependencies: `rollkit/core`, `rollkit/da`, `rollkit/execution/evm`, `rollkit`, `rollkit/sequencers/single`
 
-9. **github.com/rollkit/rollkit/apps/testapp**
-   - Path: `./apps/testapp`
-   - Dependencies: `rollkit`
-
 ## Release Process Workflow
 
 **IMPORTANT**: Each module must be fully released and available before updating dependencies in dependent modules.
 
+**NOTE**: As you go through the release process, ensure that all go mods remove the replace tags and update the go.mod file to use the new version of the module.
+
+When starting the release process make sure that a protected version branch is created. For major versions we will have `vX`, if we have a minor breaking changes that creates an icompatability with the major version we can create a `vX.Y` branch.
+
 ### Phase 1: Release Core Package
 
 #### 1. Release `core` module
+
+Release `core` after all changes from linting, tests and go mod tidy has been merged.
+
 ```bash
 cd core
-
-# Run pre-release checks
-make test
-make lint
-go mod tidy
-
 # Create and push tag
 git tag core/v<version>
 git push origin core/v<version>
@@ -116,10 +113,6 @@ cd da
 go get github.com/rollkit/rollkit/core@v<version>
 go mod tidy
 
-# Run pre-release checks
-make test
-make lint
-
 # Create and push tag
 git tag da/v<version>
 git push origin da/v<version>
@@ -135,10 +128,6 @@ cd . # root directory
 # Update core dependency
 go get github.com/rollkit/rollkit/core@v<version>
 go mod tidy
-
-# Run pre-release checks
-make test
-make lint
 
 # Create and push tag
 git tag v<version>
@@ -156,9 +145,6 @@ cd execution/evm
 go get github.com/rollkit/rollkit/core@v<version>
 go mod tidy
 
-# Run pre-release checks
-make test
-make lint
 
 # Create and push tag
 git tag execution/evm/v<version>
@@ -172,18 +158,13 @@ go list -m github.com/rollkit/rollkit/execution/evm@v<version>
 
 After core and main rollkit are available, update and release sequencers:
 
-#### 5. Update and release `sequencers/based`
+#### 5. Update and release `sequencers/*`
 ```bash
-cd sequencers/based
-
 # Update dependencies
 go get github.com/rollkit/rollkit/core@v<version>
 go get github.com/rollkit/rollkit@v<version>
 go mod tidy
 
-# Run pre-release checks
-make test
-make lint
 
 # Create and push tag
 git tag sequencers/based/v<version>
@@ -201,10 +182,6 @@ cd sequencers/single
 go get github.com/rollkit/rollkit/core@v<version>
 go get github.com/rollkit/rollkit@v<version>
 go mod tidy
-
-# Run pre-release checks
-make test
-make lint
 
 # Create and push tag
 git tag sequencers/single/v<version>
@@ -230,10 +207,6 @@ go get github.com/rollkit/rollkit@v<version>
 go get github.com/rollkit/rollkit/sequencers/based@v<version>
 go mod tidy
 
-# Run pre-release checks
-make test
-make lint
-
 # Create and push tag
 git tag apps/evm/based/v<version>
 git push origin apps/evm/based/v<version>
@@ -254,9 +227,6 @@ go get github.com/rollkit/rollkit@v<version>
 go get github.com/rollkit/rollkit/sequencers/single@v<version>
 go mod tidy
 
-# Run pre-release checks
-make test
-make lint
 
 # Create and push tag
 git tag apps/evm/single/v<version>
@@ -264,26 +234,6 @@ git push origin apps/evm/single/v<version>
 
 # Verify availability
 go list -m github.com/rollkit/rollkit/apps/evm/single@v<version>
-```
-
-#### 9. Update and release `apps/testapp`
-```bash
-cd apps/testapp
-
-# Update dependency
-go get github.com/rollkit/rollkit@v<version>
-go mod tidy
-
-# Run pre-release checks
-make test
-make lint
-
-# Create and push tag
-git tag apps/testapp/v<version>
-git push origin apps/testapp/v<version>
-
-# Verify availability
-go list -m github.com/rollkit/rollkit/apps/testapp@v<version>
 ```
 
 ### Post-Release: Update Replace Directives
@@ -318,4 +268,4 @@ git push origin update-replace-directives
 
 4. **Go Proxy Cache**: The Go module proxy may take up to 30 minutes to fully propagate new versions. Be patient and verify availability before proceeding to dependent modules.
 
-5. **Rollback Plan**: If issues are discovered after tagging, you are required to create a new tag, replacing can cause issues:
+5. **Rollback Plan**: If issues are discovered after tagging, you are required to create a new tag with a new version (e.g., a patch release). Replacing or deleting existing tags can cause issues with the Go module proxy and should be avoided.
