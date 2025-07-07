@@ -236,28 +236,6 @@ git push origin apps/evm/single/v<version>
 go list -m github.com/rollkit/rollkit/apps/evm/single@v<version>
 ```
 
-### Post-Release: Update Replace Directives
-
-After all modules are released, restore local replace directives for development:
-
-```bash
-# Create a branch for updating replace directives
-git checkout -b update-replace-directives
-
-# For each go.mod file, ensure replace directives point to local paths
-# but update the version constraints to match released versions
-# Example in da/go.mod:
-# replace github.com/rollkit/rollkit/core => ../core
-# require github.com/rollkit/rollkit/core v1.0.0
-
-# Commit and push changes
-git add .
-git commit -m "chore: update replace directives for development"
-git push origin update-replace-directives
-
-# Create PR to merge these changes
-```
-
 ## Important Notes
 
 1. **Version Synchronization**: While modules can have independent versions, all packages must keep major versions synchronized across related modules for easier dependency management.
