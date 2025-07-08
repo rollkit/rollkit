@@ -172,3 +172,31 @@ func TestSetFinal(t *testing.T) {
 		t.Error("Expected error for blockHeight 0, got nil")
 	}
 }
+
+func TestRollback(t *testing.T) {
+	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	if err != nil {
+		t.Fatalf("Failed to create KVExecutor: %v", err)
+	}
+	ctx := context.Background()
+
+	// Test rollback from height 1 (should fail)
+	_, err = exec.Rollback(ctx, 1)
+	if err == nil {
+		t.Error("Expected error when rolling back from height 1")
+	}
+	expectedError := "cannot rollback from height 1: must be > 1"
+	if err.Error() != expectedError {
+		t.Errorf("Expected error message '%s', got '%s'", expectedError, err.Error())
+	}
+
+	// Test successful rollback from height 2
+	stateRoot, err := exec.Rollback(ctx, 2)
+	if err != nil {
+		t.Errorf("Expected no error for rollback from height 2, got: %v", err)
+	}
+
+	if stateRoot == nil {
+		t.Error("Expected non-nil state root from rollback")
+	}
+}
