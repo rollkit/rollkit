@@ -34,12 +34,14 @@ This document outlines the release process for all Go packages in the Rollkit re
 Packages must be released in the following order to ensure dependencies are satisfied:
 
 ### Phase 1: Core Package
+
 1. **github.com/rollkit/rollkit/core**
    - Path: `./core`
    - Dependencies: None (zero-dependency package)
    - This is the foundation package containing all interfaces and types
 
 ### Phase 2: First-Level Dependencies
+
 These packages only depend on `core` and can be released in parallel after `core`:
 
 2. **github.com/rollkit/rollkit/da**
@@ -55,6 +57,7 @@ These packages only depend on `core` and can be released in parallel after `core
    - Dependencies: `rollkit/core`
 
 ### Phase 3: Sequencer Packages
+
 These packages depend on both `core` and the main `rollkit` package:
 
 5. **github.com/rollkit/rollkit/sequencers/based**
@@ -66,6 +69,7 @@ These packages depend on both `core` and the main `rollkit` package:
    - Dependencies: `rollkit/core`, `rollkit`
 
 ### Phase 4: Application Packages
+
 These packages have the most dependencies and should be released last:
 
 7. **github.com/rollkit/rollkit/apps/evm/based**
@@ -108,6 +112,7 @@ go list -m github.com/rollkit/rollkit/core@v<version>
 After core is available, update and release modules that only depend on core:
 
 #### 2. Update and release `da` module
+
 ```bash
 cd da
 
@@ -124,6 +129,7 @@ go list -m github.com/rollkit/rollkit/da@v<version>
 ```
 
 #### 3. Update and release main `rollkit` module
+
 ```bash
 cd . # root directory
 
@@ -140,6 +146,7 @@ go list -m github.com/rollkit/rollkit@v<version>
 ```
 
 #### 4. Update and release `execution/evm` module
+
 ```bash
 cd execution/evm
 
@@ -161,6 +168,7 @@ go list -m github.com/rollkit/rollkit/execution/evm@v<version>
 After core and main rollkit are available, update and release sequencers:
 
 #### 5. Update and release `sequencers/*`
+
 ```bash
 # Update dependencies
 go get github.com/rollkit/rollkit/core@v<version>
@@ -177,6 +185,7 @@ go list -m github.com/rollkit/rollkit/sequencers/based@v<version>
 ```
 
 #### 6. Update and release `sequencers/single`
+
 ```bash
 cd sequencers/single
 
@@ -198,6 +207,7 @@ go list -m github.com/rollkit/rollkit/sequencers/single@v<version>
 After all dependencies are available, update and release applications:
 
 #### 7. Update and release `apps/evm/based`
+
 ```bash
 cd apps/evm/based
 
@@ -218,6 +228,7 @@ go list -m github.com/rollkit/rollkit/apps/evm/based@v<version>
 ```
 
 #### 8. Update and release `apps/evm/single`
+
 ```bash
 cd apps/evm/single
 

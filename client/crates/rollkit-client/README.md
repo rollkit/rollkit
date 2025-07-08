@@ -151,7 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Service clients can be used concurrently
     let mut handles = vec![];
-    
+
     for height in 0..10 {
         let store_clone = store.clone();
         let handle = task::spawn(async move {

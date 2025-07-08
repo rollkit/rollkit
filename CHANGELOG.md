@@ -1,7 +1,6 @@
 
 # Changelog
 
-
 <!--
 All notable changes to this module will be documented in this file.
 
@@ -12,26 +11,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 <!-- New features or capabilities -->
 -
 
 ### Changed
+
 <!-- Changes to existing functionality -->
 -
 
 ### Deprecated
+
 <!-- Features that will be removed in future versions -->
 -
 
 ### Removed
+
 <!-- Features that were removed -->
 -
 
 ### Fixed
+
 <!-- Bug fixes -->
 -
 
 ### Security
+
 <!-- Security vulnerability fixes -->
 -
 

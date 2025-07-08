@@ -17,11 +17,11 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 	defer daTicker.Stop()
 	blockTicker := time.NewTicker(m.config.Node.BlockTime.Duration)
 	defer blockTicker.Stop()
-	
+
 	// Create ticker for periodic metrics updates
 	metricsTicker := time.NewTicker(30 * time.Second)
 	defer metricsTicker.Stop()
-	
+
 	for {
 		select {
 		case <-daTicker.C:
@@ -50,7 +50,7 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 				continue
 			}
 			m.headerCache.SetItem(headerHeight, header)
-			
+
 			// Record header synced metric
 			m.recordSyncMetrics("header_synced")
 
@@ -95,7 +95,7 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 				continue
 			}
 			m.dataCache.SetItem(dataHeight, data)
-			
+
 			// Record data synced metric
 			m.recordSyncMetrics("data_synced")
 
@@ -167,7 +167,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err = m.store.SetHeight(ctx, hHeight); err != nil {
 			return err
 		}
-		
+
 		// Record sync metrics
 		m.recordSyncMetrics("block_applied")
 
