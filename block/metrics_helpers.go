@@ -43,28 +43,20 @@ func (m *Manager) sendNonBlockingSignalWithMetrics(ch chan<- struct{}, channelNa
 
 // updateChannelMetrics updates the buffer usage metrics for all channels
 func (m *Manager) updateChannelMetrics() {
-	// Update channel buffer usage
-	if m.metrics.ChannelBufferUsage["header_in"] != nil {
-		m.metrics.ChannelBufferUsage["header_in"].Set(float64(len(m.headerInCh)))
-	}
-	if m.metrics.ChannelBufferUsage["data_in"] != nil {
-		m.metrics.ChannelBufferUsage["data_in"].Set(float64(len(m.dataInCh)))
-	}
-	if m.metrics.ChannelBufferUsage["header_store"] != nil {
-		m.metrics.ChannelBufferUsage["header_store"].Set(float64(len(m.headerStoreCh)))
-	}
-	if m.metrics.ChannelBufferUsage["data_store"] != nil {
-		m.metrics.ChannelBufferUsage["data_store"].Set(float64(len(m.dataStoreCh)))
-	}
-	if m.metrics.ChannelBufferUsage["retrieve"] != nil {
-		m.metrics.ChannelBufferUsage["retrieve"].Set(float64(len(m.retrieveCh)))
-	}
-	if m.metrics.ChannelBufferUsage["da_includer"] != nil {
-		m.metrics.ChannelBufferUsage["da_includer"].Set(float64(len(m.daIncluderCh)))
-	}
-	if m.metrics.ChannelBufferUsage["tx_notify"] != nil {
-		m.metrics.ChannelBufferUsage["tx_notify"].Set(float64(len(m.txNotifyCh)))
-	}
+	// Update channel buffer usage	if m.metrics.ChannelBufferUsage["header_in"] != nil {
+	m.metrics.ChannelBufferUsage["header_in"].Set(float64(len(m.headerInCh)))
+
+	m.metrics.ChannelBufferUsage["data_in"].Set(float64(len(m.dataInCh)))
+
+	m.metrics.ChannelBufferUsage["header_store"].Set(float64(len(m.headerStoreCh)))
+
+	m.metrics.ChannelBufferUsage["data_store"].Set(float64(len(m.dataStoreCh)))
+
+	m.metrics.ChannelBufferUsage["retrieve"].Set(float64(len(m.retrieveCh)))
+
+	m.metrics.ChannelBufferUsage["da_includer"].Set(float64(len(m.daIncluderCh)))
+
+	m.metrics.ChannelBufferUsage["tx_notify"].Set(float64(len(m.txNotifyCh)))
 
 	// Update goroutine count
 	m.metrics.GoroutineCount.Set(float64(runtime.NumGoroutine()))
@@ -76,7 +68,6 @@ func (m *Manager) recordError(errorType string, recoverable bool) {
 	if m.metrics.ErrorsByType[errorType] != nil {
 		m.metrics.ErrorsByType[errorType].Add(1)
 	}
-
 	if recoverable {
 		m.metrics.RecoverableErrors.Add(1)
 	} else {
@@ -108,7 +99,6 @@ func (m *Manager) recordDAMetrics(operation string, success bool) {
 func (m *Manager) recordBlockProductionMetrics(txCount int, isLazy bool, duration time.Duration) {
 	// Record production time
 	m.metrics.BlockProductionTime.Observe(duration.Seconds())
-
 	// Record transactions per block
 	m.metrics.TxsPerBlock.Observe(float64(txCount))
 
