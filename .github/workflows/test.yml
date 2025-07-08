@@ -190,7 +190,7 @@ jobs:
           name: integration-test-coverage-report-${{ github.sha }}
           path: ./integration-coverage
       - name: Upload combined coverage report
-        uses: codecov/codecov-action@v5.4.3
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./unit-coverage/coverage.txt,./integration-coverage/coverage.txt
