@@ -18,73 +18,73 @@ impl StoreClient {
     }
 
     /// Get a block by height
-    pub async fn get_block_by_height(&mut self, height: u64) -> Result<Option<Block>> {
+    pub async fn get_block_by_height(&self, height: u64) -> Result<Option<Block>> {
         let request = Request::new(GetBlockRequest {
             identifier: Some(Identifier::Height(height)),
         });
-        let response = self.inner.get_block(request).await?;
+        let response = self.inner.clone().get_block(request).await?;
 
         Ok(response.into_inner().block)
     }
 
     /// Get a block by hash
-    pub async fn get_block_by_hash(&mut self, hash: Vec<u8>) -> Result<Option<Block>> {
+    pub async fn get_block_by_hash(&self, hash: Vec<u8>) -> Result<Option<Block>> {
         let request = Request::new(GetBlockRequest {
             identifier: Some(Identifier::Hash(hash)),
         });
-        let response = self.inner.get_block(request).await?;
+        let response = self.inner.clone().get_block(request).await?;
 
         Ok(response.into_inner().block)
     }
 
     /// Get the current state
-    pub async fn get_state(&mut self) -> Result<Option<State>> {
+    pub async fn get_state(&self) -> Result<Option<State>> {
         let request = Request::new(());
-        let response = self.inner.get_state(request).await?;
+        let response = self.inner.clone().get_state(request).await?;
 
         Ok(response.into_inner().state)
     }
 
     /// Get metadata by key
-    pub async fn get_metadata(&mut self, key: String) -> Result<Vec<u8>> {
+    pub async fn get_metadata(&self, key: String) -> Result<Vec<u8>> {
         let request = Request::new(GetMetadataRequest { key });
-        let response = self.inner.get_metadata(request).await?;
+        let response = self.inner.clone().get_metadata(request).await?;
 
         Ok(response.into_inner().value)
     }
 
     /// Get the full block response by height
-    pub async fn get_block_full_by_height(&mut self, height: u64) -> Result<GetBlockResponse> {
+    pub async fn get_block_full_by_height(&self, height: u64) -> Result<GetBlockResponse> {
         let request = Request::new(GetBlockRequest {
             identifier: Some(Identifier::Height(height)),
         });
-        let response = self.inner.get_block(request).await?;
+        let response = self.inner.clone().get_block(request).await?;
 
         Ok(response.into_inner())
     }
 
     /// Get the full block response by hash
-    pub async fn get_block_full_by_hash(&mut self, hash: Vec<u8>) -> Result<GetBlockResponse> {
+    pub async fn get_block_full_by_hash(&self, hash: Vec<u8>) -> Result<GetBlockResponse> {
         let request = Request::new(GetBlockRequest {
             identifier: Some(Identifier::Hash(hash)),
         });
-        let response = self.inner.get_block(request).await?;
+        let response = self.inner.clone().get_block(request).await?;
 
         Ok(response.into_inner())
     }
 
     /// Get the full state response
-    pub async fn get_state_full(&mut self) -> Result<GetStateResponse> {
+    pub async fn get_state_full(&self) -> Result<GetStateResponse> {
         let request = Request::new(());
-        let response = self.inner.get_state(request).await?;
+        let response = self.inner.clone().get_state(request).await?;
 
         Ok(response.into_inner())
     }
 
     /// Get the full metadata response
-    pub async fn get_metadata_full(&mut self, key: String) -> Result<GetMetadataResponse> {
+    pub async fn get_metadata_full(&self, key: String) -> Result<GetMetadataResponse> {
         let request = Request::new(GetMetadataRequest { key });
-        let response = self.inner.get_metadata(request).await?;
+        let response = self.inner.clone().get_metadata(request).await?;
 
         Ok(response.into_inner())
     }

@@ -11,6 +11,11 @@ license = "Apache-2.0"
 keywords = ["rollkit", "blockchain", "protobuf", "grpc"]
 categories = ["api-bindings", "encoding"]
 
+[features]
+default = ["grpc"]
+grpc = ["tonic", "transport"]
+transport = ["tonic/transport"]
+
 [build-dependencies]
 tonic-build = { workspace = true }
 prost-build = { workspace = true }
@@ -19,4 +24,4 @@ walkdir = { workspace = true }
 [dependencies]
 prost = { workspace = true }
 prost-types = { workspace = true }
-tonic = { workspace = true, features = ["transport"] }
+tonic = { workspace = true, optional = true, features = ["transport"] }
