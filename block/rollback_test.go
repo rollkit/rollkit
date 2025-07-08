@@ -30,7 +30,7 @@ func TestManager_RollbackLastBlock(t *testing.T) {
 			currentHeight:    1,
 			expectError:      true,
 			expectedErrorMsg: "cannot rollback from height 1: must be > 1",
-			setupMocks: func(mockStore *mocks.MockStore, mockExec *mocks.MockExecutor) {
+			setupMocks: func(_ *mocks.MockStore, _ *mocks.MockExecutor) {
 				// No mocks needed as error should be returned early
 			},
 		},
@@ -65,7 +65,7 @@ func TestManager_RollbackLastBlock(t *testing.T) {
 			currentHeight:    3,
 			expectError:      true,
 			expectedErrorMsg: "failed to rollback execution layer",
-			setupMocks: func(mockStore *mocks.MockStore, mockExec *mocks.MockExecutor) {
+			setupMocks: func(_ *mocks.MockStore, mockExec *mocks.MockExecutor) {
 				// Mock executor rollback failure
 				mockExec.On("Rollback", mock.Anything, uint64(3)).Return(nil, assert.AnError)
 			},

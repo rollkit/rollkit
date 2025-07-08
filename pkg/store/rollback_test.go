@@ -58,19 +58,19 @@ func TestDefaultStore_RollbackToHeight(t *testing.T) {
 
 			// Setup initial blocks
 			for i := 1; i <= tt.setupBlocks; i++ {
-				header, data := types.GetRandomBlock(uint64(i), 1, "test-chain")
+				header, data := types.GetRandomBlock(uint64(i), 1, "test-chain") //nolint:gosec // G115: i is positive and within bounds
 				signature := createTestSignature()
 
 				err := s.SaveBlockData(ctx, header, data, signature)
 				require.NoError(t, err)
 				
-				err = s.SetHeight(ctx, uint64(i))
+				err = s.SetHeight(ctx, uint64(i)) //nolint:gosec // G115: i is positive and within bounds
 				require.NoError(t, err)
 
 				// Save state for this height
 				state := types.State{
 					ChainID:         "test-chain",
-					LastBlockHeight: uint64(i),
+					LastBlockHeight: uint64(i), //nolint:gosec // G115: i is positive and within bounds
 					LastBlockTime:   time.Now(),
 					AppHash:         []byte{byte(i), byte(i), byte(i), byte(i)},
 				}
@@ -81,7 +81,7 @@ func TestDefaultStore_RollbackToHeight(t *testing.T) {
 			// Verify initial setup
 			currentHeight, err := s.Height(ctx)
 			require.NoError(t, err)
-			assert.Equal(t, uint64(tt.setupBlocks), currentHeight)
+			assert.Equal(t, uint64(tt.setupBlocks), currentHeight) //nolint:gosec // G115: setupBlocks is positive and within bounds
 
 			// Execute rollback
 			err = s.RollbackToHeight(ctx, tt.targetHeight)
@@ -107,7 +107,7 @@ func TestDefaultStore_RollbackToHeight(t *testing.T) {
 				}
 
 				// Verify blocks above target height are removed
-				for i := tt.targetHeight + 1; i <= uint64(tt.setupBlocks); i++ {
+				for i := tt.targetHeight + 1; i <= uint64(tt.setupBlocks); i++ { //nolint:gosec // G115: setupBlocks is positive and within bounds
 					_, _, err := s.GetBlockData(ctx, i)
 					assert.Error(t, err, "Block at height %d should be removed", i)
 				}
