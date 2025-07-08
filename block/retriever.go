@@ -72,6 +72,9 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 		}
 		blobsResp, fetchErr := m.fetchBlobs(ctx, daHeight)
 		if fetchErr == nil {
+			// Record successful DA retrieval
+			m.recordDAMetrics("retrieval", true)
+			
 			if blobsResp.Code == coreda.StatusNotFound {
 				m.logger.Debug("no blob data found", "daHeight", daHeight, "reason", blobsResp.Message)
 				return nil
@@ -211,6 +214,10 @@ func (m *Manager) fetchBlobs(ctx context.Context, daHeight uint64) (coreda.Resul
 	var err error
 	ctx, cancel := context.WithTimeout(ctx, dAefetcherTimeout)
 	defer cancel()
+	
+	// Record DA retrieval attempt
+	m.recordDAMetrics("retrieval", false)
+	
 	// TODO: we should maintain the original error instead of creating a new one as we lose context by creating a new error.
 	blobsRes := types.RetrieveWithHelpers(ctx, m.da, m.logger, daHeight, []byte(m.genesis.ChainID))
 	switch blobsRes.Code {

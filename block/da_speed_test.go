@@ -134,6 +134,7 @@ func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollm
 		lastStateMtx:  new(sync.RWMutex),
 		da:            mockDAClient,
 		signer:        noopSigner,
+		metrics:       NopMetrics(),
 	}
 	manager.daIncludedHeight.Store(0)
 	manager.daHeight.Store(initialDAHeight)

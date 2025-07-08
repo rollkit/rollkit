@@ -113,11 +113,18 @@ func submitToDA[T any](
 		remLen = len(remaining)
 
 		submitctx, submitCtxCancel := context.WithTimeout(ctx, 60*time.Second)
+		
+		// Record DA submission attempt
+		m.recordDAMetrics("submission", false)
+		
 		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, currMarshaled, gasPrice, nil)
 		submitCtxCancel()
 
 		switch res.Code {
 		case coreda.StatusSuccess:
+			// Record successful DA submission
+			m.recordDAMetrics("submission", true)
+			
 			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer", itemType), "gasPrice", gasPrice, "count", res.SubmittedCount)
 			if res.SubmittedCount == uint64(remLen) {
 				submittedAll = true
