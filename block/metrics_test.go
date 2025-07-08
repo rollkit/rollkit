@@ -141,11 +141,13 @@ func TestMetricsHelpers(t *testing.T) {
 	})
 
 	t.Run("recordDAMetrics", func(t *testing.T) {
-		// Should not panic
-		m.recordDAMetrics("submission", true)
-		m.recordDAMetrics("submission", false)
-		m.recordDAMetrics("retrieval", true)
-		m.recordDAMetrics("retrieval", false)
+		// Should not panic with three modes: retry, success, fail
+		m.recordDAMetrics("submission", DAModeRetry)
+		m.recordDAMetrics("submission", DAModeSuccess)
+		m.recordDAMetrics("submission", DAModeFail)
+		m.recordDAMetrics("retrieval", DAModeRetry)
+		m.recordDAMetrics("retrieval", DAModeSuccess)
+		m.recordDAMetrics("retrieval", DAModeFail)
 	})
 
 	t.Run("recordBlockProductionMetrics", func(t *testing.T) {

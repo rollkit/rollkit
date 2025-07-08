@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+// DA metric modes
+const (
+	DAModeRetry   = "retry"
+	DAModeSuccess = "success"
+	DAModeFail    = "fail"
+)
+
 // MetricsTimer helps track operation duration
 type MetricsTimer struct {
 	start     time.Time
@@ -75,21 +82,25 @@ func (m *Manager) recordError(errorType string, recoverable bool) {
 	}
 }
 
-// recordDAMetrics records DA-related metrics
-func (m *Manager) recordDAMetrics(operation string, success bool) {
+// recordDAMetrics records DA-related metrics with three modes: "success", "fail", "retry"
+func (m *Manager) recordDAMetrics(operation string, mode string) {
 	switch operation {
 	case "submission":
-		m.metrics.DASubmissionAttempts.Add(1)
-		if success {
+		switch mode {
+		case "retry":
+			m.metrics.DASubmissionAttempts.Add(1)
+		case "success":
 			m.metrics.DASubmissionSuccesses.Add(1)
-		} else {
+		case "fail":
 			m.metrics.DASubmissionFailures.Add(1)
 		}
 	case "retrieval":
-		m.metrics.DARetrievalAttempts.Add(1)
-		if success {
+		switch mode {
+		case "retry":
+			m.metrics.DARetrievalAttempts.Add(1)
+		case "success":
 			m.metrics.DARetrievalSuccesses.Add(1)
-		} else {
+		case "fail":
 			m.metrics.DARetrievalFailures.Add(1)
 		}
 	}
