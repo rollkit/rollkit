@@ -4,15 +4,13 @@ go 1.24.1
 
 toolchain go1.24.2
 
-replace github.com/rollkit/rollkit/sequencers/single => ../../../sequencers/single
-
 require (
 	github.com/ethereum/go-ethereum v1.15.0
 	github.com/rollkit/rollkit v1.0.0-beta.1
 	github.com/rollkit/rollkit/core v1.0.0-beta.1
 	github.com/rollkit/rollkit/da v1.0.0-beta.1
 	github.com/rollkit/rollkit/execution/evm v1.0.0-beta.1
-	github.com/rollkit/rollkit/sequencers/single v0.0.0-00010101000000-000000000000
+	github.com/rollkit/rollkit/sequencers/single v1.0.0-beta.1
 	github.com/spf13/cobra v1.9.1
 )
 
