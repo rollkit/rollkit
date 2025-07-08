@@ -4,7 +4,6 @@ go 1.24.1
 
 replace (
 	github.com/rollkit/rollkit => ../../.
-	github.com/rollkit/rollkit/core => ../../core
 	github.com/rollkit/rollkit/da => ../../da
 	github.com/rollkit/rollkit/sequencers/single => ../../sequencers/single
 )
@@ -136,7 +135,7 @@ require (
 	github.com/quic-go/quic-go v0.50.1 // indirect
 	github.com/quic-go/webtransport-go v0.8.1-0.20241018022711-4ac2c9250e66 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
-	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c // indirect
+	github.com/rollkit/rollkit/core v1.0.0-beta.1 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect

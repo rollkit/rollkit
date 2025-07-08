@@ -1,13 +1,13 @@
 module github.com/rollkit/rollkit/execution/evm
 
-go 1.24.0
+go 1.24.1
 
-toolchain go1.24.1
+toolchain go1.24.4
 
 require (
 	github.com/ethereum/go-ethereum v1.15.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
-	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
+	github.com/rollkit/rollkit/core v1.0.0-beta.1
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go/modules/compose v0.37.0
 )

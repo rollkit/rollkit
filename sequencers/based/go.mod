@@ -2,16 +2,13 @@ module github.com/rollkit/rollkit/sequencers/based
 
 go 1.24.1
 
-replace (
-	github.com/rollkit/rollkit => ../../
-	github.com/rollkit/rollkit/core => ../../core
-)
+replace github.com/rollkit/rollkit => ../../
 
 require (
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/ipfs/go-log/v2 v2.6.0
 	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
-	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
+	github.com/rollkit/rollkit/core v1.0.0-beta.1
 	github.com/stretchr/testify v1.10.0
 )
 
