@@ -393,6 +393,8 @@ github.com/rollkit/rollkit/core v1.0.0-beta.1 h1:lAcFWOTUaNGDWEDIjVv07FWizJswBsF
 github.com/rollkit/rollkit/core v1.0.0-beta.1/go.mod h1:0RhbqC8Is970KRhr6zPUQOZkmKt6/WqPRDQWfd2P7P0=
 github.com/rollkit/rollkit/da v1.0.0-beta.1 h1:MjN845kIsuRpisgnPJ2d3zuF6aN/uzOaiy/FCtJL7i0=
 github.com/rollkit/rollkit/da v1.0.0-beta.1/go.mod h1:gaF8RMt5Vj7ZCgSAIq1EmfKaa6qB2UrsWJJF+NoTjFg=
+github.com/rollkit/rollkit/sequencers/single v1.0.0-beta.1 h1:JeNU+oPvI41hocWrcifuq6cI/3GM8G0MLildIUKCo+M=
+github.com/rollkit/rollkit/sequencers/single v1.0.0-beta.1/go.mod h1:4E2fSaHpdl0gjPbshhEMVsVHwPuCGh/AAnoaO7yle5A=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=

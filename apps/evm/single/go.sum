@@ -805,6 +805,8 @@ github.com/rollkit/rollkit/da v1.0.0-beta.1 h1:MjN845kIsuRpisgnPJ2d3zuF6aN/uzOai
 github.com/rollkit/rollkit/da v1.0.0-beta.1/go.mod h1:gaF8RMt5Vj7ZCgSAIq1EmfKaa6qB2UrsWJJF+NoTjFg=
 github.com/rollkit/rollkit/execution/evm v1.0.0-beta.1 h1:p1YxUOsCcpNKxXo1sRbVv7jMXzWcBbybtUQU9WfdkFo=
 github.com/rollkit/rollkit/execution/evm v1.0.0-beta.1/go.mod h1:sbQQcMqHqyi2jZhIOxFT8y2A1k/Tq5uEC4DBHUC0FQo=
+github.com/rollkit/rollkit/sequencers/single v1.0.0-beta.1 h1:JeNU+oPvI41hocWrcifuq6cI/3GM8G0MLildIUKCo+M=
+github.com/rollkit/rollkit/sequencers/single v1.0.0-beta.1/go.mod h1:4E2fSaHpdl0gjPbshhEMVsVHwPuCGh/AAnoaO7yle5A=
 github.com/rs/cors v1.11.1 h1:eU3gRzXLRK57F5rKMGMZURNdIG4EoAmX8k94r9wXWHA=
 github.com/rs/cors v1.11.1/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
