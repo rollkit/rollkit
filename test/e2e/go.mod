@@ -6,14 +6,9 @@ require (
 	github.com/ethereum/go-ethereum v1.15.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/libp2p/go-libp2p v0.41.1
-	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
-	github.com/rollkit/rollkit/execution/evm v0.0.0-20250602130019-2a732cf903a5
+	github.com/rollkit/rollkit v1.0.0-beta.1
+	github.com/rollkit/rollkit/execution/evm v1.0.0-beta.1
 	github.com/stretchr/testify v1.10.0
-)
-
-replace (
-	github.com/rollkit/rollkit => ../../
-	github.com/rollkit/rollkit/execution/evm => ../../execution/evm
 )
 
 require (

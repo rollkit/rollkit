@@ -2,14 +2,12 @@ module github.com/rollkit/rollkit/sequencers/single
 
 go 1.24.1
 
-replace github.com/rollkit/rollkit => ../../
-
 require (
 	github.com/go-kit/kit v0.13.0
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/ipfs/go-log/v2 v2.6.0
 	github.com/prometheus/client_golang v1.22.0
-	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
+	github.com/rollkit/rollkit v1.0.0-beta.1
 	github.com/rollkit/rollkit/core v1.0.0-beta.1
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/protobuf v1.36.6
