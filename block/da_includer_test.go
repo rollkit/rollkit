@@ -41,15 +41,19 @@ func newTestManager(t *testing.T) (*Manager, *mocks.MockStore, *mocks.MockExecut
 
 	// Mock Height to always return a high value so IsDAIncluded works
 	store.On("Height", mock.Anything).Return(uint64(100), nil).Maybe()
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(logger, channelConfig)
+	
 	m := &Manager{
-		store:        store,
-		headerCache:  cache.NewCache[types.SignedHeader](),
-		dataCache:    cache.NewCache[types.Data](),
-		daIncluderCh: make(chan struct{}, 1),
-		logger:       logger,
-		exec:         exec,
-		lastStateMtx: &sync.RWMutex{},
-		metrics:      NopMetrics(),
+		store:          store,
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		channelManager: channelManager,
+		logger:         logger,
+		exec:           exec,
+		lastStateMtx:   &sync.RWMutex{},
+		metrics:        NopMetrics(),
 	}
 	return m, store, exec, logger
 }

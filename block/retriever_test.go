@@ -62,26 +62,25 @@ func setupManagerForRetrieverTest(t *testing.T, initialDAHeight uint64) (*Manage
 	addr, err := noopSigner.GetAddress()
 	require.NoError(t, err)
 
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(mockLogger, channelConfig)
+	
 	manager := &Manager{
-		store:         mockStore,
-		config:        config.Config{DA: config.DAConfig{BlockTime: config.DurationWrapper{Duration: 1 * time.Second}}},
-		genesis:       genesis.Genesis{ProposerAddress: addr},
-		daHeight:      &atomic.Uint64{},
-		headerInCh:    make(chan NewHeaderEvent, eventInChLength),
-		headerStore:   headerStore,
-		dataInCh:      make(chan NewDataEvent, eventInChLength),
-		dataStore:     dataStore,
-		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
-		headerStoreCh: make(chan struct{}, 1),
-		dataStoreCh:   make(chan struct{}, 1),
-		retrieveCh:    make(chan struct{}, 1),
-		daIncluderCh:  make(chan struct{}, 1),
-		logger:        mockLogger,
-		lastStateMtx:  new(sync.RWMutex),
-		da:            mockDAClient,
-		signer:        noopSigner,
-		metrics:       NopMetrics(),
+		store:          mockStore,
+		config:         config.Config{DA: config.DAConfig{BlockTime: config.DurationWrapper{Duration: 1 * time.Second}}},
+		genesis:        genesis.Genesis{ProposerAddress: addr},
+		daHeight:       &atomic.Uint64{},
+		channelManager: channelManager,
+		headerStore:    headerStore,
+		dataStore:      dataStore,
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		logger:         mockLogger,
+		lastStateMtx:   new(sync.RWMutex),
+		da:             mockDAClient,
+		signer:         noopSigner,
+		metrics:        NopMetrics(),
 	}
 	manager.daIncludedHeight.Store(0)
 	manager.daHeight.Store(initialDAHeight)
@@ -154,7 +153,7 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 
 	// Validate header event
 	select {
-	case event := <-manager.headerInCh:
+	case event := <-manager.HeaderInCh().Ch():
 		assert.Equal(t, blockHeight, event.Header.Height())
 		assert.Equal(t, daHeight, event.DAHeight)
 		assert.Equal(t, proposerAddr, event.Header.ProposerAddress)
@@ -166,7 +165,7 @@ func TestProcessNextDAHeader_Success_SingleHeaderAndData(t *testing.T) {
 
 	// Validate block data event
 	select {
-	case dataEvent := <-manager.dataInCh:
+	case dataEvent := <-manager.DataInCh().Ch():
 		assert.Equal(t, daHeight, dataEvent.DAHeight)
 		assert.Equal(t, blockData.Txs, dataEvent.Data.Txs)
 		// Optionally, compare more fields if needed
@@ -268,7 +267,7 @@ func TestProcessNextDAHeader_MultipleHeadersAndData(t *testing.T) {
 	headerEvents := make([]NewHeaderEvent, 0, nHeaders)
 	for i := 0; i < nHeaders; i++ {
 		select {
-		case event := <-manager.headerInCh:
+		case event := <-manager.HeaderInCh().Ch():
 			headerEvents = append(headerEvents, event)
 		case <-time.After(300 * time.Millisecond):
 			t.Fatalf("Expected header event %d not received", i+1)
@@ -289,7 +288,7 @@ func TestProcessNextDAHeader_MultipleHeadersAndData(t *testing.T) {
 	dataEvents := make([]NewDataEvent, 0, nHeaders)
 	for i := 0; i < nHeaders; i++ {
 		select {
-		case event := <-manager.dataInCh:
+		case event := <-manager.DataInCh().Ch():
 			dataEvents = append(dataEvents, event)
 		case <-time.After(300 * time.Millisecond):
 			t.Fatalf("Expected data event %d not received", i+1)
@@ -326,13 +325,13 @@ func TestProcessNextDAHeaderAndData_NotFound(t *testing.T) {
 	require.NoError(t, err)
 
 	select {
-	case <-manager.headerInCh:
+	case <-manager.HeaderInCh().Ch():
 		t.Fatal("No header event should be received for NotFound")
 	default:
 	}
 
 	select {
-	case <-manager.dataInCh:
+	case <-manager.DataInCh().Ch():
 		t.Fatal("No data event should be received for NotFound")
 	default:
 	}
@@ -374,12 +373,12 @@ func TestProcessNextDAHeaderAndData_UnmarshalHeaderError(t *testing.T) {
 	require.NoError(t, err)
 
 	select {
-	case <-manager.headerInCh:
+	case <-manager.HeaderInCh().Ch():
 		t.Fatal("No header event should be received for unmarshal error")
 	default:
 	}
 	select {
-	case <-manager.dataInCh:
+	case <-manager.DataInCh().Ch():
 		t.Fatal("No data event should be received for unmarshal error")
 	default:
 	}
@@ -437,13 +436,13 @@ func TestProcessNextDAHeader_UnexpectedSequencer(t *testing.T) {
 	require.NoError(t, err)
 
 	select {
-	case <-manager.headerInCh:
+	case <-manager.HeaderInCh().Ch():
 		t.Fatal("No header event should be received for unexpected sequencer")
 	default:
 		// Expected behavior
 	}
 	select {
-	case <-manager.dataInCh:
+	case <-manager.DataInCh().Ch():
 		t.Fatal("No data event should be received for unmarshal error")
 	default:
 	}
@@ -472,13 +471,13 @@ func TestProcessNextDAHeader_FetchError_RetryFailure(t *testing.T) {
 	assert.ErrorContains(t, err, fetchErr.Error(), "Expected the final error after retries")
 
 	select {
-	case <-manager.headerInCh:
+	case <-manager.HeaderInCh().Ch():
 		t.Fatal("No header event should be received on fetch failure")
 	default:
 	}
 
 	select {
-	case <-manager.dataInCh:
+	case <-manager.DataInCh().Ch():
 		t.Fatal("No data event should be received for unmarshal error")
 	default:
 	}
@@ -574,13 +573,13 @@ func TestProcessNextDAHeader_HeaderAndDataAlreadySeen(t *testing.T) {
 
 	// Verify no header event was sent
 	select {
-	case <-manager.headerInCh:
+	case <-manager.HeaderInCh().Ch():
 		t.Fatal("Header event should not be received for already seen header")
 	default:
 		// Expected path
 	}
 	select {
-	case <-manager.dataInCh:
+	case <-manager.DataInCh().Ch():
 		t.Fatal("Data event should not be received if already seen")
 	case <-time.After(50 * time.Millisecond):
 	}
@@ -635,7 +634,9 @@ func TestRetrieveLoop_ProcessError_HeightFromFuture(t *testing.T) {
 		manager.RetrieveLoop(ctx)
 	}()
 
-	manager.retrieveCh <- struct{}{}
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Millisecond)
+	manager.RetrieveCh().Send(ctx2)
+	cancel2()
 
 	wg.Wait()
 
@@ -692,7 +693,9 @@ func TestRetrieveLoop_ProcessError_Other(t *testing.T) {
 	// Give the goroutine time to start
 	time.Sleep(10 * time.Millisecond)
 
-	manager.retrieveCh <- struct{}{}
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Millisecond)
+	manager.RetrieveCh().Send(ctx2)
+	cancel2()
 
 	// Wait for the context to timeout or the goroutine to finish
 	wg.Wait()
@@ -755,7 +758,7 @@ func TestProcessNextDAHeader_WithNoTxs(t *testing.T) {
 
 	// Validate header event
 	select {
-	case <-manager.headerInCh:
+	case <-manager.HeaderInCh().Ch():
 		// ok
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected header event not received")
@@ -763,7 +766,7 @@ func TestProcessNextDAHeader_WithNoTxs(t *testing.T) {
 
 	// Validate data event for empty data
 	select {
-	case <-manager.dataInCh:
+	case <-manager.DataInCh().Ch():
 		t.Fatal("No data event should be received for empty data")
 	case <-time.After(100 * time.Millisecond):
 		// ok, no event as expected
@@ -827,7 +830,9 @@ func TestRetrieveLoop_DAHeightIncrementsOnlyOnSuccess(t *testing.T) {
 		manager.RetrieveLoop(ctx)
 	}()
 
-	manager.retrieveCh <- struct{}{}
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Millisecond)
+	manager.RetrieveCh().Send(ctx2)
+	cancel2()
 
 	wg.Wait()
 

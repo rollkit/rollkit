@@ -29,7 +29,7 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 		case <-blockTicker.C:
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToDataStoreCh()
-		case headerEvent := <-m.headerInCh:
+		case headerEvent := <-m.HeaderInCh().Ch():
 			// Only validated headers are sent to headerInCh, so we can safely assume that headerEvent.header is valid
 			header := headerEvent.Header
 			daHeight := headerEvent.DAHeight
@@ -65,7 +65,7 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 			}
 
 			m.headerCache.SetSeen(headerHash)
-		case dataEvent := <-m.dataInCh:
+		case dataEvent := <-m.DataInCh().Ch():
 			data := dataEvent.Data
 			if len(data.Txs) == 0 || data.Metadata == nil {
 				continue
@@ -211,19 +211,19 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 }
 
 func (m *Manager) sendNonBlockingSignalToHeaderStoreCh() {
-	m.sendNonBlockingSignalWithMetrics(m.headerStoreCh, "header_store")
+	m.HeaderStoreCh().SendNonBlocking()
 }
 
 func (m *Manager) sendNonBlockingSignalToDataStoreCh() {
-	m.sendNonBlockingSignalWithMetrics(m.dataStoreCh, "data_store")
+	m.DataStoreCh().SendNonBlocking()
 }
 
 func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
-	m.sendNonBlockingSignalWithMetrics(m.retrieveCh, "retrieve")
+	m.RetrieveCh().SendNonBlocking()
 }
 
 func (m *Manager) sendNonBlockingSignalToDAIncluderCh() {
-	m.sendNonBlockingSignalWithMetrics(m.daIncluderCh, "da_includer")
+	m.DAIncluderCh().SendNonBlocking()
 }
 
 // Updates the state stored in manager's store along the manager's lastState

@@ -112,6 +112,13 @@ func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollm
 	require.NoError(t, err)
 
 	blockTime := 1 * time.Second
+	// Create channel manager with non-buffered channels
+	channelConfig := ChannelManagerConfig{
+		EventChannelSize:    0, // non-buffered
+		HealthCheckInterval: 30 * time.Second,
+	}
+	channelManager := NewChannelManager(logger, channelConfig)
+	
 	// setup with non-buffered channels that would block on slow consumers
 	manager := &Manager{
 		store: mockStore,
@@ -119,19 +126,15 @@ func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollm
 			Node: config.NodeConfig{BlockTime: config.DurationWrapper{Duration: blockTime}},
 			DA:   config.DAConfig{BlockTime: config.DurationWrapper{Duration: blockTime}},
 		},
-		genesis:       genesis.Genesis{ProposerAddress: addr},
-		daHeight:      new(atomic.Uint64),
-		headerInCh:    make(chan NewHeaderEvent),
-		headerStore:   headerStore,
-		dataInCh:      make(chan NewDataEvent),
-		dataStore:     dataStore,
-		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
-		headerStoreCh: make(chan struct{}),
-		dataStoreCh:   make(chan struct{}),
-		retrieveCh:    make(chan struct{}),
-		logger:        logger,
-		lastStateMtx:  new(sync.RWMutex),
+		genesis:        genesis.Genesis{ProposerAddress: addr},
+		daHeight:       new(atomic.Uint64),
+		channelManager: channelManager,
+		headerStore:    headerStore,
+		dataStore:      dataStore,
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		logger:         logger,
+		lastStateMtx:   new(sync.RWMutex),
 		da:            mockDAClient,
 		signer:        noopSigner,
 		metrics:       NopMetrics(),

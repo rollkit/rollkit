@@ -3,6 +3,7 @@ package block
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/rollkit/rollkit/types"
 )
@@ -20,7 +21,7 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-m.headerStoreCh:
+		case <-m.HeaderStoreCh().Ch():
 		}
 		headerStoreHeight := m.headerStore.Height()
 		if headerStoreHeight > lastHeaderStoreHeight {
@@ -47,7 +48,13 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 					continue
 				}
 				m.logger.Debug("header retrieved from p2p header sync", "headerHeight", header.Height(), "daHeight", daHeight)
-				m.headerInCh <- NewHeaderEvent{header, daHeight}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				err := m.HeaderInCh().Send(ctx, NewHeaderEvent{header, daHeight})
+				cancel()
+				if err != nil {
+					m.logger.Error("failed to send header event", "error", err)
+					continue
+				}
 			}
 		}
 		lastHeaderStoreHeight = headerStoreHeight
@@ -67,7 +74,7 @@ func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-m.dataStoreCh:
+		case <-m.DataStoreCh().Ch():
 		}
 		dataStoreHeight := m.dataStore.Height()
 		if dataStoreHeight > lastDataStoreHeight {
@@ -91,7 +98,13 @@ func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
 				}
 				//TODO: remove junk if possible
 				m.logger.Debug("data retrieved from p2p data sync", "dataHeight", d.Metadata.Height, "daHeight", daHeight)
-				m.dataInCh <- NewDataEvent{d, daHeight}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				err := m.DataInCh().Send(ctx, NewDataEvent{d, daHeight})
+				cancel()
+				if err != nil {
+					m.logger.Error("failed to send data event", "error", err)
+					continue
+				}
 			}
 		}
 		lastDataStoreHeight = dataStoreHeight

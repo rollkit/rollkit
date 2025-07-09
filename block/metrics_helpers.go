@@ -50,24 +50,31 @@ func (m *Manager) sendNonBlockingSignalWithMetrics(ch chan<- struct{}, channelNa
 
 // updateChannelMetrics updates the buffer usage metrics for all channels
 func (m *Manager) updateChannelMetrics() {
-	// Update channel buffer usage	if m.metrics.ChannelBufferUsage["header_in"] != nil {
-	m.metrics.ChannelBufferUsage["header_in"].Set(float64(len(m.headerInCh)))
-
-	m.metrics.ChannelBufferUsage["data_in"].Set(float64(len(m.dataInCh)))
-
-	m.metrics.ChannelBufferUsage["header_store"].Set(float64(len(m.headerStoreCh)))
-
-	m.metrics.ChannelBufferUsage["data_store"].Set(float64(len(m.dataStoreCh)))
-
-	m.metrics.ChannelBufferUsage["retrieve"].Set(float64(len(m.retrieveCh)))
-
-	m.metrics.ChannelBufferUsage["da_includer"].Set(float64(len(m.daIncluderCh)))
-
-	m.metrics.ChannelBufferUsage["tx_notify"].Set(float64(len(m.txNotifyCh)))
+	// Update channel buffer usage
+	if m.metrics.ChannelBufferUsage["header_in"] != nil {
+		m.metrics.ChannelBufferUsage["header_in"].Set(float64(m.HeaderInCh().Len()))
+	}
+	if m.metrics.ChannelBufferUsage["data_in"] != nil {
+		m.metrics.ChannelBufferUsage["data_in"].Set(float64(m.DataInCh().Len()))
+	}
+	if m.metrics.ChannelBufferUsage["header_store"] != nil {
+		m.metrics.ChannelBufferUsage["header_store"].Set(float64(m.HeaderStoreCh().Len()))
+	}
+	if m.metrics.ChannelBufferUsage["data_store"] != nil {
+		m.metrics.ChannelBufferUsage["data_store"].Set(float64(m.DataStoreCh().Len()))
+	}
+	if m.metrics.ChannelBufferUsage["retrieve"] != nil {
+		m.metrics.ChannelBufferUsage["retrieve"].Set(float64(m.RetrieveCh().Len()))
+	}
+	if m.metrics.ChannelBufferUsage["da_includer"] != nil {
+		m.metrics.ChannelBufferUsage["da_includer"].Set(float64(m.DAIncluderCh().Len()))
+	}
+	if m.metrics.ChannelBufferUsage["tx_notify"] != nil {
+		m.metrics.ChannelBufferUsage["tx_notify"].Set(float64(m.TxNotifyCh().Len()))
+	}
 
 	// Update goroutine count
 	m.metrics.GoroutineCount.Set(float64(runtime.NumGoroutine()))
-
 }
 
 // recordError records an error in the appropriate metrics

@@ -42,6 +42,11 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64) (*Manager, *mocks.MockStore) {
 	logger := logging.Logger("test")
 	mockStore := mocks.NewMockStore(t)
+	
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(logger, channelConfig)
+	
 	m := &Manager{
 		da:                       da,
 		headerCache:              cache.NewCache[types.SignedHeader](),
@@ -52,7 +57,7 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		store:                    mockStore,
-		txNotifyCh:               make(chan struct{}, 1),
+		channelManager:           channelManager,
 		signaturePayloadProvider: defaultSignaturePayloadProvider,
 	}
 
@@ -934,7 +939,7 @@ func TestNotificationSystem(t *testing.T) {
 
 		// Channel should have at least one notification
 		select {
-		case <-m.txNotifyCh:
+		case <-m.TxNotifyCh().Ch():
 			// Successfully received notification
 		case <-time.After(100 * time.Millisecond):
 			require.Fail("Expected notification but got none")
@@ -946,7 +951,9 @@ func TestNotificationSystem(t *testing.T) {
 		m, _ := getManager(t, mocks.NewMockDA(t), -1, -1)
 
 		// Fill the channel to test non-blocking behavior
-		m.txNotifyCh <- struct{}{}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		m.TxNotifyCh().Send(ctx)
+		cancel()
 
 		// This should not block even though channel is full
 		start := time.Now()

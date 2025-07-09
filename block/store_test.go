@@ -31,10 +31,6 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	mockStore *mocksStore.MockStore,
 	mockHeaderStore *extmocks.MockStore[*types.SignedHeader],
 	mockDataStore *extmocks.MockStore[*types.Data],
-	headerStoreCh chan struct{},
-	dataStoreCh chan struct{},
-	headerInCh chan NewHeaderEvent,
-	dataInCh chan NewDataEvent,
 	ctx context.Context,
 	cancel context.CancelFunc,
 ) {
@@ -45,11 +41,6 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	mockHeaderStore = extmocks.NewMockStore[*types.SignedHeader](t)
 	mockDataStore = extmocks.NewMockStore[*types.Data](t)
 
-	// Channels (buffered to prevent deadlocks in simple test cases)
-	headerStoreCh = make(chan struct{}, 1)
-	dataStoreCh = make(chan struct{}, 1)
-	headerInCh = make(chan NewHeaderEvent, 10)
-	dataInCh = make(chan NewDataEvent, 10)
 
 	// Config & Genesis
 	nodeConf := config.DefaultConfig
@@ -65,21 +56,22 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 
 	signer, err := noop.NewNoopSigner(pk)
 	require.NoError(t, err)
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(logger, channelConfig)
+	
 	// Create Manager instance with mocks and necessary fields
 	m = &Manager{
-		store:         mockStore,
-		headerStore:   mockHeaderStore,
-		dataStore:     mockDataStore,
-		headerStoreCh: headerStoreCh,
-		dataStoreCh:   dataStoreCh,
-		headerInCh:    headerInCh,
-		dataInCh:      dataInCh,
-		logger:        logger,
-		genesis:       genDoc,
-		daHeight:      &atomic.Uint64{},
-		lastStateMtx:  new(sync.RWMutex),
-		config:        nodeConf,
-		signer:        signer,
+		store:          mockStore,
+		headerStore:    mockHeaderStore,
+		dataStore:      mockDataStore,
+		channelManager: channelManager,
+		logger:         logger,
+		genesis:        genDoc,
+		daHeight:       &atomic.Uint64{},
+		lastStateMtx:   new(sync.RWMutex),
+		config:         nodeConf,
+		signer:         signer,
 	}
 
 	// initialize da included height
@@ -87,13 +79,13 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
 	}
 
-	return m, mockStore, mockHeaderStore, mockDataStore, headerStoreCh, dataStoreCh, headerInCh, dataInCh, ctx, cancel
+	return m, mockStore, mockHeaderStore, mockDataStore, ctx, cancel
 }
 
 // TestDataStoreRetrieveLoop_RetrievesNewData verifies that the data store retrieve loop retrieves new data correctly.
 func TestDataStoreRetrieveLoop_RetrievesNewData(t *testing.T) {
 	assert := assert.New(t)
-	m, mockStore, _, mockDataStore, _, dataStoreCh, _, dataInCh, ctx, cancel := setupManagerForStoreRetrieveTest(t)
+	m, mockStore, _, mockDataStore, ctx, cancel := setupManagerForStoreRetrieveTest(t)
 	defer cancel()
 
 	initialHeight := uint64(5)
@@ -115,14 +107,16 @@ func TestDataStoreRetrieveLoop_RetrievesNewData(t *testing.T) {
 	mockDataStore.On("GetByHeight", ctx, newHeight).Return(expectedData, nil).Once()
 
 	// Trigger the loop
-	dataStoreCh <- struct{}{}
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Millisecond)
+	m.DataStoreCh().Send(ctx2)
+	cancel2()
 
 	// Verify data received
 	select {
-	case receivedEvent := <-dataInCh:
+	case receivedEvent := <-m.DataInCh().Ch():
 		assert.Equal(expectedData, receivedEvent.Data)
 	case <-time.After(1 * time.Second):
-		t.Fatal("timed out waiting for data event on dataInCh")
+		t.Fatal("timed out waiting for data event on m.DataInCh().Ch()")
 	}
 
 	// Cancel context and wait for loop to finish
@@ -136,7 +130,7 @@ func TestDataStoreRetrieveLoop_RetrievesNewData(t *testing.T) {
 // TestDataStoreRetrieveLoop_RetrievesMultipleData verifies that the data store retrieve loop retrieves multiple new data entries.
 func TestDataStoreRetrieveLoop_RetrievesMultipleData(t *testing.T) {
 	assert := assert.New(t)
-	m, mockStore, _, mockDataStore, _, dataStoreCh, _, dataInCh, ctx, cancel := setupManagerForStoreRetrieveTest(t)
+	m, mockStore, _, mockDataStore, ctx, cancel := setupManagerForStoreRetrieveTest(t)
 	defer cancel()
 
 	initialHeight := uint64(5)
@@ -161,7 +155,9 @@ func TestDataStoreRetrieveLoop_RetrievesMultipleData(t *testing.T) {
 	}
 
 	// Trigger the loop
-	dataStoreCh <- struct{}{}
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Millisecond)
+	m.DataStoreCh().Send(ctx2)
+	cancel2()
 
 	// Verify data received
 	receivedCount := 0
@@ -169,7 +165,7 @@ func TestDataStoreRetrieveLoop_RetrievesMultipleData(t *testing.T) {
 	timeout := time.After(2 * time.Second)
 	for receivedCount < expectedCount {
 		select {
-		case receivedEvent := <-dataInCh:
+		case receivedEvent := <-m.DataInCh().Ch():
 			receivedCount++
 			h := receivedEvent.Data.Height()
 			assert.Contains(expectedData, h)
@@ -181,7 +177,7 @@ func TestDataStoreRetrieveLoop_RetrievesMultipleData(t *testing.T) {
 				delete(expectedData, h)
 			}
 		case <-timeout:
-			t.Fatalf("timed out waiting for data events on dataInCh, received %d out of %d", receivedCount, len(expectedData)+receivedCount)
+			t.Fatalf("timed out waiting for data events on m.DataInCh().Ch(), received %d out of %d", receivedCount, len(expectedData)+receivedCount)
 		}
 	}
 	assert.Empty(expectedData, "Not all expected data items were received")
@@ -196,7 +192,7 @@ func TestDataStoreRetrieveLoop_RetrievesMultipleData(t *testing.T) {
 
 // TestDataStoreRetrieveLoop_NoNewData verifies that the data store retrieve loop handles the case where there is no new data.
 func TestDataStoreRetrieveLoop_NoNewData(t *testing.T) {
-	m, mockStore, _, mockDataStore, _, dataStoreCh, _, dataInCh, ctx, cancel := setupManagerForStoreRetrieveTest(t)
+	m, mockStore, _, mockDataStore, ctx, cancel := setupManagerForStoreRetrieveTest(t)
 	defer cancel()
 
 	currentHeight := uint64(5)
@@ -210,11 +206,13 @@ func TestDataStoreRetrieveLoop_NoNewData(t *testing.T) {
 
 	mockDataStore.On("Height").Return(currentHeight).Once()
 
-	dataStoreCh <- struct{}{}
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Millisecond)
+	m.DataStoreCh().Send(ctx2)
+	cancel2()
 
 	select {
-	case receivedEvent := <-dataInCh:
-		t.Fatalf("received unexpected data event on dataInCh: %+v", receivedEvent)
+	case receivedEvent := <-m.DataInCh().Ch():
+		t.Fatalf("received unexpected data event on m.DataInCh().Ch(): %+v", receivedEvent)
 	case <-time.After(100 * time.Millisecond):
 	}
 
@@ -226,7 +224,7 @@ func TestDataStoreRetrieveLoop_NoNewData(t *testing.T) {
 
 // TestDataStoreRetrieveLoop_HandlesFetchError verifies that the data store retrieve loop handles fetch errors gracefully.
 func TestDataStoreRetrieveLoop_HandlesFetchError(t *testing.T) {
-	m, mockStore, _, mockDataStore, _, dataStoreCh, _, dataInCh, ctx, cancel := setupManagerForStoreRetrieveTest(t)
+	m, mockStore, _, mockDataStore, ctx, cancel := setupManagerForStoreRetrieveTest(t)
 	defer cancel()
 
 	currentHeight := uint64(5)
@@ -245,11 +243,13 @@ func TestDataStoreRetrieveLoop_HandlesFetchError(t *testing.T) {
 	mockDataStore.On("Height").Return(newHeight).Once()
 	mockDataStore.On("GetByHeight", mock.Anything, newHeight).Return(nil, fetchError).Once()
 
-	dataStoreCh <- struct{}{}
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Millisecond)
+	m.DataStoreCh().Send(ctx2)
+	cancel2()
 
 	select {
-	case receivedEvent := <-dataInCh:
-		t.Fatalf("received unexpected data event on dataInCh: %+v", receivedEvent)
+	case receivedEvent := <-m.DataInCh().Ch():
+		t.Fatalf("received unexpected data event on m.DataInCh().Ch(): %+v", receivedEvent)
 	case <-time.After(100 * time.Millisecond):
 	}
 
@@ -264,7 +264,7 @@ func TestHeaderStoreRetrieveLoop_RetrievesNewHeader(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	m, mockStore, mockHeaderStore, _, headerStoreCh, _, headerInCh, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
+	m, mockStore, mockHeaderStore, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
 	defer cancel()
 
 	initialHeight := uint64(0)
@@ -286,13 +286,15 @@ func TestHeaderStoreRetrieveLoop_RetrievesNewHeader(t *testing.T) {
 		m.HeaderStoreRetrieveLoop(ctx)
 	}()
 
-	headerStoreCh <- struct{}{}
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Millisecond)
+	m.HeaderStoreCh().Send(ctx2)
+	cancel2()
 
 	select {
-	case receivedEvent := <-headerInCh:
+	case receivedEvent := <-m.HeaderInCh().Ch():
 		assert.Equal(validHeader, receivedEvent.Header)
 	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for header event on headerInCh")
+		t.Fatal("timed out waiting for header event on m.HeaderInCh().Ch()")
 	}
 
 	cancel()
@@ -307,7 +309,7 @@ func TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	m, mockStore, mockHeaderStore, _, headerStoreCh, _, headerInCh, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
+	m, mockStore, mockHeaderStore, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
 	defer cancel()
 
 	initialHeight := uint64(5)
@@ -353,7 +355,9 @@ func TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders(t *testing.T) {
 		m.HeaderStoreRetrieveLoop(ctx)
 	}()
 
-	headerStoreCh <- struct{}{}
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Millisecond)
+	m.HeaderStoreCh().Send(ctx2)
+	cancel2()
 
 	receivedCount := 0
 	timeout := time.After(3 * time.Second)
@@ -364,7 +368,7 @@ func TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders(t *testing.T) {
 
 	for receivedCount < int(numHeaders) {
 		select {
-		case receivedEvent := <-headerInCh:
+		case receivedEvent := <-m.HeaderInCh().Ch():
 			receivedCount++
 			h := receivedEvent.Header
 			expected, found := expectedHeaders[h.Height()]
@@ -374,7 +378,7 @@ func TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders(t *testing.T) {
 				delete(expectedHeaders, h.Height()) // Remove found header
 			}
 		case <-timeout:
-			t.Fatalf("timed out waiting for all header events on headerInCh, received %d out of %d", receivedCount, numHeaders)
+			t.Fatalf("timed out waiting for all header events on m.HeaderInCh().Ch(), received %d out of %d", receivedCount, numHeaders)
 		}
 	}
 
@@ -390,7 +394,7 @@ func TestHeaderStoreRetrieveLoop_RetrievesMultipleHeaders(t *testing.T) {
 
 // TestHeaderStoreRetrieveLoop_NoNewHeaders verifies that the header store retrieve loop handles the case where there are no new headers.
 func TestHeaderStoreRetrieveLoop_NoNewHeaders(t *testing.T) {
-	m, mockStore, mockHeaderStore, _, headerStoreCh, _, headerInCh, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
+	m, mockStore, mockHeaderStore, _, ctx, cancel := setupManagerForStoreRetrieveTest(t)
 	defer cancel()
 
 	currentHeight := uint64(5)
@@ -406,12 +410,14 @@ func TestHeaderStoreRetrieveLoop_NoNewHeaders(t *testing.T) {
 	}()
 
 	// Trigger the loop
-	headerStoreCh <- struct{}{}
+	ctx2, cancel2 := context.WithTimeout(ctx, time.Millisecond)
+	m.HeaderStoreCh().Send(ctx2)
+	cancel2()
 
 	// Wait briefly and assert nothing is received
 	select {
-	case receivedEvent := <-headerInCh:
-		t.Fatalf("received unexpected header event on headerInCh: %+v", receivedEvent)
+	case receivedEvent := <-m.HeaderInCh().Ch():
+		t.Fatalf("received unexpected header event on m.HeaderInCh().Ch(): %+v", receivedEvent)
 	case <-time.After(100 * time.Millisecond):
 		// Expected timeout, nothing received
 	}

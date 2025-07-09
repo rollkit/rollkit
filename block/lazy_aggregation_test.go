@@ -55,6 +55,9 @@ func setupTestManager(t *testing.T, blockTime, lazyTime time.Duration) (*Manager
 		calls: make(chan struct{}, 10), // Buffer to avoid blocking in tests
 	}
 	logger := logging.Logger("test")
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(logger, channelConfig)
 	m := &Manager{
 		logger: logger,
 		config: config.Config{
@@ -65,6 +68,7 @@ func setupTestManager(t *testing.T, blockTime, lazyTime time.Duration) (*Manager
 			},
 		},
 		publishBlock: pubMock.publish,
+		channelManager: channelManager,
 	}
 	return m, pubMock
 }
@@ -242,8 +246,7 @@ func TestLazyAggregationLoop_TxNotification(t *testing.T) {
 	m, pubMock := setupTestManager(t, blockTime, lazyTime)
 	m.config.Node.LazyMode = true
 
-	// Create the notification channel
-	m.txNotifyCh = make(chan struct{}, 1)
+	// Send a transaction notification
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -345,8 +348,7 @@ func TestNormalAggregationLoop_TxNotification(t *testing.T) {
 	m, pubMock := setupTestManager(t, blockTime, 0)
 	m.config.Node.LazyMode = false
 
-	// Create the notification channel
-	m.txNotifyCh = make(chan struct{}, 1)
+	// Send a transaction notification
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

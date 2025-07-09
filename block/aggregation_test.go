@@ -38,6 +38,10 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	mockDAC := mocks.NewMockDA(t)
 	logger := logging.Logger("test")
 
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(logger, channelConfig)
+
 	m := &Manager{
 		store:     mockStore,
 		exec:      mockExec,
@@ -59,10 +63,11 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 		lastState: types.State{
 			LastBlockTime: time.Now().Add(-blockTime),
 		},
-		lastStateMtx: &sync.RWMutex{},
-		metrics:      NopMetrics(),
-		headerCache:  cache.NewCache[types.SignedHeader](),
-		dataCache:    cache.NewCache[types.Data](),
+		lastStateMtx:   &sync.RWMutex{},
+		metrics:        NopMetrics(),
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		channelManager: channelManager,
 	}
 
 	var publishTimes []time.Time
@@ -133,6 +138,10 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 
 	logger := logging.Logger("test")
 
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(logger, channelConfig)
+
 	// Create a basic Manager instance
 	m := &Manager{
 		store:     mockStore,
@@ -155,10 +164,11 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 		lastState: types.State{
 			LastBlockTime: time.Now().Add(-blockTime),
 		},
-		lastStateMtx: &sync.RWMutex{},
-		metrics:      NopMetrics(),
-		headerCache:  cache.NewCache[types.SignedHeader](),
-		dataCache:    cache.NewCache[types.Data](),
+		lastStateMtx:   &sync.RWMutex{},
+		metrics:        NopMetrics(),
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		channelManager: channelManager,
 	}
 
 	var publishCalls atomic.Int64

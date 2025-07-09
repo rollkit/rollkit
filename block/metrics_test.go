@@ -1,6 +1,7 @@
 package block
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -102,16 +103,16 @@ func TestMetricsTimer(t *testing.T) {
 
 func TestMetricsHelpers(t *testing.T) {
 	// Create a test manager with extended metrics
+	logger := logging.Logger("test")
+	
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(logger, channelConfig)
+	
 	m := &Manager{
-		metrics:       NopMetrics(),
-		logger:        logging.Logger("test"),
-		headerInCh:    make(chan NewHeaderEvent, 10),
-		dataInCh:      make(chan NewDataEvent, 10),
-		headerStoreCh: make(chan struct{}, 1),
-		dataStoreCh:   make(chan struct{}, 1),
-		retrieveCh:    make(chan struct{}, 1),
-		daIncluderCh:  make(chan struct{}, 1),
-		txNotifyCh:    make(chan struct{}, 1),
+		metrics:        NopMetrics(),
+		logger:         logger,
+		channelManager: channelManager,
 	}
 
 	t.Run("sendNonBlockingSignalWithMetrics", func(t *testing.T) {
@@ -127,8 +128,10 @@ func TestMetricsHelpers(t *testing.T) {
 
 	t.Run("updateChannelMetrics", func(t *testing.T) {
 		// Add some data to channels
-		m.headerInCh <- NewHeaderEvent{}
-		m.dataInCh <- NewDataEvent{}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		m.HeaderInCh().Send(ctx, NewHeaderEvent{})
+		m.DataInCh().Send(ctx, NewDataEvent{})
+		cancel()
 
 		// Should not panic
 		m.updateChannelMetrics()

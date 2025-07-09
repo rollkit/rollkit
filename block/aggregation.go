@@ -76,7 +76,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 				// Ensure we keep ticking even when there are no txs
 				blockTimer.Reset(m.config.Node.BlockTime.Duration)
 			}
-		case <-m.txNotifyCh:
+		case <-m.TxNotifyCh().Ch():
 			m.txsAvailable = true
 		}
 	}
@@ -117,7 +117,7 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 			// period based on the block time.
 			blockTimer.Reset(getRemainingSleep(start, m.config.Node.BlockTime.Duration))
 
-		case <-m.txNotifyCh:
+		case <-m.TxNotifyCh().Ch():
 			// Transaction notifications are intentionally ignored in normal mode
 			// to avoid triggering block production outside the scheduled intervals.
 			// We just update the txsAvailable flag for tracking purposes

@@ -16,7 +16,7 @@ func (m *Manager) DAIncluderLoop(ctx context.Context, errCh chan<- error) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-m.daIncluderCh:
+		case <-m.DAIncluderCh().Ch():
 			// proceed to check for DA inclusion
 		}
 		currentDAIncluded := m.GetDAIncludedHeight()

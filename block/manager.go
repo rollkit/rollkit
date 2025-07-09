@@ -114,26 +114,14 @@ type Manager struct {
 	headerBroadcaster broadcaster[*types.SignedHeader]
 	dataBroadcaster   broadcaster[*types.Data]
 
-	headerInCh  chan NewHeaderEvent
 	headerStore goheader.Store[*types.SignedHeader]
-
-	dataInCh  chan NewDataEvent
-	dataStore goheader.Store[*types.Data]
+	dataStore   goheader.Store[*types.Data]
 
 	headerCache *cache.Cache[types.SignedHeader]
 	dataCache   *cache.Cache[types.Data]
 
-	// headerStoreCh is used to notify sync goroutine (HeaderStoreRetrieveLoop) that it needs to retrieve headers from headerStore
-	headerStoreCh chan struct{}
-
-	// dataStoreCh is used to notify sync goroutine (DataStoreRetrieveLoop) that it needs to retrieve data from dataStore
-	dataStoreCh chan struct{}
-
-	// retrieveCh is used to notify sync goroutine (RetrieveLoop) that it needs to retrieve data
-	retrieveCh chan struct{}
-
-	// daIncluderCh is used to notify sync goroutine (DAIncluderLoop) that it needs to set DA included height
-	daIncluderCh chan struct{}
+	// Channel manager handles all channel lifecycle and operations
+	channelManager *ChannelManager
 
 	logger logging.EventLogger
 
@@ -162,8 +150,6 @@ type Manager struct {
 	// the manager's publishBlock method but can be overridden for testing.
 	publishBlock publishBlockFunc
 
-	// txNotifyCh is used to signal when new transactions are available
-	txNotifyCh chan struct{}
 
 	// signaturePayloadProvider is used to provide a signature payload for the header.
 	// It is used to sign the header with the provided signer.
@@ -351,28 +337,30 @@ func NewManager(
 	daH := atomic.Uint64{}
 	daH.Store(s.DAHeight)
 
+	// Create channel manager with configuration
+	channelConfig := ChannelManagerConfig{
+		EventChannelSize:    eventInChLength,
+		HealthCheckInterval: 30 * time.Second,
+		MetricsRegistry:     nil, // Will use default metrics
+	}
+	channelManager := NewChannelManager(logger, channelConfig)
+
 	m := &Manager{
-		signer:            signer,
-		config:            config,
-		genesis:           genesis,
-		lastState:         s,
-		store:             store,
-		daHeight:          &daH,
-		headerBroadcaster: headerBroadcaster,
-		dataBroadcaster:   dataBroadcaster,
-		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		headerInCh:               make(chan NewHeaderEvent, eventInChLength),
-		dataInCh:                 make(chan NewDataEvent, eventInChLength),
-		headerStoreCh:            make(chan struct{}, 1),
-		dataStoreCh:              make(chan struct{}, 1),
+		signer:                   signer,
+		config:                   config,
+		genesis:                  genesis,
+		lastState:                s,
+		store:                    store,
+		daHeight:                 &daH,
+		headerBroadcaster:        headerBroadcaster,
+		dataBroadcaster:          dataBroadcaster,
 		headerStore:              headerStore,
 		dataStore:                dataStore,
 		lastStateMtx:             new(sync.RWMutex),
 		lastBatchData:            lastBatchData,
 		headerCache:              cache.NewCache[types.SignedHeader](),
 		dataCache:                cache.NewCache[types.Data](),
-		retrieveCh:               make(chan struct{}, 1),
-		daIncluderCh:             make(chan struct{}, 1),
+		channelManager:           channelManager,
 		logger:                   logger,
 		txsAvailable:             false,
 		pendingHeaders:           pendingHeaders,
@@ -383,7 +371,6 @@ func NewManager(
 		da:                       da,
 		gasPrice:                 gasPrice,
 		gasMultiplier:            gasMultiplier,
-		txNotifyCh:               make(chan struct{}, 1), // Non-blocking channel
 		signaturePayloadProvider: signaturePayloadProvider,
 	}
 
@@ -399,6 +386,9 @@ func NewManager(
 	if err := m.LoadCache(); err != nil {
 		return nil, fmt.Errorf("failed to load cache: %w", err)
 	}
+
+	// Start the channel manager
+	m.channelManager.Start(ctx)
 
 	return m, nil
 }
@@ -1007,13 +997,44 @@ func (m *Manager) getDataSignature(data *types.Data) (types.Signature, error) {
 // This method will be called by the Reaper when it receives new transactions
 func (m *Manager) NotifyNewTransactions() {
 	// Non-blocking send to avoid slowing down the transaction submission path
-	select {
-	case m.txNotifyCh <- struct{}{}:
-		// Successfully sent notification
-	default:
-		// Channel buffer is full, which means a notification is already pending
-		// This is fine, as we just need to trigger one block production
-	}
+	m.channelManager.TxNotifyCh().SendNonBlocking()
+}
+
+// Channel accessor methods
+
+// HeaderInCh returns the header input event channel
+func (m *Manager) HeaderInCh() *EventChannel[NewHeaderEvent] {
+	return m.channelManager.HeaderInCh()
+}
+
+// DataInCh returns the data input event channel
+func (m *Manager) DataInCh() *EventChannel[NewDataEvent] {
+	return m.channelManager.DataInCh()
+}
+
+// HeaderStoreCh returns the header store signal channel
+func (m *Manager) HeaderStoreCh() *SignalChannel {
+	return m.channelManager.HeaderStoreCh()
+}
+
+// DataStoreCh returns the data store signal channel
+func (m *Manager) DataStoreCh() *SignalChannel {
+	return m.channelManager.DataStoreCh()
+}
+
+// RetrieveCh returns the retrieve signal channel
+func (m *Manager) RetrieveCh() *SignalChannel {
+	return m.channelManager.RetrieveCh()
+}
+
+// DAIncluderCh returns the DA includer signal channel
+func (m *Manager) DAIncluderCh() *SignalChannel {
+	return m.channelManager.DAIncluderCh()
+}
+
+// TxNotifyCh returns the transaction notify signal channel
+func (m *Manager) TxNotifyCh() *SignalChannel {
+	return m.channelManager.TxNotifyCh()
 }
 
 var (

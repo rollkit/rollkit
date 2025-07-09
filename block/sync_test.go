@@ -23,6 +23,21 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+// Helper function to send events to channels in tests
+func sendHeaderEvent(t *testing.T, m *Manager, header *types.SignedHeader, daHeight uint64) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	err := m.HeaderInCh().Send(ctx, NewHeaderEvent{Header: header, DAHeight: daHeight})
+	cancel()
+	require.NoError(t, err)
+}
+
+func sendDataEvent(t *testing.T, m *Manager, data *types.Data, daHeight uint64) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	err := m.DataInCh().Send(ctx, NewDataEvent{Data: data, DAHeight: daHeight})
+	cancel()
+	require.NoError(t, err)
+}
+
 // setupManagerForSyncLoopTest initializes a Manager instance suitable for SyncLoop testing.
 func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 	*Manager,
@@ -30,8 +45,6 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 	*mocks.MockExecutor,
 	context.Context,
 	context.CancelFunc,
-	chan NewHeaderEvent,
-	chan NewDataEvent,
 	*uint64,
 ) {
 	t.Helper()
@@ -39,39 +52,35 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 	mockStore := mocks.NewMockStore(t)
 	mockExec := mocks.NewMockExecutor(t)
 
-	headerInCh := make(chan NewHeaderEvent, 10)
-	dataInCh := make(chan NewDataEvent, 10)
-
-	headerStoreCh := make(chan struct{}, 1)
-	dataStoreCh := make(chan struct{}, 1)
-	retrieveCh := make(chan struct{}, 1)
-
 	cfg := config.DefaultConfig
 	cfg.DA.BlockTime.Duration = 100 * time.Millisecond
 	cfg.Node.BlockTime.Duration = 50 * time.Millisecond
 	genesisDoc := &genesis.Genesis{ChainID: "syncLoopTest"}
 
+	logger := logging.Logger("test")
+
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(logger, channelConfig)
+
 	// Manager setup
 	m := &Manager{
-		store:         mockStore,
-		exec:          mockExec,
-		config:        cfg,
-		genesis:       *genesisDoc,
-		lastState:     initialState,
-		lastStateMtx:  new(sync.RWMutex),
-		logger:        logging.Logger("test"),
-		headerCache:   cache.NewCache[types.SignedHeader](),
-		dataCache:     cache.NewCache[types.Data](),
-		headerInCh:    headerInCh,
-		dataInCh:      dataInCh,
-		headerStoreCh: headerStoreCh,
-		dataStoreCh:   dataStoreCh,
-		retrieveCh:    retrieveCh,
-		daHeight:      &atomic.Uint64{},
-		metrics:       NopMetrics(),
-		headerStore:   &goheaderstore.Store[*types.SignedHeader]{},
-		dataStore:     &goheaderstore.Store[*types.Data]{},
+		store:          mockStore,
+		exec:           mockExec,
+		config:         cfg,
+		genesis:        *genesisDoc,
+		lastState:      initialState,
+		lastStateMtx:   new(sync.RWMutex),
+		logger:         logger,
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		daHeight:       &atomic.Uint64{},
+		metrics:        NopMetrics(),
+		headerStore:    &goheaderstore.Store[*types.SignedHeader]{},
+		dataStore:      &goheaderstore.Store[*types.Data]{},
+		channelManager: channelManager,
 	}
+
 	m.daHeight.Store(initialState.DAHeight)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -83,7 +92,7 @@ func setupManagerForSyncLoopTest(t *testing.T, initialState types.State) (
 		return *heightPtr
 	}, nil).Maybe()
 
-	return m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, heightPtr
+	return m, mockStore, mockExec, ctx, cancel, heightPtr
 }
 
 // TestSyncLoop_ProcessSingleBlock_HeaderFirst verifies that the sync loop processes a single block when the header arrives before the data.
@@ -106,7 +115,7 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	newHeight := initialHeight + 1
 	daHeight := initialState.DAHeight
 
-	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// Create test block data
@@ -143,10 +152,10 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	}()
 
 	t.Logf("Sending header event for height %d", newHeight)
-	headerInCh <- NewHeaderEvent{Header: header, DAHeight: daHeight}
+	sendHeaderEvent(t, m, header, daHeight)
 
 	t.Logf("Sending data event for height %d", newHeight)
-	dataInCh <- NewDataEvent{Data: data, DAHeight: daHeight}
+	sendDataEvent(t, m, data, daHeight)
 
 	t.Log("Waiting for sync to complete...")
 	wg.Wait()
@@ -192,7 +201,7 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	newHeight := initialHeight + 1
 	daHeight := initialState.DAHeight
 
-	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// Create test block data
@@ -228,9 +237,9 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	}()
 
 	t.Logf("Sending data event for height %d", newHeight)
-	dataInCh <- NewDataEvent{Data: data, DAHeight: daHeight}
+	sendDataEvent(t, m, data, daHeight)
 	t.Logf("Sending header event for height %d", newHeight)
-	headerInCh <- NewHeaderEvent{Header: header, DAHeight: daHeight}
+	sendHeaderEvent(t, m, header, daHeight)
 
 	t.Log("Waiting for sync to complete...")
 
@@ -278,7 +287,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	heightH2 := initialHeight + 2
 	daHeight := initialState.DAHeight
 
-	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, heightPtr := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, heightPtr := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// --- Block H+1 Data ---
@@ -353,8 +362,8 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	}()
 
 	// --- Process H+1 ---
-	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
-	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
+	sendHeaderEvent(t, m, headerH1, daHeight)
+	sendDataEvent(t, m, dataH1, daHeight)
 
 	t.Log("Waiting for Sync H+1 to complete...")
 
@@ -366,8 +375,8 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	}
 
 	// --- Process H+2 ---
-	headerInCh <- NewHeaderEvent{Header: headerH2, DAHeight: daHeight}
-	dataInCh <- NewDataEvent{Data: dataH2, DAHeight: daHeight}
+	sendHeaderEvent(t, m, headerH2, daHeight)
+	sendDataEvent(t, m, dataH2, daHeight)
 
 	select {
 	case <-syncChanH2:
@@ -416,7 +425,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	heightH2 := initialHeight + 2
 	daHeight := initialState.DAHeight
 
-	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, heightPtr := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, heightPtr := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// --- Block H+1 Data ---
@@ -498,8 +507,8 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	}()
 
 	// --- Send H+2 Events First ---
-	headerInCh <- NewHeaderEvent{Header: headerH2, DAHeight: daHeight}
-	dataInCh <- NewDataEvent{Data: dataH2, DAHeight: daHeight}
+	sendHeaderEvent(t, m, headerH2, daHeight)
+	sendDataEvent(t, m, dataH2, daHeight)
 
 	// Wait for H+2 to be cached (but not processed since H+1 is missing)
 	require.Eventually(func() bool {
@@ -511,8 +520,8 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	assert.NotNil(m.dataCache.GetItem(heightH2), "Data H+2 should be in cache")
 
 	// --- Send H+1 Events Second ---
-	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
-	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
+	sendHeaderEvent(t, m, headerH1, daHeight)
+	sendDataEvent(t, m, dataH1, daHeight)
 
 	t.Log("Waiting for Sync H+1 to complete...")
 
@@ -566,7 +575,7 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	heightH1 := initialHeight + 1
 	daHeight := initialState.DAHeight
 
-	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel()
 
 	// --- Block H+1 Data ---
@@ -607,8 +616,8 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	}()
 
 	// --- Send First Set of Events ---
-	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
-	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
+	sendHeaderEvent(t, m, headerH1, daHeight)
+	sendDataEvent(t, m, dataH1, daHeight)
 
 	t.Log("Waiting for first sync to complete...")
 	select {
@@ -619,8 +628,8 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	}
 
 	// --- Send Duplicate Events ---
-	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
-	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
+	sendHeaderEvent(t, m, headerH1, daHeight)
+	sendDataEvent(t, m, dataH1, daHeight)
 
 	// Give the sync loop a chance to process duplicates (if it would)
 	// Since we expect no processing, we just wait for the context timeout
@@ -659,7 +668,7 @@ func TestSyncLoop_ErrorOnApplyError(t *testing.T) {
 	heightH1 := initialHeight + 1
 	daHeight := initialState.DAHeight
 
-	m, mockStore, mockExec, ctx, cancel, headerInCh, dataInCh, _ := setupManagerForSyncLoopTest(t, initialState)
+	m, mockStore, mockExec, ctx, cancel, _ := setupManagerForSyncLoopTest(t, initialState)
 	defer cancel() // Ensure context cancellation happens even on panic
 
 	// --- Block H+1 Data ---
@@ -698,9 +707,9 @@ func TestSyncLoop_ErrorOnApplyError(t *testing.T) {
 
 	// --- Send Events ---
 	t.Logf("Sending header event for height %d", heightH1)
-	headerInCh <- NewHeaderEvent{Header: headerH1, DAHeight: daHeight}
+	sendHeaderEvent(t, m, headerH1, daHeight)
 	t.Logf("Sending data event for height %d", heightH1)
-	dataInCh <- NewDataEvent{Data: dataH1, DAHeight: daHeight}
+	sendDataEvent(t, m, dataH1, daHeight)
 
 	t.Log("Waiting for ApplyBlock error...")
 	select {
@@ -803,8 +812,6 @@ func TestSyncLoop_MultipleHeadersArriveFirst_ThenData(t *testing.T) {
 
 	mockExec := mocks.NewMockExecutor(t)
 
-	headerInCh := make(chan NewHeaderEvent, 5)
-	dataInCh := make(chan NewDataEvent, 5)
 
 	headers := make([]*types.SignedHeader, numBlocks)
 	data := make([]*types.Data, numBlocks)
@@ -858,20 +865,25 @@ func TestSyncLoop_MultipleHeadersArriveFirst_ThenData(t *testing.T) {
 		prevState = expectedStates[i]
 	}
 
+	logger := logging.Logger("test")
+	
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(logger, channelConfig)
+
 	m := &Manager{
-		store:        store,
-		exec:         mockExec,
-		config:       config.DefaultConfig,
-		genesis:      genesis.Genesis{ChainID: initialState.ChainID},
-		lastState:    initialState,
-		lastStateMtx: new(sync.RWMutex),
-		logger:       logging.Logger("test"),
-		headerCache:  cache.NewCache[types.SignedHeader](),
-		dataCache:    cache.NewCache[types.Data](),
-		headerInCh:   headerInCh,
-		dataInCh:     dataInCh,
-		daHeight:     &atomic.Uint64{},
-		metrics:      NopMetrics(),
+		store:          store,
+		exec:           mockExec,
+		config:         config.DefaultConfig,
+		genesis:        genesis.Genesis{ChainID: initialState.ChainID},
+		lastState:      initialState,
+		lastStateMtx:   new(sync.RWMutex),
+		logger:         logger,
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
+		daHeight:       &atomic.Uint64{},
+		metrics:        NopMetrics(),
+		channelManager: channelManager,
 	}
 	m.daHeight.Store(initialState.DAHeight)
 
@@ -887,7 +899,7 @@ func TestSyncLoop_MultipleHeadersArriveFirst_ThenData(t *testing.T) {
 
 	// 1. Send all headers first (no data yet)
 	for i := 0; i < numBlocks; i++ {
-		headerInCh <- NewHeaderEvent{Header: headers[i], DAHeight: daHeight}
+		sendHeaderEvent(t, m, headers[i], daHeight)
 	}
 
 	// 2. Wait for headers to be processed and cached by polling the cache state
@@ -933,7 +945,7 @@ func TestSyncLoop_MultipleHeadersArriveFirst_ThenData(t *testing.T) {
 			// Do NOT send data for empty blocks
 			continue
 		}
-		dataInCh <- NewDataEvent{Data: data[i], DAHeight: daHeight}
+		sendDataEvent(t, m, data[i], daHeight)
 		// Wait for block to be processed
 		select {
 		case <-syncChans[i]:

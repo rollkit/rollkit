@@ -23,8 +23,13 @@ type Metrics struct {
 	CommittedHeight metrics.Gauge `metrics_name:"latest_block_height"` // The latest block height
 
 	// Channel metrics
-	ChannelBufferUsage map[string]metrics.Gauge
-	DroppedSignals     metrics.Counter
+	ChannelBufferUsage     map[string]metrics.Gauge
+	DroppedSignals         metrics.Counter
+	ChannelSendTotal       map[string]metrics.Counter
+	ChannelReceiveTotal    map[string]metrics.Counter
+	ChannelTimeoutTotal    map[string]metrics.Counter
+	ChannelSendDuration    map[string]metrics.Histogram
+	ChannelReceiveDuration map[string]metrics.Histogram
 
 	// Error metrics
 	ErrorsByType         map[string]metrics.Counter
@@ -73,10 +78,15 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 	}
 
 	m := &Metrics{
-		ChannelBufferUsage: make(map[string]metrics.Gauge),
-		ErrorsByType:       make(map[string]metrics.Counter),
-		OperationDuration:  make(map[string]metrics.Histogram),
-		StateTransitions:   make(map[string]metrics.Counter),
+		ChannelBufferUsage:     make(map[string]metrics.Gauge),
+		ChannelSendTotal:       make(map[string]metrics.Counter),
+		ChannelReceiveTotal:    make(map[string]metrics.Counter),
+		ChannelTimeoutTotal:    make(map[string]metrics.Counter),
+		ChannelSendDuration:    make(map[string]metrics.Histogram),
+		ChannelReceiveDuration: make(map[string]metrics.Histogram),
+		ErrorsByType:           make(map[string]metrics.Counter),
+		OperationDuration:      make(map[string]metrics.Histogram),
+		StateTransitions:       make(map[string]metrics.Counter),
 	}
 
 	// Original metrics
@@ -123,7 +133,7 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 		Help:      "Total number of dropped channel signals",
 	}, labels).With(labelsAndValues...)
 
-	// Initialize channel buffer usage gauges
+	// Initialize channel metrics
 	channelNames := []string{"header_in", "data_in", "header_store", "data_store", "retrieve", "da_includer", "tx_notify"}
 	for _, name := range channelNames {
 		m.ChannelBufferUsage[name] = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
@@ -131,6 +141,58 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Subsystem: MetricsSubsystem,
 			Name:      "channel_buffer_usage",
 			Help:      "Current buffer usage of channels",
+			ConstLabels: map[string]string{
+				"channel": name,
+			},
+		}, labels).With(labelsAndValues...)
+
+		m.ChannelSendTotal[name] = prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "channel_send_total",
+			Help:      "Total number of successful channel sends",
+			ConstLabels: map[string]string{
+				"channel": name,
+			},
+		}, labels).With(labelsAndValues...)
+
+		m.ChannelReceiveTotal[name] = prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "channel_receive_total",
+			Help:      "Total number of successful channel receives",
+			ConstLabels: map[string]string{
+				"channel": name,
+			},
+		}, labels).With(labelsAndValues...)
+
+		m.ChannelTimeoutTotal[name] = prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "channel_timeout_total",
+			Help:      "Total number of channel operation timeouts",
+			ConstLabels: map[string]string{
+				"channel": name,
+			},
+		}, labels).With(labelsAndValues...)
+
+		m.ChannelSendDuration[name] = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "channel_send_duration_seconds",
+			Help:      "Channel send operation duration in seconds",
+			Buckets:   []float64{.0001, .0005, .001, .005, .01, .025, .05, .1},
+			ConstLabels: map[string]string{
+				"channel": name,
+			},
+		}, labels).With(labelsAndValues...)
+
+		m.ChannelReceiveDuration[name] = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "channel_receive_duration_seconds",
+			Help:      "Channel receive operation duration in seconds",
+			Buckets:   []float64{.0001, .0005, .001, .005, .01, .025, .05, .1},
 			ConstLabels: map[string]string{
 				"channel": name,
 			},
@@ -363,40 +425,50 @@ func NopMetrics() *Metrics {
 		CommittedHeight: discard.NewGauge(),
 
 		// Extended metrics
-		ChannelBufferUsage:    make(map[string]metrics.Gauge),
-		ErrorsByType:          make(map[string]metrics.Counter),
-		OperationDuration:     make(map[string]metrics.Histogram),
-		StateTransitions:      make(map[string]metrics.Counter),
-		DroppedSignals:        discard.NewCounter(),
-		RecoverableErrors:     discard.NewCounter(),
-		NonRecoverableErrors:  discard.NewCounter(),
-		GoroutineCount:        discard.NewGauge(),
-		DASubmissionAttempts:  discard.NewCounter(),
-		DASubmissionSuccesses: discard.NewCounter(),
-		DASubmissionFailures:  discard.NewCounter(),
-		DARetrievalAttempts:   discard.NewCounter(),
-		DARetrievalSuccesses:  discard.NewCounter(),
-		DARetrievalFailures:   discard.NewCounter(),
-		DAInclusionHeight:     discard.NewGauge(),
-		PendingHeadersCount:   discard.NewGauge(),
-		PendingDataCount:      discard.NewGauge(),
-		SyncLag:               discard.NewGauge(),
-		HeadersSynced:         discard.NewCounter(),
-		DataSynced:            discard.NewCounter(),
-		BlocksApplied:         discard.NewCounter(),
-		InvalidHeadersCount:   discard.NewCounter(),
-		BlockProductionTime:   discard.NewHistogram(),
-		EmptyBlocksProduced:   discard.NewCounter(),
-		LazyBlocksProduced:    discard.NewCounter(),
-		NormalBlocksProduced:  discard.NewCounter(),
-		TxsPerBlock:           discard.NewHistogram(),
-		InvalidTransitions:    discard.NewCounter(),
+		ChannelBufferUsage:     make(map[string]metrics.Gauge),
+		ChannelSendTotal:       make(map[string]metrics.Counter),
+		ChannelReceiveTotal:    make(map[string]metrics.Counter),
+		ChannelTimeoutTotal:    make(map[string]metrics.Counter),
+		ChannelSendDuration:    make(map[string]metrics.Histogram),
+		ChannelReceiveDuration: make(map[string]metrics.Histogram),
+		ErrorsByType:           make(map[string]metrics.Counter),
+		OperationDuration:      make(map[string]metrics.Histogram),
+		StateTransitions:       make(map[string]metrics.Counter),
+		DroppedSignals:         discard.NewCounter(),
+		RecoverableErrors:      discard.NewCounter(),
+		NonRecoverableErrors:   discard.NewCounter(),
+		GoroutineCount:         discard.NewGauge(),
+		DASubmissionAttempts:   discard.NewCounter(),
+		DASubmissionSuccesses:  discard.NewCounter(),
+		DASubmissionFailures:   discard.NewCounter(),
+		DARetrievalAttempts:    discard.NewCounter(),
+		DARetrievalSuccesses:   discard.NewCounter(),
+		DARetrievalFailures:    discard.NewCounter(),
+		DAInclusionHeight:      discard.NewGauge(),
+		PendingHeadersCount:    discard.NewGauge(),
+		PendingDataCount:       discard.NewGauge(),
+		SyncLag:                discard.NewGauge(),
+		HeadersSynced:          discard.NewCounter(),
+		DataSynced:             discard.NewCounter(),
+		BlocksApplied:          discard.NewCounter(),
+		InvalidHeadersCount:    discard.NewCounter(),
+		BlockProductionTime:    discard.NewHistogram(),
+		EmptyBlocksProduced:    discard.NewCounter(),
+		LazyBlocksProduced:     discard.NewCounter(),
+		NormalBlocksProduced:   discard.NewCounter(),
+		TxsPerBlock:            discard.NewHistogram(),
+		InvalidTransitions:     discard.NewCounter(),
 	}
 
 	// Initialize maps with no-op metrics
 	channelNames := []string{"header_in", "data_in", "header_store", "data_store", "retrieve", "da_includer", "tx_notify"}
 	for _, name := range channelNames {
 		m.ChannelBufferUsage[name] = discard.NewGauge()
+		m.ChannelSendTotal[name] = discard.NewCounter()
+		m.ChannelReceiveTotal[name] = discard.NewCounter()
+		m.ChannelTimeoutTotal[name] = discard.NewCounter()
+		m.ChannelSendDuration[name] = discard.NewHistogram()
+		m.ChannelReceiveDuration[name] = discard.NewHistogram()
 	}
 
 	errorTypes := []string{"block_production", "da_submission", "sync", "validation", "state_update"}

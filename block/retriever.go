@@ -30,7 +30,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-m.retrieveCh:
+		case <-m.RetrieveCh().Ch():
 		case <-blobsFoundCh:
 		}
 		daHeight := m.daHeight.Load()
@@ -146,7 +146,12 @@ func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight
 		default:
 			m.logger.Warn("headerInCh backlog full, dropping header: daHeight ", daHeight)
 		}
-		m.headerInCh <- NewHeaderEvent{header, daHeight}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := m.HeaderInCh().Send(ctx, NewHeaderEvent{header, daHeight})
+		cancel()
+		if err != nil {
+			m.logger.Error("failed to send header event", "error", err)
+		}
 	}
 	return true
 }
@@ -181,7 +186,12 @@ func (m *Manager) handlePotentialData(ctx context.Context, bz []byte, daHeight u
 		default:
 			m.logger.Warn("dataInCh backlog full, dropping signed data", "daHeight", daHeight)
 		}
-		m.dataInCh <- NewDataEvent{&signedData.Data, daHeight}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := m.DataInCh().Send(ctx, NewDataEvent{&signedData.Data, daHeight})
+		cancel()
+		if err != nil {
+			m.logger.Error("failed to send data event", "error", err)
+		}
 	}
 }
 

@@ -46,6 +46,10 @@ func newTestManagerWithDA(t *testing.T, da *mocks.MockDA) (m *Manager) {
 		proposerAddr,
 	)
 
+	// Create channel manager
+	channelConfig := DefaultChannelManagerConfig()
+	channelManager := NewChannelManager(logger, channelConfig)
+
 	return &Manager{
 		da:             da,
 		logger:         logger,
@@ -59,6 +63,7 @@ func newTestManagerWithDA(t *testing.T, da *mocks.MockDA) (m *Manager) {
 		pendingData:    newPendingData(t),
 		pendingHeaders: newPendingHeaders(t),
 		metrics:        NopMetrics(),
+		channelManager: channelManager,
 	}
 }
 
