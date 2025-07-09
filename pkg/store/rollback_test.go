@@ -13,7 +13,7 @@ import (
 
 func TestDefaultStore_RollbackToHeight(t *testing.T) {
 	ctx := context.Background()
-	
+
 	tests := []struct {
 		name             string
 		setupBlocks      int
@@ -63,7 +63,7 @@ func TestDefaultStore_RollbackToHeight(t *testing.T) {
 
 				err := s.SaveBlockData(ctx, header, data, signature)
 				require.NoError(t, err)
-				
+
 				err = s.SetHeight(ctx, uint64(i)) //nolint:gosec // G115: i is positive and within bounds
 				require.NoError(t, err)
 

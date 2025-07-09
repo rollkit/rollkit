@@ -19,11 +19,11 @@ import (
 
 func TestManager_RollbackLastBlock(t *testing.T) {
 	tests := []struct {
-		name               string
-		currentHeight      uint64
-		expectError        bool
-		expectedErrorMsg   string
-		setupMocks         func(*mocks.MockStore, *mocks.MockExecutor)
+		name             string
+		currentHeight    uint64
+		expectError      bool
+		expectedErrorMsg string
+		setupMocks       func(*mocks.MockStore, *mocks.MockExecutor)
 	}{
 		{
 			name:             "cannot rollback genesis block",
@@ -126,10 +126,10 @@ func TestManager_RollbackLastBlock(t *testing.T) {
 				}
 			} else {
 				require.NoError(t, err)
-				
+
 				// Verify state was updated
 				assert.Equal(t, uint64(1), manager.lastState.LastBlockHeight)
-				
+
 				// Verify DA included height was updated
 				assert.Equal(t, uint64(1), manager.daIncludedHeight.Load())
 			}

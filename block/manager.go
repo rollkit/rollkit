@@ -259,7 +259,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 		logger.Error("error while getting state", "error", err)
 		return types.State{}, err
 	}
-	
+
 	// Perform a sanity-check to stop the user from
 	// using a higher genesis than the last stored state.
 	// if they meant to hard-fork, they should have cleared the stored State
@@ -1114,7 +1114,7 @@ func (m *Manager) RollbackLastBlock(ctx context.Context) error {
 
 	// Verify that the state root matches what the execution layer returned
 	if !bytes.Equal(prevState.AppHash, prevStateRoot) {
-		m.logger.Warn("State root mismatch after rollback", 
+		m.logger.Warn("State root mismatch after rollback",
 			"storeStateRoot", fmt.Sprintf("%x", prevState.AppHash),
 			"execStateRoot", fmt.Sprintf("%x", prevStateRoot))
 	}
@@ -1135,8 +1135,8 @@ func (m *Manager) RollbackLastBlock(ctx context.Context) error {
 		m.daIncludedHeight.Store(targetHeight)
 	}
 
-	m.logger.Info("Successfully rolled back block", 
-		"rolledBackHeight", currentHeight, 
+	m.logger.Info("Successfully rolled back block",
+		"rolledBackHeight", currentHeight,
 		"newHeight", targetHeight,
 		"newStateRoot", fmt.Sprintf("%x", prevStateRoot))
 

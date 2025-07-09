@@ -24,15 +24,12 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
-
-	"github.com/rollkit/rollkit/execution/evm"
 )
 
 // TestEvmRollbackE2E tests the complete rollback functionality workflow
@@ -146,7 +143,7 @@ func TestEvmRollbackE2E(t *testing.T) {
 	t.Logf("  - Transactions processed: %d", numTransactions)
 
 	// Ensure we have meaningful state to rollback
-	require.Greater(t, preRollbackHeight, uint64(2), 
+	require.Greater(t, preRollbackHeight, uint64(2),
 		"Should have sufficient blocks for meaningful rollback test (height: %d)", preRollbackHeight)
 
 	// Verify all transactions are accessible
@@ -155,7 +152,7 @@ func TestEvmRollbackE2E(t *testing.T) {
 		receipt, err := sequencerClient.TransactionReceipt(ctx, txHash)
 		require.NoError(t, err, "Should get transaction %d receipt", i+1)
 		require.Equal(t, uint64(1), receipt.Status, "Transaction %d should be successful", i+1)
-		require.Equal(t, txBlockNumbers[i], receipt.BlockNumber.Uint64(), 
+		require.Equal(t, txBlockNumbers[i], receipt.BlockNumber.Uint64(),
 			"Transaction %d should be in expected block", i+1)
 	}
 
@@ -190,11 +187,11 @@ func TestEvmRollbackE2E(t *testing.T) {
 		"--home", sequencerHome,
 	)
 	require.NoError(t, err, "Rollback command should succeed", rollbackOutput)
-	
+
 	t.Logf("Rollback command output:\n%s", rollbackOutput)
 
 	// Verify rollback command output contains expected success messages
-	require.Contains(t, rollbackOutput, "Successfully rolled back", 
+	require.Contains(t, rollbackOutput, "Successfully rolled back",
 		"Rollback output should indicate success")
 	require.Contains(t, rollbackOutput, fmt.Sprintf("Current chain height: %d", preRollbackHeight),
 		"Rollback should show correct initial height")
@@ -274,11 +271,11 @@ func TestEvmRollbackE2E(t *testing.T) {
 
 	// Verify that transactions from blocks that should still exist are accessible
 	t.Log("Verifying preserved transactions are still accessible...")
-	
+
 	preservedTxCount := 0
 	for i, txHash := range txHashes {
 		txBlockNumber := txBlockNumbers[i]
-		
+
 		// Only check transactions that should be preserved (in blocks <= expectedHeight)
 		if txBlockNumber <= expectedHeight {
 			receipt, err := sequencerClient.TransactionReceipt(ctx, txHash)
@@ -347,7 +344,7 @@ func TestEvmRollbackE2E(t *testing.T) {
 	t.Logf("   - Continued operation with %d new transactions: ✓", numPostRollbackTxs)
 	t.Logf("   - Chain progressed to final height %d: ✓", finalHeight)
 	t.Logf("   - Complete rollback workflow validated: ✓")
-	
+
 	t.Log("🎯 The rollback functionality successfully provides emergency recovery capabilities")
 	t.Log("   while maintaining data integrity and allowing continued chain operation.")
 }

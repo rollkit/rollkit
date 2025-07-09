@@ -77,7 +77,7 @@ Usage scenarios:
 		}
 
 		if newState.LastBlockHeight != targetHeight {
-			return fmt.Errorf("rollback verification failed: expected height %d, got %d", 
+			return fmt.Errorf("rollback verification failed: expected height %d, got %d",
 				targetHeight, newState.LastBlockHeight)
 		}
 
@@ -85,7 +85,7 @@ Usage scenarios:
 		fmt.Printf("Previous state root: %x\n", newState.AppHash)
 		fmt.Printf("\nIMPORTANT: The execution layer (EVM) state may also need to be rolled back.\n")
 		fmt.Printf("Make sure your EVM engine is also reverted to the corresponding state.\n")
-		
+
 		return nil
 	},
 }
