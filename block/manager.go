@@ -573,6 +573,10 @@ func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) boo
 // It's assigned to the publishBlock field by default.
 // Any error will be returned, unless the error is due to a publishing error.
 func (m *Manager) publishBlockInternal(ctx context.Context) error {
+	// Start timing block production
+	timer := NewMetricsTimer("block_production", m.metrics)
+	defer timer.Stop()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -722,6 +726,11 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	m.recordMetrics(data)
+
+	// Record extended block production metrics
+	productionTime := time.Since(timer.start)
+	isLazy := m.config.Node.LazyMode
+	m.recordBlockProductionMetrics(len(data.Txs), isLazy, productionTime)
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return m.headerBroadcaster.WriteToStoreAndBroadcast(ctx, header) })

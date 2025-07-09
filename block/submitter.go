@@ -113,11 +113,18 @@ func submitToDA[T any](
 		remLen = len(remaining)
 
 		submitctx, submitCtxCancel := context.WithTimeout(ctx, 60*time.Second)
+
+		// Record DA submission retry attempt
+		m.recordDAMetrics("submission", DAModeRetry)
+
 		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, currMarshaled, gasPrice, nil)
 		submitCtxCancel()
 
 		switch res.Code {
 		case coreda.StatusSuccess:
+			// Record successful DA submission
+			m.recordDAMetrics("submission", DAModeSuccess)
+
 			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer", itemType), "gasPrice", gasPrice, "count", res.SubmittedCount)
 			if res.SubmittedCount == uint64(remLen) {
 				submittedAll = true
@@ -137,6 +144,8 @@ func submitToDA[T any](
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+			// Record failed DA submission (will retry)
+			m.recordDAMetrics("submission", DAModeFail)
 			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL)
 			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * m.gasMultiplier
@@ -149,11 +158,15 @@ func submitToDA[T any](
 			fallthrough
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+			// Record failed DA submission (will retry)
+			m.recordDAMetrics("submission", DAModeFail)
 			backoff = m.exponentialBackoff(backoff)
 		}
 		attempt++
 	}
 	if !submittedAll {
+		// Record final failure after all retries are exhausted
+		m.recordDAMetrics("submission", DAModeFail)
 		// If not all items are submitted, the remaining items will be retried in the next submission loop.
 		return fmt.Errorf("failed to submit all %s(s) to DA layer, submitted %d items (%d left) after %d attempts", itemType, numSubmitted, remLen, attempt)
 	}

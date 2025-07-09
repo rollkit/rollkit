@@ -18,7 +18,7 @@ This directory contains the implementation of a single EVM sequencer using Rollk
     ```bash
     go build -o evm-single .
     ```
-  
+
 3. Initialize the sequencer:
 
     ```bash
@@ -70,7 +70,7 @@ The sequencer can be configured using various command-line flags. The most impor
 
 4. Identify the sequencer node's P2P address from its logs. It will look similar to:
 
-    ```
+    ```sh
     1:55PM INF listening on address=/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWJ1J5W7vpHuyktcvc71iuduRgb9pguY9wKMNVVPwweWPk module=main
     ```
 

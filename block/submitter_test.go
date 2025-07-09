@@ -58,6 +58,7 @@ func newTestManagerWithDA(t *testing.T, da *mocks.MockDA) (m *Manager) {
 		genesis:        gen,
 		pendingData:    newPendingData(t),
 		pendingHeaders: newPendingHeaders(t),
+		metrics:        NopMetrics(),
 	}
 }
 

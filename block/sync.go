@@ -17,6 +17,11 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 	defer daTicker.Stop()
 	blockTicker := time.NewTicker(m.config.Node.BlockTime.Duration)
 	defer blockTicker.Stop()
+
+	// Create ticker for periodic metrics updates
+	metricsTicker := time.NewTicker(30 * time.Second)
+	defer metricsTicker.Stop()
+
 	for {
 		select {
 		case <-daTicker.C:
@@ -45,6 +50,9 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 				continue
 			}
 			m.headerCache.SetItem(headerHeight, header)
+
+			// Record header synced metric
+			m.recordSyncMetrics("header_synced")
 
 			// check if the dataHash is dataHashForEmptyTxs
 			// no need to wait for syncing Data, instead prepare now and set
@@ -88,12 +96,19 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 			}
 			m.dataCache.SetItem(dataHeight, data)
 
+			// Record data synced metric
+			m.recordSyncMetrics("data_synced")
+
 			err = m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
 				errCh <- fmt.Errorf("failed to sync next block: %w", err)
 				return
 			}
 			m.dataCache.SetSeen(dataHash)
+		case <-metricsTicker.C:
+			// Update channel metrics periodically
+			m.updateChannelMetrics()
+			m.updatePendingMetrics()
 		case <-ctx.Done():
 			return
 		}
@@ -153,6 +168,9 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return err
 		}
 
+		// Record sync metrics
+		m.recordSyncMetrics("block_applied")
+
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
@@ -193,31 +211,19 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 }
 
 func (m *Manager) sendNonBlockingSignalToHeaderStoreCh() {
-	select {
-	case m.headerStoreCh <- struct{}{}:
-	default:
-	}
+	m.sendNonBlockingSignalWithMetrics(m.headerStoreCh, "header_store")
 }
 
 func (m *Manager) sendNonBlockingSignalToDataStoreCh() {
-	select {
-	case m.dataStoreCh <- struct{}{}:
-	default:
-	}
+	m.sendNonBlockingSignalWithMetrics(m.dataStoreCh, "data_store")
 }
 
 func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
-	select {
-	case m.retrieveCh <- struct{}{}:
-	default:
-	}
+	m.sendNonBlockingSignalWithMetrics(m.retrieveCh, "retrieve")
 }
 
 func (m *Manager) sendNonBlockingSignalToDAIncluderCh() {
-	select {
-	case m.daIncluderCh <- struct{}{}:
-	default:
-	}
+	m.sendNonBlockingSignalWithMetrics(m.daIncluderCh, "da_includer")
 }
 
 // Updates the state stored in manager's store along the manager's lastState
