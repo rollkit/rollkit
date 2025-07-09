@@ -95,7 +95,7 @@ func NewEngineExecutionClient(
 }
 
 // InitChain initializes the blockchain with the given genesis parameters
-func (c *EngineClient) InitChain(ctx context.Context, genesisTime time.Time, initialHeight uint64, chainID string) ([]byte, uint64, error) {
+func (c *EngineClient) InitChain(ctx context.Context, _ time.Time, initialHeight uint64, _ string) ([]byte, uint64, error) {
 	if initialHeight != 1 {
 		return nil, 0, fmt.Errorf("initialHeight must be 1, got %d", initialHeight)
 	}
@@ -173,7 +173,7 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 }
 
 // ExecuteTxs executes the given transactions at the specified block height and timestamp
-func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (updatedStateRoot []byte, maxBytes uint64, err error) {
+func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, _ []byte) (updatedStateRoot []byte, maxBytes uint64, err error) {
 	// convert rollkit tx to hex strings for rollkit-reth
 	txsPayload := make([]string, len(txs))
 	for i, tx := range txs {
@@ -186,7 +186,7 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		return nil, 0, fmt.Errorf("failed to get block info: %w", err)
 	}
 
-	ts := uint64(timestamp.Unix())
+	ts := uint64(timestamp.Unix()) //nolint:gosec // G115: Conversion is safe, Unix timestamps fit in uint64
 	if ts <= prevTimestamp {
 		ts = prevTimestamp + 1 // Subsequent blocks must have a higher timestamp.
 	}
