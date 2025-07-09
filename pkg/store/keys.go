@@ -3,6 +3,8 @@ package store
 import (
 	"strconv"
 
+	ds "github.com/ipfs/go-datastore"
+	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -29,6 +31,10 @@ const (
 	indexPrefix     = "i"
 	heightPrefix    = "t"
 )
+
+func NewPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
+	return ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)})
+}
 
 func getHeaderKey(height uint64) string {
 	return GenerateKey([]string{headerPrefix, strconv.FormatUint(height, 10)})

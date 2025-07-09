@@ -12,7 +12,6 @@ import (
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
-	ktds "github.com/ipfs/go-datastore/keytransform"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -85,7 +84,7 @@ func newFullNode(
 ) (fn *FullNode, err error) {
 	seqMetrics, _ := metricsProvider(genesis.ChainID)
 
-	mainKV := newPrefixKV(database, RollkitPrefix)
+	mainKV := store.NewPrefixKV(database, RollkitPrefix)
 	headerSyncService, err := initHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
@@ -540,8 +539,4 @@ func (n *FullNode) SetLogger(logger logging.EventLogger) {
 // GetLogger returns logger.
 func (n *FullNode) GetLogger() logging.EventLogger {
 	return n.Logger
-}
-
-func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
-	return ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)})
 }

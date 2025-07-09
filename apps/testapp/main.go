@@ -19,6 +19,7 @@ func main() {
 		rollcmd.VersionCmd,
 		rollcmd.NetInfoCmd,
 		rollcmd.StoreUnsafeCleanCmd,
+		rollcmd.RollbackCmd,
 		rollcmd.KeysCmd(),
 		initCmd,
 	)

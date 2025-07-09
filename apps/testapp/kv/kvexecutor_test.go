@@ -7,10 +7,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ipfs/go-datastore"
 )
 
 func TestInitChain_Idempotency(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -42,7 +44,7 @@ func TestInitChain_Idempotency(t *testing.T) {
 }
 
 func TestGetTxs(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -108,7 +110,7 @@ func TestGetTxs(t *testing.T) {
 }
 
 func TestExecuteTxs_Valid(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -136,7 +138,7 @@ func TestExecuteTxs_Valid(t *testing.T) {
 }
 
 func TestExecuteTxs_Invalid(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -154,7 +156,7 @@ func TestExecuteTxs_Invalid(t *testing.T) {
 }
 
 func TestSetFinal(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -174,7 +176,7 @@ func TestSetFinal(t *testing.T) {
 }
 
 func TestRollback(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}

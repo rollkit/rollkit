@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/rollkit/rollkit/node"
 	"github.com/rollkit/rollkit/pkg/store"
 )
 
@@ -45,8 +46,10 @@ Usage scenarios:
 			return fmt.Errorf("failed to create KV store: %w", err)
 		}
 
+		mainKV := store.NewPrefixKV(kvStore, node.RollkitPrefix)
+
 		// Create the store
-		s := store.New(kvStore)
+		s := store.New(mainKV)
 		defer s.Close()
 
 		// Get current state

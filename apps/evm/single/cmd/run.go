@@ -43,7 +43,7 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "evm-single")
+		datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 		if err != nil {
 			return err
 		}
