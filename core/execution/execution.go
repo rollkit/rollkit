@@ -25,7 +25,7 @@ type Executor interface {
 	//
 	// Returns:
 	// - stateRoot: Hash representing initial state
-	// - maxBytes: Maximum allowed bytes for transacitons in a block
+	// - maxBytes: Maximum allowed bytes for transactions in a block
 	// - err: Any initialization errors
 	InitChain(ctx context.Context, genesisTime time.Time, initialHeight uint64, chainID string) (stateRoot []byte, maxBytes uint64, err error)
 
