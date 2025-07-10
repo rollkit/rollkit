@@ -54,7 +54,7 @@ require (
 	github.com/buger/goterm v1.0.4 // indirect
 	github.com/celestiaorg/go-header v0.6.6 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.2 // indirect
-	github.com/celestiaorg/go-square/v2 v2.2.0 // indirect
+	github.com/celestiaorg/go-square/v2 v2.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/compose-spec/compose-go/v2 v2.6.0 // indirect
