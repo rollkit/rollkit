@@ -21,6 +21,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/rollkit/rollkit/core/execution"
+	appconsts "github.com/rollkit/rollkit/execution/evm/internal"
 )
 
 var (
@@ -136,6 +137,7 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 	}
 
 	var txs [][]byte
+	totalBytes := 0
 
 	// add pending txs
 	for _, accountTxs := range result.Pending {
@@ -166,7 +168,15 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal transaction: %w", err)
 			}
+
+			// Check if adding this transaction would exceed the max bytes limit
+			if totalBytes+len(txBytes) > appconsts.DefaultMaxBytes {
+				// Return transactions collected so far without adding this one
+				return txs, nil
+			}
+
 			txs = append(txs, txBytes)
+			totalBytes += len(txBytes)
 		}
 	}
 	return txs, nil
