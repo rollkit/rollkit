@@ -50,7 +50,7 @@ func (s *DockerTestSuite) TestBasicDockerE2E() {
 	s.T().Run("submit a transaction to the rollkit chain", func(t *testing.T) {
 		rollkitNode := s.rollkitChain.GetNodes()[0]
 
-		// the http port resolvable by teh test runner.
+		// the http port resolvable by the test runner.
 		httpPort := rollkitNode.GetHostHTTPPort()
 
 		client, err := NewClient("localhost", httpPort)
