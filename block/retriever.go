@@ -17,6 +17,12 @@ import (
 const (
 	dAefetcherTimeout = 30 * time.Second
 	dAFetcherRetries  = 10
+	// maxConsecutiveFailures defines the maximum number of consecutive failures
+	// for the same DA height before we treat it as a "height from future" scenario
+	// and wait longer before retrying.
+	maxConsecutiveFailures = 20
+	// failureBackoffDuration is the time to wait after reaching max consecutive failures
+	failureBackoffDuration = 30 * time.Second
 )
 
 // RetrieveLoop is responsible for interacting with DA layer.
@@ -26,6 +32,11 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	// This enables syncing faster than the DA block time.
 	blobsFoundCh := make(chan struct{}, 1)
 	defer close(blobsFoundCh)
+
+	// Circuit breaker state to prevent infinite loops
+	var consecutiveFailures int
+	var lastFailedHeight uint64
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -34,14 +45,43 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		case <-blobsFoundCh:
 		}
 		daHeight := m.daHeight.Load()
+
+		// Check if we've failed too many times for this height
+		if daHeight == lastFailedHeight && consecutiveFailures >= maxConsecutiveFailures {
+			m.logger.Debug("too many consecutive failures for DA height, applying backoff", 
+				"daHeight", daHeight, "failures", consecutiveFailures)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(failureBackoffDuration):
+				// Reset failure count after backoff
+				consecutiveFailures = 0
+			}
+		}
+
 		err := m.processNextDAHeaderAndData(ctx)
 		if err != nil && ctx.Err() == nil {
+			// Track consecutive failures for circuit breaker
+			if daHeight == lastFailedHeight {
+				consecutiveFailures++
+			} else {
+				consecutiveFailures = 1
+				lastFailedHeight = daHeight
+			}
+
 			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
 			if !m.areAllErrorsHeightFromFuture(err) {
-				m.logger.Error("failed to retrieve data from DALC", "daHeight", daHeight, "errors", err.Error())
+				m.logger.Error("failed to retrieve data from DALC", "daHeight", daHeight, "errors", err.Error(), "consecutiveFailures", consecutiveFailures)
+			} else {
+				m.logger.Debug("height from future, waiting", "daHeight", daHeight, "consecutiveFailures", consecutiveFailures)
 			}
 			continue
 		}
+
+		// Reset failure tracking on success
+		consecutiveFailures = 0
+		lastFailedHeight = 0
+
 		// Signal the blobsFoundCh to try and retrieve the next set of blobs
 		select {
 		case blobsFoundCh <- struct{}{}:
