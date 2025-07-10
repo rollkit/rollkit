@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+sleep 5
+
 # Function to extract --home value from arguments
 get_home_dir() {
   home_dir="$HOME/.evm-single"

@@ -60,7 +60,9 @@ services:
         condition: service_started
     volumes:
       - evm-single-data:/root/.evm-single/
+    restart: always
     entrypoint: /usr/bin/entrypoint.sh
+    command: start
     environment:
       - EVM_ENGINE_URL=http://rollkit-reth:8551
       - EVM_ETH_URL=http://rollkit-reth:8545
