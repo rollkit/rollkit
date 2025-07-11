@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 <!-- New features or capabilities -->
--
+- Added transaction size limit check in EVM execution layer to prevent exceeding max block bytes ([#2456](https://github.com/rollkit/rollkit/pull/2456))
 
 ### Changed
 
