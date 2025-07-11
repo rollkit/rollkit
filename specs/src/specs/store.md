@@ -10,9 +10,12 @@ The Store interface defines the following methods:
 
 - `Height`: Returns the height of the highest block in the store.
 - `SetHeight`: Sets given height in the store if it's higher than the existing height in the store.
-- `SaveBlock`: Saves a block along with its seen signature.
+- `SaveBlock`: Saves a block (containing both header and data) along with its seen signature.
 - `GetBlock`: Returns a block at a given height.
 - `GetBlockByHash`: Returns a block with a given block header hash.
+
+Note: While blocks are stored as complete units in the store, the block manager handles headers and data separately during synchronization and DA layer interaction.
+
 - `SaveBlockResponses`: Saves block responses in the Store.
 - `GetBlockResponses`: Returns block results at a given height.
 - `GetSignature`: Returns a signature for a block at a given height.
@@ -32,12 +35,17 @@ A Rollkit full node is [initialized][full_node_store_initialization] using `NewD
 
 For the main node data, `DefaultStore` struct, an implementation of the Store interface, is used with the following prefixes for various types of data within it:
 
-- `blockPrefix` with value "b": Used to store blocks in the key-value store.
+- `blockPrefix` with value "b": Used to store complete blocks in the key-value store.
 - `indexPrefix` with value "i": Used to index the blocks stored in the key-value store.
 - `commitPrefix` with value "c": Used to store commits related to the blocks.
 - `statePrefix` with value "s": Used to store the state of the blockchain.
 - `responsesPrefix` with value "r": Used to store responses related to the blocks.
 - `validatorsPrefix` with value "v": Used to store validator sets at a given height.
+
+Additional prefixes used by sync services:
+
+- `headerSync`: Used by the header sync service for P2P synced headers.
+- `dataSync`: Used by the data sync service for P2P synced transaction data.
 
 For example, in a call to `GetBlockByHash` for some block hash `<block_hash>`, the key used in the full node's base key-value store will be `/0/b/<block_hash>` where `0` is the main store prefix and `b` is the block prefix. Similarly, in a call to `GetValidators` for some height `<height>`, the key used in the full node's base key-value store will be `/0/v/<height>` where `0` is the main store prefix and `v` is the validator set prefix.
 

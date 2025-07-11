@@ -1,42 +1,95 @@
-# Header Sync
+# Header and Data Sync
 
 ## Abstract
 
-The nodes in the P2P network sync headers using the header sync service that implements the [go-header][go-header] interface. The header sync service consists of several components as listed below.
+The nodes in the P2P network sync headers and data using separate sync services that implement the [go-header][go-header] interface. Rollkit uses a header/data separation architecture where headers and transaction data are synchronized independently through parallel services. Each sync service consists of several components as listed below.
 
 |Component|Description|
 |---|---|
-|store| a `headerEx` prefixed [datastore][datastore] where synced headers are stored|
-|subscriber | a [libp2p][libp2p] node pubsub subscriber|
-|P2P server| a server for handling header requests between peers in the P2P network|
-|exchange| a client that enables sending in/out-bound header requests from/to the P2P network|
-|syncer| a service for efficient synchronization for headers. When a P2P node falls behind and wants to catch up to the latest network head via P2P network, it can use the syncer.|
+|store| a prefixed [datastore][datastore] where synced items are stored (`headerSync` prefix for headers, `dataSync` prefix for data)|
+|subscriber | a [libp2p][libp2p] node pubsub subscriber for the specific data type|
+|P2P server| a server for handling requests between peers in the P2P network|
+|exchange| a client that enables sending in/out-bound requests from/to the P2P network|
+|syncer| a service for efficient synchronization. When a P2P node falls behind and wants to catch up to the latest network head via P2P network, it can use the syncer.|
 
 ## Details
 
-All three types of nodes (sequencer, full, and light) run the header sync service to maintain the canonical view of the chain (with respect to the P2P network).
+Rollkit implements two separate sync services:
 
-The header sync service inherits the `ConnectionGater` from the node's P2P client which enables blocking and allowing peers as needed by specifying the `P2PConfig.BlockedPeers` and `P2PConfig.AllowedPeers`.
+### Header Sync Service
 
-`NodeConfig.BlockTime` is used to configure the syncer such that it can effectively decide the outdated headers while it receives headers from the P2P network.
+- Synchronizes `SignedHeader` structures containing block headers with signatures
+- Used by all node types (sequencer, full, and light)
+- Essential for maintaining the canonical view of the chain
 
-Both header and block sync utilizes [go-header][go-header] library and runs two separate sync services, for the headers and blocks. This distinction is mainly to serve light nodes which do not store blocks, but only headers synced from the P2P network.
+### Data Sync Service  
 
-### Consumption of Header Sync
+- Synchronizes `Data` structures containing transaction data
+- Used only by full nodes and sequencers
+- Light nodes do not run this service as they only need headers
 
-The sequencer node, upon successfully creating the block, publishes the signed block header to the P2P network using the header sync service. The full/light nodes run the header sync service in the background to receive and store the signed headers from the P2P network. Currently the full/light nodes do not consume the P2P synced headers, however they have future utilities in performing certain checks.
+Both services:
+
+- Utilize the generic `SyncService[H header.Header[H]]` implementation
+- Inherit the `ConnectionGater` from the node's P2P client for peer management
+- Use `NodeConfig.BlockTime` to determine outdated items during sync
+- Operate independently on separate P2P topics and datastores
+
+### Consumption of Sync Services
+
+#### Header Sync
+
+- Sequencer nodes publish signed headers to the P2P network after block creation
+- Full and light nodes receive and store headers for chain validation
+- Headers contain commitments (DataHash) that link to the corresponding data
+
+#### Data Sync
+
+- Sequencer nodes publish transaction data separately from headers
+- Only full nodes receive and store data (light nodes skip this)
+- Data is linked to headers through the DataHash commitment
+
+#### Parallel Broadcasting
+
+The block manager broadcasts headers and data in parallel when publishing blocks:
+
+- Headers are sent through `headerBroadcaster`
+- Data is sent through `dataBroadcaster`
+- This enables efficient network propagation of both components
 
 ## Assumptions
 
-* The header sync store is created by prefixing `headerSync` the main datastore.
-* The genesis `ChainID` is used to create the `PubsubTopicID` in [go-header][go-header]. For example, for ChainID `gm`, the pubsub topic id is `/gm/header-sub/v0.0.1`. Refer to go-header specs for further details.
-* The header store must be initialized with genesis header before starting the syncer service. The genesis header can be loaded by passing the genesis header hash via `NodeConfig.TrustedHash` configuration parameter or by querying the P2P network. This imposes a time constraint that full/light nodes have to wait for the sequencer to publish the genesis header to the P2P network before starting the header sync service.
-* The Header Sync works only when the node is connected to the P2P network by specifying the initial seeds to connect to via the `P2PConfig.Seeds` configuration parameter.
-* The node's context is passed down to all the components of the P2P header sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
+- Separate datastores are created with different prefixes:
+  - Headers: `headerSync` prefix on the main datastore
+  - Data: `dataSync` prefix on the main datastore
+- Network IDs are suffixed to distinguish services:
+  - Header sync: `{network}-headerSync`
+  - Data sync: `{network}-dataSync`
+- Chain IDs for pubsub topics are also separated:
+  - Headers: `{chainID}-headerSync` creates topic like `/gm-headerSync/header-sub/v0.0.1`
+  - Data: `{chainID}-dataSync` creates topic like `/gm-dataSync/header-sub/v0.0.1`
+- Both stores must be initialized with genesis items before starting:
+  - Header store needs genesis header
+  - Data store needs genesis data (if applicable)
+- Genesis items can be loaded via `NodeConfig.TrustedHash` or P2P network query
+- Sync services work only when connected to P2P network via `P2PConfig.Seeds`
+- Node context is passed to all components for graceful shutdown
+- Headers and data are linked through DataHash but synced independently
 
 ## Implementation
 
-The header sync implementation can be found in [block/sync_service.go][sync-service]. The full and light nodes create and start the header sync service under [full][fullnode] and [light][lightnode].
+The sync service implementation can be found in [pkg/sync/sync_service.go][sync-service]. The generic `SyncService[H header.Header[H]]` is instantiated as:
+
+- `HeaderSyncService` for syncing `*types.SignedHeader`
+- `DataSyncService` for syncing `*types.Data`
+
+Full nodes create and start both services, while light nodes only start the header sync service. The services are created in [full][fullnode] and [light][lightnode] node implementations.
+
+The block manager integrates with both services through:
+
+- `HeaderStoreRetrieveLoop()` for retrieving headers from P2P
+- `DataStoreRetrieveLoop()` for retrieving data from P2P
+- Separate broadcast channels for publishing headers and data
 
 ## References
 
