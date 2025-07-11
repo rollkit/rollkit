@@ -109,4 +109,4 @@ Pre-release versions: 0.x.y (anything may change)
 -->
 
 <!-- Links -->
-[Unreleased]: https://github.com/rollkit/rollkit/compare/v0.0.0...HEAD
+[Unreleased]: https://github.com/rollkit/rollkit/compare/v1.0.0-beta.1...HEAD
