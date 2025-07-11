@@ -13,7 +13,7 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
-// DefaultStore is a default store implmementation.
+// DefaultStore is a default store implementation.
 type DefaultStore struct {
 	db ds.Batching
 }
