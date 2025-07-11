@@ -91,6 +91,24 @@ func (e *DummyExecutor) SetFinal(ctx context.Context, blockHeight uint64) error 
 	return fmt.Errorf("cannot set finalized block at height %d", blockHeight)
 }
 
+// Rollback reverts the state to the previous block height.
+// For the dummy executor, this removes the pending state root at the current height.
+func (e *DummyExecutor) Rollback(ctx context.Context, currentHeight uint64) ([]byte, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Validate height constraints
+	if currentHeight <= 1 {
+		return nil, fmt.Errorf("cannot rollback from height %d: must be > 1", currentHeight)
+	}
+
+	// Remove the pending state root for the current height if it exists
+	delete(e.pendingRoots, currentHeight)
+
+	// Return the current finalized state root
+	return e.stateRoot, nil
+}
+
 func (e *DummyExecutor) removeExecutedTxs(txs [][]byte) {
 	e.injectedTxs = slices.DeleteFunc(e.injectedTxs, func(tx []byte) bool {
 		return slices.ContainsFunc(txs, func(t []byte) bool { return bytes.Equal(tx, t) })

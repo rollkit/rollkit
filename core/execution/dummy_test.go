@@ -431,3 +431,56 @@ func TestExecuteTxsWithInvalidPrevStateRoot(t *testing.T) {
 		t.Errorf("Expected pending root to be stored for height %d", blockHeight)
 	}
 }
+func TestRollback(t *testing.T) {
+	executor := NewDummyExecutor()
+	ctx := context.Background()
+
+	// Test rollback from height 1 (should fail)
+	_, err := executor.Rollback(ctx, 1)
+	if err == nil {
+		t.Error("Expected error when rolling back from height 1")
+	}
+	expectedError := "cannot rollback from height 1: must be > 1"
+	if err.Error() != expectedError {
+		t.Errorf("Expected error message '%s', got '%s'", expectedError, err.Error())
+	}
+
+	// Setup state for rollback test
+	_, _, err = executor.InitChain(ctx, time.Now(), 1, "test-chain")
+	if err != nil {
+		t.Fatalf("Failed to initialize chain: %v", err)
+	}
+
+	// Execute some transactions to create pending state
+	txs := [][]byte{[]byte("test-tx-1"), []byte("test-tx-2")}
+	prevStateRoot := executor.GetStateRoot()
+	_, _, err = executor.ExecuteTxs(ctx, txs, 2, time.Now(), prevStateRoot)
+	if err != nil {
+		t.Fatalf("Failed to execute transactions: %v", err)
+	}
+
+	// Verify pending state exists
+	if _, exists := executor.pendingRoots[2]; !exists {
+		t.Error("Expected pending root to exist for height 2")
+	}
+
+	// Test successful rollback from height 2
+	stateRoot, err := executor.Rollback(ctx, 2)
+	if err != nil {
+		t.Errorf("Expected no error for rollback from height 2, got: %v", err)
+	}
+
+	if stateRoot == nil {
+		t.Error("Expected non-nil state root from rollback")
+	}
+
+	// Verify pending state was removed
+	if _, exists := executor.pendingRoots[2]; exists {
+		t.Error("Expected pending root to be removed after rollback")
+	}
+
+	// Verify returned state root is the finalized state root
+	if !bytes.Equal(stateRoot, executor.GetStateRoot()) {
+		t.Error("Expected rollback to return the current finalized state root")
+	}
+}

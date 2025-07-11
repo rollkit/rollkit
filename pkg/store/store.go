@@ -241,3 +241,102 @@ func decodeHeight(heightBytes []byte) (uint64, error) {
 	}
 	return binary.LittleEndian.Uint64(heightBytes), nil
 }
+
+// RollbackToHeight reverts the store state to the specified height.
+// This removes all blocks and state data at heights greater than the target height.
+func (s *DefaultStore) RollbackToHeight(ctx context.Context, targetHeight uint64) error {
+	currentHeight, err := s.Height(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current height: %w", err)
+	}
+
+	// Validate rollback request
+	if targetHeight >= currentHeight {
+		return fmt.Errorf("cannot rollback to height %d: current height is %d", targetHeight, currentHeight)
+	}
+
+	if targetHeight < 1 {
+		return fmt.Errorf("cannot rollback to height %d: must be >= 1", targetHeight)
+	}
+
+	// Create a batch for atomic operations
+	batch, err := s.db.Batch(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create batch: %w", err)
+	}
+
+	// Remove all blocks, data, and signatures at heights > targetHeight
+	for height := targetHeight + 1; height <= currentHeight; height++ {
+		// Remove header
+		headerKey := ds.NewKey(getHeaderKey(height))
+		if err := batch.Delete(ctx, headerKey); err != nil {
+			return fmt.Errorf("failed to delete header at height %d: %w", height, err)
+		}
+
+		// Remove data
+		dataKey := ds.NewKey(getDataKey(height))
+		if err := batch.Delete(ctx, dataKey); err != nil {
+			return fmt.Errorf("failed to delete data at height %d: %w", height, err)
+		}
+
+		// Remove signature
+		signatureKey := ds.NewKey(getSignatureKey(height))
+		if err := batch.Delete(ctx, signatureKey); err != nil {
+			return fmt.Errorf("failed to delete signature at height %d: %w", height, err)
+		}
+
+		// Remove any hash index entries for this height - we need to get the block first
+		header, err := s.GetHeader(ctx, height)
+		if err == nil { // Only remove if header exists
+			indexKey := ds.NewKey(getIndexKey(header.Hash()))
+			if err := batch.Delete(ctx, indexKey); err != nil {
+				return fmt.Errorf("failed to delete index for block at height %d: %w", height, err)
+			}
+		}
+	}
+
+	// Update the height to target height
+	heightBytes := encodeHeight(targetHeight)
+	heightKey := ds.NewKey(getHeightKey())
+	if err := batch.Put(ctx, heightKey, heightBytes); err != nil {
+		return fmt.Errorf("failed to update height: %w", err)
+	}
+
+	// Restore the state from the target height
+	// Get the state at the target height and make it the current state
+	targetHeader, err := s.GetHeader(ctx, targetHeight)
+	if err != nil {
+		return fmt.Errorf("failed to get header at target height %d: %w", targetHeight, err)
+	}
+
+	// Construct the state at the target height
+	targetState := types.State{
+		ChainID:         targetHeader.ChainID(),
+		LastBlockHeight: targetHeight,
+		LastBlockTime:   targetHeader.Time(),
+		AppHash:         targetHeader.AppHash,
+	}
+
+	// Update state to target state
+	pbState, err := targetState.ToProto()
+	if err != nil {
+		return fmt.Errorf("failed to convert state to proto: %w", err)
+	}
+
+	blob, err := proto.Marshal(pbState)
+	if err != nil {
+		return fmt.Errorf("failed to marshal state: %w", err)
+	}
+
+	stateKey := ds.NewKey(getStateKey())
+	if err := batch.Put(ctx, stateKey, blob); err != nil {
+		return fmt.Errorf("failed to update state: %w", err)
+	}
+
+	// Commit the batch atomically
+	if err := batch.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit rollback batch: %w", err)
+	}
+
+	return nil
+}

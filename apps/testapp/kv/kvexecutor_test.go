@@ -7,10 +7,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ipfs/go-datastore"
 )
 
 func TestInitChain_Idempotency(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -42,7 +44,7 @@ func TestInitChain_Idempotency(t *testing.T) {
 }
 
 func TestGetTxs(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -108,7 +110,7 @@ func TestGetTxs(t *testing.T) {
 }
 
 func TestExecuteTxs_Valid(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -136,7 +138,7 @@ func TestExecuteTxs_Valid(t *testing.T) {
 }
 
 func TestExecuteTxs_Invalid(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -154,7 +156,7 @@ func TestExecuteTxs_Invalid(t *testing.T) {
 }
 
 func TestSetFinal(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -170,5 +172,33 @@ func TestSetFinal(t *testing.T) {
 	err = exec.SetFinal(ctx, 0)
 	if err == nil {
 		t.Error("Expected error for blockHeight 0, got nil")
+	}
+}
+
+func TestRollback(t *testing.T) {
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
+	if err != nil {
+		t.Fatalf("Failed to create KVExecutor: %v", err)
+	}
+	ctx := context.Background()
+
+	// Test rollback from height 1 (should fail)
+	_, err = exec.Rollback(ctx, 1)
+	if err == nil {
+		t.Error("Expected error when rolling back from height 1")
+	}
+	expectedError := "cannot rollback from height 1: must be > 1"
+	if err.Error() != expectedError {
+		t.Errorf("Expected error message '%s', got '%s'", expectedError, err.Error())
+	}
+
+	// Test successful rollback from height 2
+	stateRoot, err := exec.Rollback(ctx, 2)
+	if err != nil {
+		t.Errorf("Expected no error for rollback from height 2, got: %v", err)
+	}
+
+	if stateRoot == nil {
+		t.Error("Expected non-nil state root from rollback")
 	}
 }

@@ -35,10 +35,6 @@ var RunCmd = &cobra.Command{
 		}
 
 		// Create test implementations
-		executor, err := kvexecutor.NewKVExecutor(nodeConfig.RootDir, nodeConfig.DBPath)
-		if err != nil {
-			return err
-		}
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -53,11 +49,15 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "testapp")
+		datastore, err := store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 		if err != nil {
 			return err
 		}
 
+		executor, err := kvexecutor.NewKVExecutor(datastore)
+		if err != nil {
+			return err
+		}
 		singleMetrics, err := single.NopMetrics()
 		if err != nil {
 			return err
