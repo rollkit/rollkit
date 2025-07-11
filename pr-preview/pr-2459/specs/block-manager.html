@@ -1,0 +1,725 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Block Manager - Rollkit Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html" class="active"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html"><strong aria-hidden="true">4.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">5.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/full_node.html"><strong aria-hidden="true">6.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="../specs/header-sync.html"><strong aria-hidden="true">7.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../../lazy-adr/adr-014-header-and-data-separation.html"><strong aria-hidden="true">8.</strong> Header and Data Separation ADR</a></li><li class="chapter-item expanded "><a href="../../lazy-adr/adr-015-rollkit-minimal-header.html"><strong aria-hidden="true">9.</strong> Rollkit Minimal Header</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">10.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">11.</strong> Store</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Rollkit Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/rollkit/rollkit" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="block-manager"><a class="header" href="#block-manager">Block Manager</a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>The block manager is a key component of full nodes and is responsible for block production or block syncing depending on the node type: sequencer or non-sequencer. Block syncing in this context includes retrieving the published blocks from the network (P2P network or DA network), validating them to raise fraud proofs upon validation failure, updating the state, and storing the validated blocks. A full node invokes multiple block manager functionalities in parallel, such as:</p>
+<ul>
+<li>Block Production (only for sequencer full nodes)</li>
+<li>Block Publication to DA network</li>
+<li>Block Retrieval from DA network</li>
+<li>Block Sync Service</li>
+<li>Block Publication to P2P network</li>
+<li>Block Retrieval from P2P network</li>
+<li>State Update after Block Retrieval</li>
+</ul>
+<pre><code class="language-mermaid">sequenceDiagram
+    title Overview of Block Manager
+
+    participant User
+    participant Sequencer
+    participant Full Node 1
+    participant Full Node 2
+    participant DA Layer
+
+    User-&gt;&gt;Sequencer: Send Tx
+    Sequencer-&gt;&gt;Sequencer: Generate Block
+    Sequencer-&gt;&gt;DA Layer: Publish Block
+
+    Sequencer-&gt;&gt;Full Node 1: Gossip Block
+    Sequencer-&gt;&gt;Full Node 2: Gossip Block
+    Full Node 1-&gt;&gt;Full Node 1: Verify Block
+    Full Node 1-&gt;&gt;Full Node 2: Gossip Block
+    Full Node 1-&gt;&gt;Full Node 1: Mark Block Soft Confirmed
+
+    Full Node 2-&gt;&gt;Full Node 2: Verify Block
+    Full Node 2-&gt;&gt;Full Node 2: Mark Block Soft Confirmed
+
+    DA Layer-&gt;&gt;Full Node 1: Retrieve Block
+    Full Node 1-&gt;&gt;Full Node 1: Mark Block DA Included
+
+    DA Layer-&gt;&gt;Full Node 2: Retrieve Block
+    Full Node 2-&gt;&gt;Full Node 2: Mark Block DA Included
+</code></pre>
+<h3 id="component-architecture-overview"><a class="header" href="#component-architecture-overview">Component Architecture Overview</a></h3>
+<pre><code class="language-mermaid">flowchart TB
+    subgraph Block Manager Components
+        BM[Block Manager]
+        AGG[Aggregation]
+        REP[Reaper]
+        SUB[Submitter]
+        RET[Retriever]
+        SYNC[Sync Loop]
+        DAI[DA Includer]
+    end
+    
+    subgraph External Components
+        EX[Executor]
+        SEQ[Sequencer]
+        DA[DA Layer]
+        HS[Header Store/P2P]
+        DS[Data Store/P2P]
+        ST[Local Store]
+    end
+    
+    REP --&gt;|GetTxs| EX
+    REP --&gt;|SubmitBatch| SEQ
+    REP --&gt;|Notify| AGG
+    
+    AGG --&gt;|CreateBlock| BM
+    BM --&gt;|ApplyBlock| EX
+    BM --&gt;|Save| ST
+    
+    BM --&gt;|Headers| SUB
+    BM --&gt;|Data| SUB
+    SUB --&gt;|Submit| DA
+    
+    RET --&gt;|Retrieve| DA
+    RET --&gt;|Headers/Data| SYNC
+    
+    HS --&gt;|Headers| SYNC
+    DS --&gt;|Data| SYNC
+    
+    SYNC --&gt;|Complete Blocks| BM
+    SYNC --&gt;|DA Included| DAI
+    DAI --&gt;|SetFinal| EX
+</code></pre>
+<h2 id="protocolcomponent-description"><a class="header" href="#protocolcomponent-description">Protocol/Component Description</a></h2>
+<p>The block manager is initialized using several parameters as defined below:</p>
+<div class="table-wrapper"><table><thead><tr><th><strong>Name</strong></th><th><strong>Type</strong></th><th><strong>Description</strong></th></tr></thead><tbody>
+<tr><td>signing key</td><td>crypto.PrivKey</td><td>used for signing blocks and data after creation</td></tr>
+<tr><td>config</td><td>config.BlockManagerConfig</td><td>block manager configurations (see config options below)</td></tr>
+<tr><td>genesis</td><td>*cmtypes.GenesisDoc</td><td>initialize the block manager with genesis state (genesis configuration defined in <code>config/genesis.json</code> file under the app directory)</td></tr>
+<tr><td>store</td><td>store.Store</td><td>local datastore for storing rollup blocks and states (default local store path is <code>$db_dir/rollkit</code> and <code>db_dir</code> specified in the <code>config.yaml</code> file under the app directory)</td></tr>
+<tr><td>mempool, proxyapp, eventbus</td><td>mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus</td><td>for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production</td></tr>
+<tr><td>dalc</td><td>da.DAClient</td><td>the data availability light client used to submit and retrieve blocks to DA network</td></tr>
+<tr><td>headerStore</td><td>*goheaderstore.Store[*types.SignedHeader]</td><td>to store and retrieve block headers gossiped over the P2P network</td></tr>
+<tr><td>dataStore</td><td>*goheaderstore.Store[*types.SignedData]</td><td>to store and retrieve block data gossiped over the P2P network</td></tr>
+<tr><td>signaturePayloadProvider</td><td>types.SignaturePayloadProvider</td><td>optional custom provider for header signature payloads</td></tr>
+<tr><td>sequencer</td><td>core.Sequencer</td><td>used to retrieve batches of transactions from the sequencing layer</td></tr>
+<tr><td>reaper</td><td>*Reaper</td><td>component that periodically retrieves transactions from the executor and submits them to the sequencer</td></tr>
+</tbody></table>
+</div>
+<p>Block manager configuration options:</p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td>BlockTime</td><td>time.Duration</td><td>time interval used for block production and block retrieval from block store (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L36"><code>defaultBlockTime</code></a>)</td></tr>
+<tr><td>DABlockTime</td><td>time.Duration</td><td>time interval used for both block publication to DA network and block retrieval from DA network (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L33"><code>defaultDABlockTime</code></a>)</td></tr>
+<tr><td>DAStartHeight</td><td>uint64</td><td>block retrieval from DA network starts from this height</td></tr>
+<tr><td>LazyBlockInterval</td><td>time.Duration</td><td>time interval used for block production in lazy aggregator mode even when there are no transactions (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L39"><code>defaultLazyBlockTime</code></a>)</td></tr>
+<tr><td>LazyMode</td><td>bool</td><td>when set to true, enables lazy aggregation mode which produces blocks only when transactions are available or at LazyBlockInterval intervals</td></tr>
+<tr><td>MaxPendingHeadersAndData</td><td>uint64</td><td>maximum number of pending headers and data blocks before pausing block production (default: 100)</td></tr>
+<tr><td>GasPrice</td><td>float64</td><td>gas price for DA submissions (-1 for automatic/default)</td></tr>
+<tr><td>GasMultiplier</td><td>float64</td><td>multiplier for gas price on DA submission retries (default: 1.3)</td></tr>
+<tr><td>Namespace</td><td>da.Namespace</td><td>DA namespace ID for block submissions</td></tr>
+</tbody></table>
+</div>
+<h3 id="block-production"><a class="header" href="#block-production">Block Production</a></h3>
+<p>When the full node is operating as a sequencer (aka aggregator), the block manager runs the block production logic. There are two modes of block production, which can be specified in the block manager configurations: <code>normal</code> and <code>lazy</code>.</p>
+<p>In <code>normal</code> mode, the block manager runs a timer, which is set to the <code>BlockTime</code> configuration parameter, and continuously produces blocks at <code>BlockTime</code> intervals.</p>
+<p>In <code>lazy</code> mode, the block manager implements a dual timer mechanism:</p>
+<pre><code class="language-mermaid">flowchart LR
+    subgraph Lazy Aggregation Mode
+        R[Reaper] --&gt;|GetTxs| E[Executor]
+        E --&gt;|Txs Available| R
+        R --&gt;|Submit to Sequencer| S[Sequencer]
+        R --&gt;|NotifyNewTransactions| N[txNotifyCh]
+        
+        N --&gt; A{Aggregation Logic}
+        BT[blockTimer] --&gt; A
+        LT[lazyTimer] --&gt; A
+        
+        A --&gt;|Txs Available| P1[Produce Block with Txs]
+        A --&gt;|No Txs &amp; LazyTimer| P2[Produce Empty Block]
+        
+        P1 --&gt; B[Block Creation]
+        P2 --&gt; B
+    end
+</code></pre>
+<ol>
+<li>A <code>blockTimer</code> that triggers block production at regular intervals when transactions are available</li>
+<li>A <code>lazyTimer</code> that ensures blocks are produced at <code>LazyBlockInterval</code> intervals even during periods of inactivity</li>
+</ol>
+<p>The block manager starts building a block when any transaction becomes available in the mempool via a notification channel (<code>txNotifyCh</code>). When the <code>Reaper</code> detects new transactions, it calls <code>Manager.NotifyNewTransactions()</code>, which performs a non-blocking signal on this channel. The block manager also produces empty blocks at regular intervals to maintain consistency with the DA layer, ensuring a 1:1 mapping between DA layer blocks and execution layer blocks.</p>
+<p>The Reaper component periodically retrieves transactions from the executor and submits them to the sequencer. It runs independently and notifies the block manager when new transactions are available, enabling responsive block production in lazy mode.</p>
+<h4 id="building-the-block"><a class="header" href="#building-the-block">Building the Block</a></h4>
+<p>The block manager of the sequencer nodes performs the following steps to produce a block:</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[Timer Trigger / Transaction Notification] --&gt; B[Retrieve Batch]
+    B --&gt; C{Transactions Available?}
+    C --&gt;|Yes| D[Create Block with Txs]
+    C --&gt;|No| E[Create Empty Block]
+    D --&gt; F[Generate Header &amp; Data]
+    E --&gt; F
+    F --&gt; G[Sign Header → SignedHeader]
+    F --&gt; H[Sign Data → SignedData]
+    G --&gt; I[Apply Block]
+    H --&gt; I
+    I --&gt; J[Update State]
+    J --&gt; K[Save to Store]
+    K --&gt; L[Add to pendingHeaders]
+    K --&gt; M[Add to pendingData]
+    L --&gt; N[Broadcast Header to P2P]
+    M --&gt; O[Broadcast Data to P2P]
+</code></pre>
+<ul>
+<li>Retrieve a batch of transactions using <code>retrieveBatch()</code> which interfaces with the sequencer</li>
+<li>Call <code>CreateBlock</code> using executor with the retrieved transactions</li>
+<li>Create separate header and data structures from the block</li>
+<li>Sign the header using <code>signing key</code> to generate <code>SignedHeader</code></li>
+<li>Sign the data using <code>signing key</code> to generate <code>SignedData</code> (if transactions exist)</li>
+<li>Call <code>ApplyBlock</code> using executor to generate an updated state</li>
+<li>Save the block, validators, and updated state to local store</li>
+<li>Add the newly generated header to <code>pendingHeaders</code> queue</li>
+<li>Add the newly generated data to <code>pendingData</code> queue (if not empty)</li>
+<li>Publish the newly generated header and data to channels to notify other components of the sequencer node (such as block and header gossip)</li>
+</ul>
+<p>Note: When no transactions are available, the block manager creates blocks with empty data using a special <code>dataHashForEmptyTxs</code> marker. The header and data separation architecture allows headers and data to be submitted and retrieved independently from the DA layer.</p>
+<h3 id="block-publication-to-da-network"><a class="header" href="#block-publication-to-da-network">Block Publication to DA Network</a></h3>
+<p>The block manager of the sequencer full nodes implements separate submission loops for headers and data, both operating at <code>DABlockTime</code> intervals:</p>
+<pre><code class="language-mermaid">flowchart LR
+    subgraph Header Submission
+        H1[pendingHeaders Queue] --&gt; H2[Header Submission Loop]
+        H2 --&gt; H3[Marshal to Protobuf]
+        H3 --&gt; H4[Submit to DA]
+        H4 --&gt;|Success| H5[Remove from Queue]
+        H4 --&gt;|Failure| H6[Keep in Queue &amp; Retry]
+    end
+    
+    subgraph Data Submission
+        D1[pendingData Queue] --&gt; D2[Data Submission Loop]
+        D2 --&gt; D3[Marshal to Protobuf]
+        D3 --&gt; D4[Submit to DA]
+        D4 --&gt;|Success| D5[Remove from Queue]
+        D4 --&gt;|Failure| D6[Keep in Queue &amp; Retry]
+    end
+    
+    H2 -.-&gt;|DABlockTime| H2
+    D2 -.-&gt;|DABlockTime| D2
+</code></pre>
+<h4 id="header-submission-loop"><a class="header" href="#header-submission-loop">Header Submission Loop</a></h4>
+<p>The <code>HeaderSubmissionLoop</code> manages the submission of signed headers to the DA network:</p>
+<ul>
+<li>Retrieves pending headers from the <code>pendingHeaders</code> queue</li>
+<li>Marshals headers to protobuf format</li>
+<li>Submits to DA using the generic <code>submitToDA</code> helper</li>
+<li>On success, removes submitted headers from the pending queue</li>
+<li>On failure, headers remain in the queue for retry</li>
+</ul>
+<h4 id="data-submission-loop"><a class="header" href="#data-submission-loop">Data Submission Loop</a></h4>
+<p>The <code>DataSubmissionLoop</code> manages the submission of signed data to the DA network:</p>
+<ul>
+<li>Retrieves pending data from the <code>pendingData</code> queue</li>
+<li>Marshals data to protobuf format</li>
+<li>Submits to DA using the generic <code>submitToDA</code> helper</li>
+<li>On success, removes submitted data from the pending queue</li>
+<li>On failure, data remains in the queue for retry</li>
+</ul>
+<h4 id="generic-submission-logic"><a class="header" href="#generic-submission-logic">Generic Submission Logic</a></h4>
+<p>Both loops use a shared <code>submitToDA</code> function that provides:</p>
+<ul>
+<li>Retry logic with <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L50"><code>maxSubmitAttempts</code></a> attempts</li>
+<li>Exponential backoff starting at <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L59"><code>initialBackoff</code></a>, doubling each attempt, capped at <code>DABlockTime</code></li>
+<li>Gas price management with <code>GasMultiplier</code> applied on retries</li>
+<li>Comprehensive metrics tracking for attempts, successes, and failures</li>
+<li>Context-aware cancellation support</li>
+</ul>
+<p>The manager enforces a limit on pending headers and data through <code>MaxPendingHeadersAndData</code> configuration. When this limit is reached, block production pauses to prevent unbounded growth of the pending queues.</p>
+<h3 id="block-retrieval-from-da-network"><a class="header" href="#block-retrieval-from-da-network">Block Retrieval from DA Network</a></h3>
+<p>The block manager implements a <code>RetrieveLoop</code> that regularly pulls headers and data from the DA network:</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[Start RetrieveLoop] --&gt; B[Get DA Height]
+    B --&gt; C{DABlockTime Timer}
+    C --&gt; D[GetHeightPair from DA]
+    D --&gt; E{Result?}
+    E --&gt;|Success| F[Validate Signatures]
+    E --&gt;|NotFound| G[Increment Height]
+    E --&gt;|Error| H[Retry Logic]
+    
+    F --&gt; I[Check Sequencer Info]
+    I --&gt; J[Mark DA Included]
+    J --&gt; K[Send to Sync]
+    K --&gt; L[Increment Height]
+    L --&gt; M[Immediate Next Retrieval]
+    
+    G --&gt; C
+    H --&gt; N{Retries &lt; 10?}
+    N --&gt;|Yes| O[Wait 100ms]
+    N --&gt;|No| P[Log Error &amp; Stall]
+    O --&gt; D
+    M --&gt; D
+</code></pre>
+<h4 id="retrieval-process"><a class="header" href="#retrieval-process">Retrieval Process</a></h4>
+<ol>
+<li>
+<p><strong>Height Management</strong>: Starts from the latest of:</p>
+<ul>
+<li>DA height from the last state in local store</li>
+<li><code>DAStartHeight</code> configuration parameter</li>
+<li>Maintains and increments <code>daHeight</code> counter after successful retrievals</li>
+</ul>
+</li>
+<li>
+<p><strong>Retrieval Mechanism</strong>:</p>
+<ul>
+<li>Executes at <code>DABlockTime</code> intervals</li>
+<li>Makes <code>GetHeightPair(daHeight)</code> request to get both header and data</li>
+<li>Handles three possible outcomes:
+<ul>
+<li><code>Success</code>: Process retrieved header and data</li>
+<li><code>NotFound</code>: No rollup block at this DA height (normal case)</li>
+<li><code>Error</code>: Retry with backoff</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Error Handling</strong>:</p>
+<ul>
+<li>Implements retry logic with 100ms delay between attempts</li>
+<li>After 10 retries, logs error and stalls retrieval</li>
+<li>Does not increment <code>daHeight</code> on persistent errors</li>
+</ul>
+</li>
+<li>
+<p><strong>Processing Retrieved Blocks</strong>:</p>
+<ul>
+<li>Validates header and data signatures</li>
+<li>Checks sequencer information</li>
+<li>Marks blocks as DA included in caches</li>
+<li>Sends to sync goroutine for state update</li>
+<li>Successful processing triggers immediate next retrieval without waiting for timer</li>
+</ul>
+</li>
+</ol>
+<h4 id="header-and-data-caching"><a class="header" href="#header-and-data-caching">Header and Data Caching</a></h4>
+<p>The retrieval system uses persistent caches for both headers and data:</p>
+<ul>
+<li>Prevents duplicate processing</li>
+<li>Tracks DA inclusion status</li>
+<li>Supports out-of-order block arrival</li>
+<li>Enables efficient sync from P2P and DA sources</li>
+</ul>
+<p>For more details on DA integration, see the <a href="./da.html">Data Availability specification</a>.</p>
+<h4 id="out-of-order-rollup-blocks-on-da"><a class="header" href="#out-of-order-rollup-blocks-on-da">Out-of-Order Rollup Blocks on DA</a></h4>
+<p>Rollkit should support blocks arriving out-of-order on DA, like so:
+<img src="./out-of-order-blocks.png" alt="out-of-order blocks" /></p>
+<h4 id="termination-condition"><a class="header" href="#termination-condition">Termination Condition</a></h4>
+<p>If the sequencer double-signs two blocks at the same height, evidence of the fault should be posted to DA. Rollkit full nodes should process the longest valid chain up to the height of the fault evidence, and terminate. See diagram:
+<img src="./termination.png" alt="termination conidition" /></p>
+<h3 id="block-sync-service"><a class="header" href="#block-sync-service">Block Sync Service</a></h3>
+<p>The block sync service manages the synchronization of headers and data through separate stores and channels:</p>
+<h4 id="architecture"><a class="header" href="#architecture">Architecture</a></h4>
+<ul>
+<li><strong>Header Store</strong>: Uses <code>goheader.Store[*types.SignedHeader]</code> for header management</li>
+<li><strong>Data Store</strong>: Uses <code>goheader.Store[*types.SignedData]</code> for data management</li>
+<li><strong>Separation of Concerns</strong>: Headers and data are handled independently, supporting the header/data separation architecture</li>
+</ul>
+<h4 id="synchronization-flow"><a class="header" href="#synchronization-flow">Synchronization Flow</a></h4>
+<ol>
+<li><strong>Header Sync</strong>: Headers created by the sequencer are sent to the header store for P2P gossip</li>
+<li><strong>Data Sync</strong>: Data blocks are sent to the data store for P2P gossip</li>
+<li><strong>Cache Integration</strong>: Both header and data caches track seen items to prevent duplicates</li>
+<li><strong>DA Inclusion Tracking</strong>: Separate tracking for header and data DA inclusion status</li>
+</ol>
+<h3 id="block-publication-to-p2p-network"><a class="header" href="#block-publication-to-p2p-network">Block Publication to P2P network</a></h3>
+<p>The sequencer publishes headers and data separately to the P2P network:</p>
+<h4 id="header-publication"><a class="header" href="#header-publication">Header Publication</a></h4>
+<ul>
+<li>Headers are sent through the header broadcast channel</li>
+<li>Written to the header store for P2P gossip</li>
+<li>Broadcast to network peers via header sync service</li>
+</ul>
+<h4 id="data-publication"><a class="header" href="#data-publication">Data Publication</a></h4>
+<ul>
+<li>Data blocks are sent through the data broadcast channel</li>
+<li>Written to the data store for P2P gossip</li>
+<li>Broadcast to network peers via data sync service</li>
+</ul>
+<p>Non-sequencer full nodes receive headers and data through the P2P sync service and do not publish blocks themselves.</p>
+<h3 id="block-retrieval-from-p2p-network"><a class="header" href="#block-retrieval-from-p2p-network">Block Retrieval from P2P network</a></h3>
+<p>Non-sequencer full nodes retrieve headers and data separately from P2P stores:</p>
+<h4 id="header-store-retrieval-loop"><a class="header" href="#header-store-retrieval-loop">Header Store Retrieval Loop</a></h4>
+<p>The <code>HeaderStoreRetrieveLoop</code>:</p>
+<ul>
+<li>Operates at <code>BlockTime</code> intervals via <code>headerStoreCh</code> signals</li>
+<li>Tracks <code>headerStoreHeight</code> for the last retrieved header</li>
+<li>Retrieves all headers between last height and current store height</li>
+<li>Validates sequencer information using <code>isUsingExpectedSingleSequencer</code></li>
+<li>Marks headers as &quot;seen&quot; in the header cache</li>
+<li>Sends headers to sync goroutine via <code>headerInCh</code></li>
+</ul>
+<h4 id="data-store-retrieval-loop"><a class="header" href="#data-store-retrieval-loop">Data Store Retrieval Loop</a></h4>
+<p>The <code>DataStoreRetrieveLoop</code>:</p>
+<ul>
+<li>Operates at <code>BlockTime</code> intervals via <code>dataStoreCh</code> signals</li>
+<li>Tracks <code>dataStoreHeight</code> for the last retrieved data</li>
+<li>Retrieves all data blocks between last height and current store height</li>
+<li>Validates data signatures using <code>isValidSignedData</code></li>
+<li>Marks data as &quot;seen&quot; in the data cache</li>
+<li>Sends data to sync goroutine via <code>dataInCh</code></li>
+</ul>
+<h4 id="soft-confirmations"><a class="header" href="#soft-confirmations">Soft Confirmations</a></h4>
+<p>Headers and data retrieved from P2P are marked as soft confirmed until both:</p>
+<ol>
+<li>The corresponding header is seen on the DA layer</li>
+<li>The corresponding data is seen on the DA layer</li>
+</ol>
+<p>Once both conditions are met, the block is marked as DA-included.</p>
+<h4 id="about-soft-confirmations-and-da-inclusions"><a class="header" href="#about-soft-confirmations-and-da-inclusions">About Soft Confirmations and DA Inclusions</a></h4>
+<p>The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 6 seconds).<br />
+The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked DA-included.<br />
+DA-included blocks are considered to have a higher level of finality.</p>
+<p><strong>DAIncluderLoop</strong>:<br />
+The <code>DAIncluderLoop</code> is responsible for advancing the <code>DAIncludedHeight</code> by:</p>
+<ul>
+<li>Checking if blocks after the current height have both header and data marked as DA-included in caches</li>
+<li>Stopping advancement if either header or data is missing for a height</li>
+<li>Calling <code>SetFinal</code> on the executor when a block becomes DA-included</li>
+<li>Storing the Rollkit height to DA height mapping for tracking</li>
+<li>Ensuring only blocks with both header and data present are considered DA-included</li>
+</ul>
+<h3 id="state-update-after-block-retrieval"><a class="header" href="#state-update-after-block-retrieval">State Update after Block Retrieval</a></h3>
+<p>The block manager uses a <code>SyncLoop</code> to coordinate state updates from blocks retrieved via P2P or DA networks:</p>
+<pre><code class="language-mermaid">flowchart TD
+    subgraph Sources
+        P1[P2P Header Store] --&gt; H[headerInCh]
+        P2[P2P Data Store] --&gt; D[dataInCh]
+        DA1[DA Header Retrieval] --&gt; H
+        DA2[DA Data Retrieval] --&gt; D
+    end
+    
+    subgraph SyncLoop
+        H --&gt; S[Sync Goroutine]
+        D --&gt; S
+        S --&gt; C{Header &amp; Data for Same Height?}
+        C --&gt;|Yes| R[Reconstruct Block]
+        C --&gt;|No| W[Wait for Matching Pair]
+        R --&gt; V[Validate Signatures]
+        V --&gt; A[ApplyBlock]
+        A --&gt; CM[Commit]
+        CM --&gt; ST[Store Block &amp; State]
+        ST --&gt; F{DA Included?}
+        F --&gt;|Yes| FN[SetFinal]
+        F --&gt;|No| E[End]
+        FN --&gt; U[Update DA Height]
+    end
+</code></pre>
+<h4 id="sync-loop-architecture"><a class="header" href="#sync-loop-architecture">Sync Loop Architecture</a></h4>
+<p>The <code>SyncLoop</code> processes headers and data from multiple sources:</p>
+<ul>
+<li>Headers from <code>headerInCh</code> (P2P and DA sources)</li>
+<li>Data from <code>dataInCh</code> (P2P and DA sources)</li>
+<li>Maintains caches to track processed items</li>
+<li>Ensures ordered processing by height</li>
+</ul>
+<h4 id="state-update-process"><a class="header" href="#state-update-process">State Update Process</a></h4>
+<p>When both header and data are available for a height:</p>
+<ol>
+<li><strong>Block Reconstruction</strong>: Combines header and data into a complete block</li>
+<li><strong>Validation</strong>: Verifies header and data signatures match expectations</li>
+<li><strong>ApplyBlock</strong>:
+<ul>
+<li>Validates the block against current state</li>
+<li>Executes transactions</li>
+<li>Captures validator updates</li>
+<li>Returns updated state</li>
+</ul>
+</li>
+<li><strong>Commit</strong>:
+<ul>
+<li>Persists execution results</li>
+<li>Updates mempool by removing included transactions</li>
+<li>Publishes block events</li>
+</ul>
+</li>
+<li><strong>Storage</strong>:
+<ul>
+<li>Stores the block, validators, and updated state</li>
+<li>Updates last state in manager</li>
+</ul>
+</li>
+<li><strong>Finalization</strong>:
+<ul>
+<li>When block is DA-included, calls <code>SetFinal</code> on executor</li>
+<li>Updates DA included height</li>
+</ul>
+</li>
+</ol>
+<h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
+<p>The communication between the block manager and executor:</p>
+<ul>
+<li><code>InitChain</code>: initializes the chain state with the given genesis time, initial height, and chain ID using <code>InitChainSync</code> on the executor to obtain initial <code>appHash</code> and initialize the state.</li>
+<li><code>CreateBlock</code>: prepares a block with transactions from the provided batch data.</li>
+<li><code>ApplyBlock</code>: validates the block, executes the block (apply transactions), captures validator updates, and returns updated state.</li>
+<li><code>SetFinal</code>: marks the block as final when both its header and data are confirmed on the DA layer.</li>
+<li><code>GetTxs</code>: retrieves transactions from the application (used by Reaper component).</li>
+</ul>
+<p>The communication with the sequencer:</p>
+<ul>
+<li><code>GetNextBatch</code>: retrieves the next batch of transactions to include in a block.</li>
+<li><code>VerifyBatch</code>: validates that a batch came from the expected sequencer.</li>
+</ul>
+<p>The communication with DA layer:</p>
+<ul>
+<li><code>Submit</code>: submits headers or data blobs to the DA network.</li>
+<li><code>Get</code>: retrieves headers or data blobs from the DA network.</li>
+<li><code>GetHeightPair</code>: retrieves both header and data at a specific DA height.</li>
+</ul>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<ul>
+<li>The block manager loads the initial state from the local store and uses genesis if not found in the local store, when the node (re)starts.</li>
+<li>The default mode for sequencer nodes is normal (not lazy).</li>
+<li>The sequencer can produce empty blocks.</li>
+<li>In lazy aggregation mode, the block manager maintains consistency with the DA layer by producing empty blocks at regular intervals, ensuring a 1:1 mapping between DA layer blocks and execution layer blocks.</li>
+<li>The lazy aggregation mechanism uses a dual timer approach:
+<ul>
+<li>A <code>blockTimer</code> that triggers block production when transactions are available</li>
+<li>A <code>lazyTimer</code> that ensures blocks are produced even during periods of inactivity</li>
+</ul>
+</li>
+<li>Empty batches are handled differently in lazy mode - instead of discarding them, they are returned with the <code>ErrNoBatch</code> error, allowing the caller to create empty blocks with proper timestamps.</li>
+<li>Transaction notifications from the <code>Reaper</code> to the <code>Manager</code> are handled via a non-blocking notification channel (<code>txNotifyCh</code>) to prevent backpressure.</li>
+<li>The block manager enforces <code>MaxPendingHeadersAndData</code> limit to prevent unbounded growth of pending queues during DA submission issues.</li>
+<li>Headers and data are submitted separately to the DA layer, supporting the header/data separation architecture.</li>
+<li>The block manager uses persistent caches for headers and data to track seen items and DA inclusion status.</li>
+<li>Gas price management includes automatic adjustment with <code>GasMultiplier</code> on DA submission retries.</li>
+<li>The block manager uses persistent storage (disk) when the <code>root_dir</code> and <code>db_path</code> configuration parameters are specified in <code>config.yaml</code> file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.</li>
+<li>The block manager does not re-apply blocks when they transition from soft confirmed to DA included status. The block is only marked DA included in the caches.</li>
+<li>Header and data stores use separate prefixes for isolation in the underlying database.</li>
+<li>The genesis <code>ChainID</code> is used to create separate <code>PubSubTopID</code>s for headers and data in go-header.</li>
+<li>Block sync over the P2P network works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via <code>P2PConfig.Seeds</code> configuration parameter when starting the full node.</li>
+<li>Node's context is passed down to all components to support graceful shutdown and cancellation.</li>
+<li>The block manager supports custom signature payload providers for headers, enabling flexible signing schemes.</li>
+<li>The block manager supports the separation of header and data structures in Rollkit. This allows for expanding the sequencing scheme beyond single sequencing and enables the use of a decentralized sequencer mode. For detailed information on this architecture, see the <a href="../../lazy-adr/adr-014-header-and-data-separation.html">Header and Data Separation ADR</a>.</li>
+<li>The block manager processes blocks with a minimal header format, which is designed to eliminate dependency on CometBFT's header format and can be used to produce an execution layer tailored header if needed. For details on this header structure, see the <a href="../../lazy-adr/adr-015-rollkit-minimal-header.html">Rollkit Minimal Header</a> specification.</li>
+</ul>
+<h2 id="metrics"><a class="header" href="#metrics">Metrics</a></h2>
+<p>The block manager exposes comprehensive metrics for monitoring:</p>
+<h3 id="block-production-metrics"><a class="header" href="#block-production-metrics">Block Production Metrics</a></h3>
+<ul>
+<li><code>last_block_produced_height</code>: Height of the last produced block</li>
+<li><code>last_block_produced_time</code>: Timestamp of the last produced block</li>
+<li><code>aggregation_type</code>: Current aggregation mode (normal/lazy)</li>
+<li><code>block_size_bytes</code>: Size distribution of produced blocks</li>
+<li><code>produced_empty_blocks_total</code>: Count of empty blocks produced</li>
+</ul>
+<h3 id="da-metrics"><a class="header" href="#da-metrics">DA Metrics</a></h3>
+<ul>
+<li><code>da_submission_attempts_total</code>: Total DA submission attempts</li>
+<li><code>da_submission_success_total</code>: Successful DA submissions</li>
+<li><code>da_submission_failure_total</code>: Failed DA submissions</li>
+<li><code>da_retrieval_attempts_total</code>: Total DA retrieval attempts</li>
+<li><code>da_retrieval_success_total</code>: Successful DA retrievals</li>
+<li><code>da_retrieval_failure_total</code>: Failed DA retrievals</li>
+<li><code>da_height</code>: Current DA retrieval height</li>
+<li><code>pending_headers_count</code>: Number of headers pending DA submission</li>
+<li><code>pending_data_count</code>: Number of data blocks pending DA submission</li>
+</ul>
+<h3 id="sync-metrics"><a class="header" href="#sync-metrics">Sync Metrics</a></h3>
+<ul>
+<li><code>sync_height</code>: Current sync height</li>
+<li><code>da_included_height</code>: Height of last DA-included block</li>
+<li><code>soft_confirmed_height</code>: Height of last soft confirmed block</li>
+<li><code>header_store_height</code>: Current header store height</li>
+<li><code>data_store_height</code>: Current data store height</li>
+</ul>
+<h3 id="performance-metrics"><a class="header" href="#performance-metrics">Performance Metrics</a></h3>
+<ul>
+<li><code>block_production_time</code>: Time to produce a block</li>
+<li><code>da_submission_time</code>: Time to submit to DA</li>
+<li><code>state_update_time</code>: Time to apply block and update state</li>
+<li><code>channel_buffer_usage</code>: Usage of internal channels</li>
+</ul>
+<h3 id="error-metrics"><a class="header" href="#error-metrics">Error Metrics</a></h3>
+<ul>
+<li><code>errors_total</code>: Total errors by type and operation</li>
+</ul>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block-manager</a></p>
+<p>See <a href="https://rollkit.dev/guides/full-node">tutorial</a> for running a multi-node network with both sequencer and non-sequencer full nodes.</p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<p>[1] <a href="https://github.com/celestiaorg/go-header">Go Header</a></p>
+<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Block Sync</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
+<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
+<p>[5] <a href="https://rollkit.dev/guides/full-node">Tutorial</a></p>
+<p>[6] <a href="../../lazy-adr/adr-014-header-and-data-separation.html">Header and Data Separation ADR</a></p>
+<p>[7] <a href="../../lazy-adr/adr-015-rollkit-minimal-header.html">Rollkit Minimal Header</a></p>
+<p>[8] <a href="./da.html">Data Availability</a></p>
+<p>[9] <a href="../../lazy-adr/adr-021-lazy-aggregation.html">Lazy Aggregation with DA Layer Consistency ADR</a></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../specs/rollkit-dependency-graph.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../specs/block-validity.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../specs/rollkit-dependency-graph.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../specs/block-validity.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
