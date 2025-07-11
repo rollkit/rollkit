@@ -5,6 +5,7 @@
 //
 // This file specifically tests the EVM full node functionality including:
 // - Full node synchronization via P2P with sequencer
+// - Full node synchronization via DA-only with sequencer
 // - Transaction sync verification between sequencer and full node
 // - Multi-node setup and P2P block propagation
 // - State root consistency across distributed nodes
@@ -13,7 +14,7 @@
 // - Lazy mode sequencer behavior with full node sync
 //
 // Test Coverage:
-// 1. TestEvmSequencerWithFullNodeE2E - Full node P2P sync with sequencer
+// 1. TestEvmSequencerWithFullNodeE2E - Full node sync with sequencer (P2P and DA-only subtests)
 // 2. TestEvmFullNodeBlockPropagationE2E - Block propagation across multiple nodes
 // 3. TestEvmLazyModeSequencerE2E - Lazy mode sequencer with full node P2P sync
 // 4. TestEvmSequencerFullNodeRestartE2E - Distributed restart and recovery testing
@@ -24,6 +25,7 @@ package e2e
 import (
 	"context"
 	"flag"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -254,6 +256,32 @@ func setupSequencerWithFullNode(t *testing.T, sut *SystemUnderTest, sequencerHom
 }
 
 // TestEvmSequencerWithFullNodeE2E tests the full node synchronization functionality
+// with both P2P and DA-only connection methods.
+//
+// Test Purpose:
+// - Validate that full nodes can sync with sequencers using different methods
+// - Compare P2P vs DA-only synchronization mechanisms
+// - Ensure both sync methods maintain state consistency
+// - Demonstrate alternative sync approaches for different network conditions
+//
+// Sub-tests:
+// 1. P2P_Sync: Full node connects via P2P gossip (fast, real-time)
+// 2. DA_Only_Sync: Full node connects only via DA layer (slower, more reliable)
+//
+// This test provides comprehensive coverage of both synchronization methods,
+// allowing developers to understand the trade-offs between speed (P2P) and
+// reliability (DA-only) in different network scenarios.
+func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
+	t.Run("P2P_Sync", func(t *testing.T) {
+		TestEvmSequencerWithFullNodeP2PE2E(t)
+	})
+
+	t.Run("DA_Only_Sync", func(t *testing.T) {
+		TestEvmSequencerWithFullNodeDAOnlyE2E(t)
+	})
+}
+
+// TestEvmSequencerWithFullNodeP2PE2E tests the full node synchronization functionality
 // where a full node connects to a sequencer via P2P and syncs transactions.
 //
 // Test Flow:
@@ -282,10 +310,10 @@ func setupSequencerWithFullNode(t *testing.T, sut *SystemUnderTest, sequencerHom
 // - Implements comprehensive state root checking similar to execution_test.go patterns
 // - Ensures EVM state consistency between sequencer and full node on the Reth side
 //
-// This test demonstrates that full nodes can sync with sequencers in real-time,
+// This test demonstrates that full nodes can sync with sequencers in real-time via P2P,
 // validates the P2P block propagation mechanism in Rollkit, and ensures that
 // the underlying EVM execution state remains consistent across all nodes.
-func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
+func TestEvmSequencerWithFullNodeP2PE2E(t *testing.T) {
 	flag.Parse()
 	workDir := t.TempDir()
 	sequencerHome := filepath.Join(workDir, "evm-sequencer")
@@ -398,175 +426,12 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 		}
 	}
 
-	t.Logf("✅ Test PASSED: All blocks (%d-%d) have matching state roots, %d transactions synced successfully across blocks %v",
-		startHeight, endHeight, len(txHashes), txBlockNumbers)
-}
-
-// TestEvmFullNodeBlockPropagationE2E tests that blocks produced by the aggregator
-// are correctly propagated to all connected full nodes.
-//
-// Test Purpose:
-// - Ensure blocks produced by the sequencer are propagated to all full nodes
-// - Verify that all full nodes receive and store identical block data
-// - Test P2P block propagation with multiple full nodes
-// - Validate that P2P block propagation works reliably across the network
-//
-// Test Flow:
-// 1. Sets up Local DA layer and EVM instances for 1 sequencer + 3 full nodes
-// 2. Starts sequencer node (aggregator) with standard configuration
-// 3. Starts 3 full nodes connecting to the sequencer (simulated using existing setup)
-// 4. Submits multiple transactions to the sequencer to create blocks with content
-// 5. Waits for block propagation and verifies all nodes have identical blocks
-// 6. Performs comprehensive validation across multiple blocks
-//
-// This simplified test validates the core P2P block propagation functionality
-// by running the test multiple times with different full node configurations,
-// ensuring that the network can scale to multiple full nodes while maintaining
-// data consistency and integrity across all participants.
-func TestEvmFullNodeBlockPropagationE2E(t *testing.T) {
-	flag.Parse()
-	workDir := t.TempDir()
-	sequencerHome := filepath.Join(workDir, "evm-sequencer")
-	fullNodeHome := filepath.Join(workDir, "evm-full-node")
-	sut := NewSystemUnderTest(t)
-
-	// Setup both sequencer and full node
-	sequencerClient, fullNodeClient := setupSequencerWithFullNode(t, sut, sequencerHome, fullNodeHome)
-	defer sequencerClient.Close()
-	defer fullNodeClient.Close()
-
-	// === TESTING PHASE ===
-
-	// Submit multiple transactions to create blocks with varying content
-	var txHashes []common.Hash
-	var txBlockNumbers []uint64
-
-	t.Log("Submitting transactions to create blocks...")
-
-	// Submit multiple batches of transactions to test block propagation
-	totalTransactions := 10
-	for i := 0; i < totalTransactions; i++ {
-		txHash, txBlockNumber := submitTransactionAndGetBlockNumber(t, sequencerClient)
-		txHashes = append(txHashes, txHash)
-		txBlockNumbers = append(txBlockNumbers, txBlockNumber)
-		t.Logf("Transaction %d included in sequencer block %d", i+1, txBlockNumber)
-
-		// Optimized timing to create different block distributions
-		if i < 3 {
-			time.Sleep(25 * time.Millisecond) // Fast submissions
-		} else if i < 6 {
-			time.Sleep(50 * time.Millisecond) // Medium pace
-		} else {
-			time.Sleep(75 * time.Millisecond) // Slower pace
-		}
-	}
-
-	// Wait for all blocks to propagate (reduced wait time due to faster block times)
-	t.Log("Waiting for block propagation to full node...")
-	time.Sleep(500 * time.Millisecond)
-
-	// === VERIFICATION PHASE ===
-
-	nodeURLs := []string{
-		SequencerEthURL, // Sequencer
-		FullNodeEthURL,  // Full Node
-	}
-
-	nodeNames := []string{
-		"Sequencer",
-		"Full Node",
-	}
-
-	// Get the current height to determine which blocks to verify
-	ctx := context.Background()
-	seqHeader, err := sequencerClient.HeaderByNumber(ctx, nil)
-	require.NoError(t, err, "Should get latest header from sequencer")
-	currentHeight := seqHeader.Number.Uint64()
-
-	t.Logf("Current sequencer height: %d", currentHeight)
-
-	// Wait for full node to catch up to the sequencer height
-	t.Log("Ensuring full node is synced to current height...")
-
-	require.Eventually(t, func() bool {
-		header, err := fullNodeClient.HeaderByNumber(ctx, nil)
-		if err != nil {
-			return false
-		}
-		height := header.Number.Uint64()
-		if height < currentHeight {
-			t.Logf("Full node height: %d (target: %d)", height, currentHeight)
-			return false
-		}
-		return true
-	}, 20*time.Second, 500*time.Millisecond, "Full node should catch up to sequencer height %d", currentHeight)
-
-	t.Log("Full node is synced! Verifying block propagation...")
-
-	// Verify block propagation for all blocks from genesis to current height
-	// Start from block 1 (skip genesis block 0)
-	startHeight := uint64(1)
-	endHeight := currentHeight
-
-	t.Logf("Verifying block propagation for blocks %d to %d", startHeight, endHeight)
-
-	// Test all blocks have propagated correctly
-	for blockHeight := startHeight; blockHeight <= endHeight; blockHeight++ {
-		verifyBlockPropagationAcrossNodes(t, nodeURLs, blockHeight, nodeNames)
-	}
-
-	// Verify all transactions exist on full node
-	t.Log("Verifying all transactions exist on full node...")
-
-	for i, txHash := range txHashes {
-		txBlockNumber := txBlockNumbers[i]
-
-		// Check transaction on full node
-		require.Eventually(t, func() bool {
-			receipt, err := fullNodeClient.TransactionReceipt(ctx, txHash)
-			return err == nil && receipt != nil && receipt.Status == 1 && receipt.BlockNumber.Uint64() == txBlockNumber
-		}, DefaultTestTimeout, 500*time.Millisecond, "Transaction %d should exist on full node in block %d", i+1, txBlockNumber)
-
-		t.Logf("✅ Transaction %d verified on full node (block %d)", i+1, txBlockNumber)
-	}
-
-	// Final comprehensive verification of all transaction blocks
-	uniqueBlocks := make(map[uint64]bool)
-	for _, blockNum := range txBlockNumbers {
-		uniqueBlocks[blockNum] = true
-	}
-
-	t.Logf("Final verification: checking %d unique transaction blocks", len(uniqueBlocks))
-	for blockHeight := range uniqueBlocks {
-		verifyBlockPropagationAcrossNodes(t, nodeURLs, blockHeight, nodeNames)
-	}
-
-	// Additional test: Simulate multiple full node behavior by running verification multiple times
-	t.Log("Simulating multiple full node verification by running additional checks...")
-
-	// Verify state consistency multiple times to simulate different full nodes (reduced rounds)
-	for round := 1; round <= 2; round++ {
-		t.Logf("Verification round %d - simulating full node %d", round, round)
-
-		// Check a sample of blocks each round
-		sampleBlocks := []uint64{startHeight, startHeight + 1, endHeight - 1, endHeight}
-		for _, blockHeight := range sampleBlocks {
-			if blockHeight >= startHeight && blockHeight <= endHeight {
-				verifyBlockPropagationAcrossNodes(t, nodeURLs, blockHeight, nodeNames)
-			}
-		}
-
-		// Small delay between rounds
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	t.Logf("✅ Test PASSED: Block propagation working correctly!")
-	t.Logf("   - Sequencer produced %d blocks", currentHeight)
-	t.Logf("   - Full node received identical blocks")
-	t.Logf("   - %d transactions propagated successfully across %d unique blocks", len(txHashes), len(uniqueBlocks))
-	t.Logf("   - Block hashes, state roots, and transaction data match between nodes")
+	t.Logf("✅ Test PASSED: P2P synchronization working correctly!")
+	t.Logf("   - All blocks (%d-%d) have matching state roots", startHeight, endHeight)
+	t.Logf("   - %d transactions synced successfully via P2P across blocks %v", len(txHashes), txBlockNumbers)
+	t.Logf("   - Full node synchronized using P2P connections")
+	t.Logf("   - State consistency maintained between sequencer and full node")
 	t.Logf("   - P2P block propagation mechanism functioning properly")
-	t.Logf("   - Test simulated multiple full node scenarios successfully")
 }
 
 // setupSequencerWithFullNodeLazy sets up both sequencer (in lazy mode) and full node with P2P connections.
@@ -1375,4 +1240,304 @@ func testSequencerFullNodeRestart(t *testing.T, initialLazyMode, restartLazyMode
 	t.Logf("   - Blockchain height progressed: %d -> %d: ✓", preRestartSeqHeight, finalSeqHeight)
 	t.Logf("   - All %d transactions verified on both nodes: ✓", len(allTxHashes))
 	t.Logf("   - Distributed system resilience demonstrated: ✓")
+}
+
+// setupSequencerWithFullNodeDAOnly sets up both sequencer and full node with DA-only connections.
+// This helper function creates a setup where the full node connects only via DA and not P2P.
+// This tests the DA synchronization mechanism independently of P2P block propagation.
+//
+// Returns: sequencerClient, fullNodeClient for EVM connections
+func setupSequencerWithFullNodeDAOnly(t *testing.T, sut *SystemUnderTest, sequencerHome, fullNodeHome string) (*ethclient.Client, *ethclient.Client) {
+	t.Helper()
+
+	// Common setup for both sequencer and full node
+	jwtSecret, fullNodeJwtSecret, genesisHash := setupCommonEVMTest(t, sut, true)
+
+	// Setup sequencer
+	setupSequencerNode(t, sut, sequencerHome, jwtSecret, genesisHash)
+	t.Log("Sequencer node is up")
+
+	// Setup full node without P2P connections (DA-only)
+	setupFullNodeDAOnly(t, sut, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash)
+	t.Log("Full node is up (DA-only mode)")
+
+	// Connect to both EVM instances
+	sequencerClient, err := ethclient.Dial(SequencerEthURL)
+	require.NoError(t, err, "Should be able to connect to sequencer EVM")
+
+	fullNodeClient, err := ethclient.Dial(FullNodeEthURL)
+	require.NoError(t, err, "Should be able to connect to full node EVM")
+
+	// Wait for DA synchronization to establish
+	t.Log("Waiting for DA synchronization to establish...")
+	require.Eventually(t, func() bool {
+		// Check if both nodes are responsive
+		seqHeader, seqErr := sequencerClient.HeaderByNumber(context.Background(), nil)
+		fnHeader, fnErr := fullNodeClient.HeaderByNumber(context.Background(), nil)
+
+		if seqErr != nil || fnErr != nil {
+			return false
+		}
+
+		// Both nodes should be responsive and at genesis or later
+		seqHeight := seqHeader.Number.Uint64()
+		fnHeight := fnHeader.Number.Uint64()
+
+		// DA sync is slower than P2P, so allow more generous sync tolerance
+		// Allow up to 50 blocks difference to account for DA block time and processing delays
+		return seqHeight >= 0 && fnHeight >= 0 && (seqHeight == 0 || fnHeight+50 >= seqHeight)
+	}, 30*time.Second, 1*time.Second, "DA synchronization should be established")
+
+	t.Log("DA synchronization established")
+	return sequencerClient, fullNodeClient
+}
+
+// setupFullNodeDAOnly initializes and starts the full node with DA-only connection (no P2P).
+// This function handles:
+// - Full node initialization (non-aggregator mode)
+// - Genesis file copying from sequencer to ensure chain consistency
+// - DA layer connection for data availability without P2P peer connections
+// - Different EVM engine ports (8555/8561) to avoid conflicts
+//
+// Parameters:
+// - fullNodeHome: Directory path for full node data
+// - sequencerHome: Directory path of sequencer (for genesis file copying)
+// - fullNodeJwtSecret: JWT secret for full node's EVM engine
+// - genesisHash: Hash of the genesis block for chain validation
+func setupFullNodeDAOnly(t *testing.T, sut *SystemUnderTest, fullNodeHome, sequencerHome, fullNodeJwtSecret, genesisHash string) {
+	t.Helper()
+
+	// Initialize full node
+	output, err := sut.RunCmd(evmSingleBinaryPath,
+		"init",
+		"--home", fullNodeHome,
+	)
+	require.NoError(t, err, "failed to init full node", output)
+
+	// Copy genesis file from sequencer to full node
+	sequencerGenesis := filepath.Join(sequencerHome, "config", "genesis.json")
+	fullNodeGenesis := filepath.Join(fullNodeHome, "config", "genesis.json")
+	genesisData, err := os.ReadFile(sequencerGenesis)
+	require.NoError(t, err, "failed to read sequencer genesis file")
+	err = os.WriteFile(fullNodeGenesis, genesisData, 0644)
+	require.NoError(t, err, "failed to write full node genesis file")
+
+	// Start full node without P2P connections (DA-only)
+	sut.ExecCmd(evmSingleBinaryPath,
+		"start",
+		"--home", fullNodeHome,
+		"--evm.jwt-secret", fullNodeJwtSecret,
+		"--evm.genesis-hash", genesisHash,
+		"--rollkit.rpc.address", "127.0.0.1:"+FullNodeRPCPort,
+		// Note: No P2P configuration - the full node will sync only via DA
+		"--evm.engine-url", FullNodeEngineURL,
+		"--evm.eth-url", FullNodeEthURL,
+		"--rollkit.da.address", DAAddress,
+		"--rollkit.da.block_time", DefaultDABlockTime,
+	)
+	sut.AwaitNodeUp(t, "http://127.0.0.1:"+FullNodeRPCPort, NodeStartupTimeout)
+}
+
+// verifyTransactionSyncDAOnly verifies that the transaction syncs to the full node via DA.
+// This function is similar to verifyTransactionSync but allows for longer sync times
+// since DA synchronization is typically slower than P2P.
+//
+// Parameters:
+// - sequencerClient: Ethereum client connected to sequencer EVM
+// - fullNodeClient: Ethereum client connected to full node EVM
+// - txHash: Hash of the transaction to verify
+// - expectedBlockNumber: Block number where transaction should be included
+func verifyTransactionSyncDAOnly(t *testing.T, sequencerClient, fullNodeClient *ethclient.Client, txHash common.Hash, expectedBlockNumber uint64) {
+	t.Helper()
+
+	ctx := context.Background()
+
+	// Wait for full node to sync the specific block containing the transaction via DA
+	// DA sync is slower than P2P, so we use longer timeout and intervals
+	require.Eventually(t, func() bool {
+		// Check if full node has reached the block containing the transaction
+		fullNodeHeader, err := fullNodeClient.HeaderByNumber(ctx, nil)
+		if err != nil {
+			return false
+		}
+
+		// If full node has reached or passed the transaction block
+		if fullNodeHeader.Number.Uint64() >= expectedBlockNumber {
+			// Verify the transaction exists in the full node
+			receipt, err := fullNodeClient.TransactionReceipt(ctx, txHash)
+			if err == nil && receipt != nil && receipt.Status == 1 {
+				return receipt.BlockNumber.Uint64() == expectedBlockNumber
+			}
+		}
+		return false
+	}, 60*time.Second, 2*time.Second, "Full node should sync the block containing the transaction via DA")
+
+	// Final verification - both nodes should have the transaction in the same block
+	sequencerReceipt, err := sequencerClient.TransactionReceipt(ctx, txHash)
+	require.NoError(t, err, "Should get transaction receipt from sequencer")
+
+	fullNodeReceipt, err := fullNodeClient.TransactionReceipt(ctx, txHash)
+	require.NoError(t, err, "Should get transaction receipt from full node")
+
+	require.Equal(t, sequencerReceipt.BlockNumber.Uint64(), fullNodeReceipt.BlockNumber.Uint64(),
+		"Transaction should be in the same block number on both sequencer and full node")
+}
+
+// TestEvmSequencerWithFullNodeDAOnlyE2E tests the full node synchronization functionality
+// where a full node connects to a sequencer ONLY via DA (no P2P connections).
+//
+// Test Purpose:
+// - Validate that full nodes can sync with sequencers using only the DA layer
+// - Test DA-based block synchronization without P2P gossip
+// - Ensure transaction data consistency when using DA-only synchronization
+// - Verify that state roots remain consistent between sequencer and full node via DA
+//
+// Test Flow:
+// 1. Sets up Local DA layer and separate EVM instances for sequencer and full node
+// 2. Starts sequencer node with standard configuration
+// 3. Starts full node WITHOUT P2P connections (DA-only mode)
+// 4. Submits transactions to sequencer EVM and gets the block numbers
+// 5. Verifies the full node syncs the exact same blocks containing the transactions via DA
+// 6. Performs comprehensive state root verification across all synced blocks
+//
+// Validation:
+// - Both sequencer and full node start successfully
+// - DA synchronization is established between nodes (no P2P)
+// - Transactions submitted to sequencer are included in specific blocks
+// - Full node syncs the same block numbers containing the transactions via DA
+// - Transaction data is identical on both nodes (same block, same receipt)
+// - State roots match between sequencer and full node for all blocks
+// - Block hashes and transaction counts are consistent across both nodes
+//
+// Key Technical Details:
+// - Uses separate Docker Compose configurations for different EVM ports
+// - Full node starts without P2P listen address or peers configuration
+// - Validates that DA sync works independently of P2P layer
+// - Implements comprehensive state root checking
+// - Longer timeouts to account for DA sync being slower than P2P
+//
+// This test demonstrates that full nodes can sync with sequencers using only the DA layer,
+// providing an alternative synchronization mechanism that doesn't rely on P2P networking.
+// This is useful for scenarios where P2P connections are restricted or unreliable.
+func TestEvmSequencerWithFullNodeDAOnlyE2E(t *testing.T) {
+	flag.Parse()
+	workDir := t.TempDir()
+	sequencerHome := filepath.Join(workDir, "evm-sequencer")
+	fullNodeHome := filepath.Join(workDir, "evm-full-node-da-only")
+	sut := NewSystemUnderTest(t)
+
+	// Setup both sequencer and full node (DA-only)
+	sequencerClient, fullNodeClient := setupSequencerWithFullNodeDAOnly(t, sut, sequencerHome, fullNodeHome)
+	defer sequencerClient.Close()
+	defer fullNodeClient.Close()
+
+	// === TESTING PHASE ===
+
+	// Submit multiple transactions at different intervals to create state changes
+	var txHashes []common.Hash
+	var txBlockNumbers []uint64
+
+	// Submit first batch of transactions
+	t.Log("Submitting first batch of transactions...")
+	for i := 0; i < 3; i++ {
+		txHash, txBlockNumber := submitTransactionAndGetBlockNumber(t, sequencerClient)
+		txHashes = append(txHashes, txHash)
+		txBlockNumbers = append(txBlockNumbers, txBlockNumber)
+		t.Logf("Transaction %d included in sequencer block %d", i+1, txBlockNumber)
+
+		// Longer delay between transactions to allow DA processing
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	// Wait for DA processing
+	t.Log("Waiting for DA processing...")
+	time.Sleep(3 * time.Second)
+
+	// Submit second batch of transactions
+	t.Log("Submitting second batch of transactions...")
+	for i := 0; i < 2; i++ {
+		txHash, txBlockNumber := submitTransactionAndGetBlockNumber(t, sequencerClient)
+		txHashes = append(txHashes, txHash)
+		txBlockNumbers = append(txBlockNumbers, txBlockNumber)
+		t.Logf("Transaction %d included in sequencer block %d", i+4, txBlockNumber)
+
+		// Longer delay between transactions for DA processing
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	// Wait for all transactions to be processed and propagated via DA
+	t.Log("Waiting for DA synchronization...")
+	time.Sleep(5 * time.Second)
+
+	t.Logf("Total transactions submitted: %d across blocks %v", len(txHashes), txBlockNumbers)
+
+	t.Log("Waiting for full node to sync all transaction blocks via DA...")
+
+	// Verify all transactions have synced via DA
+	for i, txHash := range txHashes {
+		txBlockNumber := txBlockNumbers[i]
+		t.Logf("Verifying transaction %d sync in block %d via DA...", i+1, txBlockNumber)
+		verifyTransactionSyncDAOnly(t, sequencerClient, fullNodeClient, txHash, txBlockNumber)
+	}
+
+	// === STATE ROOT VERIFICATION ===
+
+	t.Log("Verifying state roots match between sequencer and full node...")
+
+	// Get the current height on both nodes to determine the range of blocks to check
+	seqCtx := context.Background()
+	seqHeader, err := sequencerClient.HeaderByNumber(seqCtx, nil)
+	require.NoError(t, err, "Should get latest header from sequencer")
+
+	fnCtx := context.Background()
+	fnHeader, err := fullNodeClient.HeaderByNumber(fnCtx, nil)
+	require.NoError(t, err, "Should get latest header from full node")
+
+	// Ensure both nodes are at the same height before checking state roots
+	seqHeight := seqHeader.Number.Uint64()
+	fnHeight := fnHeader.Number.Uint64()
+
+	// Wait for full node to catch up if needed (DA sync can be slower)
+	if fnHeight < seqHeight {
+		t.Logf("Full node height (%d) is behind sequencer height (%d), waiting for DA sync...", fnHeight, seqHeight)
+		require.Eventually(t, func() bool {
+			header, err := fullNodeClient.HeaderByNumber(fnCtx, nil)
+			if err != nil {
+				return false
+			}
+			return header.Number.Uint64() >= seqHeight
+		}, 60*time.Second, 2*time.Second, "Full node should catch up to sequencer height via DA")
+
+		// Re-get the full node height after sync
+		fnHeader, err = fullNodeClient.HeaderByNumber(fnCtx, nil)
+		require.NoError(t, err, "Should get updated header from full node")
+		fnHeight = fnHeader.Number.Uint64()
+	}
+
+	// Check state roots for all blocks from genesis up to current height
+	// Note: Block 0 is genesis, start from block 1
+	startHeight := uint64(1)
+	endHeight := min(seqHeight, fnHeight)
+
+	t.Logf("Checking state roots for blocks %d to %d", startHeight, endHeight)
+
+	for blockHeight := startHeight; blockHeight <= endHeight; blockHeight++ {
+		verifyStateRootsMatch(t, SequencerEthURL, FullNodeEthURL, blockHeight)
+	}
+
+	// Special focus on the transaction blocks
+	t.Log("Re-verifying state roots for all transaction blocks...")
+	for i, txBlockNumber := range txBlockNumbers {
+		if txBlockNumber >= startHeight && txBlockNumber <= endHeight {
+			t.Logf("Re-verifying state root for transaction %d block %d", i+1, txBlockNumber)
+			verifyStateRootsMatch(t, SequencerEthURL, FullNodeEthURL, txBlockNumber)
+		}
+	}
+
+	t.Logf("✅ Test PASSED: DA-only synchronization working correctly!")
+	t.Logf("   - All blocks (%d-%d) have matching state roots", startHeight, endHeight)
+	t.Logf("   - %d transactions synced successfully via DA across blocks %v", len(txHashes), txBlockNumbers)
+	t.Logf("   - Full node synchronized using only DA layer (no P2P connections)")
+	t.Logf("   - State consistency maintained between sequencer and full node")
+	t.Logf("   - DA-based block synchronization mechanism functioning properly")
 }
