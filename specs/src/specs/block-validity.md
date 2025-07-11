@@ -128,13 +128,3 @@ The Signer type replaces the previous ValidatorSet for single sequencer operatio
 |----------------|-----------------------------------------------------------------|-----------------------------|
 | PubKey         | Public key of the signer                                        | Must not be nil if Signer is not empty |
 | Address        | Address derived from the public key                             | Must match ProposerAddress              |
-
-## [SignedData](https://github.com/rollkit/rollkit/blob/main/types/signed_data.go)
-
-A new type for signed block data:
-
-| **Field Name** | **Valid State**                                                 | **Validation**              |
-|----------------|-----------------------------------------------------------------|-----------------------------|
-| Data           | The block data containing transactions                         | Always passes validation     |
-| Signature      | Signature over the marshaled data                              | Verified against Signer      |
-| Signer         | Information about who signed the data                          | Same validation as header    |
