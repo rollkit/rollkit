@@ -226,7 +226,7 @@
 <img src="./out-of-order-blocks.png" alt="out-of-order blocks" /></p>
 <h4 id="termination-condition"><a class="header" href="#termination-condition">Termination Condition</a></h4>
 <p>If the sequencer double-signs two blocks at the same height, evidence of the fault should be posted to DA. Rollkit full nodes should process the longest valid chain up to the height of the fault evidence, and terminate. See diagram:
-<img src="./termination.png" alt="termination conidition" /></p>
+<img src="./termination.png" alt="termination condition" /></p>
 <h3 id="block-sync-service"><a class="header" href="#block-sync-service">Block Sync Service</a></h3>
 <p>The block sync service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block sync service is passed to it. Blocks created in the block manager are then passed to the <code>BlockCh</code> channel and then sent to the <a href="https://github.com/celestiaorg/go-header">go-header</a> service to be gossiped blocks over the P2P network.</p>
 <h3 id="block-publication-to-p2p-network"><a class="header" href="#block-publication-to-p2p-network">Block Publication to P2P network</a></h3>
