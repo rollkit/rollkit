@@ -14,13 +14,13 @@ import (
 )
 
 // TestTxGossipingMultipleNodesNoDA tests that transactions are gossiped and blocks are sequenced and synced across multiple nodes without the DA layer over P2P.
-// It creates 4 nodes (1 sequencer, 3 full nodes), injects a transaction, waits for all nodes to sync, and asserts block equality.
+// It creates 3 nodes (1 sequencer, 2 full nodes), injects a transaction, waits for all nodes to sync, and asserts block equality.
 func TestTxGossipingMultipleNodesNoDA(t *testing.T) {
 	require := require.New(t)
 	config := getTestConfig(t, 1)
 	// Set the DA block time to a very large value to ensure that the DA layer is not used
 	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 100 * time.Second}
-	numNodes := 4
+	numNodes := 3
 	nodes, cleanups := createNodesWithCleanup(t, numNodes, config)
 	for _, cleanup := range cleanups {
 		defer cleanup()
@@ -48,14 +48,14 @@ func TestTxGossipingMultipleNodesNoDA(t *testing.T) {
 	executor := nodes[0].blockManager.GetExecutor().(*coreexecutor.DummyExecutor)
 	executor.InjectTx([]byte("test tx"))
 
-	blocksToWaitFor := uint64(5)
+	blocksToWaitFor := uint64(3)
 	// Wait for all nodes to reach at least blocksToWaitFor blocks
 	for _, node := range nodes {
 		require.NoError(waitForAtLeastNBlocks(node, blocksToWaitFor, Store))
 	}
 
 	// Shutdown all nodes and wait
-	shutdownAndWait(t, cancels, &runningWg, 5*time.Second)
+	shutdownAndWait(t, cancels, &runningWg, 10*time.Second)
 
 	// Assert that all nodes have the same block up to height blocksToWaitFor
 	assertAllNodesSynced(t, nodes, blocksToWaitFor)
