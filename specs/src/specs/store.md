@@ -44,9 +44,8 @@ For the main node data, `DefaultStore` struct, an implementation of the Store in
 
 Additional prefixes used by sync services:
 
-- `headerSync`: Used by the header sync service for P2P synced headers.
-- `dataSync`: Used by the data sync service for P2P synced transaction data.
-
+- `headerSyncPrefix` with value "hs": Used by the header sync service for P2P synced headers.
+- `dataSyncPrefix` with value "ds": Used by the data sync service for P2P synced transaction data.
 For example, in a call to `GetBlockByHash` for some block hash `<block_hash>`, the key used in the full node's base key-value store will be `/0/b/<block_hash>` where `0` is the main store prefix and `b` is the block prefix. Similarly, in a call to `GetValidators` for some height `<height>`, the key used in the full node's base key-value store will be `/0/v/<height>` where `0` is the main store prefix and `v` is the validator set prefix.
 
 Inside the key-value store, the value of these various types of data like `Block` is stored as a byte array which is encoded and decoded using the corresponding Protobuf [marshal and unmarshal methods][serialization].
