@@ -85,21 +85,6 @@ Missing participation at the epoch boundary x/network evaluates participation:
 - if validator power‑weighted participation < Quorum (default 2/3) ⇒ return ErrAttestationTimeout and halt new block production;
 - validators whose participation < MinParticipation for the entire epoch are auto‑ejected from the attester set via an EditValidator emitted by x/network (their stake remains bonded but they cease to sign until they re‑declare).
 
-##### Config params
-
-| Param                  | Purpose                                   | Default   |
-|------------------------|-------------------------------------------|-----------|
-| EpochLength            | Blocks per attestation window             | 100       |
-| SubmissionWindow       | Epochs allowed to submit epoch attestation| 5        |
-| NonParticipationEpochs | Consecutive missed epochs before ejection | 3         |
-| QuorumFraction         | Required voting-power for soft-finality   | 2/3       |
-| MinParticipation       | Ejection threshold inside an epoch        | 1/2       |
-| PruneAfter             | Keep attestation records this many epochs | 7         |
-| EmergencyMode          | Governance switch to bypass quorum        | disabled  |
-
-In this design there is no need to queue IBC transactions as the light client update message can not be relayed to the counter party chain. Secondly, IBC transactions are alos blocked on DA inclusion of the data and header.
-
-
 #### Reth/EVM Rollup
 
 - Stake manager contract holds the validator stake/weight and maps an address to a key. It will emit `StakeSnapshot(epoch)` events that will be consumed by the consensus client.
@@ -147,9 +132,8 @@ graph TD
  • Verifier pipeline:
 
  1. basic header checks;
- 2. optional re-execution (--verify-full=true flag);
- 3. produce signature;
- 4. async submit transaction with signautres
+ 2. produce signature;
+ 3. async submit transaction with signautres
 
 ## Security considerations
 
