@@ -521,7 +521,7 @@ gantt
 <img src="specs/./out-of-order-blocks.png" alt="out-of-order blocks" /></p>
 <h4 id="termination-condition"><a class="header" href="#termination-condition">Termination Condition</a></h4>
 <p>If the sequencer double-signs two blocks at the same height, evidence of the fault should be posted to DA. Rollkit full nodes should process the longest valid chain up to the height of the fault evidence, and terminate. See diagram:
-<img src="specs/./termination.png" alt="termination conidition" /></p>
+<img src="specs/./termination.png" alt="termination condition" /></p>
 <h3 id="block-sync-service"><a class="header" href="#block-sync-service">Block Sync Service</a></h3>
 <p>The block sync service manages the synchronization of headers and data through separate stores and channels:</p>
 <h4 id="architecture"><a class="header" href="#architecture">Architecture</a></h4>
@@ -926,7 +926,7 @@ verify Data.Hash() == SignedHeader.DataHash
 <h3 id="hsyncservice"><a class="header" href="#hsyncservice">hSyncService</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Header Sync Service</a> is used for syncing signed headers between nodes over P2P. It operates independently from data sync to support light clients.</p>
 <h3 id="dsyncservice"><a class="header" href="#dsyncservice">dSyncService</a></h3>
-<p>The [Data Sync Service] is used for syncing transaction data between nodes over P2P. This service is only used by full nodes, not light nodes.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Data Sync Service</a> is used for syncing transaction data between nodes over P2P. This service is only used by full nodes, not light nodes.</p>
 <h2 id="message-structurecommunication-format-2"><a class="header" href="#message-structurecommunication-format-2">Message Structure/Communication Format</a></h2>
 <p>The Full Node communicates with other nodes in the network using the P2P client. It also communicates with the application using the ABCI proxy connections. The communication format is based on the P2P and ABCI protocols.</p>
 <h2 id="assumptions-and-considerations-2"><a class="header" href="#assumptions-and-considerations-2">Assumptions and Considerations</a></h2>
@@ -943,7 +943,7 @@ verify Data.Hash() == SignedHeader.DataHash
 <p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
 <p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/core/da/da.go">Data Availability Layer Client</a></p>
 <p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Header Sync Service</a></p>
-<p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Block Sync Service</a></p>
+<p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Data Sync Service</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="header-and-data-sync"><a class="header" href="#header-and-data-sync">Header and Data Sync</a></h1>
 <h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
 <p>The nodes in the P2P network sync headers and data using separate sync services that implement the <a href="https://github.com/celestiaorg/go-header">go-header</a> interface. Rollkit uses a header/data separation architecture where headers and transaction data are synchronized independently through parallel services. Each sync service consists of several components as listed below.</p>
