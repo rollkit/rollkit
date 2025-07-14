@@ -85,7 +85,7 @@ See [full node]
 
 [9] [Header Sync Service][Header Sync Service]
 
-[10] [Block Sync Service][Block Sync Service]
+[10] [Data Sync Service][Data Sync Service]
 
 [full node]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [genesis]: https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md
@@ -96,4 +96,4 @@ See [full node]
 [Block Manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
 [dalc]: https://github.com/rollkit/rollkit/blob/main/core/da/da.go
 [Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go
-[Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go
+[Data Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go
