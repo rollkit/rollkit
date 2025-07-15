@@ -176,6 +176,7 @@ type EvidenceParams struct {
     // This sets the maximum size of total evidence in bytes that can be committed in a single block.
     // and should fall comfortably under the max block bytes.
     // Default is 1048576 or 1MB
+    // Rollkit does not set a default here; the actual value depends on the implementation or configuration.
     MaxBytes int64
 }
 
