@@ -324,7 +324,7 @@ Rollkit should support blocks arriving out-of-order on DA, like so:
 #### Termination Condition
 
 If the sequencer double-signs two blocks at the same height, evidence of the fault should be posted to DA. Rollkit full nodes should process the longest valid chain up to the height of the fault evidence, and terminate. See diagram:
-![termination conidition](./termination.png)
+![termination condition](./termination.png)
 
 ### Block Sync Service
 

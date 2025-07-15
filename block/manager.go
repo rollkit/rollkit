@@ -808,7 +808,7 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 		return fmt.Errorf("invalid height: expected %d, got %d", expectedHeight, header.Height())
 	}
 
-	// // Verify that the header's timestamp is strictly greater than the last block's time
+	// Verify that the header's timestamp is strictly greater than the last block's time
 	headerTime := header.Time()
 	if header.Height() > 1 && lastState.LastBlockTime.After(headerTime) {
 		return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
