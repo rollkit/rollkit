@@ -130,20 +130,12 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 		return nil, fmt.Errorf("failed to get tx pool content: %w", err)
 	}
 
-	var txs [][]byte
+	txs := make([][]byte, 0, len(result))
 	for _, rlpHex := range result {
-		// Remove 0x prefix if present
-		rlpHex = strings.TrimPrefix(rlpHex, "0x")
-		
-		// Decode hex string to bytes
-		txBytes, err := hex.DecodeString(rlpHex)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode RLP transaction: %w", err)
-		}
-		
+		txBytes := common.FromHex(rlpHex)
 		txs = append(txs, txBytes)
 	}
-	
+
 	return txs, nil
 }
 
