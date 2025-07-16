@@ -145,9 +145,12 @@
 <ul>
 <li><code>Height</code>: Returns the height of the highest block in the store.</li>
 <li><code>SetHeight</code>: Sets given height in the store if it's higher than the existing height in the store.</li>
-<li><code>SaveBlock</code>: Saves a block along with its seen signature.</li>
+<li><code>SaveBlock</code>: Saves a block (containing both header and data) along with its seen signature.</li>
 <li><code>GetBlock</code>: Returns a block at a given height.</li>
 <li><code>GetBlockByHash</code>: Returns a block with a given block header hash.</li>
+</ul>
+<p>Note: While blocks are stored as complete units in the store, the block manager handles headers and data separately during synchronization and DA layer interaction.</p>
+<ul>
 <li><code>SaveBlockResponses</code>: Saves block responses in the Store.</li>
 <li><code>GetBlockResponses</code>: Returns block results at a given height.</li>
 <li><code>GetSignature</code>: Returns a signature for a block at a given height.</li>
@@ -169,14 +172,19 @@
 <p>A Rollkit full node is <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">initialized</a> using <code>NewDefaultKVStore</code> as the base key-value store for underlying storage. To store various types of data in this base key-value store, different prefixes are used: <code>mainPrefix</code>, <code>dalcPrefix</code>, and <code>indexerPrefix</code>. The <code>mainPrefix</code> equal to <code>0</code> is used for the main node data, <code>dalcPrefix</code> equal to <code>1</code> is used for Data Availability Layer Client (DALC) data, and <code>indexerPrefix</code> equal to <code>2</code> is used for indexing related data.</p>
 <p>For the main node data, <code>DefaultStore</code> struct, an implementation of the Store interface, is used with the following prefixes for various types of data within it:</p>
 <ul>
-<li><code>blockPrefix</code> with value &quot;b&quot;: Used to store blocks in the key-value store.</li>
+<li><code>blockPrefix</code> with value &quot;b&quot;: Used to store complete blocks in the key-value store.</li>
 <li><code>indexPrefix</code> with value &quot;i&quot;: Used to index the blocks stored in the key-value store.</li>
 <li><code>commitPrefix</code> with value &quot;c&quot;: Used to store commits related to the blocks.</li>
 <li><code>statePrefix</code> with value &quot;s&quot;: Used to store the state of the blockchain.</li>
 <li><code>responsesPrefix</code> with value &quot;r&quot;: Used to store responses related to the blocks.</li>
 <li><code>validatorsPrefix</code> with value &quot;v&quot;: Used to store validator sets at a given height.</li>
 </ul>
-<p>For example, in a call to <code>GetBlockByHash</code> for some block hash <code>&lt;block_hash&gt;</code>, the key used in the full node's base key-value store will be <code>/0/b/&lt;block_hash&gt;</code> where <code>0</code> is the main store prefix and <code>b</code> is the block prefix. Similarly, in a call to <code>GetValidators</code> for some height <code>&lt;height&gt;</code>, the key used in the full node's base key-value store will be <code>/0/v/&lt;height&gt;</code> where <code>0</code> is the main store prefix and <code>v</code> is the validator set prefix.</p>
+<p>Additional prefixes used by sync services:</p>
+<ul>
+<li><code>headerSyncPrefix</code> with value &quot;hs&quot;: Used by the header sync service for P2P synced headers.</li>
+<li><code>dataSyncPrefix</code> with value &quot;ds&quot;: Used by the data sync service for P2P synced transaction data.
+For example, in a call to <code>GetBlockByHash</code> for some block hash <code>&lt;block_hash&gt;</code>, the key used in the full node's base key-value store will be <code>/0/b/&lt;block_hash&gt;</code> where <code>0</code> is the main store prefix and <code>b</code> is the block prefix. Similarly, in a call to <code>GetValidators</code> for some height <code>&lt;height&gt;</code>, the key used in the full node's base key-value store will be <code>/0/v/&lt;height&gt;</code> where <code>0</code> is the main store prefix and <code>v</code> is the validator set prefix.</li>
+</ul>
 <p>Inside the key-value store, the value of these various types of data like <code>Block</code> is stored as a byte array which is encoded and decoded using the corresponding Protobuf <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">marshal and unmarshal methods</a>.</p>
 <p>The store is most widely used inside the <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block manager</a> to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, <code>lastStateMtx</code>, to synchronize read/write access to it and prevent race conditions.</p>
 <h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>

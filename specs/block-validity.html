@@ -152,72 +152,77 @@
 <p>Perform verification of the new block against the previously accepted block</p>
 </li>
 </ol>
+<p>Rollkit uses a header/data separation architecture where headers and data can be validated independently. The system has moved from a multi-validator model to a single signer model for simplified sequencer management.</p>
 <h2 id="basic-validation"><a class="header" href="#basic-validation">Basic Validation</a></h2>
-<p>Each type contains a <code>.ValidateBasic()</code> method, which verifies that certain basic invariants hold. The <code>ValidateBasic()</code> calls are nested, starting from the <code>Block</code> struct, all the way down to each subfield.</p>
-<p>The nested basic validation, and validation checks, are called as follows:</p>
-<pre><code class="language-go">Block.ValidateBasic()
-  // Make sure the block's SignedHeader passes basic validation
-  SignedHeader.ValidateBasic()
-    // Make sure the SignedHeader's Header passes basic validation
-    Header.ValidateBasic()
-	  verify ProposerAddress not nil
-	// Make sure the SignedHeader's signature passes basic validation
-	Signature.ValidateBasic()
-	  // Ensure that someone signed the block
-	  verify len(c.Signatures) not 0
-	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, assume based rollup, pass validation, and skip all remaining checks.
-	Validators.ValidateBasic()
-	  // github.com/rollkit/cometbft/blob/main/types/validator.go#L37
-	  verify sh.Validators is not nil, and len(sh.Validators.Validators) != 0
-	  // apply basic validation to all Validators
-	  for each validator:
-	    validator.ValidateBasic()
-		  validate not nil
-		  validator.PubKey not nil
-		  validator.Address == correct size
-	  // apply ValidateBasic to the proposer field:
-	  sh.Validators.Proposer.ValidateBasic()
-		validate not nil
-		validator.PubKey not nil
-		validator.Address == correct size
-    Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
-	Verify SignedHeader.Signature
+<p>Each type contains a <code>.ValidateBasic()</code> method, which verifies that certain basic invariants hold. The <code>ValidateBasic()</code> calls are nested for each structure.</p>
+<h3 id="signedheader-validation"><a class="header" href="#signedheader-validation">SignedHeader Validation</a></h3>
+<pre><code class="language-go">SignedHeader.ValidateBasic()
+  // Make sure the SignedHeader's Header passes basic validation
+  Header.ValidateBasic()
+    verify ProposerAddress not nil
+  // Make sure the SignedHeader's signature passes basic validation
+  Signature.ValidateBasic()
+    // Ensure that someone signed the header
+    verify len(c.Signatures) not 0
+  // For based rollups (sh.Signer.IsEmpty()), pass validation
+  If !sh.Signer.IsEmpty():
+    // Verify the signer matches the proposer address
+    verify sh.Signer.Address == sh.ProposerAddress
+    // Verify signature using custom verifier if set, otherwise use default
+    if sh.verifier != nil:
+      verify sh.verifier(sh) == nil
+    else:
+      verify sh.Signature.Verify(sh.Signer.PubKey, sh.Header.MarshalBinary())
+</code></pre>
+<h3 id="signeddata-validation"><a class="header" href="#signeddata-validation">SignedData Validation</a></h3>
+<pre><code class="language-go">SignedData.ValidateBasic()
+  // Always passes basic validation for the Data itself
   Data.ValidateBasic() // always passes
-  // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
-  Data.Hash() == SignedHeader.DataHash
+  // Make sure the signature is valid
+  Signature.ValidateBasic()
+    verify len(c.Signatures) not 0
+  // Verify the signer
+  If !sd.Signer.IsEmpty():
+    verify sd.Signature.Verify(sd.Signer.PubKey, sd.Data.MarshalBinary())
+</code></pre>
+<h3 id="block-validation"><a class="header" href="#block-validation">Block Validation</a></h3>
+<p>Blocks are composed of SignedHeader and Data:</p>
+<pre><code class="language-go">// Block validation happens by validating header and data separately
+// then ensuring data hash matches
+verify SignedHeader.ValidateBasic() == nil
+verify Data.Hash() == SignedHeader.DataHash
 </code></pre>
 <h2 id="verification-against-previous-block"><a class="header" href="#verification-against-previous-block">Verification Against Previous Block</a></h2>
-<pre><code class="language-go">// code does not match spec: see https://github.com/rollkit/rollkit/issues/1277
-Block.Verify()
-  SignedHeader.Verify(untrustH *SignedHeader)
-    // basic validation removed in #1231, because go-header already validates it
-    //untrustH.ValidateBasic()
-	Header.Verify(untrustH *SignedHeader)
-	  if untrustH.Height == h.Height + 1, then apply the following check:
-	    untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]
-	if untrustH.Height &gt; h.Height + 1:
-	  soft verification failure
-	// We should know they're adjacent now,
-	// verify the link to previous.
-	untrustH.LastHeaderHash == h.Header.Hash()
-	// Verify LastCommit hash
-	untrustH.LastCommitHash == sh.Signature.GetCommitHash(...)
-
+<pre><code class="language-go">SignedHeader.Verify(untrustedHeader *SignedHeader)
+  // Basic validation is handled by go-header before this
+  Header.Verify(untrustedHeader)
+    // Verify height sequence
+    if untrustedHeader.Height != h.Height + 1:
+      if untrustedHeader.Height &gt; h.Height + 1:
+        return soft verification failure
+      return error &quot;headers are not adjacent&quot;
+    // Verify the link to previous header
+    verify untrustedHeader.LastHeaderHash == h.Header.Hash()
+    // Verify LastCommit hash matches previous signature
+    verify untrustedHeader.LastCommitHash == sh.Signature.GetCommitHash(...)
+    // Note: ValidatorHash field exists for compatibility but is not validated
 </code></pre>
-<h2 id="data"><a class="header" href="#data"><a href="https://github.com/rollkit/rollkit/blob/main/types/data.go#L25">Data</a></a></h2>
+<h2 id="data"><a class="header" href="#data"><a href="https://github.com/rollkit/rollkit/blob/main/types/data.go">Data</a></a></h2>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
-<tr><td>Data</td><td>Transaction data of the block</td><td>Data.Hash == SignedHeader.DataHash</td></tr>
+<tr><td>Txs</td><td>Transaction data of the block</td><td>Data.Hash() == SignedHeader.DataHash</td></tr>
+<tr><td>Metadata</td><td>Optional p2p gossiping metadata</td><td>Not validated</td></tr>
 </tbody></table>
 </div>
-<h2 id="signedheader"><a class="header" href="#signedheader"><a href="https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L16">SignedHeader</a></a></h2>
+<h2 id="signedheader"><a class="header" href="#signedheader"><a href="https://github.com/rollkit/rollkit/blob/main/types/signed_header.go">SignedHeader</a></a></h2>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
 <tr><td>Header</td><td>Valid header for the block</td><td><code>Header</code> passes <code>ValidateBasic()</code> and <code>Verify()</code></td></tr>
-<tr><td>Signature</td><td>1 valid signature from the single sequencer</td><td><code>Signature</code> passes <code>ValidateBasic()</code>, with additional checks in <code>SignedHeader.ValidateBasic()</code></td></tr>
-<tr><td>Validators</td><td>Array of Aggregators, must have length exactly 1.</td><td><code>Validators</code> passes <code>ValidateBasic()</code></td></tr>
+<tr><td>Signature</td><td>Valid signature from the single sequencer</td><td><code>Signature</code> passes <code>ValidateBasic()</code>, verified against signer</td></tr>
+<tr><td>Signer</td><td>Information about who signed the header</td><td>Must match ProposerAddress if not empty (based rollup case)</td></tr>
+<tr><td>verifier</td><td>Optional custom signature verification function</td><td>Used instead of default verification if set</td></tr>
 </tbody></table>
 </div>
-<h2 id="header"><a class="header" href="#header"><a href="https://github.com/rollkit/rollkit/blob/main/types/header.go#L39">Header</a></a></h2>
-<p><em><strong>Note</strong></em>: The <code>AggregatorsHash</code> and <code>NextAggregatorsHash</code> fields have been removed. Rollkit vA should ignore all Valset updates from the ABCI app, and always enforce that the proposer is the single sequencer set as the 1 validator in the genesis block.</p>
+<h2 id="header"><a class="header" href="#header"><a href="https://github.com/rollkit/rollkit/blob/main/types/header.go">Header</a></a></h2>
+<p><em><strong>Note</strong></em>: Rollkit has moved to a single signer model. The multi-validator architecture has been replaced with a simpler single sequencer approach.</p>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
 <tr><td><strong>BaseHeader</strong> .</td><td></td><td></td></tr>
 <tr><td>Height</td><td>Height of the previous accepted header, plus 1.</td><td>checked in the `Verify()`` step</td></tr>
@@ -231,14 +236,15 @@ Block.Verify()
 <tr><td>ConsensusHash</td><td>unused</td><td></td></tr>
 <tr><td>AppHash</td><td>The correct state root after executing the block's transactions against the accepted state</td><td>checked during block execution</td></tr>
 <tr><td>LastResultsHash</td><td>Correct results from executing transactions</td><td>checked during block execution</td></tr>
-<tr><td>ProposerAddress</td><td>Address of the expected proposer</td><td>checked in the <code>Verify()</code> step</td></tr>
-<tr><td>Signature</td><td>Signature of the expected proposer</td><td>signature verification occurs in the <code>ValidateBasic()</code> step</td></tr>
+<tr><td>ProposerAddress</td><td>Address of the expected proposer</td><td>Must match Signer.Address in SignedHeader</td></tr>
+<tr><td>ValidatorHash</td><td>Compatibility field for Tendermint light client</td><td>Not validated</td></tr>
 </tbody></table>
 </div>
-<h2 id="validatorset"><a class="header" href="#validatorset"><a href="https://github.com/cometbft/cometbft/blob/main/types/validator_set.go#L51">ValidatorSet</a></a></h2>
+<h2 id="signer"><a class="header" href="#signer"><a href="https://github.com/rollkit/rollkit/blob/main/types/signed_header.go">Signer</a></a></h2>
+<p>The Signer type replaces the previous ValidatorSet for single sequencer operation:</p>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
-<tr><td>Validators</td><td>Array of validators, each must pass <code>Validator.ValidateBasic()</code></td><td><code>Validator.ValidateBasic()</code></td></tr>
-<tr><td>Proposer</td><td>Must pass <code>Validator.ValidateBasic()</code></td><td><code>Validator.ValidateBasic()</code></td></tr>
+<tr><td>PubKey</td><td>Public key of the signer</td><td>Must not be nil if Signer is not empty</td></tr>
+<tr><td>Address</td><td>Address derived from the public key</td><td>Must match ProposerAddress</td></tr>
 </tbody></table>
 </div>
                     </main>

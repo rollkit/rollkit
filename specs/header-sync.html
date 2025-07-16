@@ -137,34 +137,102 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="header-sync"><a class="header" href="#header-sync">Header Sync</a></h1>
+                        <h1 id="header-and-data-sync"><a class="header" href="#header-and-data-sync">Header and Data Sync</a></h1>
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
-<p>The nodes in the P2P network sync headers using the header sync service that implements the <a href="https://github.com/celestiaorg/go-header">go-header</a> interface. The header sync service consists of several components as listed below.</p>
+<p>The nodes in the P2P network sync headers and data using separate sync services that implement the <a href="https://github.com/celestiaorg/go-header">go-header</a> interface. Rollkit uses a header/data separation architecture where headers and transaction data are synchronized independently through parallel services. Each sync service consists of several components as listed below.</p>
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Description</th></tr></thead><tbody>
-<tr><td>store</td><td>a <code>headerEx</code> prefixed <a href="https://github.com/ipfs/go-datastore">datastore</a> where synced headers are stored</td></tr>
-<tr><td>subscriber</td><td>a <a href="https://github.com/libp2p/go-libp2p">libp2p</a> node pubsub subscriber</td></tr>
-<tr><td>P2P server</td><td>a server for handling header requests between peers in the P2P network</td></tr>
-<tr><td>exchange</td><td>a client that enables sending in/out-bound header requests from/to the P2P network</td></tr>
-<tr><td>syncer</td><td>a service for efficient synchronization for headers. When a P2P node falls behind and wants to catch up to the latest network head via P2P network, it can use the syncer.</td></tr>
+<tr><td>store</td><td>a prefixed <a href="https://github.com/ipfs/go-datastore">datastore</a> where synced items are stored (<code>headerSync</code> prefix for headers, <code>dataSync</code> prefix for data)</td></tr>
+<tr><td>subscriber</td><td>a <a href="https://github.com/libp2p/go-libp2p">libp2p</a> node pubsub subscriber for the specific data type</td></tr>
+<tr><td>P2P server</td><td>a server for handling requests between peers in the P2P network</td></tr>
+<tr><td>exchange</td><td>a client that enables sending in/out-bound requests from/to the P2P network</td></tr>
+<tr><td>syncer</td><td>a service for efficient synchronization. When a P2P node falls behind and wants to catch up to the latest network head via P2P network, it can use the syncer.</td></tr>
 </tbody></table>
 </div>
 <h2 id="details"><a class="header" href="#details">Details</a></h2>
-<p>All three types of nodes (sequencer, full, and light) run the header sync service to maintain the canonical view of the chain (with respect to the P2P network).</p>
-<p>The header sync service inherits the <code>ConnectionGater</code> from the node's P2P client which enables blocking and allowing peers as needed by specifying the <code>P2PConfig.BlockedPeers</code> and <code>P2PConfig.AllowedPeers</code>.</p>
-<p><code>NodeConfig.BlockTime</code> is used to configure the syncer such that it can effectively decide the outdated headers while it receives headers from the P2P network.</p>
-<p>Both header and block sync utilizes <a href="https://github.com/celestiaorg/go-header">go-header</a> library and runs two separate sync services, for the headers and blocks. This distinction is mainly to serve light nodes which do not store blocks, but only headers synced from the P2P network.</p>
-<h3 id="consumption-of-header-sync"><a class="header" href="#consumption-of-header-sync">Consumption of Header Sync</a></h3>
-<p>The sequencer node, upon successfully creating the block, publishes the signed block header to the P2P network using the header sync service. The full/light nodes run the header sync service in the background to receive and store the signed headers from the P2P network. Currently the full/light nodes do not consume the P2P synced headers, however they have future utilities in performing certain checks.</p>
+<p>Rollkit implements two separate sync services:</p>
+<h3 id="header-sync-service"><a class="header" href="#header-sync-service">Header Sync Service</a></h3>
+<ul>
+<li>Synchronizes <code>SignedHeader</code> structures containing block headers with signatures</li>
+<li>Used by all node types (sequencer, full, and light)</li>
+<li>Essential for maintaining the canonical view of the chain</li>
+</ul>
+<h3 id="data-sync-service"><a class="header" href="#data-sync-service">Data Sync Service</a></h3>
+<ul>
+<li>Synchronizes <code>Data</code> structures containing transaction data</li>
+<li>Used only by full nodes and sequencers</li>
+<li>Light nodes do not run this service as they only need headers</li>
+</ul>
+<p>Both services:</p>
+<ul>
+<li>Utilize the generic <code>SyncService[H header.Header[H]]</code> implementation</li>
+<li>Inherit the <code>ConnectionGater</code> from the node's P2P client for peer management</li>
+<li>Use <code>NodeConfig.BlockTime</code> to determine outdated items during sync</li>
+<li>Operate independently on separate P2P topics and datastores</li>
+</ul>
+<h3 id="consumption-of-sync-services"><a class="header" href="#consumption-of-sync-services">Consumption of Sync Services</a></h3>
+<h4 id="header-sync"><a class="header" href="#header-sync">Header Sync</a></h4>
+<ul>
+<li>Sequencer nodes publish signed headers to the P2P network after block creation</li>
+<li>Full and light nodes receive and store headers for chain validation</li>
+<li>Headers contain commitments (DataHash) that link to the corresponding data</li>
+</ul>
+<h4 id="data-sync"><a class="header" href="#data-sync">Data Sync</a></h4>
+<ul>
+<li>Sequencer nodes publish transaction data separately from headers</li>
+<li>Only full nodes receive and store data (light nodes skip this)</li>
+<li>Data is linked to headers through the DataHash commitment</li>
+</ul>
+<h4 id="parallel-broadcasting"><a class="header" href="#parallel-broadcasting">Parallel Broadcasting</a></h4>
+<p>The block manager broadcasts headers and data in parallel when publishing blocks:</p>
+<ul>
+<li>Headers are sent through <code>headerBroadcaster</code></li>
+<li>Data is sent through <code>dataBroadcaster</code></li>
+<li>This enables efficient network propagation of both components</li>
+</ul>
 <h2 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h2>
 <ul>
-<li>The header sync store is created by prefixing <code>headerSync</code> the main datastore.</li>
-<li>The genesis <code>ChainID</code> is used to create the <code>PubsubTopicID</code> in <a href="https://github.com/celestiaorg/go-header">go-header</a>. For example, for ChainID <code>gm</code>, the pubsub topic id is <code>/gm/header-sub/v0.0.1</code>. Refer to go-header specs for further details.</li>
-<li>The header store must be initialized with genesis header before starting the syncer service. The genesis header can be loaded by passing the genesis header hash via <code>NodeConfig.TrustedHash</code> configuration parameter or by querying the P2P network. This imposes a time constraint that full/light nodes have to wait for the sequencer to publish the genesis header to the P2P network before starting the header sync service.</li>
-<li>The Header Sync works only when the node is connected to the P2P network by specifying the initial seeds to connect to via the <code>P2PConfig.Seeds</code> configuration parameter.</li>
-<li>The node's context is passed down to all the components of the P2P header sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
+<li>Separate datastores are created with different prefixes:
+<ul>
+<li>Headers: <code>headerSync</code> prefix on the main datastore</li>
+<li>Data: <code>dataSync</code> prefix on the main datastore</li>
+</ul>
+</li>
+<li>Network IDs are suffixed to distinguish services:
+<ul>
+<li>Header sync: <code>{network}-headerSync</code></li>
+<li>Data sync: <code>{network}-dataSync</code></li>
+</ul>
+</li>
+<li>Chain IDs for pubsub topics are also separated:
+<ul>
+<li>Headers: <code>{chainID}-headerSync</code> creates topic like <code>/gm-headerSync/header-sub/v0.0.1</code></li>
+<li>Data: <code>{chainID}-dataSync</code> creates topic like <code>/gm-dataSync/header-sub/v0.0.1</code></li>
+</ul>
+</li>
+<li>Both stores must be initialized with genesis items before starting:
+<ul>
+<li>Header store needs genesis header</li>
+<li>Data store needs genesis data (if applicable)</li>
+</ul>
+</li>
+<li>Genesis items can be loaded via <code>NodeConfig.TrustedHash</code> or P2P network query</li>
+<li>Sync services work only when connected to P2P network via <code>P2PConfig.Seeds</code></li>
+<li>Node context is passed to all components for graceful shutdown</li>
+<li>Headers and data are linked through DataHash but synced independently</li>
 </ul>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>The header sync implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">block/sync_service.go</a>. The full and light nodes create and start the header sync service under <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a>.</p>
+<p>The sync service implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">pkg/sync/sync_service.go</a>. The generic <code>SyncService[H header.Header[H]]</code> is instantiated as:</p>
+<ul>
+<li><code>HeaderSyncService</code> for syncing <code>*types.SignedHeader</code></li>
+<li><code>DataSyncService</code> for syncing <code>*types.Data</code></li>
+</ul>
+<p>Full nodes create and start both services, while light nodes only start the header sync service. The services are created in <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a> node implementations.</p>
+<p>The block manager integrates with both services through:</p>
+<ul>
+<li><code>HeaderStoreRetrieveLoop()</code> for retrieving headers from P2P</li>
+<li><code>DataStoreRetrieveLoop()</code> for retrieving data from P2P</li>
+<li>Separate broadcast channels for publishing headers and data</li>
+</ul>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Header Sync</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>

@@ -257,16 +257,63 @@ gantt
     DA Layer-&gt;&gt;Full Node 2: Retrieve Block
     Full Node 2-&gt;&gt;Full Node 2: Mark Block DA Included
 </code></pre>
+<h3 id="component-architecture-overview"><a class="header" href="#component-architecture-overview">Component Architecture Overview</a></h3>
+<pre><code class="language-mermaid">flowchart TB
+    subgraph Block Manager Components
+        BM[Block Manager]
+        AGG[Aggregation]
+        REP[Reaper]
+        SUB[Submitter]
+        RET[Retriever]
+        SYNC[Sync Loop]
+        DAI[DA Includer]
+    end
+    
+    subgraph External Components
+        EX[Executor]
+        SEQ[Sequencer]
+        DA[DA Layer]
+        HS[Header Store/P2P]
+        DS[Data Store/P2P]
+        ST[Local Store]
+    end
+    
+    REP --&gt;|GetTxs| EX
+    REP --&gt;|SubmitBatch| SEQ
+    REP --&gt;|Notify| AGG
+    
+    AGG --&gt;|CreateBlock| BM
+    BM --&gt;|ApplyBlock| EX
+    BM --&gt;|Save| ST
+    
+    BM --&gt;|Headers| SUB
+    BM --&gt;|Data| SUB
+    SUB --&gt;|Submit| DA
+    
+    RET --&gt;|Retrieve| DA
+    RET --&gt;|Headers/Data| SYNC
+    
+    HS --&gt;|Headers| SYNC
+    DS --&gt;|Data| SYNC
+    
+    SYNC --&gt;|Complete Blocks| BM
+    SYNC --&gt;|DA Included| DAI
+    DAI --&gt;|SetFinal| EX
+</code></pre>
 <h2 id="protocolcomponent-description-1"><a class="header" href="#protocolcomponent-description-1">Protocol/Component Description</a></h2>
 <p>The block manager is initialized using several parameters as defined below:</p>
 <div class="table-wrapper"><table><thead><tr><th><strong>Name</strong></th><th><strong>Type</strong></th><th><strong>Description</strong></th></tr></thead><tbody>
-<tr><td>signing key</td><td>crypto.PrivKey</td><td>used for signing a block after it is created</td></tr>
+<tr><td>signing key</td><td>crypto.PrivKey</td><td>used for signing blocks and data after creation</td></tr>
 <tr><td>config</td><td>config.BlockManagerConfig</td><td>block manager configurations (see config options below)</td></tr>
 <tr><td>genesis</td><td>*cmtypes.GenesisDoc</td><td>initialize the block manager with genesis state (genesis configuration defined in <code>config/genesis.json</code> file under the app directory)</td></tr>
 <tr><td>store</td><td>store.Store</td><td>local datastore for storing rollup blocks and states (default local store path is <code>$db_dir/rollkit</code> and <code>db_dir</code> specified in the <code>config.yaml</code> file under the app directory)</td></tr>
 <tr><td>mempool, proxyapp, eventbus</td><td>mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus</td><td>for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production</td></tr>
 <tr><td>dalc</td><td>da.DAClient</td><td>the data availability light client used to submit and retrieve blocks to DA network</td></tr>
-<tr><td>blockstore</td><td>*goheaderstore.Store[*types.Block]</td><td>to retrieve blocks gossiped over the P2P network</td></tr>
+<tr><td>headerStore</td><td>*goheaderstore.Store[*types.SignedHeader]</td><td>to store and retrieve block headers gossiped over the P2P network</td></tr>
+<tr><td>dataStore</td><td>*goheaderstore.Store[*types.SignedData]</td><td>to store and retrieve block data gossiped over the P2P network</td></tr>
+<tr><td>signaturePayloadProvider</td><td>types.SignaturePayloadProvider</td><td>optional custom provider for header signature payloads</td></tr>
+<tr><td>sequencer</td><td>core.Sequencer</td><td>used to retrieve batches of transactions from the sequencing layer</td></tr>
+<tr><td>reaper</td><td>*Reaper</td><td>component that periodically retrieves transactions from the executor and submits them to the sequencer</td></tr>
 </tbody></table>
 </div>
 <p>Block manager configuration options:</p>
@@ -276,31 +323,199 @@ gantt
 <tr><td>DAStartHeight</td><td>uint64</td><td>block retrieval from DA network starts from this height</td></tr>
 <tr><td>LazyBlockInterval</td><td>time.Duration</td><td>time interval used for block production in lazy aggregator mode even when there are no transactions (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L39"><code>defaultLazyBlockTime</code></a>)</td></tr>
 <tr><td>LazyMode</td><td>bool</td><td>when set to true, enables lazy aggregation mode which produces blocks only when transactions are available or at LazyBlockInterval intervals</td></tr>
+<tr><td>MaxPendingHeadersAndData</td><td>uint64</td><td>maximum number of pending headers and data blocks before pausing block production (default: 100)</td></tr>
+<tr><td>GasPrice</td><td>float64</td><td>gas price for DA submissions (-1 for automatic/default)</td></tr>
+<tr><td>GasMultiplier</td><td>float64</td><td>multiplier for gas price on DA submission retries (default: 1.3)</td></tr>
+<tr><td>Namespace</td><td>da.Namespace</td><td>DA namespace ID for block submissions</td></tr>
 </tbody></table>
 </div>
 <h3 id="block-production"><a class="header" href="#block-production">Block Production</a></h3>
 <p>When the full node is operating as a sequencer (aka aggregator), the block manager runs the block production logic. There are two modes of block production, which can be specified in the block manager configurations: <code>normal</code> and <code>lazy</code>.</p>
 <p>In <code>normal</code> mode, the block manager runs a timer, which is set to the <code>BlockTime</code> configuration parameter, and continuously produces blocks at <code>BlockTime</code> intervals.</p>
 <p>In <code>lazy</code> mode, the block manager implements a dual timer mechanism:</p>
+<pre><code class="language-mermaid">flowchart LR
+    subgraph Lazy Aggregation Mode
+        R[Reaper] --&gt;|GetTxs| E[Executor]
+        E --&gt;|Txs Available| R
+        R --&gt;|Submit to Sequencer| S[Sequencer]
+        R --&gt;|NotifyNewTransactions| N[txNotifyCh]
+        
+        N --&gt; A{Aggregation Logic}
+        BT[blockTimer] --&gt; A
+        LT[lazyTimer] --&gt; A
+        
+        A --&gt;|Txs Available| P1[Produce Block with Txs]
+        A --&gt;|No Txs &amp; LazyTimer| P2[Produce Empty Block]
+        
+        P1 --&gt; B[Block Creation]
+        P2 --&gt; B
+    end
+</code></pre>
 <ol>
 <li>A <code>blockTimer</code> that triggers block production at regular intervals when transactions are available</li>
 <li>A <code>lazyTimer</code> that ensures blocks are produced at <code>LazyBlockInterval</code> intervals even during periods of inactivity</li>
 </ol>
 <p>The block manager starts building a block when any transaction becomes available in the mempool via a notification channel (<code>txNotifyCh</code>). When the <code>Reaper</code> detects new transactions, it calls <code>Manager.NotifyNewTransactions()</code>, which performs a non-blocking signal on this channel. The block manager also produces empty blocks at regular intervals to maintain consistency with the DA layer, ensuring a 1:1 mapping between DA layer blocks and execution layer blocks.</p>
+<p>The Reaper component periodically retrieves transactions from the executor and submits them to the sequencer. It runs independently and notifies the block manager when new transactions are available, enabling responsive block production in lazy mode.</p>
 <h4 id="building-the-block"><a class="header" href="#building-the-block">Building the Block</a></h4>
 <p>The block manager of the sequencer nodes performs the following steps to produce a block:</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[Timer Trigger / Transaction Notification] --&gt; B[Retrieve Batch]
+    B --&gt; C{Transactions Available?}
+    C --&gt;|Yes| D[Create Block with Txs]
+    C --&gt;|No| E[Create Empty Block]
+    D --&gt; F[Generate Header &amp; Data]
+    E --&gt; F
+    F --&gt; G[Sign Header → SignedHeader]
+    F --&gt; H[Sign Data → SignedData]
+    G --&gt; I[Apply Block]
+    H --&gt; I
+    I --&gt; J[Update State]
+    J --&gt; K[Save to Store]
+    K --&gt; L[Add to pendingHeaders]
+    K --&gt; M[Add to pendingData]
+    L --&gt; N[Broadcast Header to P2P]
+    M --&gt; O[Broadcast Data to P2P]
+</code></pre>
 <ul>
-<li>Call <code>CreateBlock</code> using executor</li>
-<li>Sign the block using <code>signing key</code> to generate commitment</li>
+<li>Retrieve a batch of transactions using <code>retrieveBatch()</code> which interfaces with the sequencer</li>
+<li>Call <code>CreateBlock</code> using executor with the retrieved transactions</li>
+<li>Create separate header and data structures from the block</li>
+<li>Sign the header using <code>signing key</code> to generate <code>SignedHeader</code></li>
+<li>Sign the data using <code>signing key</code> to generate <code>SignedData</code> (if transactions exist)</li>
 <li>Call <code>ApplyBlock</code> using executor to generate an updated state</li>
 <li>Save the block, validators, and updated state to local store</li>
-<li>Add the newly generated block to <code>pendingBlocks</code> queue</li>
-<li>Publish the newly generated block to channels to notify other components of the sequencer node (such as block and header gossip)</li>
+<li>Add the newly generated header to <code>pendingHeaders</code> queue</li>
+<li>Add the newly generated data to <code>pendingData</code> queue (if not empty)</li>
+<li>Publish the newly generated header and data to channels to notify other components of the sequencer node (such as block and header gossip)</li>
 </ul>
+<p>Note: When no transactions are available, the block manager creates blocks with empty data using a special <code>dataHashForEmptyTxs</code> marker. The header and data separation architecture allows headers and data to be submitted and retrieved independently from the DA layer.</p>
 <h3 id="block-publication-to-da-network"><a class="header" href="#block-publication-to-da-network">Block Publication to DA Network</a></h3>
-<p>The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the <code>pendingBlocks</code> queue) to the DA network using the <code>DABlockTime</code> configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L50"><code>maxSubmitAttempts</code></a> attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L59"><code>initialBackoff</code></a> and it doubles in the next attempt and capped at <code>DABlockTime</code>. A successful publish event leads to the emptying of <code>pendingBlocks</code> queue and a failure event leads to proper error reporting without emptying of <code>pendingBlocks</code> queue.</p>
+<p>The block manager of the sequencer full nodes implements separate submission loops for headers and data, both operating at <code>DABlockTime</code> intervals:</p>
+<pre><code class="language-mermaid">flowchart LR
+    subgraph Header Submission
+        H1[pendingHeaders Queue] --&gt; H2[Header Submission Loop]
+        H2 --&gt; H3[Marshal to Protobuf]
+        H3 --&gt; H4[Submit to DA]
+        H4 --&gt;|Success| H5[Remove from Queue]
+        H4 --&gt;|Failure| H6[Keep in Queue &amp; Retry]
+    end
+    
+    subgraph Data Submission
+        D1[pendingData Queue] --&gt; D2[Data Submission Loop]
+        D2 --&gt; D3[Marshal to Protobuf]
+        D3 --&gt; D4[Submit to DA]
+        D4 --&gt;|Success| D5[Remove from Queue]
+        D4 --&gt;|Failure| D6[Keep in Queue &amp; Retry]
+    end
+    
+    H2 -.-&gt;|DABlockTime| H2
+    D2 -.-&gt;|DABlockTime| D2
+</code></pre>
+<h4 id="header-submission-loop"><a class="header" href="#header-submission-loop">Header Submission Loop</a></h4>
+<p>The <code>HeaderSubmissionLoop</code> manages the submission of signed headers to the DA network:</p>
+<ul>
+<li>Retrieves pending headers from the <code>pendingHeaders</code> queue</li>
+<li>Marshals headers to protobuf format</li>
+<li>Submits to DA using the generic <code>submitToDA</code> helper</li>
+<li>On success, removes submitted headers from the pending queue</li>
+<li>On failure, headers remain in the queue for retry</li>
+</ul>
+<h4 id="data-submission-loop"><a class="header" href="#data-submission-loop">Data Submission Loop</a></h4>
+<p>The <code>DataSubmissionLoop</code> manages the submission of signed data to the DA network:</p>
+<ul>
+<li>Retrieves pending data from the <code>pendingData</code> queue</li>
+<li>Marshals data to protobuf format</li>
+<li>Submits to DA using the generic <code>submitToDA</code> helper</li>
+<li>On success, removes submitted data from the pending queue</li>
+<li>On failure, data remains in the queue for retry</li>
+</ul>
+<h4 id="generic-submission-logic"><a class="header" href="#generic-submission-logic">Generic Submission Logic</a></h4>
+<p>Both loops use a shared <code>submitToDA</code> function that provides:</p>
+<ul>
+<li>Retry logic with <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L50"><code>maxSubmitAttempts</code></a> attempts</li>
+<li>Exponential backoff starting at <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L59"><code>initialBackoff</code></a>, doubling each attempt, capped at <code>DABlockTime</code></li>
+<li>Gas price management with <code>GasMultiplier</code> applied on retries</li>
+<li>Comprehensive metrics tracking for attempts, successes, and failures</li>
+<li>Context-aware cancellation support</li>
+</ul>
+<p>The manager enforces a limit on pending headers and data through <code>MaxPendingHeadersAndData</code> configuration. When this limit is reached, block production pauses to prevent unbounded growth of the pending queues.</p>
 <h3 id="block-retrieval-from-da-network"><a class="header" href="#block-retrieval-from-da-network">Block Retrieval from DA Network</a></h3>
-<p>The block manager of the full nodes regularly pulls blocks from the DA network at <code>DABlockTime</code> intervals and starts off with a DA height read from the last state stored in the local store or <code>DAStartHeight</code> configuration parameter, whichever is the latest. The block manager also actively maintains and increments the <code>daHeight</code> counter after every DA pull. The pull happens by making the <code>RetrieveBlocks(daHeight)</code> request using the Data Availability Light Client (DALC) retriever, which can return either <code>Success</code>, <code>NotFound</code>, or <code>Error</code>. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the <code>daHeight</code> counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block <code>NotFound</code> scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the <code>daHeight</code> counter in this case. Finally, for the <code>Success</code> scenario, first, blocks that are successfully retrieved are marked as DA included and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the <code>DABlockTime</code> and <code>BlockTime</code> intervals. For more details on DA integration, see the <a href="specs/./da.html">Data Availability specification</a>.</p>
+<p>The block manager implements a <code>RetrieveLoop</code> that regularly pulls headers and data from the DA network:</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[Start RetrieveLoop] --&gt; B[Get DA Height]
+    B --&gt; C{DABlockTime Timer}
+    C --&gt; D[GetHeightPair from DA]
+    D --&gt; E{Result?}
+    E --&gt;|Success| F[Validate Signatures]
+    E --&gt;|NotFound| G[Increment Height]
+    E --&gt;|Error| H[Retry Logic]
+    
+    F --&gt; I[Check Sequencer Info]
+    I --&gt; J[Mark DA Included]
+    J --&gt; K[Send to Sync]
+    K --&gt; L[Increment Height]
+    L --&gt; M[Immediate Next Retrieval]
+    
+    G --&gt; C
+    H --&gt; N{Retries &lt; 10?}
+    N --&gt;|Yes| O[Wait 100ms]
+    N --&gt;|No| P[Log Error &amp; Stall]
+    O --&gt; D
+    M --&gt; D
+</code></pre>
+<h4 id="retrieval-process"><a class="header" href="#retrieval-process">Retrieval Process</a></h4>
+<ol>
+<li>
+<p><strong>Height Management</strong>: Starts from the latest of:</p>
+<ul>
+<li>DA height from the last state in local store</li>
+<li><code>DAStartHeight</code> configuration parameter</li>
+<li>Maintains and increments <code>daHeight</code> counter after successful retrievals</li>
+</ul>
+</li>
+<li>
+<p><strong>Retrieval Mechanism</strong>:</p>
+<ul>
+<li>Executes at <code>DABlockTime</code> intervals</li>
+<li>Makes <code>GetHeightPair(daHeight)</code> request to get both header and data</li>
+<li>Handles three possible outcomes:
+<ul>
+<li><code>Success</code>: Process retrieved header and data</li>
+<li><code>NotFound</code>: No rollup block at this DA height (normal case)</li>
+<li><code>Error</code>: Retry with backoff</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Error Handling</strong>:</p>
+<ul>
+<li>Implements retry logic with 100ms delay between attempts</li>
+<li>After 10 retries, logs error and stalls retrieval</li>
+<li>Does not increment <code>daHeight</code> on persistent errors</li>
+</ul>
+</li>
+<li>
+<p><strong>Processing Retrieved Blocks</strong>:</p>
+<ul>
+<li>Validates header and data signatures</li>
+<li>Checks sequencer information</li>
+<li>Marks blocks as DA included in caches</li>
+<li>Sends to sync goroutine for state update</li>
+<li>Successful processing triggers immediate next retrieval without waiting for timer</li>
+</ul>
+</li>
+</ol>
+<h4 id="header-and-data-caching"><a class="header" href="#header-and-data-caching">Header and Data Caching</a></h4>
+<p>The retrieval system uses persistent caches for both headers and data:</p>
+<ul>
+<li>Prevents duplicate processing</li>
+<li>Tracks DA inclusion status</li>
+<li>Supports out-of-order block arrival</li>
+<li>Enables efficient sync from P2P and DA sources</li>
+</ul>
+<p>For more details on DA integration, see the <a href="specs/./da.html">Data Availability specification</a>.</p>
 <h4 id="out-of-order-rollup-blocks-on-da"><a class="header" href="#out-of-order-rollup-blocks-on-da">Out-of-Order Rollup Blocks on DA</a></h4>
 <p>Rollkit should support blocks arriving out-of-order on DA, like so:
 <img src="specs/./out-of-order-blocks.png" alt="out-of-order blocks" /></p>
@@ -308,39 +523,163 @@ gantt
 <p>If the sequencer double-signs two blocks at the same height, evidence of the fault should be posted to DA. Rollkit full nodes should process the longest valid chain up to the height of the fault evidence, and terminate. See diagram:
 <img src="specs/./termination.png" alt="termination condition" /></p>
 <h3 id="block-sync-service"><a class="header" href="#block-sync-service">Block Sync Service</a></h3>
-<p>The block sync service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block sync service is passed to it. Blocks created in the block manager are then passed to the <code>BlockCh</code> channel and then sent to the <a href="https://github.com/celestiaorg/go-header">go-header</a> service to be gossiped blocks over the P2P network.</p>
+<p>The block sync service manages the synchronization of headers and data through separate stores and channels:</p>
+<h4 id="architecture"><a class="header" href="#architecture">Architecture</a></h4>
+<ul>
+<li><strong>Header Store</strong>: Uses <code>goheader.Store[*types.SignedHeader]</code> for header management</li>
+<li><strong>Data Store</strong>: Uses <code>goheader.Store[*types.SignedData]</code> for data management</li>
+<li><strong>Separation of Concerns</strong>: Headers and data are handled independently, supporting the header/data separation architecture</li>
+</ul>
+<h4 id="synchronization-flow"><a class="header" href="#synchronization-flow">Synchronization Flow</a></h4>
+<ol>
+<li><strong>Header Sync</strong>: Headers created by the sequencer are sent to the header store for P2P gossip</li>
+<li><strong>Data Sync</strong>: Data blocks are sent to the data store for P2P gossip</li>
+<li><strong>Cache Integration</strong>: Both header and data caches track seen items to prevent duplicates</li>
+<li><strong>DA Inclusion Tracking</strong>: Separate tracking for header and data DA inclusion status</li>
+</ol>
 <h3 id="block-publication-to-p2p-network"><a class="header" href="#block-publication-to-p2p-network">Block Publication to P2P network</a></h3>
-<p>Blocks created by the sequencer that are ready to be published to the P2P network are sent to the <code>BlockCh</code> channel in Block Manager inside <code>publishLoop</code>.
-The <code>blockPublishLoop</code> in the full node continuously listens for new blocks from the <code>BlockCh</code> channel and when a new block is received, it is written to the block store and broadcasted to the network using the block sync service.</p>
-<p>Among non-sequencer full nodes, all the block gossiping is handled by the block sync service, and they do not need to publish blocks to the P2P network using any of the block manager components.</p>
+<p>The sequencer publishes headers and data separately to the P2P network:</p>
+<h4 id="header-publication"><a class="header" href="#header-publication">Header Publication</a></h4>
+<ul>
+<li>Headers are sent through the header broadcast channel</li>
+<li>Written to the header store for P2P gossip</li>
+<li>Broadcast to network peers via header sync service</li>
+</ul>
+<h4 id="data-publication"><a class="header" href="#data-publication">Data Publication</a></h4>
+<ul>
+<li>Data blocks are sent through the data broadcast channel</li>
+<li>Written to the data store for P2P gossip</li>
+<li>Broadcast to network peers via data sync service</li>
+</ul>
+<p>Non-sequencer full nodes receive headers and data through the P2P sync service and do not publish blocks themselves.</p>
 <h3 id="block-retrieval-from-p2p-network"><a class="header" href="#block-retrieval-from-p2p-network">Block Retrieval from P2P network</a></h3>
-<p>For non-sequencer full nodes, blocks gossiped through the P2P network are retrieved from the <code>Block Store</code> in <code>BlockStoreRetrieveLoop</code> in Block Manager.<br />
-Starting off with a block store height of zero, for every <code>blockTime</code> unit of time, a signal is sent to the <code>blockStoreCh</code> channel in the block manager and when this signal is received, the <code>BlockStoreRetrieveLoop</code> retrieves blocks from the block store.<br />
-It keeps track of the last retrieved block's height and every time the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.<br />
-For each retrieved block, it sends a new block event to the <code>blockInCh</code> channel which is the same channel in which blocks retrieved from the DA layer are sent.</p>
-<p>This block is marked as soft confirmed by the validating full node until the same block data and the corresponding header is seen on the DA layer, then it is marked DA-included.</p>
+<p>Non-sequencer full nodes retrieve headers and data separately from P2P stores:</p>
+<h4 id="header-store-retrieval-loop"><a class="header" href="#header-store-retrieval-loop">Header Store Retrieval Loop</a></h4>
+<p>The <code>HeaderStoreRetrieveLoop</code>:</p>
+<ul>
+<li>Operates at <code>BlockTime</code> intervals via <code>headerStoreCh</code> signals</li>
+<li>Tracks <code>headerStoreHeight</code> for the last retrieved header</li>
+<li>Retrieves all headers between last height and current store height</li>
+<li>Validates sequencer information using <code>isUsingExpectedSingleSequencer</code></li>
+<li>Marks headers as &quot;seen&quot; in the header cache</li>
+<li>Sends headers to sync goroutine via <code>headerInCh</code></li>
+</ul>
+<h4 id="data-store-retrieval-loop"><a class="header" href="#data-store-retrieval-loop">Data Store Retrieval Loop</a></h4>
+<p>The <code>DataStoreRetrieveLoop</code>:</p>
+<ul>
+<li>Operates at <code>BlockTime</code> intervals via <code>dataStoreCh</code> signals</li>
+<li>Tracks <code>dataStoreHeight</code> for the last retrieved data</li>
+<li>Retrieves all data blocks between last height and current store height</li>
+<li>Validates data signatures using <code>isValidSignedData</code></li>
+<li>Marks data as &quot;seen&quot; in the data cache</li>
+<li>Sends data to sync goroutine via <code>dataInCh</code></li>
+</ul>
+<h4 id="soft-confirmations"><a class="header" href="#soft-confirmations">Soft Confirmations</a></h4>
+<p>Headers and data retrieved from P2P are marked as soft confirmed until both:</p>
+<ol>
+<li>The corresponding header is seen on the DA layer</li>
+<li>The corresponding data is seen on the DA layer</li>
+</ol>
+<p>Once both conditions are met, the block is marked as DA-included.</p>
 <h4 id="about-soft-confirmations-and-da-inclusions"><a class="header" href="#about-soft-confirmations-and-da-inclusions">About Soft Confirmations and DA Inclusions</a></h4>
 <p>The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 6 seconds).<br />
 The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked DA-included.<br />
 DA-included blocks are considered to have a higher level of finality.</p>
 <p><strong>DAIncluderLoop</strong>:<br />
-A new loop, <code>DAIncluderLoop</code>, is responsible for advancing the <code>DAIncludedHeight</code> by checking if blocks after the current height have both their header and data marked as DA-included in the caches.<br />
-If either the header or data is missing, the loop stops advancing.<br />
-This ensures that only blocks with both header and data present are considered DA-included.</p>
-<h3 id="state-update-after-block-retrieval"><a class="header" href="#state-update-after-block-retrieval">State Update after Block Retrieval</a></h3>
-<p>The block manager stores and applies the block to update its state every time a new block is retrieved either via the P2P or DA network. State update involves:</p>
+The <code>DAIncluderLoop</code> is responsible for advancing the <code>DAIncludedHeight</code> by:</p>
 <ul>
-<li><code>ApplyBlock</code> using executor: validates the block, executes the block (applies the transactions), captures the validator updates, and creates an updated state.</li>
-<li><code>Commit</code> using executor: commit the execution and changes, update mempool, and publish events</li>
-<li>Store the block, the validators, and the updated state.</li>
+<li>Checking if blocks after the current height have both header and data marked as DA-included in caches</li>
+<li>Stopping advancement if either header or data is missing for a height</li>
+<li>Calling <code>SetFinal</code> on the executor when a block becomes DA-included</li>
+<li>Storing the Rollkit height to DA height mapping for tracking</li>
+<li>Ensuring only blocks with both header and data present are considered DA-included</li>
 </ul>
+<h3 id="state-update-after-block-retrieval"><a class="header" href="#state-update-after-block-retrieval">State Update after Block Retrieval</a></h3>
+<p>The block manager uses a <code>SyncLoop</code> to coordinate state updates from blocks retrieved via P2P or DA networks:</p>
+<pre><code class="language-mermaid">flowchart TD
+    subgraph Sources
+        P1[P2P Header Store] --&gt; H[headerInCh]
+        P2[P2P Data Store] --&gt; D[dataInCh]
+        DA1[DA Header Retrieval] --&gt; H
+        DA2[DA Data Retrieval] --&gt; D
+    end
+    
+    subgraph SyncLoop
+        H --&gt; S[Sync Goroutine]
+        D --&gt; S
+        S --&gt; C{Header &amp; Data for Same Height?}
+        C --&gt;|Yes| R[Reconstruct Block]
+        C --&gt;|No| W[Wait for Matching Pair]
+        R --&gt; V[Validate Signatures]
+        V --&gt; A[ApplyBlock]
+        A --&gt; CM[Commit]
+        CM --&gt; ST[Store Block &amp; State]
+        ST --&gt; F{DA Included?}
+        F --&gt;|Yes| FN[SetFinal]
+        F --&gt;|No| E[End]
+        FN --&gt; U[Update DA Height]
+    end
+</code></pre>
+<h4 id="sync-loop-architecture"><a class="header" href="#sync-loop-architecture">Sync Loop Architecture</a></h4>
+<p>The <code>SyncLoop</code> processes headers and data from multiple sources:</p>
+<ul>
+<li>Headers from <code>headerInCh</code> (P2P and DA sources)</li>
+<li>Data from <code>dataInCh</code> (P2P and DA sources)</li>
+<li>Maintains caches to track processed items</li>
+<li>Ensures ordered processing by height</li>
+</ul>
+<h4 id="state-update-process"><a class="header" href="#state-update-process">State Update Process</a></h4>
+<p>When both header and data are available for a height:</p>
+<ol>
+<li><strong>Block Reconstruction</strong>: Combines header and data into a complete block</li>
+<li><strong>Validation</strong>: Verifies header and data signatures match expectations</li>
+<li><strong>ApplyBlock</strong>:
+<ul>
+<li>Validates the block against current state</li>
+<li>Executes transactions</li>
+<li>Captures validator updates</li>
+<li>Returns updated state</li>
+</ul>
+</li>
+<li><strong>Commit</strong>:
+<ul>
+<li>Persists execution results</li>
+<li>Updates mempool by removing included transactions</li>
+<li>Publishes block events</li>
+</ul>
+</li>
+<li><strong>Storage</strong>:
+<ul>
+<li>Stores the block, validators, and updated state</li>
+<li>Updates last state in manager</li>
+</ul>
+</li>
+<li><strong>Finalization</strong>:
+<ul>
+<li>When block is DA-included, calls <code>SetFinal</code> on executor</li>
+<li>Updates DA included height</li>
+</ul>
+</li>
+</ol>
 <h2 id="message-structurecommunication-format-1"><a class="header" href="#message-structurecommunication-format-1">Message Structure/Communication Format</a></h2>
 <p>The communication between the block manager and executor:</p>
 <ul>
 <li><code>InitChain</code>: initializes the chain state with the given genesis time, initial height, and chain ID using <code>InitChainSync</code> on the executor to obtain initial <code>appHash</code> and initialize the state.</li>
-<li><code>CreateBlock</code>: prepare a block by polling transactions from mempool.</li>
-<li><code>ApplyBlock</code>: validate the block, execute the block (apply transactions), validator updates, create and return updated state.</li>
-<li><code>SetFinal</code>: sets the block as final when it's corresponding header and data are seen on the dA layer.</li>
+<li><code>CreateBlock</code>: prepares a block with transactions from the provided batch data.</li>
+<li><code>ApplyBlock</code>: validates the block, executes the block (apply transactions), captures validator updates, and returns updated state.</li>
+<li><code>SetFinal</code>: marks the block as final when both its header and data are confirmed on the DA layer.</li>
+<li><code>GetTxs</code>: retrieves transactions from the application (used by Reaper component).</li>
+</ul>
+<p>The communication with the sequencer:</p>
+<ul>
+<li><code>GetNextBatch</code>: retrieves the next batch of transactions to include in a block.</li>
+<li><code>VerifyBatch</code>: validates that a batch came from the expected sequencer.</li>
+</ul>
+<p>The communication with DA layer:</p>
+<ul>
+<li><code>Submit</code>: submits headers or data blobs to the DA network.</li>
+<li><code>Get</code>: retrieves headers or data blobs from the DA network.</li>
+<li><code>GetHeightPair</code>: retrieves both header and data at a specific DA height.</li>
 </ul>
 <h2 id="assumptions-and-considerations-1"><a class="header" href="#assumptions-and-considerations-1">Assumptions and Considerations</a></h2>
 <ul>
@@ -356,14 +695,60 @@ This ensures that only blocks with both header and data present are considered D
 </li>
 <li>Empty batches are handled differently in lazy mode - instead of discarding them, they are returned with the <code>ErrNoBatch</code> error, allowing the caller to create empty blocks with proper timestamps.</li>
 <li>Transaction notifications from the <code>Reaper</code> to the <code>Manager</code> are handled via a non-blocking notification channel (<code>txNotifyCh</code>) to prevent backpressure.</li>
+<li>The block manager enforces <code>MaxPendingHeadersAndData</code> limit to prevent unbounded growth of pending queues during DA submission issues.</li>
+<li>Headers and data are submitted separately to the DA layer, supporting the header/data separation architecture.</li>
+<li>The block manager uses persistent caches for headers and data to track seen items and DA inclusion status.</li>
+<li>Gas price management includes automatic adjustment with <code>GasMultiplier</code> on DA submission retries.</li>
 <li>The block manager uses persistent storage (disk) when the <code>root_dir</code> and <code>db_path</code> configuration parameters are specified in <code>config.yaml</code> file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.</li>
-<li>The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was DA included during DA retrieval. The block is only marked DA included in this case.</li>
-<li>The data sync store is created by prefixing <code>dataSync</code> on the main data store.</li>
-<li>The genesis <code>ChainID</code> is used to create the <code>PubSubTopID</code> in go-header with the string <code>-block</code> appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to <a href="https://github.com/celestiaorg/go-header">go-header</a> specs for more details.</li>
+<li>The block manager does not re-apply blocks when they transition from soft confirmed to DA included status. The block is only marked DA included in the caches.</li>
+<li>Header and data stores use separate prefixes for isolation in the underlying database.</li>
+<li>The genesis <code>ChainID</code> is used to create separate <code>PubSubTopID</code>s for headers and data in go-header.</li>
 <li>Block sync over the P2P network works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via <code>P2PConfig.Seeds</code> configuration parameter when starting the full node.</li>
-<li>Node's context is passed down to all the components of the P2P block sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
+<li>Node's context is passed down to all components to support graceful shutdown and cancellation.</li>
+<li>The block manager supports custom signature payload providers for headers, enabling flexible signing schemes.</li>
 <li>The block manager supports the separation of header and data structures in Rollkit. This allows for expanding the sequencing scheme beyond single sequencing and enables the use of a decentralized sequencer mode. For detailed information on this architecture, see the <a href="specs/../../lazy-adr/adr-014-header-and-data-separation.html">Header and Data Separation ADR</a>.</li>
 <li>The block manager processes blocks with a minimal header format, which is designed to eliminate dependency on CometBFT's header format and can be used to produce an execution layer tailored header if needed. For details on this header structure, see the <a href="specs/../../lazy-adr/adr-015-rollkit-minimal-header.html">Rollkit Minimal Header</a> specification.</li>
+</ul>
+<h2 id="metrics"><a class="header" href="#metrics">Metrics</a></h2>
+<p>The block manager exposes comprehensive metrics for monitoring:</p>
+<h3 id="block-production-metrics"><a class="header" href="#block-production-metrics">Block Production Metrics</a></h3>
+<ul>
+<li><code>last_block_produced_height</code>: Height of the last produced block</li>
+<li><code>last_block_produced_time</code>: Timestamp of the last produced block</li>
+<li><code>aggregation_type</code>: Current aggregation mode (normal/lazy)</li>
+<li><code>block_size_bytes</code>: Size distribution of produced blocks</li>
+<li><code>produced_empty_blocks_total</code>: Count of empty blocks produced</li>
+</ul>
+<h3 id="da-metrics"><a class="header" href="#da-metrics">DA Metrics</a></h3>
+<ul>
+<li><code>da_submission_attempts_total</code>: Total DA submission attempts</li>
+<li><code>da_submission_success_total</code>: Successful DA submissions</li>
+<li><code>da_submission_failure_total</code>: Failed DA submissions</li>
+<li><code>da_retrieval_attempts_total</code>: Total DA retrieval attempts</li>
+<li><code>da_retrieval_success_total</code>: Successful DA retrievals</li>
+<li><code>da_retrieval_failure_total</code>: Failed DA retrievals</li>
+<li><code>da_height</code>: Current DA retrieval height</li>
+<li><code>pending_headers_count</code>: Number of headers pending DA submission</li>
+<li><code>pending_data_count</code>: Number of data blocks pending DA submission</li>
+</ul>
+<h3 id="sync-metrics"><a class="header" href="#sync-metrics">Sync Metrics</a></h3>
+<ul>
+<li><code>sync_height</code>: Current sync height</li>
+<li><code>da_included_height</code>: Height of last DA-included block</li>
+<li><code>soft_confirmed_height</code>: Height of last soft confirmed block</li>
+<li><code>header_store_height</code>: Current header store height</li>
+<li><code>data_store_height</code>: Current data store height</li>
+</ul>
+<h3 id="performance-metrics"><a class="header" href="#performance-metrics">Performance Metrics</a></h3>
+<ul>
+<li><code>block_production_time</code>: Time to produce a block</li>
+<li><code>da_submission_time</code>: Time to submit to DA</li>
+<li><code>state_update_time</code>: Time to apply block and update state</li>
+<li><code>channel_buffer_usage</code>: Usage of internal channels</li>
+</ul>
+<h3 id="error-metrics"><a class="header" href="#error-metrics">Error Metrics</a></h3>
+<ul>
+<li><code>errors_total</code>: Total errors by type and operation</li>
 </ul>
 <h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block-manager</a></p>
@@ -393,72 +778,77 @@ This ensures that only blocks with both header and data present are considered D
 <p>Perform verification of the new block against the previously accepted block</p>
 </li>
 </ol>
+<p>Rollkit uses a header/data separation architecture where headers and data can be validated independently. The system has moved from a multi-validator model to a single signer model for simplified sequencer management.</p>
 <h2 id="basic-validation"><a class="header" href="#basic-validation">Basic Validation</a></h2>
-<p>Each type contains a <code>.ValidateBasic()</code> method, which verifies that certain basic invariants hold. The <code>ValidateBasic()</code> calls are nested, starting from the <code>Block</code> struct, all the way down to each subfield.</p>
-<p>The nested basic validation, and validation checks, are called as follows:</p>
-<pre><code class="language-go">Block.ValidateBasic()
-  // Make sure the block's SignedHeader passes basic validation
-  SignedHeader.ValidateBasic()
-    // Make sure the SignedHeader's Header passes basic validation
-    Header.ValidateBasic()
-	  verify ProposerAddress not nil
-	// Make sure the SignedHeader's signature passes basic validation
-	Signature.ValidateBasic()
-	  // Ensure that someone signed the block
-	  verify len(c.Signatures) not 0
-	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, assume based rollup, pass validation, and skip all remaining checks.
-	Validators.ValidateBasic()
-	  // github.com/rollkit/cometbft/blob/main/types/validator.go#L37
-	  verify sh.Validators is not nil, and len(sh.Validators.Validators) != 0
-	  // apply basic validation to all Validators
-	  for each validator:
-	    validator.ValidateBasic()
-		  validate not nil
-		  validator.PubKey not nil
-		  validator.Address == correct size
-	  // apply ValidateBasic to the proposer field:
-	  sh.Validators.Proposer.ValidateBasic()
-		validate not nil
-		validator.PubKey not nil
-		validator.Address == correct size
-    Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
-	Verify SignedHeader.Signature
+<p>Each type contains a <code>.ValidateBasic()</code> method, which verifies that certain basic invariants hold. The <code>ValidateBasic()</code> calls are nested for each structure.</p>
+<h3 id="signedheader-validation"><a class="header" href="#signedheader-validation">SignedHeader Validation</a></h3>
+<pre><code class="language-go">SignedHeader.ValidateBasic()
+  // Make sure the SignedHeader's Header passes basic validation
+  Header.ValidateBasic()
+    verify ProposerAddress not nil
+  // Make sure the SignedHeader's signature passes basic validation
+  Signature.ValidateBasic()
+    // Ensure that someone signed the header
+    verify len(c.Signatures) not 0
+  // For based rollups (sh.Signer.IsEmpty()), pass validation
+  If !sh.Signer.IsEmpty():
+    // Verify the signer matches the proposer address
+    verify sh.Signer.Address == sh.ProposerAddress
+    // Verify signature using custom verifier if set, otherwise use default
+    if sh.verifier != nil:
+      verify sh.verifier(sh) == nil
+    else:
+      verify sh.Signature.Verify(sh.Signer.PubKey, sh.Header.MarshalBinary())
+</code></pre>
+<h3 id="signeddata-validation"><a class="header" href="#signeddata-validation">SignedData Validation</a></h3>
+<pre><code class="language-go">SignedData.ValidateBasic()
+  // Always passes basic validation for the Data itself
   Data.ValidateBasic() // always passes
-  // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
-  Data.Hash() == SignedHeader.DataHash
+  // Make sure the signature is valid
+  Signature.ValidateBasic()
+    verify len(c.Signatures) not 0
+  // Verify the signer
+  If !sd.Signer.IsEmpty():
+    verify sd.Signature.Verify(sd.Signer.PubKey, sd.Data.MarshalBinary())
+</code></pre>
+<h3 id="block-validation"><a class="header" href="#block-validation">Block Validation</a></h3>
+<p>Blocks are composed of SignedHeader and Data:</p>
+<pre><code class="language-go">// Block validation happens by validating header and data separately
+// then ensuring data hash matches
+verify SignedHeader.ValidateBasic() == nil
+verify Data.Hash() == SignedHeader.DataHash
 </code></pre>
 <h2 id="verification-against-previous-block"><a class="header" href="#verification-against-previous-block">Verification Against Previous Block</a></h2>
-<pre><code class="language-go">// code does not match spec: see https://github.com/rollkit/rollkit/issues/1277
-Block.Verify()
-  SignedHeader.Verify(untrustH *SignedHeader)
-    // basic validation removed in #1231, because go-header already validates it
-    //untrustH.ValidateBasic()
-	Header.Verify(untrustH *SignedHeader)
-	  if untrustH.Height == h.Height + 1, then apply the following check:
-	    untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]
-	if untrustH.Height &gt; h.Height + 1:
-	  soft verification failure
-	// We should know they're adjacent now,
-	// verify the link to previous.
-	untrustH.LastHeaderHash == h.Header.Hash()
-	// Verify LastCommit hash
-	untrustH.LastCommitHash == sh.Signature.GetCommitHash(...)
-
+<pre><code class="language-go">SignedHeader.Verify(untrustedHeader *SignedHeader)
+  // Basic validation is handled by go-header before this
+  Header.Verify(untrustedHeader)
+    // Verify height sequence
+    if untrustedHeader.Height != h.Height + 1:
+      if untrustedHeader.Height &gt; h.Height + 1:
+        return soft verification failure
+      return error &quot;headers are not adjacent&quot;
+    // Verify the link to previous header
+    verify untrustedHeader.LastHeaderHash == h.Header.Hash()
+    // Verify LastCommit hash matches previous signature
+    verify untrustedHeader.LastCommitHash == sh.Signature.GetCommitHash(...)
+    // Note: ValidatorHash field exists for compatibility but is not validated
 </code></pre>
-<h2 id="data"><a class="header" href="#data"><a href="https://github.com/rollkit/rollkit/blob/main/types/data.go#L25">Data</a></a></h2>
+<h2 id="data"><a class="header" href="#data"><a href="https://github.com/rollkit/rollkit/blob/main/types/data.go">Data</a></a></h2>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
-<tr><td>Data</td><td>Transaction data of the block</td><td>Data.Hash == SignedHeader.DataHash</td></tr>
+<tr><td>Txs</td><td>Transaction data of the block</td><td>Data.Hash() == SignedHeader.DataHash</td></tr>
+<tr><td>Metadata</td><td>Optional p2p gossiping metadata</td><td>Not validated</td></tr>
 </tbody></table>
 </div>
-<h2 id="signedheader"><a class="header" href="#signedheader"><a href="https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L16">SignedHeader</a></a></h2>
+<h2 id="signedheader"><a class="header" href="#signedheader"><a href="https://github.com/rollkit/rollkit/blob/main/types/signed_header.go">SignedHeader</a></a></h2>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
 <tr><td>Header</td><td>Valid header for the block</td><td><code>Header</code> passes <code>ValidateBasic()</code> and <code>Verify()</code></td></tr>
-<tr><td>Signature</td><td>1 valid signature from the single sequencer</td><td><code>Signature</code> passes <code>ValidateBasic()</code>, with additional checks in <code>SignedHeader.ValidateBasic()</code></td></tr>
-<tr><td>Validators</td><td>Array of Aggregators, must have length exactly 1.</td><td><code>Validators</code> passes <code>ValidateBasic()</code></td></tr>
+<tr><td>Signature</td><td>Valid signature from the single sequencer</td><td><code>Signature</code> passes <code>ValidateBasic()</code>, verified against signer</td></tr>
+<tr><td>Signer</td><td>Information about who signed the header</td><td>Must match ProposerAddress if not empty (based rollup case)</td></tr>
+<tr><td>verifier</td><td>Optional custom signature verification function</td><td>Used instead of default verification if set</td></tr>
 </tbody></table>
 </div>
-<h2 id="header"><a class="header" href="#header"><a href="https://github.com/rollkit/rollkit/blob/main/types/header.go#L39">Header</a></a></h2>
-<p><em><strong>Note</strong></em>: The <code>AggregatorsHash</code> and <code>NextAggregatorsHash</code> fields have been removed. Rollkit vA should ignore all Valset updates from the ABCI app, and always enforce that the proposer is the single sequencer set as the 1 validator in the genesis block.</p>
+<h2 id="header"><a class="header" href="#header"><a href="https://github.com/rollkit/rollkit/blob/main/types/header.go">Header</a></a></h2>
+<p><em><strong>Note</strong></em>: Rollkit has moved to a single signer model. The multi-validator architecture has been replaced with a simpler single sequencer approach.</p>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
 <tr><td><strong>BaseHeader</strong> .</td><td></td><td></td></tr>
 <tr><td>Height</td><td>Height of the previous accepted header, plus 1.</td><td>checked in the `Verify()`` step</td></tr>
@@ -472,14 +862,15 @@ Block.Verify()
 <tr><td>ConsensusHash</td><td>unused</td><td></td></tr>
 <tr><td>AppHash</td><td>The correct state root after executing the block's transactions against the accepted state</td><td>checked during block execution</td></tr>
 <tr><td>LastResultsHash</td><td>Correct results from executing transactions</td><td>checked during block execution</td></tr>
-<tr><td>ProposerAddress</td><td>Address of the expected proposer</td><td>checked in the <code>Verify()</code> step</td></tr>
-<tr><td>Signature</td><td>Signature of the expected proposer</td><td>signature verification occurs in the <code>ValidateBasic()</code> step</td></tr>
+<tr><td>ProposerAddress</td><td>Address of the expected proposer</td><td>Must match Signer.Address in SignedHeader</td></tr>
+<tr><td>ValidatorHash</td><td>Compatibility field for Tendermint light client</td><td>Not validated</td></tr>
 </tbody></table>
 </div>
-<h2 id="validatorset"><a class="header" href="#validatorset"><a href="https://github.com/cometbft/cometbft/blob/main/types/validator_set.go#L51">ValidatorSet</a></a></h2>
+<h2 id="signer"><a class="header" href="#signer"><a href="https://github.com/rollkit/rollkit/blob/main/types/signed_header.go">Signer</a></a></h2>
+<p>The Signer type replaces the previous ValidatorSet for single sequencer operation:</p>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
-<tr><td>Validators</td><td>Array of validators, each must pass <code>Validator.ValidateBasic()</code></td><td><code>Validator.ValidateBasic()</code></td></tr>
-<tr><td>Proposer</td><td>Must pass <code>Validator.ValidateBasic()</code></td><td><code>Validator.ValidateBasic()</code></td></tr>
+<tr><td>PubKey</td><td>Public key of the signer</td><td>Must not be nil if Signer is not empty</td></tr>
+<tr><td>Address</td><td>Address derived from the public key</td><td>Must match ProposerAddress</td></tr>
 </tbody></table>
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="da"><a class="header" href="#da">DA</a></h1>
 <p>Rollkit provides a wrapper for <a href="https://github.com/rollkit/go-da">go-da</a>, a generic data availability interface for modular blockchains, called <code>DAClient</code> with wrapper functionalities like <code>SubmitBlocks</code> and <code>RetrieveBlocks</code> to help block manager interact with DA more easily.</p>
@@ -522,13 +913,20 @@ Block.Verify()
 <h3 id="store"><a class="header" href="#store">Store</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go">Store</a> is initialized with <code>DefaultStore</code>, an implementation of the <a href="https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go">store interface</a> which is used for storing and retrieving blocks, commits, and state. |</p>
 <h3 id="blockmanager"><a class="header" href="#blockmanager">blockManager</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a> is responsible for managing the operations related to blocks such as creating and validating blocks.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a> is responsible for managing block-related operations including:</p>
+<ul>
+<li>Block production (normal and lazy modes)</li>
+<li>Header and data submission to DA layer</li>
+<li>Block retrieval and synchronization</li>
+<li>State updates and finalization</li>
+</ul>
+<p>It implements a header/data separation architecture where headers and transaction data are handled independently.</p>
 <h3 id="dalc"><a class="header" href="#dalc">dalc</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/core/da/da.go">Data Availability Layer Client</a> is used to interact with the data availability layer. It is initialized with the DA Layer and DA Config specified in the node configuration.</p>
-<h3 id="hexservice"><a class="header" href="#hexservice">hExService</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Header Sync Service</a> is used for syncing block headers between nodes over P2P.</p>
-<h3 id="bsyncservice"><a class="header" href="#bsyncservice">bSyncService</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Block Sync Service</a> is used for syncing blocks between nodes over P2P.</p>
+<h3 id="hsyncservice"><a class="header" href="#hsyncservice">hSyncService</a></h3>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Header Sync Service</a> is used for syncing signed headers between nodes over P2P. It operates independently from data sync to support light clients.</p>
+<h3 id="dsyncservice"><a class="header" href="#dsyncservice">dSyncService</a></h3>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Data Sync Service</a> is used for syncing transaction data between nodes over P2P. This service is only used by full nodes, not light nodes.</p>
 <h2 id="message-structurecommunication-format-2"><a class="header" href="#message-structurecommunication-format-2">Message Structure/Communication Format</a></h2>
 <p>The Full Node communicates with other nodes in the network using the P2P client. It also communicates with the application using the ABCI proxy connections. The communication format is based on the P2P and ABCI protocols.</p>
 <h2 id="assumptions-and-considerations-2"><a class="header" href="#assumptions-and-considerations-2">Assumptions and Considerations</a></h2>
@@ -545,35 +943,103 @@ Block.Verify()
 <p>[7] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
 <p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/core/da/da.go">Data Availability Layer Client</a></p>
 <p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Header Sync Service</a></p>
-<p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Block Sync Service</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="header-sync"><a class="header" href="#header-sync">Header Sync</a></h1>
+<p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Data Sync Service</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="header-and-data-sync"><a class="header" href="#header-and-data-sync">Header and Data Sync</a></h1>
 <h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
-<p>The nodes in the P2P network sync headers using the header sync service that implements the <a href="https://github.com/celestiaorg/go-header">go-header</a> interface. The header sync service consists of several components as listed below.</p>
+<p>The nodes in the P2P network sync headers and data using separate sync services that implement the <a href="https://github.com/celestiaorg/go-header">go-header</a> interface. Rollkit uses a header/data separation architecture where headers and transaction data are synchronized independently through parallel services. Each sync service consists of several components as listed below.</p>
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Description</th></tr></thead><tbody>
-<tr><td>store</td><td>a <code>headerEx</code> prefixed <a href="https://github.com/ipfs/go-datastore">datastore</a> where synced headers are stored</td></tr>
-<tr><td>subscriber</td><td>a <a href="https://github.com/libp2p/go-libp2p">libp2p</a> node pubsub subscriber</td></tr>
-<tr><td>P2P server</td><td>a server for handling header requests between peers in the P2P network</td></tr>
-<tr><td>exchange</td><td>a client that enables sending in/out-bound header requests from/to the P2P network</td></tr>
-<tr><td>syncer</td><td>a service for efficient synchronization for headers. When a P2P node falls behind and wants to catch up to the latest network head via P2P network, it can use the syncer.</td></tr>
+<tr><td>store</td><td>a prefixed <a href="https://github.com/ipfs/go-datastore">datastore</a> where synced items are stored (<code>headerSync</code> prefix for headers, <code>dataSync</code> prefix for data)</td></tr>
+<tr><td>subscriber</td><td>a <a href="https://github.com/libp2p/go-libp2p">libp2p</a> node pubsub subscriber for the specific data type</td></tr>
+<tr><td>P2P server</td><td>a server for handling requests between peers in the P2P network</td></tr>
+<tr><td>exchange</td><td>a client that enables sending in/out-bound requests from/to the P2P network</td></tr>
+<tr><td>syncer</td><td>a service for efficient synchronization. When a P2P node falls behind and wants to catch up to the latest network head via P2P network, it can use the syncer.</td></tr>
 </tbody></table>
 </div>
 <h2 id="details-2"><a class="header" href="#details-2">Details</a></h2>
-<p>All three types of nodes (sequencer, full, and light) run the header sync service to maintain the canonical view of the chain (with respect to the P2P network).</p>
-<p>The header sync service inherits the <code>ConnectionGater</code> from the node's P2P client which enables blocking and allowing peers as needed by specifying the <code>P2PConfig.BlockedPeers</code> and <code>P2PConfig.AllowedPeers</code>.</p>
-<p><code>NodeConfig.BlockTime</code> is used to configure the syncer such that it can effectively decide the outdated headers while it receives headers from the P2P network.</p>
-<p>Both header and block sync utilizes <a href="https://github.com/celestiaorg/go-header">go-header</a> library and runs two separate sync services, for the headers and blocks. This distinction is mainly to serve light nodes which do not store blocks, but only headers synced from the P2P network.</p>
-<h3 id="consumption-of-header-sync"><a class="header" href="#consumption-of-header-sync">Consumption of Header Sync</a></h3>
-<p>The sequencer node, upon successfully creating the block, publishes the signed block header to the P2P network using the header sync service. The full/light nodes run the header sync service in the background to receive and store the signed headers from the P2P network. Currently the full/light nodes do not consume the P2P synced headers, however they have future utilities in performing certain checks.</p>
+<p>Rollkit implements two separate sync services:</p>
+<h3 id="header-sync-service"><a class="header" href="#header-sync-service">Header Sync Service</a></h3>
+<ul>
+<li>Synchronizes <code>SignedHeader</code> structures containing block headers with signatures</li>
+<li>Used by all node types (sequencer, full, and light)</li>
+<li>Essential for maintaining the canonical view of the chain</li>
+</ul>
+<h3 id="data-sync-service"><a class="header" href="#data-sync-service">Data Sync Service</a></h3>
+<ul>
+<li>Synchronizes <code>Data</code> structures containing transaction data</li>
+<li>Used only by full nodes and sequencers</li>
+<li>Light nodes do not run this service as they only need headers</li>
+</ul>
+<p>Both services:</p>
+<ul>
+<li>Utilize the generic <code>SyncService[H header.Header[H]]</code> implementation</li>
+<li>Inherit the <code>ConnectionGater</code> from the node's P2P client for peer management</li>
+<li>Use <code>NodeConfig.BlockTime</code> to determine outdated items during sync</li>
+<li>Operate independently on separate P2P topics and datastores</li>
+</ul>
+<h3 id="consumption-of-sync-services"><a class="header" href="#consumption-of-sync-services">Consumption of Sync Services</a></h3>
+<h4 id="header-sync"><a class="header" href="#header-sync">Header Sync</a></h4>
+<ul>
+<li>Sequencer nodes publish signed headers to the P2P network after block creation</li>
+<li>Full and light nodes receive and store headers for chain validation</li>
+<li>Headers contain commitments (DataHash) that link to the corresponding data</li>
+</ul>
+<h4 id="data-sync"><a class="header" href="#data-sync">Data Sync</a></h4>
+<ul>
+<li>Sequencer nodes publish transaction data separately from headers</li>
+<li>Only full nodes receive and store data (light nodes skip this)</li>
+<li>Data is linked to headers through the DataHash commitment</li>
+</ul>
+<h4 id="parallel-broadcasting"><a class="header" href="#parallel-broadcasting">Parallel Broadcasting</a></h4>
+<p>The block manager broadcasts headers and data in parallel when publishing blocks:</p>
+<ul>
+<li>Headers are sent through <code>headerBroadcaster</code></li>
+<li>Data is sent through <code>dataBroadcaster</code></li>
+<li>This enables efficient network propagation of both components</li>
+</ul>
 <h2 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h2>
 <ul>
-<li>The header sync store is created by prefixing <code>headerSync</code> the main datastore.</li>
-<li>The genesis <code>ChainID</code> is used to create the <code>PubsubTopicID</code> in <a href="https://github.com/celestiaorg/go-header">go-header</a>. For example, for ChainID <code>gm</code>, the pubsub topic id is <code>/gm/header-sub/v0.0.1</code>. Refer to go-header specs for further details.</li>
-<li>The header store must be initialized with genesis header before starting the syncer service. The genesis header can be loaded by passing the genesis header hash via <code>NodeConfig.TrustedHash</code> configuration parameter or by querying the P2P network. This imposes a time constraint that full/light nodes have to wait for the sequencer to publish the genesis header to the P2P network before starting the header sync service.</li>
-<li>The Header Sync works only when the node is connected to the P2P network by specifying the initial seeds to connect to via the <code>P2PConfig.Seeds</code> configuration parameter.</li>
-<li>The node's context is passed down to all the components of the P2P header sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
+<li>Separate datastores are created with different prefixes:
+<ul>
+<li>Headers: <code>headerSync</code> prefix on the main datastore</li>
+<li>Data: <code>dataSync</code> prefix on the main datastore</li>
+</ul>
+</li>
+<li>Network IDs are suffixed to distinguish services:
+<ul>
+<li>Header sync: <code>{network}-headerSync</code></li>
+<li>Data sync: <code>{network}-dataSync</code></li>
+</ul>
+</li>
+<li>Chain IDs for pubsub topics are also separated:
+<ul>
+<li>Headers: <code>{chainID}-headerSync</code> creates topic like <code>/gm-headerSync/header-sub/v0.0.1</code></li>
+<li>Data: <code>{chainID}-dataSync</code> creates topic like <code>/gm-dataSync/header-sub/v0.0.1</code></li>
+</ul>
+</li>
+<li>Both stores must be initialized with genesis items before starting:
+<ul>
+<li>Header store needs genesis header</li>
+<li>Data store needs genesis data (if applicable)</li>
+</ul>
+</li>
+<li>Genesis items can be loaded via <code>NodeConfig.TrustedHash</code> or P2P network query</li>
+<li>Sync services work only when connected to P2P network via <code>P2PConfig.Seeds</code></li>
+<li>Node context is passed to all components for graceful shutdown</li>
+<li>Headers and data are linked through DataHash but synced independently</li>
 </ul>
 <h2 id="implementation-4"><a class="header" href="#implementation-4">Implementation</a></h2>
-<p>The header sync implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">block/sync_service.go</a>. The full and light nodes create and start the header sync service under <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a>.</p>
+<p>The sync service implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">pkg/sync/sync_service.go</a>. The generic <code>SyncService[H header.Header[H]]</code> is instantiated as:</p>
+<ul>
+<li><code>HeaderSyncService</code> for syncing <code>*types.SignedHeader</code></li>
+<li><code>DataSyncService</code> for syncing <code>*types.Data</code></li>
+</ul>
+<p>Full nodes create and start both services, while light nodes only start the header sync service. The services are created in <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a> node implementations.</p>
+<p>The block manager integrates with both services through:</p>
+<ul>
+<li><code>HeaderStoreRetrieveLoop()</code> for retrieving headers from P2P</li>
+<li><code>DataStoreRetrieveLoop()</code> for retrieving data from P2P</li>
+<li>Separate broadcast channels for publishing headers and data</li>
+</ul>
 <h2 id="references-4"><a class="header" href="#references-4">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go">Header Sync</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
@@ -969,9 +1435,12 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <ul>
 <li><code>Height</code>: Returns the height of the highest block in the store.</li>
 <li><code>SetHeight</code>: Sets given height in the store if it's higher than the existing height in the store.</li>
-<li><code>SaveBlock</code>: Saves a block along with its seen signature.</li>
+<li><code>SaveBlock</code>: Saves a block (containing both header and data) along with its seen signature.</li>
 <li><code>GetBlock</code>: Returns a block at a given height.</li>
 <li><code>GetBlockByHash</code>: Returns a block with a given block header hash.</li>
+</ul>
+<p>Note: While blocks are stored as complete units in the store, the block manager handles headers and data separately during synchronization and DA layer interaction.</p>
+<ul>
 <li><code>SaveBlockResponses</code>: Saves block responses in the Store.</li>
 <li><code>GetBlockResponses</code>: Returns block results at a given height.</li>
 <li><code>GetSignature</code>: Returns a signature for a block at a given height.</li>
@@ -993,14 +1462,19 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <p>A Rollkit full node is <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">initialized</a> using <code>NewDefaultKVStore</code> as the base key-value store for underlying storage. To store various types of data in this base key-value store, different prefixes are used: <code>mainPrefix</code>, <code>dalcPrefix</code>, and <code>indexerPrefix</code>. The <code>mainPrefix</code> equal to <code>0</code> is used for the main node data, <code>dalcPrefix</code> equal to <code>1</code> is used for Data Availability Layer Client (DALC) data, and <code>indexerPrefix</code> equal to <code>2</code> is used for indexing related data.</p>
 <p>For the main node data, <code>DefaultStore</code> struct, an implementation of the Store interface, is used with the following prefixes for various types of data within it:</p>
 <ul>
-<li><code>blockPrefix</code> with value &quot;b&quot;: Used to store blocks in the key-value store.</li>
+<li><code>blockPrefix</code> with value &quot;b&quot;: Used to store complete blocks in the key-value store.</li>
 <li><code>indexPrefix</code> with value &quot;i&quot;: Used to index the blocks stored in the key-value store.</li>
 <li><code>commitPrefix</code> with value &quot;c&quot;: Used to store commits related to the blocks.</li>
 <li><code>statePrefix</code> with value &quot;s&quot;: Used to store the state of the blockchain.</li>
 <li><code>responsesPrefix</code> with value &quot;r&quot;: Used to store responses related to the blocks.</li>
 <li><code>validatorsPrefix</code> with value &quot;v&quot;: Used to store validator sets at a given height.</li>
 </ul>
-<p>For example, in a call to <code>GetBlockByHash</code> for some block hash <code>&lt;block_hash&gt;</code>, the key used in the full node's base key-value store will be <code>/0/b/&lt;block_hash&gt;</code> where <code>0</code> is the main store prefix and <code>b</code> is the block prefix. Similarly, in a call to <code>GetValidators</code> for some height <code>&lt;height&gt;</code>, the key used in the full node's base key-value store will be <code>/0/v/&lt;height&gt;</code> where <code>0</code> is the main store prefix and <code>v</code> is the validator set prefix.</p>
+<p>Additional prefixes used by sync services:</p>
+<ul>
+<li><code>headerSyncPrefix</code> with value &quot;hs&quot;: Used by the header sync service for P2P synced headers.</li>
+<li><code>dataSyncPrefix</code> with value &quot;ds&quot;: Used by the data sync service for P2P synced transaction data.
+For example, in a call to <code>GetBlockByHash</code> for some block hash <code>&lt;block_hash&gt;</code>, the key used in the full node's base key-value store will be <code>/0/b/&lt;block_hash&gt;</code> where <code>0</code> is the main store prefix and <code>b</code> is the block prefix. Similarly, in a call to <code>GetValidators</code> for some height <code>&lt;height&gt;</code>, the key used in the full node's base key-value store will be <code>/0/v/&lt;height&gt;</code> where <code>0</code> is the main store prefix and <code>v</code> is the validator set prefix.</li>
+</ul>
 <p>Inside the key-value store, the value of these various types of data like <code>Block</code> is stored as a byte array which is encoded and decoded using the corresponding Protobuf <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">marshal and unmarshal methods</a>.</p>
 <p>The store is most widely used inside the <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block manager</a> to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, <code>lastStateMtx</code>, to synchronize read/write access to it and prevent race conditions.</p>
 <h2 id="message-structurecommunication-format-5"><a class="header" href="#message-structurecommunication-format-5">Message Structure/Communication Format</a></h2>
