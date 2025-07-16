@@ -425,10 +425,8 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 
 	t.Logf("Full node block height before DA inclusion wait: %d", fnBlockHeightBeforeWait)
 
-	// Wait for two DA block times to allow DA inclusion to process
-	// DefaultDABlockTime is "1s", so one DA block time = 1 second
-	const daBlockTimeDuration = 1 * time.Second // Parse DefaultDABlockTime
-	waitTime := 1 * daBlockTimeDuration
+	// Wait for one DA block time to allow DA inclusion to process
+	waitTime := 1 * time.Second
 	t.Logf("Waiting %v (1 DA block time) for DA inclusion to process...", waitTime)
 	time.Sleep(waitTime)
 
