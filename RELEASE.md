@@ -44,15 +44,15 @@ Packages must be released in the following order to ensure dependencies are sati
 
 These packages only depend on `core` and can be released in parallel after `core`:
 
-2. **github.com/rollkit/rollkit/da**
+1. **github.com/rollkit/rollkit/da**
    - Path: `./da`
    - Dependencies: `rollkit/core`
 
-3. **github.com/rollkit/rollkit**
+2. **github.com/rollkit/rollkit**
    - Path: `./` (root)
    - Dependencies: `rollkit/core`
 
-4. **github.com/rollkit/rollkit/execution/evm**
+3. **github.com/rollkit/rollkit/execution/evm**
    - Path: `./execution/evm`
    - Dependencies: `rollkit/core`
 
@@ -60,11 +60,11 @@ These packages only depend on `core` and can be released in parallel after `core
 
 These packages depend on both `core` and the main `rollkit` package:
 
-5. **github.com/rollkit/rollkit/sequencers/based**
+1. **github.com/rollkit/rollkit/sequencers/based**
    - Path: `./sequencers/based`
    - Dependencies: `rollkit/core`, `rollkit`
 
-6. **github.com/rollkit/rollkit/sequencers/single**
+2. **github.com/rollkit/rollkit/sequencers/single**
    - Path: `./sequencers/single`
    - Dependencies: `rollkit/core`, `rollkit`
 
@@ -72,11 +72,11 @@ These packages depend on both `core` and the main `rollkit` package:
 
 These packages have the most dependencies and should be released last:
 
-7. **github.com/rollkit/rollkit/apps/evm/based**
+1. **github.com/rollkit/rollkit/apps/evm/based**
    - Path: `./apps/evm/based`
    - Dependencies: `rollkit/core`, `rollkit/da`, `rollkit/execution/evm`, `rollkit`, `rollkit/sequencers/based`
 
-8. **github.com/rollkit/rollkit/apps/evm/single**
+2. **github.com/rollkit/rollkit/apps/evm/single**
    - Path: `./apps/evm/single`
    - Dependencies: `rollkit/core`, `rollkit/da`, `rollkit/execution/evm`, `rollkit`, `rollkit/sequencers/single`
 

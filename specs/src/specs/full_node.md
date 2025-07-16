@@ -32,19 +32,26 @@ The [Store] is initialized with `DefaultStore`, an implementation of the [store 
 
 ### blockManager
 
-The [Block Manager] is responsible for managing the operations related to blocks such as creating and validating blocks.
+The [Block Manager] is responsible for managing block-related operations including:
+
+- Block production (normal and lazy modes)
+- Header and data submission to DA layer
+- Block retrieval and synchronization
+- State updates and finalization
+
+It implements a header/data separation architecture where headers and transaction data are handled independently.
 
 ### dalc
 
 The [Data Availability Layer Client][dalc] is used to interact with the data availability layer. It is initialized with the DA Layer and DA Config specified in the node configuration.
 
-### hExService
+### hSyncService
 
-The [Header Sync Service] is used for syncing block headers between nodes over P2P.
+The [Header Sync Service] is used for syncing signed headers between nodes over P2P. It operates independently from data sync to support light clients.
 
-### bSyncService
+### dSyncService
 
-The [Block Sync Service] is used for syncing blocks between nodes over P2P.
+The [Data Sync Service] is used for syncing transaction data between nodes over P2P. This service is only used by full nodes, not light nodes.
 
 ## Message Structure/Communication Format
 
@@ -78,7 +85,7 @@ See [full node]
 
 [9] [Header Sync Service][Header Sync Service]
 
-[10] [Block Sync Service][Block Sync Service]
+[10] [Data Sync Service][Data Sync Service]
 
 [full node]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [genesis]: https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md
@@ -89,4 +96,4 @@ See [full node]
 [Block Manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
 [dalc]: https://github.com/rollkit/rollkit/blob/main/core/da/da.go
 [Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go
-[Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go
+[Data Sync Service]: https://github.com/rollkit/rollkit/blob/main/pkg/sync/sync_service.go
