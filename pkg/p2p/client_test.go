@@ -327,8 +327,7 @@ func TestClientInfoMethods(t *testing.T) {
 	require.NoError(err)
 
 	// Start clients
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	for _, c := range clients {
 		err = c.Start(ctx)
 		require.NoError(err)
