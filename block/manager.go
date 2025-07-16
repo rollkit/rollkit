@@ -809,17 +809,16 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 	}
 
 	// // Verify that the header's timestamp is strictly greater than the last block's time
-	// headerTime := header.Time()
-	// if header.Height() > 1 && lastState.LastBlockTime.After(headerTime) {
-	// 	return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
-	// 		headerTime.UnixNano(), lastState.LastBlockTime)
-	// }
+	headerTime := header.Time()
+	if header.Height() > 1 && lastState.LastBlockTime.After(headerTime) {
+		return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
+			headerTime, lastState.LastBlockTime)
+	}
 
-	// // Validate that the header's AppHash matches the lastState's AppHash
-	// // Note: Assumes deferred execution
-	// if !bytes.Equal(header.AppHash, lastState.AppHash) {
-	// 	return fmt.Errorf("app hash mismatch: expected %x, got %x", lastState.AppHash, header.AppHash)
-	// }
+	// AppHash should match the last state's AppHash
+	if !bytes.Equal(header.AppHash, lastState.AppHash) {
+		return fmt.Errorf("appHash mismatch in delayed execution mode: expected %x, got %x", lastState.AppHash, header.AppHash)
+	}
 
 	return nil
 }

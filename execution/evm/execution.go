@@ -191,13 +191,11 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 		ts = prevTimestamp + 1 // Subsequent blocks must have a higher timestamp.
 	}
 
-	c.mu.Lock()
 	args := engine.ForkchoiceStateV1{
 		HeadBlockHash:      prevBlockHash,
 		SafeBlockHash:      prevBlockHash,
 		FinalizedBlockHash: prevBlockHash,
 	}
-	c.mu.Unlock()
 
 	// update forkchoice to get the next payload id
 	var forkchoiceResult engine.ForkChoiceResponse
