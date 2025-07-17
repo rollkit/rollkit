@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"cosmossdk.io/log"
 	"github.com/filecoin-project/go-jsonrpc"
+	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/rollkit/rollkit/core/da"
 	internal "github.com/rollkit/rollkit/da/jsonrpc/internal"
@@ -21,7 +21,7 @@ type Module interface {
 
 // API defines the jsonrpc service module API
 type API struct {
-	Logger      log.Logger
+	Logger      logging.EventLogger
 	Namespace   []byte
 	MaxBlobSize uint64
 	Internal    struct {
@@ -132,7 +132,7 @@ func (api *API) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, _
 			api.Logger.Debug("RPC call canceled due to context cancellation", "method", "Submit")
 			return res, context.Canceled
 		}
-		api.Logger.Error("RPC call failed", "method", "Submit", "error", err)
+		api.Logger.Error("RPC call failed", "method", "Submit", "error", err, "namespace", api.Namespace)
 	} else {
 		api.Logger.Debug("RPC call successful", "method", "Submit", "num_ids_returned", len(res))
 	}
@@ -245,12 +245,12 @@ func (c *Client) Close() {
 
 // NewClient creates a new Client with one connection per namespace with the
 // given token as the authorization token.
-func NewClient(ctx context.Context, logger log.Logger, addr string, token, ns string) (*Client, error) {
+func NewClient(ctx context.Context, logger logging.EventLogger, addr string, token, ns string) (*Client, error) {
 	authHeader := http.Header{"Authorization": []string{fmt.Sprintf("Bearer %s", token)}}
 	return newClient(ctx, logger, addr, authHeader, ns)
 }
 
-func newClient(ctx context.Context, logger log.Logger, addr string, authHeader http.Header, namespace string) (*Client, error) {
+func newClient(ctx context.Context, logger logging.EventLogger, addr string, authHeader http.Header, namespace string) (*Client, error) {
 	var multiCloser multiClientCloser
 	var client Client
 	client.DA.Logger = logger

@@ -66,8 +66,17 @@ build-da:
         @echo "    Check the binary with: $(CURDIR)/build/local-da"
 .PHONY: build-da
 
+## docker-build: Build Docker image for local testing
+docker-build:
+	@echo "--> Building Docker image for local testing"
+	@docker build -t rollkit:local-dev .
+	@echo "--> Docker image built: rollkit:local-dev"
+	@echo "--> Checking if image exists locally..."
+	@docker images rollkit:local-dev
+.PHONY: docker-build
+
 ## clean: clean and build
-clean: 
+clean:
 	@echo "--> Cleaning Testapp CLI"
 	@rm -rf $(CURDIR)/build/
 	@echo "--> Testapp CLI Cleaned!"

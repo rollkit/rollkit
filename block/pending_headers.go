@@ -2,20 +2,12 @@ package block
 
 import (
 	"context"
-	"encoding/binary"
-	"errors"
-	"fmt"
-	"sync/atomic"
 
-	"cosmossdk.io/log"
-	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/rollkit/rollkit/pkg/store"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 )
-
-// LastSubmittedHeightKey is the key used for persisting the last submitted height in store.
-const LastSubmittedHeightKey = "last-submitted"
 
 // PendingHeaders maintains headers that need to be published to DA layer
 //
@@ -24,120 +16,51 @@ const LastSubmittedHeightKey = "last-submitted"
 // - headers are always pushed to DA in order (by height)
 // - DA submission of multiple headers is atomic - it's impossible to submit only part of a batch
 //
-// lastSubmittedHeight is updated only after receiving confirmation from DA.
+// lastSubmittedHeaderHeight is updated only after receiving confirmation from DA.
 // Worst case scenario is when headers was successfully submitted to DA, but confirmation was not received (e.g. node was
 // restarted, networking issue occurred). In this case headers are re-submitted to DA (it's extra cost).
 // rollkit is able to skip duplicate headers so this shouldn't affect full nodes.
 // TODO(tzdybal): we shouldn't try to push all pending headers at once; this should depend on max blob size
 type PendingHeaders struct {
-	logger log.Logger
-	store  store.Store
+	base *pendingBase[*types.SignedHeader]
+}
 
-	// lastSubmittedHeight holds information about last header successfully submitted to DA
-	lastSubmittedHeight atomic.Uint64
+func fetchSignedHeader(ctx context.Context, store storepkg.Store, height uint64) (*types.SignedHeader, error) {
+	header, _, err := store.GetBlockData(ctx, height)
+	return header, err
 }
 
 // NewPendingHeaders returns a new PendingHeaders struct
-func NewPendingHeaders(store store.Store, logger log.Logger) (*PendingHeaders, error) {
-	pb := &PendingHeaders{
-		store:  store,
-		logger: logger,
-	}
-	if err := pb.init(); err != nil {
+func NewPendingHeaders(store storepkg.Store, logger logging.EventLogger) (*PendingHeaders, error) {
+	base, err := newPendingBase(store, logger, storepkg.LastSubmittedHeaderHeightKey, fetchSignedHeader)
+	if err != nil {
 		return nil, err
 	}
-	return pb, nil
+	return &PendingHeaders{base: base}, nil
 }
 
 // GetPendingHeaders returns a sorted slice of pending headers.
-func (pb *PendingHeaders) GetPendingHeaders() ([]*types.SignedHeader, error) {
-	return pb.getPendingHeaders(context.Background())
+func (ph *PendingHeaders) getPendingHeaders(ctx context.Context) ([]*types.SignedHeader, error) {
+	return ph.base.getPending(ctx)
 }
 
-// GetLastSubmittedHeight returns the height of the last successfully submitted header.
-func (pb *PendingHeaders) GetLastSubmittedHeight() uint64 {
-	return pb.lastSubmittedHeight.Load()
+// GetLastSubmittedHeaderHeight returns the height of the last successfully submitted header.
+func (ph *PendingHeaders) getLastSubmittedHeaderHeight() uint64 {
+	return ph.base.lastHeight.Load()
 }
 
-// getPendingHeaders returns a sorted slice of pending headers
-// that need to be published to DA layer in order of header height
-func (pb *PendingHeaders) getPendingHeaders(ctx context.Context) ([]*types.SignedHeader, error) {
-	lastSubmitted := pb.lastSubmittedHeight.Load()
-	height, err := pb.store.Height(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if lastSubmitted == height {
-		return nil, nil
-	}
-	if lastSubmitted > height {
-		panic(fmt.Sprintf("height of last header submitted to DA (%d) is greater than height of last header (%d)",
-			lastSubmitted, height))
-	}
-
-	headers := make([]*types.SignedHeader, 0, height-lastSubmitted)
-	for i := lastSubmitted + 1; i <= height; i++ {
-		header, _, err := pb.store.GetBlockData(ctx, i)
-		if err != nil {
-			// return as much as possible + error information
-			return headers, err
-		}
-		headers = append(headers, header)
-	}
-	return headers, nil
+func (ph *PendingHeaders) isEmpty() bool {
+	return ph.base.isEmpty()
 }
 
-func (pb *PendingHeaders) isEmpty() bool {
-	height, err := pb.store.Height(context.Background())
-	if err != nil {
-		return false
-	}
-	return height == pb.lastSubmittedHeight.Load()
+func (ph *PendingHeaders) numPendingHeaders() uint64 {
+	return ph.base.numPending()
 }
 
-func (pb *PendingHeaders) numPendingHeaders() uint64 {
-	height, err := pb.store.Height(context.Background())
-	if err != nil {
-		return 0
-	}
-	return height - pb.lastSubmittedHeight.Load()
+func (ph *PendingHeaders) setLastSubmittedHeaderHeight(ctx context.Context, newLastSubmittedHeaderHeight uint64) {
+	ph.base.setLastSubmittedHeight(ctx, newLastSubmittedHeaderHeight)
 }
 
-func (pb *PendingHeaders) setLastSubmittedHeight(ctx context.Context, newLastSubmittedHeight uint64) {
-	lsh := pb.lastSubmittedHeight.Load()
-
-	if newLastSubmittedHeight > lsh && pb.lastSubmittedHeight.CompareAndSwap(lsh, newLastSubmittedHeight) {
-		bz := make([]byte, 8)
-		binary.LittleEndian.PutUint64(bz, newLastSubmittedHeight)
-		err := pb.store.SetMetadata(ctx, LastSubmittedHeightKey, bz)
-		if err != nil {
-			// This indicates IO error in KV store. We can't do much about this.
-			// After next successful DA submission, update will be re-attempted (with new value).
-			// If store is not updated, after node restart some headers will be re-submitted to DA.
-			pb.logger.Error("failed to store height of latest header submitted to DA", "err", err)
-		}
-	}
-}
-
-func (pb *PendingHeaders) init() error {
-	raw, err := pb.store.GetMetadata(context.Background(), LastSubmittedHeightKey)
-	if errors.Is(err, ds.ErrNotFound) {
-		// LastSubmittedHeightKey was never used, it's special case not actual error
-		// we don't need to modify lastSubmittedHeight
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if len(raw) != 8 {
-		return fmt.Errorf("invalid length of last submitted height: %d, expected 8", len(raw))
-	}
-	lsh := binary.LittleEndian.Uint64(raw)
-	if lsh == 0 {
-		// this is special case, we don't need to modify lastSubmittedHeight
-		return nil
-	}
-	pb.lastSubmittedHeight.CompareAndSwap(0, lsh)
-	return nil
+func (ph *PendingHeaders) init() error {
+	return ph.base.init()
 }

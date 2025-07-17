@@ -7,43 +7,103 @@ import (
 	"sync/atomic"
 	"time"
 
-	"cosmossdk.io/log"
 	"github.com/filecoin-project/go-jsonrpc"
+	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/rollkit/rollkit/core/da"
 )
 
 // Server is a jsonrpc service that can serve the DA interface
 type Server struct {
-	logger   log.Logger
+	logger   logging.EventLogger
 	srv      *http.Server
 	rpc      *jsonrpc.RPCServer
 	listener net.Listener
+	daImpl   da.DA
 
 	started atomic.Bool
 }
 
-// RegisterService registers a service onto the RPC server. All methods on the service will then be
-// exposed over the RPC.
-func (s *Server) RegisterService(namespace string, service interface{}, out interface{}) {
-	s.rpc.Register(namespace, service)
+// serverInternalAPI provides the actual RPC methods.
+type serverInternalAPI struct {
+	logger logging.EventLogger
+	daImpl da.DA
+}
+
+// Get implements the RPC method.
+func (s *serverInternalAPI) Get(ctx context.Context, ids []da.ID, ns []byte) ([]da.Blob, error) {
+	s.logger.Debug("RPC server: Get called", "num_ids", len(ids), "namespace", string(ns))
+	return s.daImpl.Get(ctx, ids, ns)
+}
+
+// GetIDs implements the RPC method.
+func (s *serverInternalAPI) GetIDs(ctx context.Context, height uint64, ns []byte) (*da.GetIDsResult, error) {
+	s.logger.Debug("RPC server: GetIDs called", "height", height, "namespace", string(ns))
+	return s.daImpl.GetIDs(ctx, height, ns)
+}
+
+// GetProofs implements the RPC method.
+func (s *serverInternalAPI) GetProofs(ctx context.Context, ids []da.ID, ns []byte) ([]da.Proof, error) {
+	s.logger.Debug("RPC server: GetProofs called", "num_ids", len(ids), "namespace", string(ns))
+	return s.daImpl.GetProofs(ctx, ids, ns)
+}
+
+// Commit implements the RPC method.
+func (s *serverInternalAPI) Commit(ctx context.Context, blobs []da.Blob, ns []byte) ([]da.Commitment, error) {
+	s.logger.Debug("RPC server: Commit called", "num_blobs", len(blobs), "namespace", string(ns))
+	return s.daImpl.Commit(ctx, blobs, ns)
+}
+
+// Validate implements the RPC method.
+func (s *serverInternalAPI) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof, ns []byte) ([]bool, error) {
+	s.logger.Debug("RPC server: Validate called", "num_ids", len(ids), "num_proofs", len(proofs), "namespace", string(ns))
+	return s.daImpl.Validate(ctx, ids, proofs, ns)
+}
+
+// Submit implements the RPC method. This is the primary submit method which includes options.
+func (s *serverInternalAPI) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte) ([]da.ID, error) {
+	s.logger.Debug("RPC server: Submit called", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns))
+	return s.daImpl.Submit(ctx, blobs, gasPrice, ns)
+}
+
+// SubmitWithOptions implements the RPC method.
+func (s *serverInternalAPI) SubmitWithOptions(ctx context.Context, blobs []da.Blob, gasPrice float64, ns []byte, options []byte) ([]da.ID, error) {
+	s.logger.Debug("RPC server: SubmitWithOptions called", "num_blobs", len(blobs), "gas_price", gasPrice, "namespace", string(ns), "options", string(options))
+	return s.daImpl.SubmitWithOptions(ctx, blobs, gasPrice, ns, options)
+}
+
+// GasPrice implements the RPC method.
+func (s *serverInternalAPI) GasPrice(ctx context.Context) (float64, error) {
+	s.logger.Debug("RPC server: GasPrice called")
+	return s.daImpl.GasPrice(ctx)
+}
+
+// GasMultiplier implements the RPC method.
+func (s *serverInternalAPI) GasMultiplier(ctx context.Context) (float64, error) {
+	s.logger.Debug("RPC server: GasMultiplier called")
+	return s.daImpl.GasMultiplier(ctx)
 }
 
 // NewServer accepts the host address port and the DA implementation to serve as a jsonrpc service
-func NewServer(logger log.Logger, address, port string, DA da.DA) *Server {
+func NewServer(logger logging.EventLogger, address, port string, daImplementation da.DA) *Server {
 	rpc := jsonrpc.NewServer(jsonrpc.WithServerErrors(getKnownErrorsMapping()))
 	srv := &Server{
-		rpc: rpc,
+		rpc:    rpc,
+		logger: logger,
+		daImpl: daImplementation,
 		srv: &http.Server{
-			Addr: address + ":" + port,
-			// the amount of time allowed to read request headers. set to the default 2 seconds
+			Addr:              address + ":" + port,
 			ReadHeaderTimeout: 2 * time.Second,
 		},
-		logger: logger,
 	}
 	srv.srv.Handler = http.HandlerFunc(rpc.ServeHTTP)
-	// Wrap the provided DA implementation with the logging decorator
-	srv.RegisterService("da", DA, &API{Logger: logger}) // Register the wrapper
+
+	apiHandler := &serverInternalAPI{
+		logger: logger,
+		daImpl: daImplementation,
+	}
+
+	srv.rpc.Register("da", apiHandler)
 	return srv
 }
 

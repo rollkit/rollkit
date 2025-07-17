@@ -1,13 +1,14 @@
 package evm
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -83,10 +84,13 @@ func NewEngineExecutionClient(
 	}
 
 	return &EngineClient{
-		engineClient: engineClient,
-		ethClient:    ethClient,
-		genesisHash:  genesisHash,
-		feeRecipient: feeRecipient,
+		engineClient:              engineClient,
+		ethClient:                 ethClient,
+		genesisHash:               genesisHash,
+		feeRecipient:              feeRecipient,
+		currentHeadBlockHash:      genesisHash,
+		currentSafeBlockHash:      genesisHash,
+		currentFinalizedBlockHash: genesisHash,
 	}, nil
 }
 
@@ -135,18 +139,29 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 
 	// add pending txs
 	for _, accountTxs := range result.Pending {
-		for _, tx := range accountTxs {
-			txBytes, err := tx.MarshalBinary()
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal transaction: %w", err)
-			}
-			txs = append(txs, txBytes)
+		// Extract and sort keys to iterate in ordered fashion
+		keys := make([]string, 0, len(accountTxs))
+		for key := range accountTxs {
+			keys = append(keys, key)
 		}
-	}
 
-	// add queued txs
-	for _, accountTxs := range result.Queued {
-		for _, tx := range accountTxs {
+		// Sort keys as integers (they represent nonces)
+		sort.Slice(keys, func(i, j int) bool {
+			// Parse as integers for proper numerical sorting
+			a, errA := strconv.Atoi(keys[i])
+			b, errB := strconv.Atoi(keys[j])
+
+			// If parsing fails, fall back to string comparison
+			if errA != nil || errB != nil {
+				return keys[i] < keys[j]
+			}
+
+			return a < b
+		})
+
+		// Iterate over sorted keys
+		for _, key := range keys {
+			tx := accountTxs[key]
 			txBytes, err := tx.MarshalBinary()
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal transaction: %w", err)
@@ -159,75 +174,49 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 
 // ExecuteTxs executes the given transactions at the specified block height and timestamp
 func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (updatedStateRoot []byte, maxBytes uint64, err error) {
-	// convert rollkit tx to eth tx
-	ethTxs := make([]*types.Transaction, len(txs))
+	// convert rollkit tx to hex strings for rollkit-reth
+	txsPayload := make([]string, len(txs))
 	for i, tx := range txs {
-		ethTxs[i] = new(types.Transaction)
-		err := ethTxs[i].UnmarshalBinary(tx)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to unmarshal transaction: %w", err)
-		}
-		txHash := ethTxs[i].Hash()
-		_, isPending, err := c.ethClient.TransactionByHash(context.Background(), txHash)
-		if err == nil && isPending {
-			continue // skip SendTransaction
-		}
-		err = c.ethClient.SendTransaction(context.Background(), ethTxs[i])
-		if err != nil {
-			// Ignore the error if the transaction fails to be sent since transactions can be invalid and an invalid transaction sent by a client should not crash the node.
-			continue
-		}
+		// Use the raw transaction bytes directly instead of re-encoding
+		txsPayload[i] = "0x" + hex.EncodeToString(tx)
 	}
 
-	// encode
-	txsPayload := make([][]byte, len(txs))
-	for i, tx := range ethTxs {
-		buf := bytes.Buffer{}
-		err := tx.EncodeRLP(&buf)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to RLP encode tx: %w", err)
-		}
-		txsPayload[i] = buf.Bytes()
-	}
-
-	var (
-		prevBlockHash common.Hash
-		prevTimestamp uint64
-	)
-
-	// fetch previous block hash to update forkchoice for the next payload id
-	// if blockHeight == c.initialHeight {
-	// 	prevBlockHash = c.genesisHash
-	// } else {
-	prevBlockHash, _, _, prevTimestamp, err = c.getBlockInfo(ctx, blockHeight-1)
+	prevBlockHash, _, prevGasLimit, prevTimestamp, err := c.getBlockInfo(ctx, blockHeight-1)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("failed to get block info: %w", err)
 	}
-	// }
 
-	// make sure that the timestamp is increasing
 	ts := uint64(timestamp.Unix())
 	if ts <= prevTimestamp {
 		ts = prevTimestamp + 1 // Subsequent blocks must have a higher timestamp.
 	}
 
+	args := engine.ForkchoiceStateV1{
+		HeadBlockHash:      prevBlockHash,
+		SafeBlockHash:      prevBlockHash,
+		FinalizedBlockHash: prevBlockHash,
+	}
+
 	// update forkchoice to get the next payload id
 	var forkchoiceResult engine.ForkChoiceResponse
+
+	// Create rollkit-compatible payload attributes with flattened structure
+	rollkitPayloadAttrs := map[string]interface{}{
+		// Standard Ethereum payload attributes (flattened) - using camelCase as expected by JSON
+		"timestamp":             ts,
+		"prevRandao":            c.derivePrevRandao(blockHeight),
+		"suggestedFeeRecipient": c.feeRecipient,
+		"withdrawals":           []*types.Withdrawal{},
+		// V3 requires parentBeaconBlockRoot
+		"parentBeaconBlockRoot": common.Hash{}.Hex(), // Use zero hash for rollkit
+		// Rollkit-specific fields
+		"transactions": txsPayload,
+		"gasLimit":     prevGasLimit, // Use camelCase to match JSON conventions
+	}
+
 	err = c.engineClient.CallContext(ctx, &forkchoiceResult, "engine_forkchoiceUpdatedV3",
-		engine.ForkchoiceStateV1{
-			HeadBlockHash:      prevBlockHash,
-			SafeBlockHash:      prevBlockHash,
-			FinalizedBlockHash: prevBlockHash,
-		},
-		&engine.PayloadAttributes{
-			Timestamp:             ts,
-			Random:                prevBlockHash, //c.derivePrevRandao(height),
-			SuggestedFeeRecipient: c.feeRecipient,
-			Withdrawals:           []*types.Withdrawal{},
-			BeaconRoot:            &c.genesisHash,
-			Transactions:          txsPayload,
-			NoTxPool:              true,
-		},
+		args,
+		rollkitPayloadAttrs,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("forkchoice update failed: %w", err)
@@ -236,6 +225,9 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	if forkchoiceResult.PayloadID == nil {
 		return nil, 0, ErrNilPayloadStatus
 	}
+
+	// Small delay to allow payload building to complete
+	time.Sleep(10 * time.Millisecond)
 
 	// get payload
 	var payloadResult engine.ExecutionPayloadEnvelope
@@ -248,9 +240,9 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 	var newPayloadResult engine.PayloadStatusV1
 	err = c.engineClient.CallContext(ctx, &newPayloadResult, "engine_newPayloadV4",
 		payloadResult.ExecutionPayload,
-		[]string{}, // No blob hashes
-		c.genesisHash.Hex(),
-		[][]byte{}, // No execution requests
+		[]string{},          // No blob hashes
+		common.Hash{}.Hex(), // Use zero hash for parentBeaconBlockRoot (same as in payload attributes)
+		[][]byte{},          // No execution requests
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("new payload submission failed: %w", err)

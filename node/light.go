@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
@@ -40,9 +40,9 @@ func newLightNode(
 	genesis genesis.Genesis,
 	p2pClient *p2p.Client,
 	database ds.Batching,
-	logger log.Logger,
+	logger logging.EventLogger,
 ) (ln *LightNode, err error) {
-	headerSyncService, err := sync.NewHeaderSyncService(database, conf, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := sync.NewHeaderSyncService(database, conf, genesis, p2pClient, logging.Logger("HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -77,7 +77,7 @@ func (ln *LightNode) Run(parentCtx context.Context) error {
 
 	ln.running = true
 	// Start RPC server
-	handler, err := rpcserver.NewServiceHandler(ln.Store, ln.P2P)
+	handler, err := rpcserver.NewServiceHandler(ln.Store, ln.P2P, ln.Logger)
 	if err != nil {
 		return fmt.Errorf("error creating RPC handler: %w", err)
 	}

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -29,14 +29,14 @@ func TestAggregationLoop_Normal_BasicInterval(t *testing.T) {
 	blockTime := 50 * time.Millisecond
 	waitTime := blockTime*4 + blockTime/2
 
-	mockStore := mocks.NewStore(t)
+	mockStore := mocks.NewMockStore(t)
 	mockStore.On("Height", mock.Anything).Return(uint64(1), nil).Maybe()
 	mockStore.On("GetState", mock.Anything).Return(types.State{LastBlockTime: time.Now().Add(-blockTime)}, nil).Maybe()
 
-	mockExec := mocks.NewExecutor(t)
-	mockSeq := mocks.NewSequencer(t)
-	mockDAC := mocks.NewDA(t)
-	logger := log.NewTestLogger(t)
+	mockExec := mocks.NewMockExecutor(t)
+	mockSeq := mocks.NewMockSequencer(t)
+	mockDAC := mocks.NewMockDA(t)
+	logger := logging.Logger("test")
 
 	m := &Manager{
 		store:     mockStore,
@@ -123,15 +123,15 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 	blockTime := 50 * time.Millisecond
 	waitTime := blockTime*4 + blockTime/2
 
-	mockStore := mocks.NewStore(t)
+	mockStore := mocks.NewMockStore(t)
 	mockStore.On("Height", mock.Anything).Return(uint64(1), nil).Maybe()
 	mockStore.On("GetState", mock.Anything).Return(types.State{LastBlockTime: time.Now().Add(-blockTime)}, nil).Maybe()
 
-	mockExec := mocks.NewExecutor(t)
-	mockSeq := mocks.NewSequencer(t)
-	mockDAC := mocks.NewDA(t)
+	mockExec := mocks.NewMockExecutor(t)
+	mockSeq := mocks.NewMockSequencer(t)
+	mockDAC := mocks.NewMockDA(t)
 
-	mockLogger := log.NewTestLogger(t)
+	logger := logging.Logger("test")
 
 	// Create a basic Manager instance
 	m := &Manager{
@@ -139,7 +139,7 @@ func TestAggregationLoop_Normal_PublishBlockError(t *testing.T) {
 		exec:      mockExec,
 		sequencer: mockSeq,
 		da:        mockDAC,
-		logger:    mockLogger,
+		logger:    logger,
 		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime: config.DurationWrapper{Duration: blockTime},

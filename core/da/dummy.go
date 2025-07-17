@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+var _ DA = (*DummyDA)(nil)
+
 // DummyDA is a simple in-memory implementation of the DA interface for testing purposes.
 type DummyDA struct {
 	mu                 sync.RWMutex
@@ -25,6 +27,9 @@ type DummyDA struct {
 	currentHeight uint64
 	blockTime     time.Duration
 	stopCh        chan struct{}
+
+	// Simulated failure support
+	submitShouldFail bool
 }
 
 var ErrHeightFromFutureStr = fmt.Errorf("given height is from the future")
@@ -67,11 +72,6 @@ func (d *DummyDA) StartHeightTicker() {
 // StopHeightTicker stops the height ticker goroutine.
 func (d *DummyDA) StopHeightTicker() {
 	close(d.stopCh)
-}
-
-// MaxBlobSize returns the maximum blob size.
-func (d *DummyDA) MaxBlobSize(ctx context.Context) (uint64, error) {
-	return d.maxBlobSize, nil
 }
 
 // GasPrice returns the gas price for the DA layer.
@@ -158,10 +158,22 @@ func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, na
 	return d.SubmitWithOptions(ctx, blobs, gasPrice, namespace, nil)
 }
 
+// SetSubmitFailure simulates DA layer going down by making Submit calls fail
+func (d *DummyDA) SetSubmitFailure(shouldFail bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.submitShouldFail = shouldFail
+}
+
 // SubmitWithOptions submits blobs to the DA layer with additional options.
 func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
+	// Check if we should simulate failure
+	if d.submitShouldFail {
+		return nil, errors.New("simulated DA layer failure")
+	}
 
 	height := d.currentHeight + 1
 	ids := make([]ID, 0, len(blobs))

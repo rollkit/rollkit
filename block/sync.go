@@ -17,6 +17,11 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 	defer daTicker.Stop()
 	blockTicker := time.NewTicker(m.config.Node.BlockTime.Duration)
 	defer blockTicker.Stop()
+
+	// Create ticker for periodic metrics updates
+	metricsTicker := time.NewTicker(30 * time.Second)
+	defer metricsTicker.Stop()
+
 	for {
 		select {
 		case <-daTicker.C:
@@ -46,18 +51,13 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 			}
 			m.headerCache.SetItem(headerHeight, header)
 
+			// Record header synced metric
+			m.recordSyncMetrics("header_synced")
+
 			// check if the dataHash is dataHashForEmptyTxs
 			// no need to wait for syncing Data, instead prepare now and set
 			// so that trySyncNextBlock can progress
-			if !m.handleEmptyDataHash(ctx, &header.Header) {
-				dataHashStr := header.DataHash.String()
-				data := m.dataCache.GetItemByHash(dataHashStr)
-				if data != nil {
-					m.dataCache.SetItem(headerHeight, data)
-				} else {
-					m.dataCommitmentToHeight.LoadOrStore(dataHashStr, headerHeight)
-				}
-			}
+			m.handleEmptyDataHash(ctx, &header.Header)
 
 			if err = m.trySyncNextBlock(ctx, daHeight); err != nil {
 				errCh <- fmt.Errorf("failed to sync next block: %w", err)
@@ -67,20 +67,18 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 			m.headerCache.SetSeen(headerHash)
 		case dataEvent := <-m.dataInCh:
 			data := dataEvent.Data
-			if len(data.Txs) == 0 {
+			if len(data.Txs) == 0 || data.Metadata == nil {
 				continue
 			}
 
 			daHeight := dataEvent.DAHeight
 			dataHash := data.DACommitment().String()
-			dataHeight := uint64(0)
-			if data.Metadata != nil {
-				dataHeight = data.Metadata.Height
-			}
+			dataHeight := data.Metadata.Height
 			m.logger.Debug("data retrieved",
 				"daHeight", daHeight,
 				"hash", dataHash,
 				"height", dataHeight,
+				"txs", len(data.Txs),
 			)
 
 			if m.dataCache.IsSeen(dataHash) {
@@ -92,28 +90,14 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 				m.logger.Error("error while getting store height", "error", err)
 				continue
 			}
-			if data.Metadata != nil {
-				// Data was sent via the P2P network
-				dataHeight = data.Metadata.Height
-				if dataHeight <= height {
-					m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
-					continue
-				}
-				m.dataCache.SetItem(dataHeight, data)
+			if dataHeight <= height {
+				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
+				continue
 			}
-			// If the header is synced already, the data commitment should be associated with a height
-			if val, ok := m.dataCommitmentToHeight.Load(dataHash); ok {
-				dataHeight := val.(uint64)
-				m.dataCommitmentToHeight.Delete(dataHash)
-				if dataHeight <= height {
-					m.logger.Debug("data already seen", "height", dataHeight, "data hash",
-						dataHash)
-					continue
-				}
-				m.dataCache.SetItem(dataHeight, data)
-			}
+			m.dataCache.SetItem(dataHeight, data)
 
-			m.dataCache.SetItemByHash(dataHash, data)
+			// Record data synced metric
+			m.recordSyncMetrics("data_synced")
 
 			err = m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
@@ -121,6 +105,10 @@ func (m *Manager) SyncLoop(ctx context.Context, errCh chan<- error) {
 				return
 			}
 			m.dataCache.SetSeen(dataHash)
+		case <-metricsTicker.C:
+			// Update channel metrics periodically
+			m.updateChannelMetrics()
+			m.updatePendingMetrics()
 		case <-ctx.Done():
 			return
 		}
@@ -146,17 +134,17 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 		h := m.headerCache.GetItem(currentHeight + 1)
 		if h == nil {
-			m.logger.Debug("header not found in cache", "height", currentHeight+1)
+			m.logger.Debug("header not found in cache, height:", currentHeight+1)
 			return nil
 		}
 		d := m.dataCache.GetItem(currentHeight + 1)
 		if d == nil {
-			m.logger.Debug("data not found in cache", "height", currentHeight+1)
+			m.logger.Debug("data not found in cache, height:", currentHeight+1)
 			return nil
 		}
 
 		hHeight := h.Height()
-		m.logger.Info("syncing header and data", "height", hHeight)
+		m.logger.Info("syncing header and data, height: ", hHeight)
 		// Validate the received block before applying
 		if err := m.Validate(ctx, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
@@ -180,13 +168,15 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return err
 		}
 
+		// Record sync metrics
+		m.recordSyncMetrics("block_applied")
+
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
 
 		m.headerCache.DeleteItem(currentHeight + 1)
 		m.dataCache.DeleteItem(currentHeight + 1)
-		m.dataCache.DeleteItemByHash(h.DataHash.String())
 		if !bytes.Equal(h.DataHash, dataHashForEmptyTxs) {
 			m.dataCache.SetSeen(h.DataHash.String())
 		}
@@ -194,62 +184,46 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	}
 }
 
-func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header) bool {
+func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header) {
 	headerHeight := header.Height()
 	if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
 		var lastDataHash types.Hash
-		var err error
-		var lastData *types.Data
 		if headerHeight > 1 {
-			_, lastData, err = m.store.GetBlockData(ctx, headerHeight-1)
+			_, lastData, err := m.store.GetBlockData(ctx, headerHeight-1)
+			if err != nil {
+				m.logger.Debug("previous block not applied yet", "current height", headerHeight, "previous height", headerHeight-1, "error", err)
+			}
 			if lastData != nil {
 				lastDataHash = lastData.Hash()
 			}
 		}
-		// if no error then populate data, otherwise just skip and wait for Data to be synced
-		if err == nil {
-			metadata := &types.Metadata{
-				ChainID:      header.ChainID(),
-				Height:       headerHeight,
-				Time:         header.BaseHeader.Time,
-				LastDataHash: lastDataHash,
-			}
-			d := &types.Data{
-				Metadata: metadata,
-			}
-			m.dataCache.SetItem(headerHeight, d)
+		metadata := &types.Metadata{
+			ChainID:      header.ChainID(),
+			Height:       headerHeight,
+			Time:         header.BaseHeader.Time,
+			LastDataHash: lastDataHash,
 		}
-		return true
+		d := &types.Data{
+			Metadata: metadata,
+		}
+		m.dataCache.SetItem(headerHeight, d)
 	}
-	return false
 }
 
 func (m *Manager) sendNonBlockingSignalToHeaderStoreCh() {
-	select {
-	case m.headerStoreCh <- struct{}{}:
-	default:
-	}
+	m.sendNonBlockingSignalWithMetrics(m.headerStoreCh, "header_store")
 }
 
 func (m *Manager) sendNonBlockingSignalToDataStoreCh() {
-	select {
-	case m.dataStoreCh <- struct{}{}:
-	default:
-	}
+	m.sendNonBlockingSignalWithMetrics(m.dataStoreCh, "data_store")
 }
 
 func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
-	select {
-	case m.retrieveCh <- struct{}{}:
-	default:
-	}
+	m.sendNonBlockingSignalWithMetrics(m.retrieveCh, "retrieve")
 }
 
 func (m *Manager) sendNonBlockingSignalToDAIncluderCh() {
-	select {
-	case m.daIncluderCh <- struct{}{}:
-	default:
-	}
+	m.sendNonBlockingSignalWithMetrics(m.daIncluderCh, "da_includer")
 }
 
 // Updates the state stored in manager's store along the manager's lastState

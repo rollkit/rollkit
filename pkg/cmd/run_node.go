@@ -7,13 +7,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
-	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
-	"github.com/rs/zerolog"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 
 	coreda "github.com/rollkit/rollkit/core/da"
@@ -54,46 +52,34 @@ func ParseConfig(cmd *cobra.Command) (rollconf.Config, error) {
 //   - Stack traces for error logs
 //
 // The returned logger is already configured with the "module" field set to "main".
-func SetupLogger(config rollconf.LogConfig) log.Logger {
-	var logOptions []log.Option
+func SetupLogger(config rollconf.LogConfig) logging.EventLogger {
+	logCfg := logging.Config{
+		Stderr: true, // Default to stderr
+	}
 
 	// Configure logger format
 	if config.Format == "json" {
-		logOptions = append(logOptions, log.OutputJSONOption())
+		logCfg.Format = logging.JSONOutput
 	}
 
 	// Configure logger level
-	switch strings.ToLower(config.Level) {
-	case "debug":
-		logOptions = append(logOptions, log.LevelOption(zerolog.DebugLevel))
-	case "info":
-		logOptions = append(logOptions, log.LevelOption(zerolog.InfoLevel))
-	case "warn":
-		logOptions = append(logOptions, log.LevelOption(zerolog.WarnLevel))
-	case "error":
-		logOptions = append(logOptions, log.LevelOption(zerolog.ErrorLevel))
-	default:
-		logOptions = append(logOptions, log.LevelOption(zerolog.InfoLevel))
+	level, err := logging.LevelFromString(config.Level)
+	if err == nil {
+		logCfg.Level = level
+	} else {
+		// Default to info if parsing fails
+		logCfg.Level = logging.LevelInfo
 	}
 
-	// Configure stack traces
-	if config.Trace {
-		logOptions = append(logOptions, log.TraceOption(true))
-	}
+	logging.SetupLogging(logCfg)
 
-	// Initialize logger with configured options
-	configuredLogger := log.NewLogger(os.Stdout)
-	if len(logOptions) > 0 {
-		configuredLogger = log.NewLogger(os.Stdout, logOptions...)
-	}
-
-	// Add module to logger
-	return configuredLogger.With("module", "main")
+	// Return a logger instance for the "main" subsystem
+	return logging.Logger("main")
 }
 
 // StartNode handles the node startup logic
 func StartNode(
-	logger log.Logger,
+	logger logging.EventLogger,
 	cmd *cobra.Command,
 	executor coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,

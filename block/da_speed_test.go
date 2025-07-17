@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -47,15 +47,15 @@ func TestDASpeed(t *testing.T) {
 			manager, mockDAClient := setupManagerForTest(t, daHeight)
 
 			var receivedBlockCount atomic.Uint64
-			ids, namespace := []coreda.ID{[]byte("dummy-id")}, []byte("placeholder")
+			ids := []coreda.ID{[]byte("dummy-id")}
 			mockDAClient.
-				On("GetIDs", mock.Anything, mock.Anything, namespace).
+				On("GetIDs", mock.Anything, mock.Anything, mock.Anything).
 				Return(func(ctx context.Context, height uint64, namespace []byte) (*coreda.GetIDsResult, error) {
 					return &coreda.GetIDsResult{IDs: ids, Timestamp: time.Now()}, nil
 				})
 
 			mockDAClient.
-				On("Get", mock.Anything, ids, namespace).
+				On("Get", mock.Anything, ids, mock.Anything).
 				Return(func(ctx context.Context, ids []coreda.ID, namespace []byte) ([]coreda.Blob, error) {
 					time.Sleep(spec.daDelay)
 					// unique headers for cache misses
@@ -89,10 +89,11 @@ func TestDASpeed(t *testing.T) {
 }
 
 // setupManagerForTest initializes a Manager with mocked dependencies for testing.
-func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.DA) {
-	mockDAClient := rollmocks.NewDA(t)
-	mockStore := rollmocks.NewStore(t)
-	mockLogger := log.NewNopLogger()
+func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollmocks.MockDA) {
+	mockDAClient := rollmocks.NewMockDA(t)
+	mockStore := rollmocks.NewMockStore(t)
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 
 	headerStore, _ := goheaderstore.NewStore[*types.SignedHeader](ds.NewMapDatastore())
 	dataStore, _ := goheaderstore.NewStore[*types.Data](ds.NewMapDatastore())
@@ -129,10 +130,11 @@ func setupManagerForTest(t *testing.T, initialDAHeight uint64) (*Manager, *rollm
 		headerStoreCh: make(chan struct{}),
 		dataStoreCh:   make(chan struct{}),
 		retrieveCh:    make(chan struct{}),
-		logger:        mockLogger,
+		logger:        logger,
 		lastStateMtx:  new(sync.RWMutex),
 		da:            mockDAClient,
 		signer:        noopSigner,
+		metrics:       NopMetrics(),
 	}
 	manager.daIncludedHeight.Store(0)
 	manager.daHeight.Store(initialDAHeight)

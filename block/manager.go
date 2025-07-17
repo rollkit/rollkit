@@ -13,9 +13,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"cosmossdk.io/log"
 	goheader "github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"golang.org/x/sync/errgroup"
 
@@ -26,7 +26,7 @@ import (
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer"
-	"github.com/rollkit/rollkit/pkg/store"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -49,12 +49,6 @@ const (
 
 	// Applies to the headerInCh and dataInCh, 10000 is a large enough number for headers per DA block.
 	eventInChLength = 10000
-
-	// DAIncludedHeightKey is the key used for persisting the da included height in store.
-	DAIncludedHeightKey = "d"
-
-	// LastBatchDataKey is the key used for persisting the last batch data in store.
-	LastBatchDataKey = "l"
 )
 
 var (
@@ -68,6 +62,13 @@ var (
 // publishBlockFunc defines the function signature for publishing a block.
 // This allows for overriding the behavior in tests.
 type publishBlockFunc func(ctx context.Context) error
+
+// MetricsRecorder defines the interface for sequencers that support recording metrics.
+// This interface is used to avoid duplication of the anonymous interface definition
+// across multiple files in the block package.
+type MetricsRecorder interface {
+	RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64)
+}
 
 func defaultSignaturePayloadProvider(header *types.Header) ([]byte, error) {
 	return header.MarshalBinary()
@@ -101,7 +102,7 @@ type Manager struct {
 	lastState types.State
 	// lastStateMtx is used by lastState
 	lastStateMtx *sync.RWMutex
-	store        store.Store
+	store        storepkg.Store
 
 	config  config.Config
 	genesis genesis.Genesis
@@ -134,12 +135,13 @@ type Manager struct {
 	// daIncluderCh is used to notify sync goroutine (DAIncluderLoop) that it needs to set DA included height
 	daIncluderCh chan struct{}
 
-	logger log.Logger
+	logger logging.EventLogger
 
 	// For usage by Lazy Aggregator mode
 	txsAvailable bool
 
 	pendingHeaders *PendingHeaders
+	pendingData    *PendingData
 
 	// for reporting metrics
 	metrics *Metrics
@@ -163,20 +165,13 @@ type Manager struct {
 	// txNotifyCh is used to signal when new transactions are available
 	txNotifyCh chan struct{}
 
-	// batchSubmissionChan is used to submit batches to the sequencer
-	batchSubmissionChan chan coresequencer.Batch
-
-	// dataCommitmentToHeight tracks the height a data commitment (data hash) has been seen on.
-	// Key: data commitment (string), Value: uint64 (height)
-	dataCommitmentToHeight sync.Map
-
 	// signaturePayloadProvider is used to provide a signature payload for the header.
 	// It is used to sign the header with the provided signer.
 	signaturePayloadProvider types.SignaturePayloadProvider
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
-func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store store.Store, exec coreexecutor.Executor, logger log.Logger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
+func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store storepkg.Store, exec coreexecutor.Executor, logger logging.EventLogger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
 	if signaturePayloadProvider == nil {
 		signaturePayloadProvider = defaultSignaturePayloadProvider
 	}
@@ -280,11 +275,11 @@ func NewManager(
 	signer signer.Signer,
 	config config.Config,
 	genesis genesis.Genesis,
-	store store.Store,
+	store storepkg.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	da coreda.DA,
-	logger log.Logger,
+	logger logging.EventLogger,
 	headerStore goheader.Store[*types.SignedHeader],
 	dataStore goheader.Store[*types.Data],
 	headerBroadcaster broadcaster[*types.SignedHeader],
@@ -337,8 +332,13 @@ func NewManager(
 		return nil, err
 	}
 
+	pendingData, err := NewPendingData(store, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	// If lastBatchHash is not set, retrieve the last batch hash from store
-	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
+	lastBatchDataBytes, err := store.GetMetadata(ctx, storepkg.LastBatchDataKey)
 	if err != nil && s.LastBlockHeight > 0 {
 		logger.Error("error while retrieving last batch hash", "error", err)
 	}
@@ -376,6 +376,7 @@ func NewManager(
 		logger:                   logger,
 		txsAvailable:             false,
 		pendingHeaders:           pendingHeaders,
+		pendingData:              pendingData,
 		metrics:                  seqMetrics,
 		sequencer:                sequencer,
 		exec:                     exec,
@@ -383,22 +384,16 @@ func NewManager(
 		gasPrice:                 gasPrice,
 		gasMultiplier:            gasMultiplier,
 		txNotifyCh:               make(chan struct{}, 1), // Non-blocking channel
-		batchSubmissionChan:      make(chan coresequencer.Batch, eventInChLength),
 		signaturePayloadProvider: signaturePayloadProvider,
 	}
 
 	// initialize da included height
-	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
+	if height, err := m.store.GetMetadata(ctx, storepkg.DAIncludedHeightKey); err == nil && len(height) == 8 {
 		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
 	}
 
 	// Set the default publishBlock implementation
 	m.publishBlock = m.publishBlockInternal
-	if s, ok := m.sequencer.(interface {
-		SetBatchSubmissionChan(chan coresequencer.Batch)
-	}); ok {
-		s.SetBatchSubmissionChan(m.batchSubmissionChan)
-	}
 
 	// fetch caches from disks
 	if err := m.LoadCache(); err != nil {
@@ -485,6 +480,45 @@ func (m *Manager) IsDAIncluded(ctx context.Context, height uint64) (bool, error)
 	return isIncluded, nil
 }
 
+// SetRollkitHeightToDAHeight stores the mapping from a Rollkit block height to the corresponding
+// DA (Data Availability) layer heights where the block's header and data were included.
+// This mapping is persisted in the store metadata and is used to track which DA heights
+// contain the block components for a given Rollkit height.
+//
+// For blocks with empty transactions, both header and data use the same DA height since
+// empty transaction data is not actually published to the DA layer.
+func (m *Manager) SetRollkitHeightToDAHeight(ctx context.Context, height uint64) error {
+	header, data, err := m.store.GetBlockData(ctx, height)
+	if err != nil {
+		return err
+	}
+	headerHash, dataHash := header.Hash(), data.DACommitment()
+	headerHeightBytes := make([]byte, 8)
+	daHeightForHeader, ok := m.headerCache.GetDAIncludedHeight(headerHash.String())
+	if !ok {
+		return fmt.Errorf("header hash %s not found in cache", headerHash)
+	}
+	binary.LittleEndian.PutUint64(headerHeightBytes, daHeightForHeader)
+	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/h", storepkg.RollkitHeightToDAHeightKey, height), headerHeightBytes); err != nil {
+		return err
+	}
+	dataHeightBytes := make([]byte, 8)
+	// For empty transactions, use the same DA height as the header
+	if bytes.Equal(dataHash, dataHashForEmptyTxs) {
+		binary.LittleEndian.PutUint64(dataHeightBytes, daHeightForHeader)
+	} else {
+		daHeightForData, ok := m.dataCache.GetDAIncludedHeight(dataHash.String())
+		if !ok {
+			return fmt.Errorf("data hash %s not found in cache", dataHash.String())
+		}
+		binary.LittleEndian.PutUint64(dataHeightBytes, daHeightForData)
+	}
+	if err := m.store.SetMetadata(ctx, fmt.Sprintf("%s/%d/d", storepkg.RollkitHeightToDAHeightKey, height), dataHeightBytes); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetExecutor returns the executor used by the manager.
 //
 // Note: this is a temporary method to allow testing the manager.
@@ -522,7 +556,7 @@ func (m *Manager) retrieveBatch(ctx context.Context) (*BatchData, error) {
 		}
 		// Even if there are no transactions, update lastBatchData so we don't
 		// repeatedly emit the same empty batch, and persist it to metadata.
-		if err := m.store.SetMetadata(ctx, LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
+		if err := m.store.SetMetadata(ctx, storepkg.LastBatchDataKey, convertBatchDataToBytes(res.BatchData)); err != nil {
 			m.logger.Error("error while setting last batch hash", "error", err)
 		}
 		m.lastBatchData = res.BatchData
@@ -539,14 +573,18 @@ func (m *Manager) isUsingExpectedSingleSequencer(header *types.SignedHeader) boo
 // It's assigned to the publishBlock field by default.
 // Any error will be returned, unless the error is due to a publishing error.
 func (m *Manager) publishBlockInternal(ctx context.Context) error {
+	// Start timing block production
+	timer := NewMetricsTimer("block_production", m.metrics)
+	defer timer.Stop()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
 
-	if m.config.Node.MaxPendingHeaders != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeaders {
-		m.logger.Warn(fmt.Sprintf("refusing to create block: pending blocks [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingHeaders))
+	if m.config.Node.MaxPendingHeadersAndData != 0 && (m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingHeadersAndData || m.pendingData.numPendingData() >= m.config.Node.MaxPendingHeadersAndData) {
+		m.logger.Warn(fmt.Sprintf("refusing to create block: pending headers [%d] or data [%d] reached limit [%d]", m.pendingHeaders.numPendingHeaders(), m.pendingData.numPendingData(), m.config.Node.MaxPendingHeadersAndData))
 		return nil
 	}
 
@@ -603,7 +641,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 					m.logger.Info("no batch retrieved from sequencer, skipping block production")
 					return nil
 				}
-				m.logger.Info("creating empty block", "height", newHeight)
+				m.logger.Debug("creating empty block, height: ", newHeight)
 			} else {
 				m.logger.Warn("failed to get transactions from batch", "error", err)
 				return nil
@@ -689,6 +727,11 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	m.recordMetrics(data)
 
+	// Record extended block production metrics
+	productionTime := time.Since(timer.start)
+	isLazy := m.config.Node.LazyMode
+	m.recordBlockProductionMetrics(len(data.Txs), isLazy, productionTime)
+
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return m.headerBroadcaster.WriteToStoreAndBroadcast(ctx, header) })
 	g.Go(func() error { return m.dataBroadcaster.WriteToStoreAndBroadcast(ctx, data) })
@@ -765,18 +808,17 @@ func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader
 		return fmt.Errorf("invalid height: expected %d, got %d", expectedHeight, header.Height())
 	}
 
-	// // Verify that the header's timestamp is strictly greater than the last block's time
-	// headerTime := header.Time()
-	// if header.Height() > 1 && lastState.LastBlockTime.After(headerTime) {
-	// 	return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
-	// 		headerTime.UnixNano(), lastState.LastBlockTime)
-	// }
+	// Verify that the header's timestamp is strictly greater than the last block's time
+	headerTime := header.Time()
+	if header.Height() > 1 && lastState.LastBlockTime.After(headerTime) {
+		return fmt.Errorf("block time must be strictly increasing: got %v, last block time was %v",
+			headerTime, lastState.LastBlockTime)
+	}
 
-	// // Validate that the header's AppHash matches the lastState's AppHash
-	// // Note: Assumes deferred execution
-	// if !bytes.Equal(header.AppHash, lastState.AppHash) {
-	// 	return fmt.Errorf("app hash mismatch: expected %x, got %x", lastState.AppHash, header.AppHash)
-	// }
+	// AppHash should match the last state's AppHash
+	if !bytes.Equal(header.AppHash, lastState.AppHash) {
+		return fmt.Errorf("appHash mismatch in delayed execution mode: expected %x, got %x", lastState.AppHash, header.AppHash)
+	}
 
 	return nil
 }
@@ -954,6 +996,7 @@ func (m *Manager) getDataSignature(data *types.Data) (types.Signature, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if m.signer == nil {
 		return nil, fmt.Errorf("signer is nil; cannot sign data")
 	}

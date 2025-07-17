@@ -7,9 +7,7 @@ import (
 
 	"github.com/rollkit/rollkit/da/jsonrpc"
 	"github.com/rollkit/rollkit/sequencers/single"
-	"github.com/rs/zerolog"
 
-	"cosmossdk.io/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
@@ -28,16 +26,6 @@ var RunCmd = &cobra.Command{
 	Aliases: []string{"node", "run"},
 	Short:   "Run the rollkit node with EVM execution client",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		opts := []log.Option{}
-		logLevel, _ := cmd.Flags().GetString(config.FlagLogLevel)
-		if logLevel != "" {
-			zl, err := zerolog.ParseLevel(logLevel)
-			if err != nil {
-				return err
-			}
-			opts = append(opts, log.LevelOption(zl))
-		}
-
 		executor, err := createExecutionClient(cmd)
 		if err != nil {
 			return err
@@ -60,7 +48,7 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		singleMetrics, err := single.NopMetrics()
+		singleMetrics, err := single.DefaultMetricsProvider(nodeConfig.Instrumentation.IsPrometheusEnabled())(nodeConfig.ChainID)
 		if err != nil {
 			return err
 		}
@@ -132,7 +120,7 @@ func createExecutionClient(cmd *cobra.Command) (execution.Executor, error) {
 func addFlags(cmd *cobra.Command) {
 	cmd.Flags().String(evm.FlagEvmEthURL, "http://localhost:8545", "URL of the Ethereum JSON-RPC endpoint")
 	cmd.Flags().String(evm.FlagEvmEngineURL, "http://localhost:8551", "URL of the Engine API endpoint")
-	cmd.Flags().String(evm.FlagEvmJWTSecret, "", "Path to the JWT secret file for authentication with the execution client")
+	cmd.Flags().String(evm.FlagEvmJWTSecret, "", "The JWT secret for authentication with the execution client")
 	cmd.Flags().String(evm.FlagEvmGenesisHash, "", "Hash of the genesis block")
 	cmd.Flags().String(evm.FlagEvmFeeRecipient, "", "Address that will receive transaction fees")
 }

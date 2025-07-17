@@ -10,14 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/signer/noop"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
+
 	// Use existing store mock if available, or define one
 	mocksStore "github.com/rollkit/rollkit/test/mocks"
 	extmocks "github.com/rollkit/rollkit/test/mocks/external"
@@ -26,9 +28,9 @@ import (
 
 func setupManagerForStoreRetrieveTest(t *testing.T) (
 	m *Manager,
-	mockStore *mocksStore.Store,
-	mockHeaderStore *extmocks.Store[*types.SignedHeader],
-	mockDataStore *extmocks.Store[*types.Data],
+	mockStore *mocksStore.MockStore,
+	mockHeaderStore *extmocks.MockStore[*types.SignedHeader],
+	mockDataStore *extmocks.MockStore[*types.Data],
 	headerStoreCh chan struct{},
 	dataStoreCh chan struct{},
 	headerInCh chan NewHeaderEvent,
@@ -39,9 +41,9 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	t.Helper()
 
 	// Mocks
-	mockStore = mocksStore.NewStore(t)
-	mockHeaderStore = extmocks.NewStore[*types.SignedHeader](t)
-	mockDataStore = extmocks.NewStore[*types.Data](t)
+	mockStore = mocksStore.NewMockStore(t)
+	mockHeaderStore = extmocks.NewMockStore[*types.SignedHeader](t)
+	mockDataStore = extmocks.NewMockStore[*types.Data](t)
 
 	// Channels (buffered to prevent deadlocks in simple test cases)
 	headerStoreCh = make(chan struct{}, 1)
@@ -53,12 +55,13 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	nodeConf := config.DefaultConfig
 	genDoc, pk, _ := types.GetGenesisWithPrivkey("test") // Use test helper
 
-	logger := log.NewNopLogger()
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 	ctx, cancel = context.WithCancel(context.Background())
 
 	// Mock initial metadata reads during manager creation if necessary
-	mockStore.On("GetMetadata", mock.Anything, DAIncludedHeightKey).Return(nil, ds.ErrNotFound).Maybe()
-	mockStore.On("GetMetadata", mock.Anything, LastBatchDataKey).Return(nil, ds.ErrNotFound).Maybe()
+	mockStore.On("GetMetadata", mock.Anything, storepkg.DAIncludedHeightKey).Return(nil, ds.ErrNotFound).Maybe()
+	mockStore.On("GetMetadata", mock.Anything, storepkg.LastBatchDataKey).Return(nil, ds.ErrNotFound).Maybe()
 
 	signer, err := noop.NewNoopSigner(pk)
 	require.NoError(t, err)
@@ -80,7 +83,7 @@ func setupManagerForStoreRetrieveTest(t *testing.T) (
 	}
 
 	// initialize da included height
-	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
+	if height, err := m.store.GetMetadata(ctx, storepkg.DAIncludedHeightKey); err == nil && len(height) == 8 {
 		m.daIncludedHeight.Store(binary.LittleEndian.Uint64(height))
 	}
 

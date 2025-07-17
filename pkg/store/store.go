@@ -13,17 +13,7 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
-var (
-	headerPrefix    = "h"
-	dataPrefix      = "d"
-	indexPrefix     = "i"
-	signaturePrefix = "c"
-	statePrefix     = "s"
-	metaPrefix      = "m"
-	heightPrefix    = "t"
-)
-
-// DefaultStore is a default store implmementation.
+// DefaultStore is a default store implementation.
 type DefaultStore struct {
 	db ds.Batching
 }
@@ -141,16 +131,10 @@ func (s *DefaultStore) DeleteBlockData(ctx context.Context, height uint64) error
 
 // GetBlockData returns block header and data at given height, or error if it's not found in Store.
 func (s *DefaultStore) GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error) {
-	headerBlob, err := s.db.Get(ctx, ds.NewKey(getHeaderKey(height)))
+	header, err := s.GetHeader(ctx, height)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load block header: %w", err)
+		return nil, nil, err
 	}
-	header := new(types.SignedHeader)
-	err = header.UnmarshalBinary(headerBlob)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to unmarshal block header: %w", err)
-	}
-
 	dataBlob, err := s.db.Get(ctx, ds.NewKey(getDataKey(height)))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load block data: %w", err)
@@ -192,6 +176,19 @@ func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash []byte) (*ty
 		return nil, fmt.Errorf("failed to load hash from index: %w", err)
 	}
 	return s.GetSignature(ctx, height)
+}
+
+// GetHeader returns the header at the given height or error if it's not found in Store.
+func (s *DefaultStore) GetHeader(ctx context.Context, height uint64) (*types.SignedHeader, error) {
+	headerBlob, err := s.db.Get(ctx, ds.NewKey(getHeaderKey(height)))
+	if err != nil {
+		return nil, fmt.Errorf("load block header: %w", err)
+	}
+	header := new(types.SignedHeader)
+	if err = header.UnmarshalBinary(headerBlob); err != nil {
+		return nil, fmt.Errorf("unmarshal block header: %w", err)
+	}
+	return header, nil
 }
 
 // GetSignature returns signature for a block with given block header hash, or error if it's not found in Store.

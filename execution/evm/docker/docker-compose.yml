@@ -1,4 +1,4 @@
-name: "reth"
+name: "rollkit-reth"
 
 services:
   jwt-init:
@@ -8,9 +8,9 @@ services:
       - ./jwttoken:/jwt
     healthcheck:
       test: ["CMD", "test", "-f", "/jwt/jwt.hex"]
-      interval: 5s
-      timeout: 5s
-      retries: 3
+      interval: 2s
+      timeout: 2s
+      retries: 2
     command: >
       /bin/sh -c "mkdir -p /jwt &&
       if [ ! -f /jwt/jwt.hex ]; then
@@ -18,47 +18,50 @@ services:
         openssl rand -hex 32 | tr -d '\n' > /jwt/jwt.hex;
       fi"
 
-  reth:
-    container_name: reth
+  rollkit-reth:
+    container_name: rollkit-reth
     restart: unless-stopped
-    image: ghcr.io/paradigmxyz/reth:v1.4.6
+    image: ghcr.io/rollkit/lumen:latest
     depends_on:
       jwt-init:
         condition: service_completed_successfully
     ports:
-      - "9001:9001" # metrics
+      - "9001:9001"   # metrics
       - "30303:30303" # eth/66 peering
-      - "8545:8545" # rpc
-      - "8551:8551" # engine
-      - "8546:8546" # ws
+      - "8545:8545"   # HTTP RPC
+      - "8551:8551"   # Engine API (authenticated)
+      - "8546:8546"   # WebSocket RPC
     volumes:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
-      - logs:/root/logs
+      - reth:/home/reth/eth-home
+    environment:
+      - RUST_LOG=warn,lumen_rollkit=info
     entrypoint: /bin/sh -c
     command:
       - |
-          reth node \
-          --chain /root/chain/genesis.json \
-          --metrics 0.0.0.0:9001 \
-          --log.file.directory /root/logs \
-          --authrpc.addr 0.0.0.0 \
-          --authrpc.port 8551 \
-          --authrpc.jwtsecret /root/jwt/jwt.hex \
-          --http --http.addr 0.0.0.0 --http.port 8545 \
-          --http.api "eth,net,web3,txpool" \
-          --ws --ws.addr 0.0.0.0 --ws.port 8546 --ws.api eth,net,web3 \
-          --engine.persistence-threshold 0 \
-          --engine.memory-block-buffer-target 0 \
-          --disable-discovery \
-          --txpool.pending-max-count 200000 \
-          --txpool.pending-max-size 200 \
-          --txpool.queued-max-count 200000 \
-          --txpool.queued-max-size 200 \
-          --txpool.max-account-slots 2048 \
-          --txpool.max-new-txns 2048 \
-          --txpool.additional-validation-tasks 16
+          lumen node \
+            --chain /root/chain/genesis.json \
+            --datadir /home/reth/eth-home \
+            --metrics 0.0.0.0:9001 \
+            --authrpc.addr 0.0.0.0 \
+            --authrpc.port 8551 \
+            --authrpc.jwtsecret /root/jwt/jwt.hex \
+            --http --http.addr 0.0.0.0 --http.port 8545 \
+            --http.api eth,net,web3,txpool \
+            --ws --ws.addr 0.0.0.0 --ws.port 8546 \
+            --ws.api eth,net,web3 \
+            --engine.persistence-threshold 0 \
+            --engine.memory-block-buffer-target 0 \
+            --disable-discovery \
+            --txpool.pending-max-count 200000 \
+            --txpool.pending-max-size 200 \
+            --txpool.queued-max-count 200000 \
+            --txpool.queued-max-size 200 \
+            --txpool.max-account-slots 2048 \
+            --txpool.max-new-txns 2048 \
+            --txpool.additional-validation-tasks 16 \
+            --rollkit.enable
 
 volumes:
-  logs:
-    driver: local
+  reth:

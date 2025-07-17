@@ -1,10 +1,16 @@
+//go:build docker_e2e
+
 package docker_e2e
 
 import (
 	"context"
-	"cosmossdk.io/math"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"strings"
+	"testing"
+
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/go-square/v2/share"
 	tastoradocker "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
@@ -17,9 +23,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap/zaptest"
-	"os"
-	"strings"
-	"testing"
 )
 
 const (
@@ -223,21 +226,23 @@ func (s *DockerTestSuite) StartRollkitNode(ctx context.Context, bridgeNode tasto
 		"--rollkit.da.auth_token", authToken,
 		"--rollkit.rpc.address", "0.0.0.0:7331", // bind to 0.0.0.0 so rpc is reachable from test host.
 		"--rollkit.da.namespace", generateValidNamespaceHex(),
+		"--kv-endpoint", "0.0.0.0:8080",
 	)
 	s.Require().NoError(err)
 }
 
 // getRollkitImage returns the Docker image configuration for Rollkit
 // Uses ROLLKIT_IMAGE_REPO and ROLLKIT_IMAGE_TAG environment variables if set
+// Defaults to locally built image using a unique tag to avoid registry conflicts
 func getRollkitImage() tastoradocker.DockerImage {
 	repo := strings.TrimSpace(os.Getenv("ROLLKIT_IMAGE_REPO"))
 	if repo == "" {
-		repo = "ghcr.io/rollkit/rollkit"
+		repo = "rollkit"
 	}
 
 	tag := strings.TrimSpace(os.Getenv("ROLLKIT_IMAGE_TAG"))
 	if tag == "" {
-		tag = "latest"
+		tag = "local-dev"
 	}
 
 	return tastoradocker.DockerImage{
@@ -248,7 +253,7 @@ func getRollkitImage() tastoradocker.DockerImage {
 }
 
 func generateValidNamespaceHex() string {
-	return hex.EncodeToString(share.RandomBlobNamespaceID())
+	return hex.EncodeToString(share.RandomBlobNamespace().Bytes())
 }
 
 // appOverrides enables indexing of transactions so Broadcasting of transactions works

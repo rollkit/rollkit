@@ -12,84 +12,96 @@ Verifying a block/header is done in 3 parts:
 
 3. Perform verification of the new block against the previously accepted block
 
+Rollkit uses a header/data separation architecture where headers and data can be validated independently. The system has moved from a multi-validator model to a single signer model for simplified sequencer management.
+
 ## Basic Validation
 
-Each type contains a `.ValidateBasic()` method, which verifies that certain basic invariants hold. The `ValidateBasic()` calls are nested, starting from the `Block` struct, all the way down to each subfield.
+Each type contains a `.ValidateBasic()` method, which verifies that certain basic invariants hold. The `ValidateBasic()` calls are nested for each structure.
 
-The nested basic validation, and validation checks, are called as follows:
+### SignedHeader Validation
 
 ```go
-Block.ValidateBasic()
-  // Make sure the block's SignedHeader passes basic validation
-  SignedHeader.ValidateBasic()
-    // Make sure the SignedHeader's Header passes basic validation
-    Header.ValidateBasic()
-	  verify ProposerAddress not nil
-	// Make sure the SignedHeader's signature passes basic validation
-	Signature.ValidateBasic()
-	  // Ensure that someone signed the block
-	  verify len(c.Signatures) not 0
-	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, assume based rollup, pass validation, and skip all remaining checks.
-	Validators.ValidateBasic()
-	  // github.com/rollkit/cometbft/blob/main/types/validator.go#L37
-	  verify sh.Validators is not nil, and len(sh.Validators.Validators) != 0
-	  // apply basic validation to all Validators
-	  for each validator:
-	    validator.ValidateBasic()
-		  validate not nil
-		  validator.PubKey not nil
-		  validator.Address == correct size
-	  // apply ValidateBasic to the proposer field:
-	  sh.Validators.Proposer.ValidateBasic()
-		validate not nil
-		validator.PubKey not nil
-		validator.Address == correct size
-    Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
-	Verify SignedHeader.Signature
+SignedHeader.ValidateBasic()
+  // Make sure the SignedHeader's Header passes basic validation
+  Header.ValidateBasic()
+    verify ProposerAddress not nil
+  // Make sure the SignedHeader's signature passes basic validation
+  Signature.ValidateBasic()
+    // Ensure that someone signed the header
+    verify len(c.Signatures) not 0
+  // For based rollups (sh.Signer.IsEmpty()), pass validation
+  If !sh.Signer.IsEmpty():
+    // Verify the signer matches the proposer address
+    verify sh.Signer.Address == sh.ProposerAddress
+    // Verify signature using custom verifier if set, otherwise use default
+    if sh.verifier != nil:
+      verify sh.verifier(sh) == nil
+    else:
+      verify sh.Signature.Verify(sh.Signer.PubKey, sh.Header.MarshalBinary())
+```
+
+### SignedData Validation
+
+```go
+SignedData.ValidateBasic()
+  // Always passes basic validation for the Data itself
   Data.ValidateBasic() // always passes
-  // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
-  Data.Hash() == SignedHeader.DataHash
+  // Make sure the signature is valid
+  Signature.ValidateBasic()
+    verify len(c.Signatures) not 0
+  // Verify the signer
+  If !sd.Signer.IsEmpty():
+    verify sd.Signature.Verify(sd.Signer.PubKey, sd.Data.MarshalBinary())
+```
+
+### Block Validation
+
+Blocks are composed of SignedHeader and Data:
+
+```go
+// Block validation happens by validating header and data separately
+// then ensuring data hash matches
+verify SignedHeader.ValidateBasic() == nil
+verify Data.Hash() == SignedHeader.DataHash
 ```
 
 ## Verification Against Previous Block
 
 ```go
-// code does not match spec: see https://github.com/rollkit/rollkit/issues/1277
-Block.Verify()
-  SignedHeader.Verify(untrustH *SignedHeader)
-    // basic validation removed in #1231, because go-header already validates it
-    //untrustH.ValidateBasic()
-	Header.Verify(untrustH *SignedHeader)
-	  if untrustH.Height == h.Height + 1, then apply the following check:
-	    untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]
-	if untrustH.Height > h.Height + 1:
-	  soft verification failure
-	// We should know they're adjacent now,
-	// verify the link to previous.
-	untrustH.LastHeaderHash == h.Header.Hash()
-	// Verify LastCommit hash
-	untrustH.LastCommitHash == sh.Signature.GetCommitHash(...)
-
+SignedHeader.Verify(untrustedHeader *SignedHeader)
+  // Basic validation is handled by go-header before this
+  Header.Verify(untrustedHeader)
+    // Verify height sequence
+    if untrustedHeader.Height != h.Height + 1:
+      if untrustedHeader.Height > h.Height + 1:
+        return soft verification failure
+      return error "headers are not adjacent"
+    // Verify the link to previous header
+    verify untrustedHeader.LastHeaderHash == h.Header.Hash()
+    // Verify LastCommit hash matches previous signature
+    verify untrustedHeader.LastCommitHash == sh.Signature.GetCommitHash(...)
+    // Note: ValidatorHash field exists for compatibility but is not validated
 ```
 
-## [Block](https://github.com/rollkit/rollkit/blob/main/types/block.go#L26)
+## [Data](https://github.com/rollkit/rollkit/blob/main/types/data.go)
 
 | **Field Name** | **Valid State**                         | **Validation**                     |
 |----------------|-----------------------------------------|------------------------------------|
-| SignedHeader   | Header of the block, signed by proposer | (See SignedHeader)                 |
-| Data           | Transaction data of the block           | Data.Hash == SignedHeader.DataHash |
+| Txs            | Transaction data of the block           | Data.Hash() == SignedHeader.DataHash |
+| Metadata       | Optional p2p gossiping metadata         | Not validated                       |
 
-## [SignedHeader](https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L16)
+## [SignedHeader](https://github.com/rollkit/rollkit/blob/main/types/signed_header.go)
 
 | **Field Name** | **Valid State**                                                          | **Validation**                                                                              |
 |----------------|--------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
 | Header         | Valid header for the block                                               | `Header` passes `ValidateBasic()` and `Verify()`                                            |
-| Signature         | 1 valid signature from the single sequencer                      | `Signature` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
-| Validators     | Array of Aggregators, must have length exactly 1. | `Validators` passes `ValidateBasic()`                                                       |
+| Signature      | Valid signature from the single sequencer                                | `Signature` passes `ValidateBasic()`, verified against signer                               |
+| Signer         | Information about who signed the header                                  | Must match ProposerAddress if not empty (based rollup case)                                |
+| verifier       | Optional custom signature verification function                          | Used instead of default verification if set                                                 |
 
-## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go#L39)
+## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go)
 
-***Note***: The `AggregatorsHash` and `NextAggregatorsHash` fields have been removed. Rollkit vA should ignore all Valset updates from the ABCI app, and always enforce that the proposer is the single sequencer set as the 1 validator in the genesis block.
+***Note***: Rollkit has moved to a single signer model. The multi-validator architecture has been replaced with a simpler single sequencer approach.
 
 | **Field Name**      | **Valid State**                                                                            | **Validation**                        |
 |---------------------|--------------------------------------------------------------------------------------------|---------------------------------------|
@@ -105,12 +117,14 @@ Block.Verify()
 | ConsensusHash       | unused                                                                                     |                                       |
 | AppHash             | The correct state root after executing the block's transactions against the accepted state | checked during block execution        |
 | LastResultsHash     | Correct results from executing transactions                                                | checked during block execution        |
-| ProposerAddress     | Address of the expected proposer                                                           | checked in the `Verify()` step          |
-| Signature     | Signature of the expected proposer                                                               | signature verification occurs in the `ValidateBasic()` step          |
+| ProposerAddress     | Address of the expected proposer                                                           | Must match Signer.Address in SignedHeader |
+| ValidatorHash       | Compatibility field for Tendermint light client                                            | Not validated                             |
 
-## [ValidatorSet](https://github.com/cometbft/cometbft/blob/main/types/validator_set.go#L51)
+## [Signer](https://github.com/rollkit/rollkit/blob/main/types/signed_header.go)
+
+The Signer type replaces the previous ValidatorSet for single sequencer operation:
 
 | **Field Name** | **Valid State**                                                 | **Validation**              |
-|--------------|-----------------------------------------------------------------|-----------------------------|
-| Validators   | Array of validators, each must pass `Validator.ValidateBasic()` | `Validator.ValidateBasic()` |
-| Proposer    | Must pass `Validator.ValidateBasic()`                           | `Validator.ValidateBasic()` |
+|----------------|-----------------------------------------------------------------|-----------------------------|
+| PubKey         | Public key of the signer                                        | Must not be nil if Signer is not empty |
+| Address        | Address derived from the public key                             | Must match ProposerAddress              |

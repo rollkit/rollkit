@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -23,6 +23,7 @@ import (
 	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
 	"github.com/rollkit/rollkit/pkg/signer"
 	noopsigner "github.com/rollkit/rollkit/pkg/signer/noop"
+	storepkg "github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -31,14 +32,15 @@ import (
 func setupManagerForPublishBlockTest(
 	t *testing.T,
 	initialHeight uint64,
-	lastSubmittedHeight uint64,
+	lastSubmittedHeaderHeight uint64,
+	lastSubmittedDataHeight uint64,
 	logBuffer *bytes.Buffer,
-) (*Manager, *mocks.Store, *mocks.Executor, *mocks.Sequencer, signer.Signer, context.CancelFunc) {
+) (*Manager, *mocks.MockStore, *mocks.MockExecutor, *mocks.MockSequencer, signer.Signer, context.CancelFunc) {
 	require := require.New(t)
 
-	mockStore := mocks.NewStore(t)
-	mockExec := mocks.NewExecutor(t)
-	mockSeq := mocks.NewSequencer(t)
+	mockStore := mocks.NewMockStore(t)
+	mockExec := mocks.NewMockExecutor(t)
+	mockSeq := mocks.NewMockSequencer(t)
 
 	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
@@ -52,14 +54,17 @@ func setupManagerForPublishBlockTest(
 	genesis := genesispkg.NewGenesis("testchain", initialHeight, time.Now(), proposerAddr)
 
 	_, cancel := context.WithCancel(context.Background())
-	logger := log.NewLogger(
-		logBuffer,
-		log.ColorOption(false),
-	)
+	logger := logging.Logger("test")
+	if logBuffer != nil {
+		_ = logging.SetLogLevel("test", "debug")
+	}
 
-	lastSubmittedBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(lastSubmittedBytes, lastSubmittedHeight)
-	mockStore.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(lastSubmittedBytes, nil).Maybe()
+	lastSubmittedHeaderBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lastSubmittedHeaderBytes, lastSubmittedHeaderHeight)
+	mockStore.On("GetMetadata", mock.Anything, storepkg.LastSubmittedHeaderHeightKey).Return(lastSubmittedHeaderBytes, nil).Maybe()
+	lastSubmittedDataBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lastSubmittedDataBytes, lastSubmittedDataHeight)
+	mockStore.On("GetMetadata", mock.Anything, LastSubmittedDataHeightKey).Return(lastSubmittedDataBytes, nil).Maybe()
 
 	var headerStore *goheaderstore.Store[*types.SignedHeader]
 	var dataStore *goheaderstore.Store[*types.Data]
@@ -86,13 +91,24 @@ func setupManagerForPublishBlockTest(
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		pendingHeaders:           nil,
+		pendingData:              nil,
 		signaturePayloadProvider: defaultSignaturePayloadProvider,
 	}
 	manager.publishBlock = manager.publishBlockInternal
 
-	pendingHeaders, err := NewPendingHeaders(mockStore, logger)
-	require.NoError(err, "Failed to create PendingHeaders")
+	pendingHeaders := func() *PendingHeaders {
+		ph, err := NewPendingHeaders(mockStore, logger)
+		require.NoError(err)
+		return ph
+	}()
 	manager.pendingHeaders = pendingHeaders
+
+	pendingData := func() *PendingData {
+		pd, err := NewPendingData(mockStore, logger)
+		require.NoError(err)
+		return pd
+	}()
+	manager.pendingData = pendingData
 
 	manager.lastState = types.State{
 		ChainID:         genesis.ChainID,
@@ -108,20 +124,21 @@ func setupManagerForPublishBlockTest(
 	return manager, mockStore, mockExec, mockSeq, testSigner, cancel
 }
 
-// TestPublishBlockInternal_MaxPendingHeadersReached verifies that publishBlockInternal returns an error if the maximum number of pending headers is reached.
-func TestPublishBlockInternal_MaxPendingHeadersReached(t *testing.T) {
+// TestPublishBlockInternal_MaxPendingHeadersAndDataReached verifies that publishBlockInternal returns an error if the maximum number of pending headers or data is reached.
+func TestPublishBlockInternal_MaxPendingHeadersAndDataReached(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
 	currentHeight := uint64(10)
-	lastSubmitted := uint64(5)
+	lastSubmittedHeaderHeight := uint64(5)
+	lastSubmittedDataHeight := uint64(5)
 	maxPending := uint64(5)
 	logBuffer := new(bytes.Buffer)
 
-	manager, mockStore, mockExec, mockSeq, _, cancel := setupManagerForPublishBlockTest(t, currentHeight+1, lastSubmitted, logBuffer)
+	manager, mockStore, mockExec, mockSeq, _, cancel := setupManagerForPublishBlockTest(t, currentHeight+1, lastSubmittedHeaderHeight, lastSubmittedDataHeight, logBuffer)
 	defer cancel()
 
-	manager.config.Node.MaxPendingHeaders = maxPending
+	manager.config.Node.MaxPendingHeadersAndData = maxPending
 	ctx := context.Background()
 
 	mockStore.On("Height", ctx).Return(currentHeight, nil)
@@ -129,7 +146,6 @@ func TestPublishBlockInternal_MaxPendingHeadersReached(t *testing.T) {
 	err := manager.publishBlock(ctx)
 
 	require.Nil(err, "publishBlockInternal should not return an error (otherwise the chain would halt)")
-	require.Contains(logBuffer.String(), "pending blocks [5] reached limit [5]", "log message mismatch")
 
 	mockStore.AssertExpectations(t)
 	mockExec.AssertNotCalled(t, "GetTxs", mock.Anything)
@@ -144,10 +160,11 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup manager with mocks
-	mockStore := mocks.NewStore(t)
-	mockSeq := mocks.NewSequencer(t)
-	mockExec := mocks.NewExecutor(t)
-	logger := log.NewTestLogger(t)
+	mockStore := mocks.NewMockStore(t)
+	mockSeq := mocks.NewMockSequencer(t)
+	mockExec := mocks.NewMockExecutor(t)
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 	chainID := "Test_publishBlock_NoBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
 	noopSigner, err := noopsigner.NewNoopSigner(privKey)
@@ -162,12 +179,8 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 		genesis:   genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
-				MaxPendingHeaders: 0,
+				MaxPendingHeadersAndData: 0,
 			},
-		},
-		pendingHeaders: &PendingHeaders{
-			store:  mockStore,
-			logger: logger,
 		},
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
@@ -175,12 +188,6 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 	}
 
 	m.publishBlock = m.publishBlockInternal
-
-	bz := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bz, 0)
-	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(bz, nil)
-	err = m.pendingHeaders.init()
-	require.NoError(err)
 
 	// Mock store calls for height and previous block/commit
 	currentHeight := uint64(1)
@@ -224,10 +231,11 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup manager with mocks
-	mockStore := mocks.NewStore(t)
-	mockSeq := mocks.NewSequencer(t)
-	mockExec := mocks.NewExecutor(t)
-	logger := log.NewTestLogger(t)
+	mockStore := mocks.NewMockStore(t)
+	mockSeq := mocks.NewMockSequencer(t)
+	mockExec := mocks.NewMockExecutor(t)
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 	chainID := "Test_publishBlock_EmptyBatch"
 	genesisData, privKey, _ := types.GetGenesisWithPrivkey(chainID)
 	noopSigner, err := noopsigner.NewNoopSigner(privKey)
@@ -245,12 +253,8 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		genesis:   genesisData,
 		config: config.Config{
 			Node: config.NodeConfig{
-				MaxPendingHeaders: 0,
+				MaxPendingHeadersAndData: 0,
 			},
-		},
-		pendingHeaders: &PendingHeaders{
-			store:  mockStore,
-			logger: logger,
 		},
 		lastStateMtx: &sync.RWMutex{},
 		metrics:      NopMetrics(),
@@ -274,12 +278,6 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 	}
 
 	m.publishBlock = m.publishBlockInternal
-
-	bz := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bz, 0)
-	mockStore.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(bz, nil)
-	err = m.pendingHeaders.init()
-	require.NoError(err)
 
 	// Mock store calls
 	currentHeight := uint64(1)
@@ -344,7 +342,7 @@ func Test_publishBlock_Success(t *testing.T) {
 	newHeight := initialHeight + 1
 	chainID := "testchain"
 
-	manager, mockStore, mockExec, mockSeq, _, _ := setupManagerForPublishBlockTest(t, initialHeight, 0, new(bytes.Buffer))
+	manager, mockStore, mockExec, mockSeq, _, _ := setupManagerForPublishBlockTest(t, initialHeight, 0, 0, new(bytes.Buffer))
 	manager.lastState.LastBlockHeight = initialHeight
 
 	mockStore.On("Height", t.Context()).Return(initialHeight, nil).Once()
@@ -358,7 +356,7 @@ func Test_publishBlock_Success(t *testing.T) {
 	mockStore.On("SaveBlockData", t.Context(), mock.AnythingOfType("*types.SignedHeader"), mock.AnythingOfType("*types.Data"), mock.AnythingOfType("*types.Signature")).Return(nil).Once()
 	mockStore.On("SetHeight", t.Context(), newHeight).Return(nil).Once()
 	mockStore.On("UpdateState", t.Context(), mock.AnythingOfType("types.State")).Return(nil).Once()
-	mockStore.On("SetMetadata", t.Context(), LastBatchDataKey, mock.AnythingOfType("[]uint8")).Return(nil).Once()
+	mockStore.On("SetMetadata", t.Context(), storepkg.LastBatchDataKey, mock.AnythingOfType("[]uint8")).Return(nil).Once()
 
 	headerCh := make(chan *types.SignedHeader, 1)
 	manager.headerBroadcaster = broadcasterFn[*types.SignedHeader](func(ctx context.Context, payload *types.SignedHeader) error {

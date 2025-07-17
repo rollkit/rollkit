@@ -6,7 +6,6 @@ import (
 	"time"
 
 	coreda "github.com/rollkit/rollkit/core/da"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
 	"google.golang.org/protobuf/proto"
 )
@@ -18,88 +17,125 @@ func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			m.logger.Info("header submission loop stopped")
 			return
 		case <-timer.C:
 		}
 		if m.pendingHeaders.isEmpty() {
 			continue
 		}
-		err := m.submitHeadersToDA(ctx)
+		headersToSubmit, err := m.pendingHeaders.getPendingHeaders(ctx)
+		if err != nil {
+			m.logger.Error("error while fetching headers pending DA", "err", err)
+			continue
+		}
+		if len(headersToSubmit) == 0 {
+			continue
+		}
+		err = m.submitHeadersToDA(ctx, headersToSubmit)
 		if err != nil {
 			m.logger.Error("error while submitting header to DA", "error", err)
 		}
 	}
 }
 
-func (m *Manager) submitHeadersToDA(ctx context.Context) error {
-	submittedAllHeaders := false
-	var backoff time.Duration
-	headersToSubmit, err := m.pendingHeaders.getPendingHeaders(ctx)
-	if len(headersToSubmit) == 0 {
-		// There are no pending headers; return because there's nothing to do, but:
-		// - it might be caused by error, then err != nil
-		// - all pending headers are processed, then err == nil
-		// whatever the reason, error information is propagated correctly to the caller
-		return err
-	}
-	if err != nil {
-		// There are some pending headers but also an error. It's very unlikely case - probably some error while reading
-		// headers from the store.
-		// The error is logged and normal processing of pending headers continues.
-		m.logger.Error("error while fetching headers pending DA", "err", err)
-	}
-	numSubmittedHeaders := 0
-	attempt := 0
-
-	gasPrice := m.gasPrice
-	initialGasPrice := gasPrice
-
-	for !submittedAllHeaders && attempt < maxSubmitAttempts {
+// DataSubmissionLoop is responsible for submitting data to the DA layer.
+func (m *Manager) DataSubmissionLoop(ctx context.Context) {
+	timer := time.NewTicker(m.config.DA.BlockTime.Duration)
+	defer timer.Stop()
+	for {
 		select {
 		case <-ctx.Done():
-			m.logger.Info("context done, stopping header submission loop")
+			m.logger.Info("data submission loop stopped")
+			return
+		case <-timer.C:
+		}
+		if m.pendingData.isEmpty() {
+			continue
+		}
+
+		signedDataToSubmit, err := m.createSignedDataToSubmit(ctx)
+		if err != nil {
+			m.logger.Error("failed to create signed data to submit", "error", err)
+			continue
+		}
+		if len(signedDataToSubmit) == 0 {
+			continue
+		}
+
+		err = m.submitDataToDA(ctx, signedDataToSubmit)
+		if err != nil {
+			m.logger.Error("failed to submit data to DA", "error", err)
+		}
+	}
+}
+
+// submitToDA is a generic helper for submitting items to the DA layer with retry, backoff, and gas price logic.
+// marshalFn marshals an item to []byte.
+// postSubmit is called after a successful submission to update caches, pending lists, etc.
+func submitToDA[T any](
+	m *Manager,
+	ctx context.Context,
+	items []T,
+	marshalFn func(T) ([]byte, error),
+	postSubmit func([]T, *coreda.ResultSubmit, float64),
+	itemType string,
+) error {
+	submittedAll := false
+	var backoff time.Duration
+	attempt := 0
+	initialGasPrice := m.gasPrice
+	gasPrice := initialGasPrice
+	remaining := items
+	numSubmitted := 0
+
+	// Marshal all items once before the loop
+	marshaled := make([][]byte, len(items))
+	for i, item := range items {
+		bz, err := marshalFn(item)
+		if err != nil {
+			return fmt.Errorf("failed to marshal item: %w", err)
+		}
+		marshaled[i] = bz
+	}
+	remLen := len(items)
+
+	for !submittedAll && attempt < maxSubmitAttempts {
+		select {
+		case <-ctx.Done():
+			m.logger.Info("context done, stopping submission loop")
 			return nil
 		case <-time.After(backoff):
 		}
 
-		headersBz := make([][]byte, len(headersToSubmit))
-		for i, header := range headersToSubmit {
-			headerPb, err := header.ToProto()
-			if err != nil {
-				// do we drop the header from attempting to be submitted?
-				return fmt.Errorf("failed to transform header to proto: %w", err)
-			}
-			headersBz[i], err = proto.Marshal(headerPb)
-			if err != nil {
-				// do we drop the header from attempting to be submitted?
-				return fmt.Errorf("failed to marshal header: %w", err)
-			}
-		}
+		// Use the current remaining items and marshaled bytes
+		currMarshaled := marshaled
+		remLen = len(remaining)
 
-		submitctx, submitCtxCancel := context.WithTimeout(ctx, 60*time.Second) // TODO: make this configurable
-		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, headersBz, gasPrice, nil)
+		submitctx, submitCtxCancel := context.WithTimeout(ctx, 60*time.Second)
+
+		// Record DA submission retry attempt
+		m.recordDAMetrics("submission", DAModeRetry)
+
+		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, currMarshaled, gasPrice, nil)
 		submitCtxCancel()
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount)
-			if res.SubmittedCount == uint64(len(headersToSubmit)) {
-				submittedAllHeaders = true
+			// Record successful DA submission
+			m.recordDAMetrics("submission", DAModeSuccess)
+
+			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer", itemType), "gasPrice", gasPrice, "count", res.SubmittedCount)
+			if res.SubmittedCount == uint64(remLen) {
+				submittedAll = true
 			}
-			submittedHeaders, notSubmittedHeaders := headersToSubmit[:res.SubmittedCount], headersToSubmit[res.SubmittedCount:]
-			numSubmittedHeaders += len(submittedHeaders)
-			for _, header := range submittedHeaders {
-				m.headerCache.SetDAIncluded(header.Hash().String())
-			}
-			lastSubmittedHeight := uint64(0)
-			if l := len(submittedHeaders); l > 0 {
-				lastSubmittedHeight = submittedHeaders[l-1].Height()
-			}
-			m.pendingHeaders.setLastSubmittedHeight(ctx, lastSubmittedHeight)
-			headersToSubmit = notSubmittedHeaders
-			m.sendNonBlockingSignalToDAIncluderCh()
-			// reset submission options when successful
-			// scale back gasPrice gradually
+			submitted := remaining[:res.SubmittedCount]
+			notSubmitted := remaining[res.SubmittedCount:]
+			notSubmittedMarshaled := currMarshaled[res.SubmittedCount:]
+			numSubmitted += int(res.SubmittedCount)
+			postSubmit(submitted, &res, gasPrice)
+			remaining = notSubmitted
+			marshaled = notSubmittedMarshaled
 			backoff = 0
 			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice / m.gasMultiplier
@@ -108,78 +144,103 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL) //nolint:gosec
+			// Record failed DA submission (will retry)
+			m.recordDAMetrics("submission", DAModeFail)
+			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL)
 			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * m.gasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
 		case coreda.StatusContextCanceled:
-			m.logger.Info("DA layer submission canceled", "attempt", attempt)
+			m.logger.Info("DA layer submission canceled due to context cancellation", "attempt", attempt)
 			return nil
+		case coreda.StatusTooBig:
+			fallthrough
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+			// Record failed DA submission (will retry)
+			m.recordDAMetrics("submission", DAModeFail)
 			backoff = m.exponentialBackoff(backoff)
 		}
-
-		attempt += 1
+		attempt++
 	}
-
-	if !submittedAllHeaders {
-		return fmt.Errorf(
-			"failed to submit all headers to DA layer, submitted %d headers (%d left) after %d attempts",
-			numSubmittedHeaders,
-			len(headersToSubmit),
-			attempt,
-		)
+	if !submittedAll {
+		// Record final failure after all retries are exhausted
+		m.recordDAMetrics("submission", DAModeFail)
+		// If not all items are submitted, the remaining items will be retried in the next submission loop.
+		return fmt.Errorf("failed to submit all %s(s) to DA layer, submitted %d items (%d left) after %d attempts", itemType, numSubmitted, remLen, attempt)
 	}
 	return nil
 }
 
-// DataSubmissionLoop is responsible for submitting data to the DA layer.
-func (m *Manager) DataSubmissionLoop(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			m.logger.Info("data submission loop stopped")
-			return
-		case batch := <-m.batchSubmissionChan:
-			if len(batch.Transactions) == 0 {
-				continue
-			}
-			signedData, err := m.createSignedDataFromBatch(&batch)
+// submitHeadersToDA submits a list of headers to the DA layer using the generic submitToDA helper.
+func (m *Manager) submitHeadersToDA(ctx context.Context, headersToSubmit []*types.SignedHeader) error {
+	return submitToDA(m, ctx, headersToSubmit,
+		func(header *types.SignedHeader) ([]byte, error) {
+			headerPb, err := header.ToProto()
 			if err != nil {
-				m.logger.Error("failed to create signed data from batch", "error", err)
-				continue
+				return nil, fmt.Errorf("failed to transform header to proto: %w", err)
 			}
-
-			err = m.submitDataToDA(ctx, signedData)
-			if err != nil {
-				m.logger.Error("failed to submit data to DA", "error", err)
+			return proto.Marshal(headerPb)
+		},
+		func(submitted []*types.SignedHeader, res *coreda.ResultSubmit, gasPrice float64) {
+			for _, header := range submitted {
+				m.headerCache.SetDAIncluded(header.Hash().String(), res.Height)
 			}
-		}
-	}
+			lastSubmittedHeaderHeight := uint64(0)
+			if l := len(submitted); l > 0 {
+				lastSubmittedHeaderHeight = submitted[l-1].Height()
+			}
+			m.pendingHeaders.setLastSubmittedHeaderHeight(ctx, lastSubmittedHeaderHeight)
+			// Update sequencer metrics if the sequencer supports it
+			if seq, ok := m.sequencer.(MetricsRecorder); ok {
+				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeaderHeight)
+			}
+			m.sendNonBlockingSignalToDAIncluderCh()
+		},
+		"header",
+	)
 }
 
-// createSignedDataFromBatch converts a batch to a SignedData, including signing.
-func (m *Manager) createSignedDataFromBatch(batch *coresequencer.Batch) (*types.SignedData, error) {
-	if len(batch.Transactions) == 0 {
-		return nil, fmt.Errorf("batch has no transactions")
-	}
-	data := types.Data{
-		Txs: make(types.Txs, len(batch.Transactions)),
-	}
-	for i, tx := range batch.Transactions {
-		data.Txs[i] = types.Tx(tx)
-	}
+// submitDataToDA submits a list of signed data to the DA layer using the generic submitToDA helper.
+func (m *Manager) submitDataToDA(ctx context.Context, signedDataToSubmit []*types.SignedData) error {
+	return submitToDA(m, ctx, signedDataToSubmit,
+		func(signedData *types.SignedData) ([]byte, error) {
+			return signedData.MarshalBinary()
+		},
+		func(submitted []*types.SignedData, res *coreda.ResultSubmit, gasPrice float64) {
+			for _, signedData := range submitted {
+				m.dataCache.SetDAIncluded(signedData.Data.DACommitment().String(), res.Height)
+			}
+			lastSubmittedDataHeight := uint64(0)
+			if l := len(submitted); l > 0 {
+				lastSubmittedDataHeight = submitted[l-1].Height()
+			}
+			m.pendingData.setLastSubmittedDataHeight(ctx, lastSubmittedDataHeight)
+			// Update sequencer metrics if the sequencer supports it
+			if seq, ok := m.sequencer.(MetricsRecorder); ok {
+				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingData.numPendingData(), lastSubmittedDataHeight)
+			}
+			m.sendNonBlockingSignalToDAIncluderCh()
+		},
+		"data",
+	)
+}
 
-	signature, err := m.getDataSignature(&data)
+// createSignedDataToSubmit converts the list of pending data to a list of SignedData.
+func (m *Manager) createSignedDataToSubmit(ctx context.Context) ([]*types.SignedData, error) {
+	dataList, err := m.pendingData.getPendingData(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	if m.signer == nil {
+		return nil, fmt.Errorf("signer is nil; cannot sign data")
 	}
 
 	pubKey, err := m.signer.GetPublic()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get public key: %w", err)
 	}
 
 	signer := types.Signer{
@@ -187,99 +248,22 @@ func (m *Manager) createSignedDataFromBatch(batch *coresequencer.Batch) (*types.
 		Address: m.genesis.ProposerAddress,
 	}
 
-	return &types.SignedData{
-		Data:      data,
-		Signature: signature,
-		Signer:    signer,
-	}, nil
-}
+	signedDataToSubmit := make([]*types.SignedData, 0, len(dataList))
 
-// submitDataToDA submits signed data to the Data Availability (DA) layer.
-// It implements a retry mechanism with exponential backoff and gas price adjustments to handle various failure scenarios.
-// The function attempts to submit data multiple times (up to maxSubmitAttempts).
-
-// Different strategies are used based on the response from the DA layer:
-// - On success: Reduces gas price gradually (but not below initial price)
-// - On mempool issues: Increases gas price and uses a longer backoff
-// - On size issues: Reduces the blob size and uses exponential backoff
-// - On other errors: Uses exponential backoff
-//
-// It returns an error if not all transactions could be submitted after all attempts.
-func (m *Manager) submitDataToDA(ctx context.Context, signedData *types.SignedData) error {
-	var backoff time.Duration
-	attempt := 0
-
-	// Store initial values to be able to reset or compare later
-	initialGasPrice := m.gasPrice
-	gasPrice := initialGasPrice
-
-	for attempt < maxSubmitAttempts {
-		// Wait for backoff duration or exit if context is done
-		select {
-		case <-ctx.Done():
-			m.logger.Info("context done, stopping data submission loop")
-			return nil
-		case <-time.After(backoff):
+	for _, data := range dataList {
+		if len(data.Txs) == 0 {
+			continue
 		}
-
-		signedDataBz, err := signedData.MarshalBinary()
+		signature, err := m.getDataSignature(data)
 		if err != nil {
-			return fmt.Errorf("failed to marshal signed data: %w", err)
+			return nil, fmt.Errorf("failed to get data signature: %w", err)
 		}
-
-		// Attempt to submit the signed data to the DA layer using the helper function
-		res := types.SubmitWithHelpers(ctx, m.da, m.logger, [][]byte{signedDataBz}, gasPrice, nil)
-
-		gasMultiplier, multErr := m.da.GasMultiplier(ctx)
-		if multErr != nil {
-			m.logger.Error("failed to get gas multiplier", "error", multErr)
-			gasMultiplier = 0
-		}
-
-		switch res.Code {
-		case coreda.StatusSuccess:
-			m.logger.Info("successfully submitted data to DA layer",
-				"gasPrice", gasPrice,
-				"height", res.Height)
-
-			// Reset submission parameters after success
-			backoff = 0
-
-			// Gradually reduce gas price on success, but not below initial price
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice / gasMultiplier
-				if gasPrice < initialGasPrice {
-					gasPrice = initialGasPrice
-				}
-			}
-			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
-
-			m.DataCache().SetDAIncluded(signedData.DACommitment().String())
-			m.sendNonBlockingSignalToDAIncluderCh()
-			return nil
-
-		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
-			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.config.DA.BlockTime.Duration * time.Duration(m.config.DA.MempoolTTL)
-			if gasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice * gasMultiplier
-			}
-			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
-		case coreda.StatusContextCanceled:
-			m.logger.Info("DA layer submission canceled due to context cancellation", "attempt", attempt)
-			return nil
-		case coreda.StatusTooBig:
-			// Blob size adjustment is handled within DA impl or SubmitWithOptions call
-			// fallthrough to default exponential backoff
-			fallthrough
-		default:
-			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.exponentialBackoff(backoff)
-		}
-
-		attempt++
+		signedDataToSubmit = append(signedDataToSubmit, &types.SignedData{
+			Data:      *data,
+			Signature: signature,
+			Signer:    signer,
+		})
 	}
 
-	// Return error if not all transactions were submitted after all attempts
-	return fmt.Errorf("failed to submit data to DA layer after %d attempts", attempt)
+	return signedDataToSubmit, nil
 }

@@ -5,19 +5,21 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/rollkit/rollkit/pkg/rpc/client"
 	"github.com/rollkit/rollkit/pkg/rpc/server"
 	"github.com/rollkit/rollkit/pkg/store"
 )
 
 // StartStoreServer starts a Store RPC server with the provided store instance
-func StartStoreServer(s store.Store, address string) {
+func StartStoreServer(s store.Store, address string, logger logging.EventLogger) {
 	// Create and start the server
 	// Start RPC server
 	rpcAddr := fmt.Sprintf("%s:%d", "localhost", 8080)
-	handler, err := server.NewServiceHandler(s, nil)
+	handler, err := server.NewServiceHandler(s, nil, logger)
 	if err != nil {
 		panic(err)
 	}
@@ -33,7 +35,8 @@ func StartStoreServer(s store.Store, address string) {
 	// Start the server in a separate goroutine
 	go func() {
 		if err := rpcServer.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatalf("RPC server error: %v", err)
+			logger.Error("RPC server error", err)
+			os.Exit(1)
 		}
 	}()
 }
@@ -71,10 +74,12 @@ func ExampleClient() {
 
 // ExampleServer demonstrates how to create and start a Store RPC server
 func ExampleServer(s store.Store) {
+	logger := logging.Logger("exampleServer")
+	_ = logging.SetLogLevel("exampleServer", "FATAL")
 
 	// Start RPC server
 	rpcAddr := fmt.Sprintf("%s:%d", "localhost", 8080)
-	handler, err := server.NewServiceHandler(s, nil)
+	handler, err := server.NewServiceHandler(s, nil, logger)
 	if err != nil {
 		panic(err)
 	}

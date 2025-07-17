@@ -8,7 +8,7 @@ RUN cd da/cmd/local-da && \
     go mod tidy -compat=1.19 && \
     CGO_ENABLED=0 go build -o /src/local-da .
 
-FROM alpine:3.18.3
+FROM alpine:3.22.0
 
 WORKDIR /root
 

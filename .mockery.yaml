@@ -1,0 +1,48 @@
+template: testify
+template-data:
+  unroll-variadic: true
+packages:
+  github.com/rollkit/rollkit/core/da:
+    interfaces:
+      DA:
+        config:
+          pkgname: mocks
+          filename: da.go
+        configs:
+          - dir: ./da/internal/mocks
+          - dir: ./test/mocks
+  github.com/rollkit/rollkit/core/execution:
+    interfaces:
+      Executor:
+        config:
+          dir: ./test/mocks
+          pkgname: mocks
+          filename: execution.go
+  github.com/rollkit/rollkit/core/sequencer:
+    interfaces:
+      Sequencer:
+        config:
+          dir: ./test/mocks
+          pkgname: mocks
+          filename: sequencer.go
+  github.com/rollkit/rollkit/pkg/p2p:
+    interfaces:
+      P2PRPC:
+        config:
+          dir: ./test/mocks
+          pkgname: mocks
+          filename: p2p.go
+  github.com/rollkit/rollkit/pkg/store:
+    interfaces:
+      Store:
+        config:
+          dir: ./test/mocks
+          pkgname: mocks
+          filename: store.go
+  github.com/celestiaorg/go-header:
+    interfaces:
+      Store:
+        config:
+          dir: ./test/mocks
+          pkgname: mocks
+          filename: external/hstore.go

@@ -24,25 +24,6 @@ func NewCache[T any]() *Cache[T] {
 	}
 }
 
-// GetItemByHash returns an item from the cache by hash
-func (c *Cache[T]) GetItemByHash(hash string) *T {
-	item, ok := c.items.Load(hash)
-	if !ok {
-		return nil
-	}
-	return item.(*T)
-}
-
-// SetItemByHash sets an item in the cache by hash
-func (c *Cache[T]) SetItemByHash(hash string, item *T) {
-	c.items.Store(hash, item)
-}
-
-// DeleteItemByHash deletes an item from the cache by hash
-func (c *Cache[T]) DeleteItemByHash(hash string) {
-	c.items.Delete(hash)
-}
-
 // GetItem returns an item from the cache by height
 func (c *Cache[T]) GetItem(height uint64) *T {
 	item, ok := c.items.Load(height)
@@ -79,16 +60,21 @@ func (c *Cache[T]) SetSeen(hash string) {
 
 // IsDAIncluded returns true if the hash has been DA-included
 func (c *Cache[T]) IsDAIncluded(hash string) bool {
-	daIncluded, ok := c.daIncluded.Load(hash)
-	if !ok {
-		return false
-	}
-	return daIncluded.(bool)
+	_, ok := c.daIncluded.Load(hash)
+	return ok
 }
 
-// SetDAIncluded sets the hash as DA-included
-func (c *Cache[T]) SetDAIncluded(hash string) {
-	c.daIncluded.Store(hash, true)
+func (c *Cache[T]) GetDAIncludedHeight(hash string) (uint64, bool) {
+	daIncluded, ok := c.daIncluded.Load(hash)
+	if !ok {
+		return 0, false
+	}
+	return daIncluded.(uint64), true
+}
+
+// SetDAIncluded sets the hash as DA-included with the given height
+func (c *Cache[T]) SetDAIncluded(hash string, height uint64) {
+	c.daIncluded.Store(hash, height)
 }
 
 const (
@@ -187,12 +173,12 @@ func (c *Cache[T]) SaveToDisk(folderPath string) error {
 	}
 
 	// prepare daIncluded map
-	daIncludedToSave := make(map[string]bool)
+	daIncludedToSave := make(map[string]uint64)
 	c.daIncluded.Range(func(k, v interface{}) bool {
 		keyStr, okKey := k.(string)
-		valBool, okVal := v.(bool)
+		valUint64, okVal := v.(uint64)
 		if okKey && okVal {
-			daIncludedToSave[keyStr] = valBool
+			daIncludedToSave[keyStr] = valUint64
 		}
 		return true
 	})
@@ -232,7 +218,7 @@ func (c *Cache[T]) LoadFromDisk(folderPath string) error {
 	}
 
 	// load daIncluded
-	daIncludedMap, err := loadMapGob[string, bool](filepath.Join(folderPath, daIncludedFilename))
+	daIncludedMap, err := loadMapGob[string, uint64](filepath.Join(folderPath, daIncludedFilename))
 	if err != nil {
 		return fmt.Errorf("failed to load daIncluded: %w", err)
 	}

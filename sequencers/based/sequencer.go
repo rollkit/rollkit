@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 
 	datastore "github.com/ipfs/go-datastore"
 
@@ -47,7 +47,7 @@ var _ coresequencer.Sequencer = &Sequencer{}
 // and interacting with the Data Availability (DA) layer.
 type Sequencer struct {
 	// logger is used for logging messages and events within the Sequencer.
-	logger log.Logger
+	logger logging.EventLogger
 
 	// maxHeightDrift defines the maximum allowable difference between the current
 	// block height and the DA layer's block height.
@@ -73,7 +73,7 @@ type Sequencer struct {
 
 // NewSequencer creates a new Sequencer instance.
 func NewSequencer(
-	logger log.Logger,
+	logger logging.EventLogger,
 	daImpl coreda.DA,
 	Id []byte,
 	daStartHeight uint64,
@@ -168,7 +168,7 @@ OuterLoop:
 			break OuterLoop
 		}
 		// fetch the next batch of transactions from DA using the helper
-		res := types.RetrieveWithHelpers(ctx, s.DA, s.logger, nextDAHeight)
+		res := types.RetrieveWithHelpers(ctx, s.DA, s.logger, nextDAHeight, s.Id)
 		if res.Code == coreda.StatusError {
 			// stop fetching more transactions and return the current batch
 			s.logger.Warn("failed to retrieve transactions from DA layer via helper", "error", res.Message)
@@ -218,13 +218,13 @@ func (s *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 		return nil, ErrInvalidId
 	}
 	// Use stored namespace
-	proofs, err := s.DA.GetProofs(ctx, req.BatchData, []byte("placeholder"))
+	proofs, err := s.DA.GetProofs(ctx, req.BatchData, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proofs: %w", err)
 	}
 
 	// verify the proof
-	valid, err := s.DA.Validate(ctx, req.BatchData, proofs, []byte("placeholder"))
+	valid, err := s.DA.Validate(ctx, req.BatchData, proofs, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate proof: %w", err)
 	}
@@ -286,7 +286,7 @@ daSubmitRetryLoop:
 		}
 
 		// Attempt to submit the batch to the DA layer
-		res := types.SubmitWithHelpers(ctx, s.DA, s.logger, currentBatch.Transactions, gasPrice, nil)
+		res := types.SubmitWithHelpers(ctx, s.DA, s.logger, currentBatch.Transactions, gasPrice, s.Id)
 
 		gasMultiplier, err := s.DA.GasMultiplier(ctx)
 		if err != nil {

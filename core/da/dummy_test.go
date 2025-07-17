@@ -16,15 +16,6 @@ func TestDummyDA(t *testing.T) {
 	// Height is always 0
 	ctx := context.Background()
 
-	// Test MaxBlobSize
-	maxSize, err := dummyDA.MaxBlobSize(ctx)
-	if err != nil {
-		t.Fatalf("MaxBlobSize failed: %v", err)
-	}
-	if maxSize != 1024 {
-		t.Errorf("Expected max blob size 1024, got %d", maxSize)
-	}
-
 	// Test Submit
 	blobs := []Blob{
 		[]byte("test blob 1"),

@@ -1,41 +1,107 @@
 #!/bin/sh
 set -e
 
-cd /usr/bin
-
 sleep 5
 
-# Create default rollkit config if missing
-if [ ! -f "$HOME/.evm-single/config/signer.json" ]; then
-  ./evm-single init --rollkit.node.aggregator=true --rollkit.signer.passphrase $EVM_SIGNER_PASSPHRASE
+# Function to extract --home value from arguments
+get_home_dir() {
+  home_dir="$HOME/.evm-single"
+
+  # Parse arguments to find --home
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --home)
+        if [ -n "$2" ]; then
+          home_dir="$2"
+          break
+        fi
+        ;;
+      --home=*)
+        home_dir="${1#--home=}"
+        break
+        ;;
+    esac
+    shift
+  done
+
+  echo "$home_dir"
+}
+
+# Get the home directory (either from --home flag or default)
+CONFIG_HOME=$(get_home_dir "$@")
+
+if [ ! -f "$CONFIG_HOME/config/node_key.json" ]; then
+
+  # Build init flags array
+  init_flags="--home=$CONFIG_HOME"
+
+  # Add required flags if environment variables are set
+  if [ -n "$EVM_SIGNER_PASSPHRASE" ]; then
+    init_flags="$init_flags --rollkit.node.aggregator=true --rollkit.signer.passphrase $EVM_SIGNER_PASSPHRASE"
+  fi
+
+  INIT_COMMAND="evm-single init $init_flags"
+  echo "Create default config with command:"
+  echo "$INIT_COMMAND"
+  $INIT_COMMAND
 fi
 
-# Conditionally add --rollkit.da.address if ROLLKIT_DA_ADDRESS is set
-da_flag=""
+
+# Build start flags array
+default_flags="--home=$CONFIG_HOME"
+
+# Add required flags if environment variables are set
+if [ -n "$EVM_JWT_SECRET" ]; then
+  default_flags="$default_flags --evm.jwt-secret $EVM_JWT_SECRET"
+fi
+
+if [ -n "$EVM_GENESIS_HASH" ]; then
+  default_flags="$default_flags --evm.genesis-hash $EVM_GENESIS_HASH"
+fi
+
+if [ -n "$EVM_ENGINE_URL" ]; then
+  default_flags="$default_flags --evm.engine-url $EVM_ENGINE_URL"
+fi
+
+if [ -n "$EVM_ETH_URL" ]; then
+  default_flags="$default_flags --evm.eth-url $EVM_ETH_URL"
+fi
+
+if [ -n "$EVM_BLOCK_TIME" ]; then
+  default_flags="$default_flags --rollkit.node.block_time $EVM_BLOCK_TIME"
+fi
+
+if [ -n "$EVM_SIGNER_PASSPHRASE" ]; then
+  default_flags="$default_flags --rollkit.node.aggregator=true --rollkit.signer.passphrase $EVM_SIGNER_PASSPHRASE"
+fi
+
+# Conditionally add DA-related flags
 if [ -n "$DA_ADDRESS" ]; then
-  da_flag="--rollkit.da.address $DA_ADDRESS"
+  default_flags="$default_flags --rollkit.da.address $DA_ADDRESS"
 fi
 
-# Conditionally add --rollkit.da.auth_token if ROLLKIT_DA_AUTH_TOKEN is set
-da_auth_token_flag=""
 if [ -n "$DA_AUTH_TOKEN" ]; then
-  da_auth_token_flag="--rollkit.da.auth_token $DA_AUTH_TOKEN"
+  default_flags="$default_flags --rollkit.da.auth_token $DA_AUTH_TOKEN"
 fi
 
-# Conditionally add --rollkit.da.namespace if ROLLKIT_DA_NAMESPACE is set
-da_namespace_flag=""
 if [ -n "$DA_NAMESPACE" ]; then
-  da_namespace_flag="--rollkit.da.namespace $DA_NAMESPACE"
+  default_flags="$default_flags --rollkit.da.namespace $DA_NAMESPACE"
 fi
 
-exec ./evm-single start \
-  --evm.jwt-secret $EVM_JWT_SECRET \
-  --evm.genesis-hash $EVM_GENESIS_HASH \
-  --evm.engine-url $EVM_ENGINE_URL \
-  --evm.eth-url $EVM_ETH_URL \
-  --rollkit.node.block_time $EVM_BLOCK_TIME \
-  --rollkit.node.aggregator=true \
-  --rollkit.signer.passphrase $EVM_SIGNER_PASSPHRASE \
-  $da_flag \
-  $da_auth_token_flag \
-  $da_namespace_flag
+# If no arguments passed, show help
+if [ $# -eq 0 ]; then
+  exec evm-single
+fi
+
+# If first argument is "start", apply default flags
+if [ "$1" = "start" ]; then
+  shift
+  START_COMMAND="evm-single start $default_flags"
+  echo "Create default config with command:"
+  echo "$START_COMMAND \"$@\""
+  exec $START_COMMAND "$@"
+
+else
+  # For any other command/subcommand, pass through directly
+  exec evm-single "$@"
+fi

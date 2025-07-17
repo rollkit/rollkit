@@ -162,10 +162,12 @@ func (*GetBlockRequest_Hash) isGetBlockRequest_Identifier() {}
 
 // GetBlockResponse defines the response for retrieving a block
 type GetBlockResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Block         *Block                 `protobuf:"bytes,1,opt,name=block,proto3" json:"block,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Block          *Block                 `protobuf:"bytes,1,opt,name=block,proto3" json:"block,omitempty"`
+	HeaderDaHeight uint64                 `protobuf:"varint,2,opt,name=header_da_height,json=headerDaHeight,proto3" json:"header_da_height,omitempty"`
+	DataDaHeight   uint64                 `protobuf:"varint,3,opt,name=data_da_height,json=dataDaHeight,proto3" json:"data_da_height,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetBlockResponse) Reset() {
@@ -203,6 +205,20 @@ func (x *GetBlockResponse) GetBlock() *Block {
 		return x.Block
 	}
 	return nil
+}
+
+func (x *GetBlockResponse) GetHeaderDaHeight() uint64 {
+	if x != nil {
+		return x.HeaderDaHeight
+	}
+	return 0
+}
+
+func (x *GetBlockResponse) GetDataDaHeight() uint64 {
+	if x != nil {
+		return x.DataDaHeight
+	}
+	return 0
 }
 
 // GetStateResponse defines the response for retrieving the current state
@@ -353,9 +369,11 @@ const file_rollkit_v1_state_rpc_proto_rawDesc = "" +
 	"\x06height\x18\x01 \x01(\x04H\x00R\x06height\x12\x14\n" +
 	"\x04hash\x18\x02 \x01(\fH\x00R\x04hashB\f\n" +
 	"\n" +
-	"identifier\";\n" +
+	"identifier\"\x8b\x01\n" +
 	"\x10GetBlockResponse\x12'\n" +
-	"\x05block\x18\x01 \x01(\v2\x11.rollkit.v1.BlockR\x05block\";\n" +
+	"\x05block\x18\x01 \x01(\v2\x11.rollkit.v1.BlockR\x05block\x12(\n" +
+	"\x10header_da_height\x18\x02 \x01(\x04R\x0eheaderDaHeight\x12$\n" +
+	"\x0edata_da_height\x18\x03 \x01(\x04R\fdataDaHeight\";\n" +
 	"\x10GetStateResponse\x12'\n" +
 	"\x05state\x18\x01 \x01(\v2\x11.rollkit.v1.StateR\x05state\"&\n" +
 	"\x12GetMetadataRequest\x12\x10\n" +

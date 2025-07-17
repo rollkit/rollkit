@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -17,18 +17,13 @@ import (
 // ErrInvalidId is returned when the chain id is invalid
 var (
 	ErrInvalidId = errors.New("invalid chain id")
-
-	initialBackoff = 100 * time.Millisecond
-
-	maxSubmitAttempts = 30
-	defaultMempoolTTL = 25
 )
 
 var _ coresequencer.Sequencer = &Sequencer{}
 
 // Sequencer implements core sequencing interface
 type Sequencer struct {
-	logger log.Logger
+	logger logging.EventLogger
 
 	proposer bool
 
@@ -37,8 +32,7 @@ type Sequencer struct {
 
 	batchTime time.Duration
 
-	queue               *BatchQueue              // single queue for immediate availability
-	batchSubmissionChan chan coresequencer.Batch // channel for ordered DA submission
+	queue *BatchQueue // single queue for immediate availability
 
 	metrics *Metrics
 }
@@ -46,7 +40,7 @@ type Sequencer struct {
 // NewSequencer creates a new Single Sequencer
 func NewSequencer(
 	ctx context.Context,
-	logger log.Logger,
+	logger logging.EventLogger,
 	db ds.Batching,
 	da coreda.DA,
 	id []byte,
@@ -54,12 +48,27 @@ func NewSequencer(
 	metrics *Metrics,
 	proposer bool,
 ) (*Sequencer, error) {
+	return NewSequencerWithQueueSize(ctx, logger, db, da, id, batchTime, metrics, proposer, 1000)
+}
+
+// NewSequencerWithQueueSize creates a new Single Sequencer with configurable queue size
+func NewSequencerWithQueueSize(
+	ctx context.Context,
+	logger logging.EventLogger,
+	db ds.Batching,
+	da coreda.DA,
+	id []byte,
+	batchTime time.Duration,
+	metrics *Metrics,
+	proposer bool,
+	maxQueueSize int,
+) (*Sequencer, error) {
 	s := &Sequencer{
 		logger:    logger,
 		da:        da,
 		batchTime: batchTime,
 		Id:        id,
-		queue:     NewBatchQueue(db, "batches"),
+		queue:     NewBatchQueue(db, "batches", maxQueueSize),
 		metrics:   metrics,
 		proposer:  proposer,
 	}
@@ -87,18 +96,14 @@ func (c *Sequencer) SubmitBatchTxs(ctx context.Context, req coresequencer.Submit
 
 	batch := coresequencer.Batch{Transactions: req.Batch.Transactions}
 
-	if c.batchSubmissionChan == nil {
-		return nil, fmt.Errorf("sequencer mis-configured: batch submission channel is nil")
-	}
-
-	select {
-	case c.batchSubmissionChan <- batch:
-	default:
-		return nil, fmt.Errorf("DA submission queue full, please retry later")
-	}
-
 	err := c.queue.AddBatch(ctx, batch)
 	if err != nil {
+		if errors.Is(err, ErrQueueFull) {
+			c.logger.Warn("Batch queue is full, rejecting batch submission",
+				"txCount", len(batch.Transactions),
+				"chainId", string(req.Id))
+			return nil, fmt.Errorf("batch queue is full, cannot accept more batches: %w", err)
+		}
 		return nil, fmt.Errorf("failed to add batch: %w", err)
 	}
 
@@ -122,7 +127,9 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 	}, nil
 }
 
-func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
+// RecordMetrics updates the metrics with the given values.
+// This method is intended to be called by the block manager after submitting data to the DA layer.
+func (c *Sequencer) RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64) {
 	if c.metrics != nil {
 		c.metrics.GasPrice.Set(gasPrice)
 		c.metrics.LastBlobSize.Set(float64(blobSize))
@@ -130,17 +137,6 @@ func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode 
 		c.metrics.NumPendingBlocks.Set(float64(numPendingBlocks))
 		c.metrics.IncludedBlockHeight.Set(float64(includedBlockHeight))
 	}
-}
-
-func (c *Sequencer) exponentialBackoff(backoff time.Duration) time.Duration {
-	backoff *= 2
-	if backoff == 0 {
-		backoff = initialBackoff
-	}
-	if backoff > c.batchTime {
-		backoff = c.batchTime
-	}
-	return backoff
 }
 
 // VerifyBatch implements sequencing.Sequencer.
@@ -151,12 +147,12 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 
 	if !c.proposer {
 
-		proofs, err := c.da.GetProofs(ctx, req.BatchData, []byte("placeholder"))
+		proofs, err := c.da.GetProofs(ctx, req.BatchData, c.Id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get proofs: %w", err)
 		}
 
-		valid, err := c.da.Validate(ctx, req.BatchData, proofs, []byte("placeholder"))
+		valid, err := c.da.Validate(ctx, req.BatchData, proofs, c.Id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate proof: %w", err)
 		}
@@ -173,8 +169,4 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 
 func (c *Sequencer) isValid(Id []byte) bool {
 	return bytes.Equal(c.Id, Id)
-}
-
-func (s *Sequencer) SetBatchSubmissionChan(batchSubmissionChan chan coresequencer.Batch) {
-	s.batchSubmissionChan = batchSubmissionChan
 }

@@ -1,0 +1,67 @@
+name: "rollkit-reth-full-node"
+
+services:
+  jwt-init-full-node:
+    container_name: jwt-init-full-node
+    image: alpine:3.19
+    volumes:
+      - ./jwttoken:/jwt
+    healthcheck:
+      test: ["CMD", "test", "-f", "/jwt/jwt.hex"]
+      interval: 2s
+      timeout: 2s
+      retries: 2
+    command: >
+      /bin/sh -c "mkdir -p /jwt &&
+      if [ ! -f /jwt/jwt.hex ]; then
+        apk add --no-cache openssl &&
+        openssl rand -hex 32 | tr -d '\n' > /jwt/jwt.hex;
+      fi"
+
+  rollkit-reth-full-node:
+    container_name: rollkit-reth-full-node
+    restart: unless-stopped
+    image: ghcr.io/rollkit/lumen:latest
+    depends_on:
+      jwt-init-full-node:
+        condition: service_completed_successfully
+    ports:
+      - "9011:9001" # metrics
+      - "30313:30303" # eth/66 peering
+      - "8555:8545" # rpc
+      - "8561:8551" # engine
+      - "8556:8546" # ws
+    volumes:
+      - ./chain:/root/chain:ro
+      - ./jwttoken:/root/jwt:ro
+      - reth:/home/reth/eth-home
+    environment:
+      - RUST_LOG=warn,lumen_rollkit=info
+    entrypoint: /bin/sh -c
+    command:
+      - |
+          lumen node \
+            --chain /root/chain/genesis.json \
+            --datadir /home/reth/eth-home \
+            --metrics 0.0.0.0:9001 \
+            --authrpc.addr 0.0.0.0 \
+            --authrpc.port 8551 \
+            --authrpc.jwtsecret /root/jwt/jwt.hex \
+            --http --http.addr 0.0.0.0 --http.port 8545 \
+            --http.api eth,net,web3,txpool \
+            --ws --ws.addr 0.0.0.0 --ws.port 8546 \
+            --ws.api eth,net,web3 \
+            --engine.persistence-threshold 0 \
+            --engine.memory-block-buffer-target 0 \
+            --disable-discovery \
+            --txpool.pending-max-count 200000 \
+            --txpool.pending-max-size 200 \
+            --txpool.queued-max-count 200000 \
+            --txpool.queued-max-size 200 \
+            --txpool.max-account-slots 2048 \
+            --txpool.max-new-txns 2048 \
+            --txpool.additional-validation-tasks 16 \
+            --rollkit.enable
+
+volumes:
+  reth:

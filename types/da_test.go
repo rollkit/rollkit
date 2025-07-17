@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -16,7 +16,8 @@ import (
 )
 
 func TestSubmitWithHelpers(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 
 	testCases := []struct {
 		name           string
@@ -116,8 +117,8 @@ func TestSubmitWithHelpers(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := mocks.NewDA(t)
-			mockDA.On("SubmitWithOptions", mock.Anything, tc.data, tc.gasPrice, types.NameSpacePlaceholder, tc.options).Return(tc.submitIDs, tc.submitErr)
+			mockDA := mocks.NewMockDA(t)
+			mockDA.On("SubmitWithOptions", mock.Anything, tc.data, tc.gasPrice, mock.Anything, tc.options).Return(tc.submitIDs, tc.submitErr)
 
 			result := types.SubmitWithHelpers(context.Background(), mockDA, logger, tc.data, tc.gasPrice, tc.options)
 
@@ -137,7 +138,8 @@ func TestSubmitWithHelpers(t *testing.T) {
 }
 
 func TestRetrieveWithHelpers(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "FATAL")
 	dataLayerHeight := uint64(100)
 	mockIDs := [][]byte{[]byte("id1"), []byte("id2")}
 	mockBlobs := [][]byte{[]byte("blobA"), []byte("blobB")}
@@ -218,15 +220,15 @@ func TestRetrieveWithHelpers(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := mocks.NewDA(t)
+			mockDA := mocks.NewMockDA(t)
 
-			mockDA.On("GetIDs", mock.Anything, dataLayerHeight, types.NameSpacePlaceholder).Return(tc.getIDsResult, tc.getIDsErr)
+			mockDA.On("GetIDs", mock.Anything, dataLayerHeight, mock.Anything).Return(tc.getIDsResult, tc.getIDsErr)
 
 			if tc.getIDsErr == nil && tc.getIDsResult != nil && len(tc.getIDsResult.IDs) > 0 {
-				mockDA.On("Get", mock.Anything, tc.getIDsResult.IDs, []byte("placeholder")).Return(mockBlobs, tc.getBlobsErr)
+				mockDA.On("Get", mock.Anything, tc.getIDsResult.IDs, mock.Anything).Return(mockBlobs, tc.getBlobsErr)
 			}
 
-			result := types.RetrieveWithHelpers(context.Background(), mockDA, logger, dataLayerHeight)
+			result := types.RetrieveWithHelpers(context.Background(), mockDA, logger, dataLayerHeight, []byte("test-namespace"))
 
 			assert.Equal(t, tc.expectedCode, result.Code)
 			assert.Equal(t, tc.expectedHeight, result.Height)

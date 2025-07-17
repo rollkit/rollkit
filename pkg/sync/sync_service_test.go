@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	sdklog "cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/rollkit/rollkit/pkg/config"
@@ -43,7 +43,8 @@ func TestHeaderSyncServiceRestart(t *testing.T) {
 	conf.RootDir = t.TempDir()
 	nodeKey, err := key.LoadOrGenNodeKey(filepath.Dir(conf.ConfigPath()))
 	require.NoError(t, err)
-	logger := sdklog.NewTestLogger(t)
+	logger := logging.Logger("test")
+	_ = logging.SetLogLevel("test", "debug")
 	priv := nodeKey.PrivKey
 	h, err := mn.AddPeer(priv, nil)
 	require.NoError(t, err)

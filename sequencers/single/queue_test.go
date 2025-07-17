@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	ds "github.com/ipfs/go-datastore"
@@ -29,7 +31,7 @@ func createTestBatch(t *testing.T, txCount int) coresequencer.Batch {
 func setupTestQueue(t *testing.T) *BatchQueue {
 	// Create an in-memory thread-safe datastore
 	memdb := newPrefixKV(ds.NewMapDatastore(), "single")
-	return NewBatchQueue(memdb, "batching")
+	return NewBatchQueue(memdb, "batching", 0) // 0 = unlimited for existing tests
 }
 
 func TestNewBatchQueue(t *testing.T) {
@@ -220,7 +222,7 @@ func TestLoad_WithMixedData(t *testing.T) {
 	queuePrefix := "/batches/" // Define a specific prefix for the queue
 
 	// Create the BatchQueue using the raw DB and the prefix
-	bq := NewBatchQueue(rawDB, queuePrefix)
+	bq := NewBatchQueue(rawDB, queuePrefix, 0) // 0 = unlimited for test
 	require.NotNil(bq)
 
 	// 1. Add valid batch data under the correct prefix
@@ -358,4 +360,208 @@ func TestConcurrency(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error reloading: %v", err)
 	}
+}
+
+func TestBatchQueue_QueueLimit(t *testing.T) {
+	tests := []struct {
+		name          string
+		maxSize       int
+		batchesToAdd  int
+		expectErr     bool
+		expectErrType error
+	}{
+		{
+			name:          "unlimited queue (maxSize 0)",
+			maxSize:       0,
+			batchesToAdd:  100,
+			expectErr:     false,
+			expectErrType: nil,
+		},
+		{
+			name:          "queue within limit",
+			maxSize:       10,
+			batchesToAdd:  5,
+			expectErr:     false,
+			expectErrType: nil,
+		},
+		{
+			name:          "queue at exact limit",
+			maxSize:       5,
+			batchesToAdd:  5,
+			expectErr:     false,
+			expectErrType: nil,
+		},
+		{
+			name:          "queue exceeds limit",
+			maxSize:       3,
+			batchesToAdd:  5,
+			expectErr:     true,
+			expectErrType: ErrQueueFull,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create in-memory datastore and queue with specified limit
+			memdb := newPrefixKV(ds.NewMapDatastore(), "single")
+			bq := NewBatchQueue(memdb, "batching", tc.maxSize)
+			ctx := context.Background()
+
+			var lastErr error
+
+			// Add batches up to the specified count
+			for i := 0; i < tc.batchesToAdd; i++ {
+				batch := createTestBatch(t, i+1)
+				err := bq.AddBatch(ctx, batch)
+				if err != nil {
+					lastErr = err
+					if !tc.expectErr {
+						t.Errorf("unexpected error at batch %d: %v", i, err)
+					}
+					break
+				}
+			}
+
+			// Check final error state
+			if tc.expectErr {
+				if lastErr == nil {
+					t.Error("expected error but got none")
+				} else if !errors.Is(lastErr, tc.expectErrType) {
+					t.Errorf("expected error %v, got %v", tc.expectErrType, lastErr)
+				}
+			} else {
+				if lastErr != nil {
+					t.Errorf("unexpected error: %v", lastErr)
+				}
+			}
+
+			// For limited queues, verify the queue doesn't exceed maxSize
+			if tc.maxSize > 0 && len(bq.queue) > tc.maxSize {
+				t.Errorf("queue size %d exceeds limit %d", len(bq.queue), tc.maxSize)
+			}
+
+			// For unlimited queues, verify all batches were added
+			if tc.maxSize == 0 && !tc.expectErr && len(bq.queue) != tc.batchesToAdd {
+				t.Errorf("expected %d batches in unlimited queue, got %d", tc.batchesToAdd, len(bq.queue))
+			}
+		})
+	}
+}
+
+func TestBatchQueue_QueueLimit_WithNext(t *testing.T) {
+	// Test that removing batches with Next() allows adding more batches
+	maxSize := 3
+	memdb := newPrefixKV(ds.NewMapDatastore(), "single")
+	bq := NewBatchQueue(memdb, "batching", maxSize)
+	ctx := context.Background()
+
+	// Fill the queue to capacity
+	for i := 0; i < maxSize; i++ {
+		batch := createTestBatch(t, i+1)
+		err := bq.AddBatch(ctx, batch)
+		if err != nil {
+			t.Fatalf("unexpected error adding batch %d: %v", i, err)
+		}
+	}
+
+	// Verify queue is full
+	if len(bq.queue) != maxSize {
+		t.Errorf("expected queue size %d, got %d", maxSize, len(bq.queue))
+	}
+
+	// Try to add one more batch - should fail
+	extraBatch := createTestBatch(t, 999)
+	err := bq.AddBatch(ctx, extraBatch)
+	if !errors.Is(err, ErrQueueFull) {
+		t.Errorf("expected ErrQueueFull, got %v", err)
+	}
+
+	// Remove one batch using Next()
+	batch, err := bq.Next(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error in Next(): %v", err)
+	}
+	if batch == nil || len(batch.Transactions) == 0 {
+		t.Error("expected non-empty batch from Next()")
+	}
+
+	// Verify queue size decreased
+	if len(bq.queue) != maxSize-1 {
+		t.Errorf("expected queue size %d after Next(), got %d", maxSize-1, len(bq.queue))
+	}
+
+	// Now adding a batch should succeed
+	newBatch := createTestBatch(t, 1000)
+	err = bq.AddBatch(ctx, newBatch)
+	if err != nil {
+		t.Errorf("unexpected error adding batch after Next(): %v", err)
+	}
+
+	// Verify queue is full again
+	if len(bq.queue) != maxSize {
+		t.Errorf("expected queue size %d after adding back, got %d", maxSize, len(bq.queue))
+	}
+}
+
+func TestBatchQueue_QueueLimit_Concurrency(t *testing.T) {
+	// Test thread safety of queue limits under concurrent access
+	maxSize := 10
+	memdb := dssync.MutexWrap(ds.NewMapDatastore()) // Thread-safe datastore
+	bq := NewBatchQueue(memdb, "batching", maxSize)
+	ctx := context.Background()
+
+	numWorkers := 20
+	batchesPerWorker := 5
+	totalBatches := numWorkers * batchesPerWorker
+
+	var wg sync.WaitGroup
+	var addedCount int64
+	var errorCount int64
+
+	// Start multiple workers trying to add batches concurrently
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			for j := 0; j < batchesPerWorker; j++ {
+				batch := createTestBatch(t, workerID*batchesPerWorker+j+1)
+				err := bq.AddBatch(ctx, batch)
+				if err != nil {
+					if errors.Is(err, ErrQueueFull) {
+						// Expected error when queue is full
+						atomic.AddInt64(&errorCount, 1)
+					} else {
+						t.Errorf("unexpected error type from worker %d: %v", workerID, err)
+					}
+				} else {
+					atomic.AddInt64(&addedCount, 1)
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify queue size doesn't exceed limit
+	if len(bq.queue) > maxSize {
+		t.Errorf("queue size %d exceeds limit %d", len(bq.queue), maxSize)
+	}
+
+	// Verify some batches were successfully added
+	if addedCount == 0 {
+		t.Error("no batches were added successfully")
+	}
+
+	// Verify some batches were rejected due to queue being full
+	if addedCount == int64(totalBatches) {
+		t.Error("all batches were added, but queue should have been full at some point")
+	}
+
+	// Verify the sum makes sense
+	if addedCount+errorCount != int64(totalBatches) {
+		t.Errorf("expected %d total operations, got %d added + %d errors = %d", 
+			totalBatches, addedCount, errorCount, addedCount+errorCount)
+	}
+
+	t.Logf("Successfully added %d batches, rejected %d due to queue being full", addedCount, errorCount)
 }

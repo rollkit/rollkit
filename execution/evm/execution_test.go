@@ -5,13 +5,11 @@ package evm
 
 import (
 	"context"
-	"math/big"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +51,9 @@ const (
 // Validates the engine can process transactions, maintain state,
 // handle empty blocks, and support chain replication.
 func TestEngineExecution(t *testing.T) {
-	allPayloads := make([][][]byte, 0, 10) // Slice to store payloads from build to sync phase
+	allPayloads := make([][][]byte, 0, 10)        // Slice to store payloads from build to sync phase
+	allTimestamps := make([]time.Time, 0, 10)     // Slice to store timestamps from build phase
+	buildPhaseStateRoots := make([][]byte, 0, 10) // Slice to store state roots from build phase
 
 	initialHeight := uint64(1)
 	genesisHash := common.HexToHash(GENESIS_HASH)
@@ -84,20 +84,21 @@ func TestEngineExecution(t *testing.T) {
 		lastHeight, lastHash, lastTxs := checkLatestBlock(tt, ctx)
 		lastNonce := uint64(0)
 
+		// Use a base timestamp and increment for each block to ensure proper ordering
+		baseTimestamp := time.Now()
+
 		for blockHeight := initialHeight; blockHeight <= 10; blockHeight++ {
 			nTxs := int(blockHeight) + 10
 			// randomly use no transactions
 			if blockHeight == 4 {
 				nTxs = 0
 			}
+
 			txs := make([]*ethTypes.Transaction, nTxs)
 			for i := range txs {
 				txs[i] = GetRandomTransaction(t, TEST_PRIVATE_KEY, TEST_TO_ADDRESS, CHAIN_ID, 22000, &lastNonce)
+				SubmitTransaction(tt, txs[i])
 			}
-			for i := range txs {
-				SubmitTransaction(t, txs[i])
-			}
-			time.Sleep(1000 * time.Millisecond)
 
 			payload, err := executionClient.GetTxs(ctx)
 			require.NoError(tt, err)
@@ -111,7 +112,12 @@ func TestEngineExecution(t *testing.T) {
 			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
 			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
 
-			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
+			// Use incremented timestamp for each block to ensure proper ordering
+			blockTimestamp := baseTimestamp.Add(time.Duration(blockHeight-initialHeight) * time.Second)
+			allTimestamps = append(allTimestamps, blockTimestamp)
+
+			// Execute transactions and get the new state root
+			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, blockTimestamp, prevStateRoot)
 			require.NoError(tt, err)
 			if nTxs > 0 {
 				require.NotZero(tt, maxBytes)
@@ -124,13 +130,18 @@ func TestEngineExecution(t *testing.T) {
 			lastHeight, lastHash, lastTxs = checkLatestBlock(tt, ctx)
 			require.Equal(tt, blockHeight, lastHeight, "Latest block height should match")
 			require.NotEmpty(tt, lastHash.Hex(), "Latest block hash should not be empty")
-			require.GreaterOrEqual(tt, lastTxs, 0, "Number of transactions should be non-negative")
+			require.Equal(tt, lastTxs, nTxs, "Number of transactions should be equal")
 
 			if nTxs == 0 {
 				require.Equal(tt, prevStateRoot, newStateRoot)
 			} else {
 				require.NotEqual(tt, prevStateRoot, newStateRoot)
 			}
+
+			// Store the state root from build phase for later comparison in sync phase
+			buildPhaseStateRoots = append(buildPhaseStateRoots, newStateRoot)
+			tt.Logf("Build phase block %d: stored state root %x", blockHeight, newStateRoot)
+
 			prevStateRoot = newStateRoot
 		}
 	})
@@ -171,7 +182,9 @@ func TestEngineExecution(t *testing.T) {
 			require.Equal(tt, lastHash.Hex(), beforeHash.Hex(), "Latest block hash should match")
 			require.Equal(tt, lastTxs, beforeTxs, "Number of transactions should match")
 
-			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, time.Now(), prevStateRoot)
+			// Use timestamp from build phase for each block to ensure proper ordering
+			blockTimestamp := allTimestamps[blockHeight-1]
+			newStateRoot, maxBytes, err := executionClient.ExecuteTxs(ctx, payload, blockHeight, blockTimestamp, prevStateRoot)
 			require.NoError(t, err)
 			if len(payload) > 0 {
 				require.NotZero(tt, maxBytes)
@@ -181,6 +194,13 @@ func TestEngineExecution(t *testing.T) {
 			} else {
 				require.NotEqual(tt, prevStateRoot, newStateRoot)
 			}
+
+			// Verify that the sync phase state root matches the build phase state root
+			expectedStateRoot := buildPhaseStateRoots[blockHeight-1]
+			require.Equal(tt, expectedStateRoot, newStateRoot,
+				"Sync phase state root for block %d should match build phase state root. Expected: %x, Got: %x",
+				blockHeight, expectedStateRoot, newStateRoot)
+			tt.Logf("Sync phase block %d: state root %x matches build phase ✓", blockHeight, newStateRoot)
 
 			err = executionClient.SetFinal(ctx, blockHeight)
 			require.NoError(tt, err)
@@ -237,33 +257,4 @@ func checkLatestBlock(t *testing.T, ctx context.Context) (uint64, common.Hash, i
 
 	//t.Logf("Latest block: height=%d, hash=%s, txs=%d", blockNumber, blockHash.Hex(), txCount)
 	return blockNumber, blockHash, txCount
-}
-
-func TestSubmitTransaction(t *testing.T) {
-	t.Skip("Use this test to submit a transaction manually to the Ethereum client")
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	rpcClient, err := ethclient.Dial(TEST_ETH_URL)
-	require.NoError(t, err)
-	height, err := rpcClient.BlockNumber(ctx)
-	require.NoError(t, err)
-
-	privateKey, err := crypto.HexToECDSA(TEST_PRIVATE_KEY)
-	require.NoError(t, err)
-
-	address := crypto.PubkeyToAddress(privateKey.PublicKey)
-	lastNonce, err := rpcClient.NonceAt(ctx, address, new(big.Int).SetUint64(height))
-	require.NoError(t, err)
-
-	for s := 0; s < 30; s++ {
-		startTime := time.Now()
-		for i := 0; i < 5000; i++ {
-			tx := GetRandomTransaction(t, TEST_PRIVATE_KEY, TEST_TO_ADDRESS, CHAIN_ID, 22000, &lastNonce)
-			SubmitTransaction(t, tx)
-		}
-		elapsed := time.Since(startTime)
-		if elapsed < time.Second {
-			time.Sleep(time.Second - elapsed)
-		}
-	}
 }
