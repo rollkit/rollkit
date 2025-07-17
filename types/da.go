@@ -13,6 +13,27 @@ import (
 
 var placeholder = []byte("placeholder")
 
+// isHeightFromFutureError checks if an error message indicates that the requested height
+// is from the future. This handles multiple possible error formats from different versions
+// of Celestia nodes.
+func isHeightFromFutureError(errMsg string) bool {
+	// Original format from older Celestia versions
+	if strings.Contains(errMsg, coreda.ErrHeightFromFuture.Error()) {
+		return true
+	}
+	// New format from newer Celestia versions
+	if strings.Contains(errMsg, "is not yet available") {
+		return true
+	}
+	if strings.Contains(errMsg, "node is not ready") {
+		return true
+	}
+	if strings.Contains(errMsg, "height") && strings.Contains(errMsg, "not available") {
+		return true
+	}
+	return false
+}
+
 // SubmitWithHelpers performs blob submission using the underlying DA layer,
 // handling error mapping to produce a ResultSubmit.
 // It assumes blob size filtering is handled within the DA implementation's Submit.
@@ -120,8 +141,9 @@ func RetrieveWithHelpers(
 				},
 			}
 		}
-		if strings.Contains(err.Error(), coreda.ErrHeightFromFuture.Error()) {
-			logger.Debug("Retrieve helper: Blobs not found at height", "height", dataLayerHeight)
+		// Handle "height from future" errors with multiple possible formats
+		if isHeightFromFutureError(err.Error()) {
+			logger.Debug("Retrieve helper: Height from future", "height", dataLayerHeight)
 			return coreda.ResultRetrieve{
 				BaseResult: coreda.BaseResult{
 					Code:    coreda.StatusHeightFromFuture,
