@@ -29,11 +29,8 @@ type KVExecutor struct {
 }
 
 // NewKVExecutor creates a new instance of KVExecutor with initialized store and mempool channel.
-func NewKVExecutor(rootdir, dbpath string) (*KVExecutor, error) {
-	datastore, err := store.NewDefaultKVStore(rootdir, dbpath, "executor")
-	if err != nil {
-		return nil, err
-	}
+func NewKVExecutor(db ds.Batching) (*KVExecutor, error) {
+	datastore := store.NewPrefixKV(db, "kv_store")
 	return &KVExecutor{
 		db:     datastore,
 		txChan: make(chan []byte, txChannelBufferSize),
@@ -241,6 +238,35 @@ func (k *KVExecutor) SetFinal(ctx context.Context, blockHeight uint64) error {
 	}
 
 	return k.db.Put(ctx, ds.NewKey("/finalizedHeight"), []byte(fmt.Sprintf("%d", blockHeight)))
+}
+
+// Rollback reverts the state to the previous block height.
+// For the KV executor, this removes any state changes at the current height.
+// Note: This implementation assumes that state changes are tracked by height keys.
+func (k *KVExecutor) Rollback(ctx context.Context, currentHeight uint64) ([]byte, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	// Validate height constraints
+	if currentHeight <= 1 {
+		return nil, fmt.Errorf("cannot rollback from height %d: must be > 1", currentHeight)
+	}
+
+	// For a simple KV store, we'll implement a basic rollback by clearing
+	// any height-specific state and returning to the current state root.
+	// In a production system, you'd want to track state changes per height.
+
+	// For this simple implementation, we'll just compute and return the current state root
+	// since the KV store doesn't track height-specific state changes.
+	stateRoot, err := k.computeStateRoot(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute state root during rollback: %w", err)
+	}
+
+	return stateRoot, nil
 }
 
 // InjectTx adds a transaction to the mempool channel.

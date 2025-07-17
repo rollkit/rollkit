@@ -82,4 +82,24 @@ type Executor interface {
 	// Returns:
 	// - error: Any errors during finalization
 	SetFinal(ctx context.Context, blockHeight uint64) error
+
+	// Rollback reverts the state to the previous block height.
+	// This method allows recovery from unrecoverable errors by rolling back
+	// the most recent block that has not been finalized.
+	// Requirements:
+	// - Must only rollback the most recent non-finalized block
+	// - Must restore state to the exact state before the last block
+	// - Must be atomic - either fully succeeds or leaves state unchanged
+	// - Must respect context cancellation/timeout
+	// - Must return error if rollback is not possible (e.g., no blocks to rollback)
+	// - Must not rollback finalized blocks
+	//
+	// Parameters:
+	// - ctx: Context for timeout/cancellation control
+	// - currentHeight: Current block height to rollback from
+	//
+	// Returns:
+	// - previousStateRoot: State root after rollback
+	// - error: Any errors during rollback
+	Rollback(ctx context.Context, currentHeight uint64) (previousStateRoot []byte, err error)
 }

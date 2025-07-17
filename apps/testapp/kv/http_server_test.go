@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ipfs/go-datastore"
 )
 
 func TestHandleTx(t *testing.T) {
@@ -45,7 +47,7 @@ func TestHandleTx(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			exec, err := NewKVExecutor(t.TempDir(), "testdb")
+			exec, err := NewKVExecutor(datastore.NewMapDatastore())
 			if err != nil {
 				t.Fatalf("Failed to create KVExecutor: %v", err)
 			}
@@ -130,7 +132,7 @@ func TestHandleKV_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			exec, err := NewKVExecutor(t.TempDir(), "testdb")
+			exec, err := NewKVExecutor(datastore.NewMapDatastore())
 			if err != nil {
 				t.Fatalf("Failed to create KVExecutor: %v", err)
 			}
@@ -170,7 +172,7 @@ func TestHandleKV_Get(t *testing.T) {
 
 func TestHTTPServerStartStop(t *testing.T) {
 	// Create a test server that listens on a random port
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}
@@ -214,7 +216,7 @@ func TestHTTPServerStartStop(t *testing.T) {
 
 // TestHTTPServerContextCancellation tests that the server shuts down properly when the context is cancelled
 func TestHTTPServerContextCancellation(t *testing.T) {
-	exec, err := NewKVExecutor(t.TempDir(), "testdb")
+	exec, err := NewKVExecutor(datastore.NewMapDatastore())
 	if err != nil {
 		t.Fatalf("Failed to create KVExecutor: %v", err)
 	}

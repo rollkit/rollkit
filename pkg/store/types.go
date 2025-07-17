@@ -44,6 +44,22 @@ type Store interface {
 	// GetMetadata returns values stored for given key with SetMetadata.
 	GetMetadata(ctx context.Context, key string) ([]byte, error)
 
+	// RollbackToHeight reverts the store state to the specified height.
+	// This removes all blocks and state data at heights greater than the target height.
+	// Requirements:
+	// - Must be atomic - either fully succeeds or leaves state unchanged
+	// - Must validate that target height exists and is less than current height
+	// - Must update store height to the target height
+	// - Must preserve all data at or below the target height
+	//
+	// Parameters:
+	// - ctx: Context for timeout/cancellation control
+	// - targetHeight: Height to rollback to (must be >= 1 and < current height)
+	//
+	// Returns:
+	// - error: Any errors during rollback operation
+	RollbackToHeight(ctx context.Context, targetHeight uint64) error
+
 	// Close safely closes underlying data storage, to ensure that data is actually saved.
 	Close() error
 }

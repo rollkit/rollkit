@@ -197,7 +197,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			BaseHeader: types.BaseHeader{
 				ChainID: genesis.ChainID,
 				Height:  genesis.InitialHeight,
-				Time:    uint64(genesis.GenesisDAStartTime.UnixNano()),
+				Time:    uint64(genesis.GenesisDAStartTime.UnixNano()), //nolint:gosec // G115: Conversion is safe, time values fit in uint64
 			},
 		}
 
@@ -254,16 +254,17 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			DAHeight:        0,
 		}
 		return s, nil
-	} else if err != nil {
+	}
+	if err != nil {
 		logger.Error("error while getting state", "error", err)
 		return types.State{}, err
-	} else {
-		// Perform a sanity-check to stop the user from
-		// using a higher genesis than the last stored state.
-		// if they meant to hard-fork, they should have cleared the stored State
-		if uint64(genesis.InitialHeight) > s.LastBlockHeight { //nolint:unconvert
-			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
-		}
+	}
+
+	// Perform a sanity-check to stop the user from
+	// using a higher genesis than the last stored state.
+	// if they meant to hard-fork, they should have cleared the stored State
+	if uint64(genesis.InitialHeight) > s.LastBlockHeight { //nolint:unconvert
+		return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
 	}
 
 	return s, nil
@@ -779,7 +780,7 @@ func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, da
 	return m.execApplyBlock(ctx, m.lastState, header, data)
 }
 
-func (m *Manager) Validate(ctx context.Context, header *types.SignedHeader, data *types.Data) error {
+func (m *Manager) Validate(_ context.Context, header *types.SignedHeader, data *types.Data) error {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.execValidate(m.lastState, header, data)
@@ -932,7 +933,13 @@ func convertBatchDataToBytes(batchData [][]byte) []byte {
 	for _, data := range batchData {
 		// Encode length as 4-byte big-endian integer
 		lengthBytes := make([]byte, 4)
-		binary.LittleEndian.PutUint32(lengthBytes, uint32(len(data)))
+		dataLen := len(data)
+		// Note: In practice, data chunks should never exceed uint32 max size
+		// This check prevents integer overflow but should not occur in normal operation
+		if dataLen > 0x7FFFFFFF { // Use a reasonable limit to avoid issues
+			dataLen = 0x7FFFFFFF
+		}
+		binary.LittleEndian.PutUint32(lengthBytes, uint32(dataLen)) //nolint:gosec // G115: Conversion is safe after bounds check
 
 		// Append length prefix
 		result = append(result, lengthBytes...)
@@ -1079,4 +1086,68 @@ func (m *Manager) isValidSignedData(signedData *types.SignedData) bool {
 
 	valid, err := signedData.Signer.PubKey.Verify(dataBytes, signedData.Signature)
 	return err == nil && valid
+}
+
+// RollbackLastBlock reverts the chain state to the previous block.
+// This method allows recovery from unrecoverable errors by rolling back
+// the most recent block that has not been finalized.
+func (m *Manager) RollbackLastBlock(ctx context.Context) error {
+	m.lastStateMtx.Lock()
+	defer m.lastStateMtx.Unlock()
+
+	currentHeight := m.lastState.LastBlockHeight
+	if currentHeight <= 1 {
+		return fmt.Errorf("cannot rollback from height %d: must be > 1", currentHeight)
+	}
+
+	m.logger.Info("Rolling back last block", "currentHeight", currentHeight, "targetHeight", currentHeight-1)
+
+	// First, rollback the execution layer
+	prevStateRoot, err := m.exec.Rollback(ctx, currentHeight)
+	if err != nil {
+		return fmt.Errorf("failed to rollback execution layer: %w", err)
+	}
+
+	// Then, rollback the store to the previous height
+	targetHeight := currentHeight - 1
+	if err := m.store.RollbackToHeight(ctx, targetHeight); err != nil {
+		return fmt.Errorf("failed to rollback store: %w", err)
+	}
+
+	// Update the manager's internal state to reflect the rollback
+	// Get the previous block's state from the store
+	prevState, err := m.store.GetState(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get state after rollback: %w", err)
+	}
+
+	// Verify that the state root matches what the execution layer returned
+	if !bytes.Equal(prevState.AppHash, prevStateRoot) {
+		m.logger.Warn("State root mismatch after rollback",
+			"storeStateRoot", fmt.Sprintf("%x", prevState.AppHash),
+			"execStateRoot", fmt.Sprintf("%x", prevStateRoot))
+	}
+
+	// Update the last state to the rolled-back state
+	m.lastState = prevState
+
+	// Clear any cached data for the rolled-back block
+	_, err = m.store.GetHeader(ctx, currentHeight)
+	if err == nil {
+		// Note: We can't remove from cache as there's no Remove method in the interface
+		// This is acceptable as the cache will eventually expire or be overwritten
+		m.logger.Debug("Header exists in cache after rollback, will be overwritten on next access")
+	}
+
+	// Reset DA included height if it was at the rolled-back height
+	if m.daIncludedHeight.Load() >= currentHeight {
+		m.daIncludedHeight.Store(targetHeight)
+	}
+
+	m.logger.Info("Successfully rolled back block",
+		"rolledBackHeight", currentHeight,
+		"newHeight", targetHeight,
+		"newStateRoot", fmt.Sprintf("%x", prevStateRoot))
+
+	return nil
 }

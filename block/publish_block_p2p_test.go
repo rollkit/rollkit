@@ -241,6 +241,10 @@ func (m mockExecutor) SetFinal(ctx context.Context, blockHeight uint64) error {
 	return nil
 }
 
+func (m mockExecutor) Rollback(ctx context.Context, currentHeight uint64) ([]byte, error) {
+	return bytesN(32), nil
+}
+
 var rnd = rand.New(rand.NewSource(1)) //nolint:gosec // test code only
 
 func bytesN(n int) []byte {
