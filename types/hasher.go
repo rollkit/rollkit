@@ -13,8 +13,8 @@ type ValidatorHasherProvider func(
 // DefaultValidatorHasherProvider is the default implementation of ValidatorHasherProvider.
 // It returns an empty Hash, as rollkit does not use validator hashes itself.
 func DefaultValidatorHasherProvider(
-	proposerAddress []byte,
-	pubKey crypto.PubKey,
+	_ []byte,
+	_ crypto.PubKey,
 ) (Hash, error) {
 	return Hash{}, nil
 }
