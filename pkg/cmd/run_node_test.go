@@ -16,6 +16,7 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/node"
 	rollconf "github.com/rollkit/rollkit/pkg/config"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/signer"
@@ -381,7 +382,7 @@ func TestStartNodeErrors(t *testing.T) {
 			runFunc := func() {
 				currentTestLogger := logging.Logger("TestStartNodeErrors")
 				_ = logging.SetLogLevel("TestStartNodeErrors", "FATAL")
-				err := StartNode(currentTestLogger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, nil)
+				err := StartNode(currentTestLogger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, node.NodeOptions{})
 				if tc.expectedError != "" {
 					assert.ErrorContains(t, err, tc.expectedError)
 				} else {
@@ -397,7 +398,7 @@ func TestStartNodeErrors(t *testing.T) {
 				assert.NotPanics(t, runFunc)
 				checkLogger := logging.Logger("TestStartNodeErrors-check")
 				_ = logging.SetLogLevel("TestStartNodeErrors-check", "FATAL")
-				err := StartNode(checkLogger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, nil)
+				err := StartNode(checkLogger, cmd, executor, sequencer, dac, p2pClient, ds, nodeConfig, node.NodeOptions{})
 				if tc.expectedError != "" {
 					assert.ErrorContains(t, err, tc.expectedError)
 				}
@@ -434,7 +435,7 @@ func newRunNodeCmd(
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runNodeLogger := logging.Logger("runNodeCmd")
 			_ = logging.SetLogLevel("runNodeCmd", "FATAL")
-			return StartNode(runNodeLogger, cmd, executor, sequencer, dac, p2pClient, datastore, nodeConfig, nil)
+			return StartNode(runNodeLogger, cmd, executor, sequencer, dac, p2pClient, datastore, nodeConfig, node.NodeOptions{})
 		},
 	}
 

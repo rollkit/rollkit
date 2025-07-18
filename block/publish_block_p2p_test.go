@@ -217,7 +217,7 @@ func setupBlockManager(t *testing.T, ctx context.Context, workDir string, mainKV
 		NopMetrics(),
 		1.,
 		1.,
-		nil, // using default signature verification
+		DefaultManagerOptions(),
 	)
 	require.NoError(t, err)
 	return result, headerSyncService, dataSyncService

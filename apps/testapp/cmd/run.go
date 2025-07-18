@@ -9,6 +9,7 @@ import (
 
 	kvexecutor "github.com/rollkit/rollkit/apps/testapp/kv"
 	"github.com/rollkit/rollkit/da/jsonrpc"
+	"github.com/rollkit/rollkit/node"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
 	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
@@ -93,6 +94,6 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, nil)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, node.NodeOptions{})
 	},
 }

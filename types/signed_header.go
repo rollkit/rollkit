@@ -30,9 +30,6 @@ var (
 
 	// ErrLastCommitHashMismatch is returned when the last commit hash doesn't match.
 	ErrLastCommitHashMismatch = errors.New("last commit hash mismatch")
-
-	// ErrCustomVerifierAlreadySet is returned when a custom signature verifier is already set.
-	ErrCustomVerifierAlreadySet = errors.New("custom signature verifier already set")
 )
 
 var _ header.Header[*SignedHeader] = &SignedHeader{}
@@ -64,12 +61,8 @@ func (sh *SignedHeader) IsZero() bool {
 }
 
 // SetCustomVerifier sets a custom signature verifier for the SignedHeader.
-func (sh *SignedHeader) SetCustomVerifier(verifier SignatureVerifier) error {
-	if sh.verifier != nil {
-		return ErrCustomVerifierAlreadySet
-	}
+func (sh *SignedHeader) SetCustomVerifier(verifier SignatureVerifier) {
 	sh.verifier = verifier
-	return nil
 }
 
 // Verify verifies the signed header.
@@ -147,9 +140,9 @@ func (sh *SignedHeader) ValidateBasic() error {
 		err error
 	)
 	if sh.verifier == nil {
-		bz, err = sh.Header.MarshalBinary()
+		bz, err = DefaultSignaturePayloadProvider(&sh.Header, nil)
 		if err != nil {
-			return err
+			return fmt.Errorf("default signature payload provider failed: %w", err)
 		}
 	} else {
 		bz, err = sh.verifier(&sh.Header)

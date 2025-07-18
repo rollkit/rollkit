@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/rollkit/rollkit/da/jsonrpc"
+	"github.com/rollkit/rollkit/node"
 	"github.com/rollkit/rollkit/sequencers/single"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -77,7 +78,7 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, nil)
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, &daJrpc.DA, p2pClient, datastore, nodeConfig, node.NodeOptions{})
 	},
 }
 
