@@ -173,14 +173,25 @@ func (m *Manager) submitHeadersToDA(ctx context.Context, headersToSubmit []*type
 			return fmt.Errorf("failed to marshal header to proto: %w", err)
 		}
 	}
+
+	// Track submission offset to maintain correspondence with original headers
+	submissionOffset := 0
+
 	return submitToDA(m, ctx, marshaledHeaders,
 		func(submittedCount int, res *coreda.ResultSubmit, gasPrice float64) {
 			for i := 0; i < submittedCount; i++ {
-				m.headerCache.SetDAIncluded(headersToSubmit[i].Hash().String(), res.Height)
+				headerIdx := submissionOffset + i
+				if headerIdx < len(headersToSubmit) {
+					m.headerCache.SetDAIncluded(headersToSubmit[headerIdx].Hash().String(), res.Height)
+				}
 			}
+
+			// Update submission offset for next potential retry
+			submissionOffset += submittedCount
+
 			lastSubmittedHeaderHeight := uint64(0)
-			if l := len(headersToSubmit); l > 0 {
-				lastSubmittedHeaderHeight = headersToSubmit[l-1].Height()
+			if submissionOffset > 0 && submissionOffset <= len(headersToSubmit) {
+				lastSubmittedHeaderHeight = headersToSubmit[submissionOffset-1].Height()
 			}
 			m.pendingHeaders.setLastSubmittedHeaderHeight(ctx, lastSubmittedHeaderHeight)
 			// Update sequencer metrics if the sequencer supports it
@@ -207,14 +218,24 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedDataToSubmit []*type
 		marshaledSignedDataToSubmit[i] = marshaled
 	}
 
+	// Track submission offset to maintain correspondence with original data
+	submissionOffset := 0
+
 	return submitToDA(m, ctx, marshaledSignedDataToSubmit,
 		func(submittedCount int, res *coreda.ResultSubmit, gasPrice float64) {
 			for i := 0; i < submittedCount; i++ {
-				m.dataCache.SetDAIncluded(signedDataToSubmit[i].Data.DACommitment().String(), res.Height)
+				dataIdx := submissionOffset + i
+				if dataIdx < len(signedDataToSubmit) {
+					m.dataCache.SetDAIncluded(signedDataToSubmit[dataIdx].Data.DACommitment().String(), res.Height)
+				}
 			}
+
+			// Update submission offset for next potential retry
+			submissionOffset += submittedCount
+
 			lastSubmittedDataHeight := uint64(0)
-			if l := len(signedDataToSubmit); l > 0 {
-				lastSubmittedDataHeight = signedDataToSubmit[l-1].Height()
+			if submissionOffset > 0 && submissionOffset <= len(signedDataToSubmit) {
+				lastSubmittedDataHeight = signedDataToSubmit[submissionOffset-1].Height()
 			}
 			m.pendingData.setLastSubmittedDataHeight(ctx, lastSubmittedDataHeight)
 			// Update sequencer metrics if the sequencer supports it
