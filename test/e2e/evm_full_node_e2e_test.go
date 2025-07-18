@@ -11,6 +11,7 @@
 // - Block propagation verification with multiple full nodes
 // - Distributed node restart and recovery mechanisms
 // - Lazy mode sequencer behavior with full node sync
+// - DA (Data Availability) inclusion synchronization between nodes
 //
 // Test Coverage:
 // 1. TestEvmSequencerWithFullNodeE2E - Full node P2P sync with sequencer
@@ -23,6 +24,7 @@ package e2e
 
 import (
 	"context"
+	"encoding/binary"
 	"flag"
 	"path/filepath"
 	"testing"
@@ -31,6 +33,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rollkit/rollkit/pkg/rpc/client"
+	"github.com/rollkit/rollkit/pkg/store"
 )
 
 // Note: evmSingleBinaryPath is declared in evm_sequencer_e2e_test.go to avoid duplicate declaration
@@ -264,6 +269,8 @@ func setupSequencerWithFullNode(t *testing.T, sut *SystemUnderTest, sequencerHom
 // 5. Submits transaction to sequencer EVM and gets the block number
 // 6. Verifies the full node syncs the exact same block containing the transaction
 // 7. Performs comprehensive state root verification across all synced blocks
+// 8. Queries full node's latest block height and waits 2 DA block times for DA inclusion
+// 9. Verifies DA (Data Availability) inclusion has caught up to the queried block height
 //
 // Validation:
 // - Both sequencer and full node start successfully
@@ -273,6 +280,7 @@ func setupSequencerWithFullNode(t *testing.T, sut *SystemUnderTest, sequencerHom
 // - Transaction data is identical on both nodes (same block, same receipt)
 // - State roots match between sequencer and full node for all blocks (key validation)
 // - Block hashes and transaction counts are consistent across both nodes
+// - DA included height >= full node's block height after wait (ensuring DA layer sync)
 //
 // Key Technical Details:
 // - Uses separate Docker Compose configurations for different EVM ports
@@ -283,8 +291,10 @@ func setupSequencerWithFullNode(t *testing.T, sut *SystemUnderTest, sequencerHom
 // - Ensures EVM state consistency between sequencer and full node on the Reth side
 //
 // This test demonstrates that full nodes can sync with sequencers in real-time,
-// validates the P2P block propagation mechanism in Rollkit, and ensures that
-// the underlying EVM execution state remains consistent across all nodes.
+// validates the P2P block propagation mechanism in Rollkit, ensures that
+// the underlying EVM execution state remains consistent across all nodes, and
+// verifies that DA (Data Availability) inclusion processes blocks within expected
+// timeframes after allowing sufficient time for DA layer synchronization.
 func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 	flag.Parse()
 	workDir := t.TempDir()
@@ -398,8 +408,73 @@ func TestEvmSequencerWithFullNodeE2E(t *testing.T) {
 		}
 	}
 
-	t.Logf("✅ Test PASSED: All blocks (%d-%d) have matching state roots, %d transactions synced successfully across blocks %v",
+	t.Logf("✅ State root verification passed: All blocks (%d-%d) have matching state roots, %d transactions synced successfully across blocks %v",
 		startHeight, endHeight, len(txHashes), txBlockNumbers)
+
+	// === DA INCLUSION VERIFICATION ===
+
+	t.Log("Verifying DA inclusion for latest block height...")
+
+	// Create RPC client for full node
+	fullNodeRPCClient := client.NewClient("http://127.0.0.1:" + FullNodeRPCPort)
+
+	// Get the full node's current block height before waiting
+	fnHeader, err = fullNodeClient.HeaderByNumber(fnCtx, nil)
+	require.NoError(t, err, "Should get full node header for DA inclusion check")
+	fnBlockHeightBeforeWait := fnHeader.Number.Uint64()
+
+	t.Logf("Full node block height before DA inclusion wait: %d", fnBlockHeightBeforeWait)
+
+	// Wait for one DA block time to allow DA inclusion to process
+	waitTime := 1 * time.Second
+	t.Logf("Waiting %v (1 DA block time) for DA inclusion to process...", waitTime)
+	time.Sleep(waitTime)
+
+	// Get the DA included height from full node after the wait
+	fnDAIncludedHeightBytes, err := fullNodeRPCClient.GetMetadata(fnCtx, store.DAIncludedHeightKey)
+	require.NoError(t, err, "Should get DA included height from full node")
+
+	// Decode the DA included height
+	require.Equal(t, 8, len(fnDAIncludedHeightBytes), "DA included height should be 8 bytes")
+	fnDAIncludedHeight := binary.LittleEndian.Uint64(fnDAIncludedHeightBytes)
+
+	t.Logf("After waiting, full node DA included height: %d", fnDAIncludedHeight)
+
+	// Verify that the DA included height is >= the full node's block height before wait
+	// This ensures that the blocks that existed before the wait have been DA included
+	require.GreaterOrEqual(t, fnDAIncludedHeight, fnBlockHeightBeforeWait,
+		"Full node DA included height (%d) should be >= block height before wait (%d)",
+		fnDAIncludedHeight, fnBlockHeightBeforeWait)
+
+	t.Logf("✅ DA inclusion verification passed:")
+	t.Logf("   - Full node block height before wait: %d", fnBlockHeightBeforeWait)
+	t.Logf("   - Full node DA included height after wait: %d", fnDAIncludedHeight)
+	t.Logf("   - DA inclusion caught up to full node's block height ✓")
+
+	// === COMPREHENSIVE TEST SUMMARY ===
+
+	t.Logf("")
+	t.Logf("🎉 TEST PASSED: Comprehensive EVM Full Node E2E Test Successfully Completed!")
+	t.Logf("   📊 Test Statistics:")
+	t.Logf("      • Total transactions submitted: %d", len(txHashes))
+	t.Logf("      • Transaction blocks: %v", txBlockNumbers)
+	t.Logf("      • Final sequencer height: %d", seqHeight)
+	t.Logf("      • Final full node height: %d", fnHeight)
+	t.Logf("      • State root verification range: blocks %d-%d", startHeight, endHeight)
+	t.Logf("      • Full node block height before DA wait: %d", fnBlockHeightBeforeWait)
+	t.Logf("      • DA wait time: %v (1 DA block time)", waitTime)
+	t.Logf("      • Full node DA included height after wait: %d", fnDAIncludedHeight)
+	t.Logf("")
+	t.Logf("   ✅ Verified Components:")
+	t.Logf("      • P2P connection establishment between sequencer and full node")
+	t.Logf("      • Real-time transaction synchronization via P2P")
+	t.Logf("      • Block propagation and consistency across nodes")
+	t.Logf("      • State root consistency across all synced blocks")
+	t.Logf("      • Transaction receipt consistency between nodes")
+	t.Logf("      • DA (Data Availability) inclusion processing within expected timeframes")
+	t.Logf("      • EVM execution state consistency")
+	t.Logf("")
+	t.Logf("   🏆 All validation criteria met - distributed rollkit network is functioning correctly!")
 }
 
 // TestEvmFullNodeBlockPropagationE2E tests that blocks produced by the aggregator
