@@ -70,10 +70,6 @@ type MetricsRecorder interface {
 	RecordMetrics(gasPrice float64, blobSize uint64, statusCode coreda.StatusCode, numPendingBlocks uint64, includedBlockHeight uint64)
 }
 
-func defaultSignaturePayloadProvider(header *types.Header) ([]byte, error) {
-	return header.MarshalBinary()
-}
-
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
 	Header   *types.SignedHeader
@@ -168,14 +164,14 @@ type Manager struct {
 	// signaturePayloadProvider is used to provide a signature payload for the header.
 	// It is used to sign the header with the provided signer.
 	signaturePayloadProvider types.SignaturePayloadProvider
+
+	// validatorHasherProvider is used to provide the validator hash for the header.
+	// It is used to set the validator hash in the header.
+	validatorHasherProvider types.ValidatorHasherProvider
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
-func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store storepkg.Store, exec coreexecutor.Executor, logger logging.EventLogger, signaturePayloadProvider types.SignaturePayloadProvider) (types.State, error) {
-	if signaturePayloadProvider == nil {
-		signaturePayloadProvider = defaultSignaturePayloadProvider
-	}
-
+func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer.Signer, store storepkg.Store, exec coreexecutor.Executor, logger logging.EventLogger, managerOpts ManagerOptions) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(ctx)
 
@@ -213,7 +209,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
 			}
 
-			b, err := signaturePayloadProvider(&header)
+			b, err := managerOpts.SignaturePayloadProvider(&header)
 			if err != nil {
 				return types.State{}, fmt.Errorf("failed to get signature payload: %w", err)
 			}
@@ -234,7 +230,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 
 		// Set the same custom verifier used during normal block validation
 		if err := genesisHeader.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-			return signaturePayloadProvider(h)
+			return managerOpts.SignaturePayloadProvider(h)
 		}); err != nil {
 			return types.State{}, fmt.Errorf("failed to set custom verifier for genesis header: %w", err)
 		}
@@ -269,6 +265,31 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 	return s, nil
 }
 
+// ManagerOptions defines the options for creating a new block Manager.
+type ManagerOptions struct {
+	SignaturePayloadProvider types.SignaturePayloadProvider
+	ValidatorHasherProvider  types.ValidatorHasherProvider
+}
+
+func (opts *ManagerOptions) Validate() error {
+	if opts.SignaturePayloadProvider == nil {
+		return fmt.Errorf("signature payload provider cannot be nil")
+	}
+	if opts.ValidatorHasherProvider == nil {
+		return fmt.Errorf("validator hasher provider cannot be nil")
+	}
+
+	return nil
+}
+
+// DefaultManagerOptions returns the default options for creating a new block Manager.
+func DefaultManagerOptions() ManagerOptions {
+	return ManagerOptions{
+		SignaturePayloadProvider: types.DefaultSignaturePayloadProvider,
+		ValidatorHasherProvider:  types.DefaultValidatorHasherProvider,
+	}
+}
+
 // NewManager creates new block Manager.
 func NewManager(
 	ctx context.Context,
@@ -287,13 +308,9 @@ func NewManager(
 	seqMetrics *Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
-	signaturePayloadProvider types.SignaturePayloadProvider,
+	managerOpts ManagerOptions,
 ) (*Manager, error) {
-	if signaturePayloadProvider == nil {
-		signaturePayloadProvider = defaultSignaturePayloadProvider
-	}
-
-	s, err := getInitialState(ctx, genesis, signer, store, exec, logger, signaturePayloadProvider)
+	s, err := getInitialState(ctx, genesis, signer, store, exec, logger, managerOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get initial state: %w", err)
 	}
@@ -384,7 +401,8 @@ func NewManager(
 		gasPrice:                 gasPrice,
 		gasMultiplier:            gasMultiplier,
 		txNotifyCh:               make(chan struct{}, 1), // Non-blocking channel
-		signaturePayloadProvider: signaturePayloadProvider,
+		signaturePayloadProvider: managerOpts.SignaturePayloadProvider,
+		validatorHasherProvider:  managerOpts.ValidatorHasherProvider,
 	}
 
 	// initialize da included height
@@ -845,8 +863,14 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		return nil, nil, fmt.Errorf("proposer address is not the same as the genesis proposer address %x != %x", address, m.genesis.ProposerAddress)
 	}
 
-	// Determine if this is an empty block
+	// determine if this is an empty block
 	isEmpty := batchData.Batch == nil || len(batchData.Transactions) == 0
+
+	// build validator hash
+	validatorHash, err := m.validatorHasherProvider(m.genesis.ProposerAddress, key)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get validator hash: %w", err)
+	}
 
 	header := &types.SignedHeader{
 		Header: types.Header{
@@ -857,13 +881,14 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			BaseHeader: types.BaseHeader{
 				ChainID: m.lastState.ChainID,
 				Height:  height,
-				Time:    uint64(batchData.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
+				Time:    uint64(batchData.UnixNano()),
 			},
 			LastHeaderHash: lastHeaderHash,
 			// DataHash is set at the end of the function
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         m.lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
+			ValidatorHash:   validatorHash,
 		},
 		Signature: *lastSignature,
 		Signer: types.Signer{
