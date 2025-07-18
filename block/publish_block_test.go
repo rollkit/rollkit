@@ -93,6 +93,7 @@ func setupManagerForPublishBlockTest(
 		pendingHeaders:           nil,
 		pendingData:              nil,
 		signaturePayloadProvider: types.DefaultSignaturePayloadProvider,
+		validatorHasherProvider:  types.DefaultValidatorHasherProvider,
 	}
 	manager.publishBlock = manager.publishBlockInternal
 
@@ -185,6 +186,7 @@ func Test_publishBlock_NoBatch(t *testing.T) {
 		lastStateMtx:             &sync.RWMutex{},
 		metrics:                  NopMetrics(),
 		signaturePayloadProvider: types.DefaultSignaturePayloadProvider,
+		validatorHasherProvider:  types.DefaultValidatorHasherProvider,
 	}
 
 	m.publishBlock = m.publishBlockInternal
@@ -275,6 +277,7 @@ func Test_publishBlock_EmptyBatch(t *testing.T) {
 		}),
 		daHeight:                 &daH,
 		signaturePayloadProvider: types.DefaultSignaturePayloadProvider,
+		validatorHasherProvider:  types.DefaultValidatorHasherProvider,
 	}
 
 	m.publishBlock = m.publishBlockInternal
