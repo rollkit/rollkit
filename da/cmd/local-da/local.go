@@ -225,7 +225,7 @@ func (d *LocalDA) getHash(blob []byte) []byte {
 }
 
 func (d *LocalDA) getProof(id, blob []byte) []byte {
-	sign, _ := d.privKey.Sign(rand.Reader, d.getHash(blob), &ed25519.Options{})
+	sign := ed25519.Sign(d.privKey, d.getHash(blob))
 	return sign
 }
 
