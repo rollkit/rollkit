@@ -54,6 +54,7 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 		store:                    mockStore,
 		txNotifyCh:               make(chan struct{}, 1),
 		signaturePayloadProvider: types.DefaultSignaturePayloadProvider,
+		validatorHasherProvider:  types.DefaultValidatorHasherProvider,
 	}
 
 	m.publishBlock = m.publishBlockInternal
