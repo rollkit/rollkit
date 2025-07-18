@@ -51,6 +51,7 @@ var DefaultConfig = Config{
 		LazyBlockInterval: DurationWrapper{60 * time.Second},
 		Light:             false,
 		TrustedHash:       "",
+		Pruning:           PruningConfigDefault,
 	},
 	DA: DAConfig{
 		Address:       "http://localhost:7980",
