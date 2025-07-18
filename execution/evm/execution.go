@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -126,49 +124,24 @@ func (c *EngineClient) InitChain(ctx context.Context, genesisTime time.Time, ini
 
 // GetTxs retrieves transactions from the current execution payload
 func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
-	var result struct {
-		Pending map[string]map[string]*types.Transaction `json:"pending"`
-		Queued  map[string]map[string]*types.Transaction `json:"queued"`
-	}
-	err := c.ethClient.Client().CallContext(ctx, &result, "txpool_content")
+	var result []string
+	err := c.ethClient.Client().CallContext(ctx, &result, "txpoolExt_getTxs")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tx pool content: %w", err)
 	}
 
-	var txs [][]byte
-
-	// add pending txs
-	for _, accountTxs := range result.Pending {
-		// Extract and sort keys to iterate in ordered fashion
-		keys := make([]string, 0, len(accountTxs))
-		for key := range accountTxs {
-			keys = append(keys, key)
+	txs := make([][]byte, 0, len(result))
+	for _, rlpHex := range result {
+		if !strings.HasPrefix(rlpHex, "0x") || len(rlpHex) < 3 {
+			return nil, fmt.Errorf("invalid hex format for transaction: %s", rlpHex)
 		}
-
-		// Sort keys as integers (they represent nonces)
-		sort.Slice(keys, func(i, j int) bool {
-			// Parse as integers for proper numerical sorting
-			a, errA := strconv.Atoi(keys[i])
-			b, errB := strconv.Atoi(keys[j])
-
-			// If parsing fails, fall back to string comparison
-			if errA != nil || errB != nil {
-				return keys[i] < keys[j]
-			}
-
-			return a < b
-		})
-
-		// Iterate over sorted keys
-		for _, key := range keys {
-			tx := accountTxs[key]
-			txBytes, err := tx.MarshalBinary()
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal transaction: %w", err)
-			}
-			txs = append(txs, txBytes)
+		txBytes := common.FromHex(rlpHex)
+		if len(txBytes) == 0 && len(rlpHex) > 2 {
+			return nil, fmt.Errorf("failed to decode hex transaction: %s", rlpHex)
 		}
+		txs = append(txs, txBytes)
 	}
+
 	return txs, nil
 }
 
