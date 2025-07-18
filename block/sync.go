@@ -145,7 +145,18 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 		hHeight := h.Height()
 		m.logger.Info("syncing header and data, height: ", hHeight)
-		// Validate the received block before applying
+
+		// set the custom verifier to ensure proper signature validation
+		h.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
+			return m.signaturePayloadProvider(h, d)
+		})
+
+		// validate received header
+		if err := h.ValidateBasic(); err != nil {
+			return fmt.Errorf("invalid header at height %d: %w", hHeight, err)
+		}
+
+		// validate the received block before applying
 		if err := m.Validate(ctx, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}

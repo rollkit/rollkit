@@ -197,9 +197,12 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			},
 		}
 
-		var signature types.Signature
+		var (
+			data      = &types.Data{}
+			signature types.Signature
+			pubKey    crypto.PubKey
+		)
 
-		var pubKey crypto.PubKey
 		// The signer is only provided in aggregator nodes. This enables the creation of a signed genesis header,
 		// which includes a public key and a cryptographic signature for the header.
 		// In a full node (non-aggregator), the signer will be nil, and only an unsigned genesis header will be initialized locally.
@@ -209,11 +212,12 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
 			}
 
-			b, err := managerOpts.SignaturePayloadProvider(&header, new(types.Data))
+			bz, err := managerOpts.SignaturePayloadProvider(&header, data)
 			if err != nil {
 				return types.State{}, fmt.Errorf("failed to get signature payload: %w", err)
 			}
-			signature, err = signer.Sign(b)
+
+			signature, err = signer.Sign(bz)
 			if err != nil {
 				return types.State{}, fmt.Errorf("failed to get header signature: %w", err)
 			}
@@ -229,13 +233,11 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 		}
 
 		// Set the same custom verifier used during normal block validation
-		if err := genesisHeader.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-			return managerOpts.SignaturePayloadProvider(h, new(types.Data))
-		}); err != nil {
-			return types.State{}, fmt.Errorf("failed to set custom verifier for genesis header: %w", err)
-		}
+		genesisHeader.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
+			return managerOpts.SignaturePayloadProvider(h, data)
+		})
 
-		err = store.SaveBlockData(ctx, genesisHeader, &types.Data{}, &signature)
+		err = store.SaveBlockData(ctx, genesisHeader, data, &signature)
 		if err != nil {
 			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
 		}
@@ -690,13 +692,10 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// set the signature to current block's signed header
 	header.Signature = signature
 
-	// Set the custom verifier to ensure proper signature validation (if not already set by executor)
-	// Note: The executor may have already set a custom verifier during transaction execution
-	if err := header.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
+	// set the custom verifier to ensure proper signature validation
+	header.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
 		return m.signaturePayloadProvider(h, data)
-	}); err != nil {
-		return fmt.Errorf("failed to set custom verifier: %w", err)
-	}
+	})
 
 	if err := header.ValidateBasic(); err != nil {
 		// If this ever happens, for recovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
@@ -715,6 +714,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		Time:         header.BaseHeader.Time,
 		LastDataHash: lastDataHash,
 	}
+
 	// Validate the created block before storing
 	if err := m.Validate(ctx, header, data); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
@@ -805,10 +805,8 @@ func (m *Manager) Validate(ctx context.Context, header *types.SignedHeader, data
 
 // execValidate validates a pair of header and data against the last state
 func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader, data *types.Data) error {
-	// Validate the basic structure of the header
-	if err := header.ValidateBasic(); err != nil {
-		return fmt.Errorf("invalid header: %w", err)
-	}
+	// Note: we do not call header.ValidateBasic() here, as the data may have changed since the header was created (adding metadata)
+	// The header should always be validated prior to calling this function, so we assume it is valid.
 
 	// Validate the header against the data
 	if err := types.Validate(header, data); err != nil {
@@ -1010,9 +1008,11 @@ func (m *Manager) getHeaderSignature(header types.Header, data *types.Data) (typ
 	if err != nil {
 		return nil, err
 	}
+
 	if m.signer == nil {
 		return nil, fmt.Errorf("signer is nil; cannot sign header")
 	}
+
 	return m.signer.Sign(b)
 }
 
