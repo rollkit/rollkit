@@ -727,7 +727,7 @@ func TestUtilityFunctions(t *testing.T) {
 		m.signer = nil
 
 		header := types.Header{}
-		_, err := m.getHeaderSignature(header)
+		_, err := m.getHeaderSignature(header, new(types.Data))
 		require.ErrorContains(err, "signer is nil; cannot sign header")
 	})
 

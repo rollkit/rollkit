@@ -209,7 +209,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
 			}
 
-			b, err := managerOpts.SignaturePayloadProvider(&header)
+			b, err := managerOpts.SignaturePayloadProvider(&header, new(types.Data))
 			if err != nil {
 				return types.State{}, fmt.Errorf("failed to get signature payload: %w", err)
 			}
@@ -230,7 +230,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 
 		// Set the same custom verifier used during normal block validation
 		if err := genesisHeader.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-			return managerOpts.SignaturePayloadProvider(h)
+			return managerOpts.SignaturePayloadProvider(h, new(types.Data))
 		}); err != nil {
 			return types.State{}, fmt.Errorf("failed to set custom verifier for genesis header: %w", err)
 		}
@@ -682,7 +682,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 	}
 
-	signature, err = m.getHeaderSignature(header.Header)
+	signature, err = m.getHeaderSignature(header.Header, data)
 	if err != nil {
 		return err
 	}
@@ -693,7 +693,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	// Set the custom verifier to ensure proper signature validation (if not already set by executor)
 	// Note: The executor may have already set a custom verifier during transaction execution
 	if err := header.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-		return m.signaturePayloadProvider(h)
+		return m.signaturePayloadProvider(h, data)
 	}); err != nil {
 		return fmt.Errorf("failed to set custom verifier: %w", err)
 	}
@@ -1005,8 +1005,8 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 	return result, nil
 }
 
-func (m *Manager) getHeaderSignature(header types.Header) (types.Signature, error) {
-	b, err := m.signaturePayloadProvider(&header)
+func (m *Manager) getHeaderSignature(header types.Header, data *types.Data) (types.Signature, error) {
+	b, err := m.signaturePayloadProvider(&header, data)
 	if err != nil {
 		return nil, err
 	}
