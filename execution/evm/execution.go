@@ -132,7 +132,13 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 
 	txs := make([][]byte, 0, len(result))
 	for _, rlpHex := range result {
+		if !strings.HasPrefix(rlpHex, "0x") || len(rlpHex) < 3 {
+			return nil, fmt.Errorf("invalid hex format for transaction: %s", rlpHex)
+		}
 		txBytes := common.FromHex(rlpHex)
+		if len(txBytes) == 0 && len(rlpHex) > 2 {
+			return nil, fmt.Errorf("failed to decode hex transaction: %s", rlpHex)
+		}
 		txs = append(txs, txBytes)
 	}
 
