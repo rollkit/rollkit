@@ -28,7 +28,7 @@ func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
 type BatchQueue struct {
 	queue        []coresequencer.Batch
 	maxQueueSize int // maximum number of batches allowed in queue (0 = unlimited)
-	mu           sync.Mutex
+	mu           sync.RWMutex
 	db           ds.Batching
 }
 
