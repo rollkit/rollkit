@@ -213,7 +213,7 @@ func TestRetrieveWithHelpers(t *testing.T) {
 			},
 			getBlobsErr:    errors.New("network error during blob retrieval"),
 			expectedCode:   coreda.StatusError,
-			expectedErrMsg: "failed to get blobs: network error during blob retrieval",
+			expectedErrMsg: "ailed to get blobs for batch 0-1: network error during blob retrieval",
 			expectedHeight: dataLayerHeight,
 		},
 	}
