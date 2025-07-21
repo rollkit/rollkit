@@ -7,10 +7,10 @@ import (
 )
 
 // SignaturePayloadProvider defines the function type for providing a signature payload.
-type SignaturePayloadProvider func(header *Header, data *Data) ([]byte, error)
+type SignaturePayloadProvider func(header *Header) ([]byte, error)
 
 // DefaultSignaturePayloadProvider is the default implementation of SignaturePayloadProvider.
-func DefaultSignaturePayloadProvider(header *Header, _ *Data) ([]byte, error) {
+func DefaultSignaturePayloadProvider(header *Header) ([]byte, error) {
 	return header.MarshalBinary()
 }
 

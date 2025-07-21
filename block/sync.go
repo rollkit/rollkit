@@ -148,7 +148,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 		// set the custom verifier to ensure proper signature validation
 		h.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-			return m.signaturePayloadProvider(h, d)
+			return m.signaturePayloadProvider(h)
 		})
 
 		// validate received header

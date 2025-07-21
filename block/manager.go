@@ -212,7 +212,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 				return types.State{}, fmt.Errorf("failed to get public key: %w", err)
 			}
 
-			bz, err := managerOpts.SignaturePayloadProvider(&header, data)
+			bz, err := managerOpts.SignaturePayloadProvider(&header)
 			if err != nil {
 				return types.State{}, fmt.Errorf("failed to get signature payload: %w", err)
 			}
@@ -234,7 +234,7 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 
 		// Set the same custom verifier used during normal block validation
 		genesisHeader.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-			return managerOpts.SignaturePayloadProvider(h, data)
+			return managerOpts.SignaturePayloadProvider(h)
 		})
 
 		err = store.SaveBlockData(ctx, genesisHeader, data, &signature)
@@ -694,7 +694,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 
 	// set the custom verifier to ensure proper signature validation
 	header.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-		return m.signaturePayloadProvider(h, data)
+		return m.signaturePayloadProvider(h)
 	})
 
 	if err := header.ValidateBasic(); err != nil {
@@ -805,8 +805,10 @@ func (m *Manager) Validate(ctx context.Context, header *types.SignedHeader, data
 
 // execValidate validates a pair of header and data against the last state
 func (m *Manager) execValidate(lastState types.State, header *types.SignedHeader, data *types.Data) error {
-	// Note: we do not call header.ValidateBasic() here, as the data may have changed since the header was created (adding metadata)
-	// The header should always be validated prior to calling this function, so we assume it is valid.
+	// Validate the basic structure of the header
+	if err := header.ValidateBasic(); err != nil {
+		return fmt.Errorf("invalid header: %w", err)
+	}
 
 	// Validate the header against the data
 	if err := types.Validate(header, data); err != nil {
@@ -1004,7 +1006,7 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 }
 
 func (m *Manager) getHeaderSignature(header types.Header, data *types.Data) (types.Signature, error) {
-	b, err := m.signaturePayloadProvider(&header, data)
+	b, err := m.signaturePayloadProvider(&header)
 	if err != nil {
 		return nil, err
 	}

@@ -140,7 +140,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 		err error
 	)
 	if sh.verifier == nil {
-		bz, err = DefaultSignaturePayloadProvider(&sh.Header, nil)
+		bz, err = DefaultSignaturePayloadProvider(&sh.Header)
 		if err != nil {
 			return fmt.Errorf("default signature payload provider failed: %w", err)
 		}
