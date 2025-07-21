@@ -15,7 +15,7 @@ lint: vet
 	@echo "--> Running golangci-lint"
 	@golangci-lint run
 	@echo "--> Running markdownlint"
-	@markdownlint --config .markdownlint.yaml --ignore './docs/src/specs/**.md' '**/*.md'
+	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
 	@hadolint test/docker/mockserv.Dockerfile
 	@echo "--> Running yamllint"
