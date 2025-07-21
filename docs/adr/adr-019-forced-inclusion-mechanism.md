@@ -436,7 +436,7 @@ Proposed
 
 ## References
 
-- [Rollkit Single Sequencer ADR-013](https://github.com/rollkit/rollkit/blob/main/specs/lazy-adr/adr-013-single-sequencer.md)
-- [Rollkit Minimal Header ADR-015](https://github.com/rollkit/rollkit/blob/main/specs/lazy-adr/adr-015-rollkit-minimal-header.md)
+- [Rollkit Single Sequencer ADR-013](https://github.com/rollkit/rollkit/blob/main/docs/adr/adr-013-single-sequencer.md)
+- [Rollkit Minimal Header ADR-015](https://github.com/rollkit/rollkit/blob/main/docs/adr/adr-015-rollkit-minimal-header.md)
 - [L2 Beat Stages Framework](https://forum.l2beat.com/t/the-stages-framework/291#p-516-stage-1-requirements-3)
 - [GitHub Issue #1914: Add Forced Inclusion Mechanism from the DA layer](https://github.com/rollkit/rollkit/issues/1914)
