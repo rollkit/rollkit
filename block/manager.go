@@ -684,7 +684,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 	}
 
-	signature, err = m.getHeaderSignature(header.Header, data)
+	signature, err = m.getHeaderSignature(header.Header)
 	if err != nil {
 		return err
 	}
@@ -1005,7 +1005,7 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 	return result, nil
 }
 
-func (m *Manager) getHeaderSignature(header types.Header, data *types.Data) (types.Signature, error) {
+func (m *Manager) getHeaderSignature(header types.Header) (types.Signature, error) {
 	b, err := m.signaturePayloadProvider(&header)
 	if err != nil {
 		return nil, err
