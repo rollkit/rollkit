@@ -232,11 +232,6 @@ func getInitialState(ctx context.Context, genesis genesis.Genesis, signer signer
 			Signature: signature,
 		}
 
-		// Set the same custom verifier used during normal block validation
-		genesisHeader.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-			return managerOpts.SignaturePayloadProvider(h)
-		})
-
 		err = store.SaveBlockData(ctx, genesisHeader, data, &signature)
 		if err != nil {
 			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
@@ -693,14 +688,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	header.Signature = signature
 
 	// set the custom verifier to ensure proper signature validation
-	header.SetCustomVerifier(func(h *types.Header) ([]byte, error) {
-		return m.signaturePayloadProvider(h)
-	})
-
-	if err := header.ValidateBasic(); err != nil {
-		// If this ever happens, for recovery, check for a mismatch between the configured signing key and the proposer address in the genesis file
-		return fmt.Errorf("header validation error: %w", err)
-	}
+	header.SetCustomVerifier(m.signaturePayloadProvider)
 
 	newState, err := m.applyBlock(ctx, header, data)
 	if err != nil {
@@ -720,8 +708,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		return fmt.Errorf("failed to validate block: %w", err)
 	}
 
-	headerHeight := header.Height()
-
 	headerHash := header.Hash().String()
 	m.headerCache.SetSeen(headerHash)
 
@@ -732,6 +718,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 	}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
+	headerHeight := header.Height()
 	if err = m.store.SetHeight(ctx, headerHeight); err != nil {
 		return err
 	}

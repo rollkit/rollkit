@@ -34,10 +34,6 @@ var (
 
 var _ header.Header[*SignedHeader] = &SignedHeader{}
 
-// SignatureVerifier is a custom signature verifiers.
-// If set, ValidateBasic will use this function to verify the signature.
-type SignatureVerifier func(header *Header) ([]byte, error)
-
 // SignedHeader combines Header and its signature.
 //
 // Used mostly for gossiping.
@@ -47,7 +43,7 @@ type SignedHeader struct {
 	Signature Signature
 	Signer    Signer
 
-	verifier SignatureVerifier
+	signatureProvider SignaturePayloadProvider
 }
 
 // New creates a new SignedHeader.
@@ -60,9 +56,10 @@ func (sh *SignedHeader) IsZero() bool {
 	return sh == nil
 }
 
-// SetCustomVerifier sets a custom signature verifier for the SignedHeader.
-func (sh *SignedHeader) SetCustomVerifier(verifier SignatureVerifier) {
-	sh.verifier = verifier
+// SetCustomVerifier sets a custom signature provider for the SignedHeader.
+// If set, ValidateBasic will use this function to verify the signature.
+func (sh *SignedHeader) SetCustomVerifier(provider SignaturePayloadProvider) {
+	sh.signatureProvider = provider
 }
 
 // Verify verifies the signed header.
@@ -139,13 +136,13 @@ func (sh *SignedHeader) ValidateBasic() error {
 		bz  []byte
 		err error
 	)
-	if sh.verifier == nil {
+	if sh.signatureProvider == nil {
 		bz, err = DefaultSignaturePayloadProvider(&sh.Header)
 		if err != nil {
 			return fmt.Errorf("default signature payload provider failed: %w", err)
 		}
 	} else {
-		bz, err = sh.verifier(&sh.Header)
+		bz, err = sh.signatureProvider(&sh.Header)
 		if err != nil {
 			return fmt.Errorf("custom signature verification failed: %w", err)
 		}
