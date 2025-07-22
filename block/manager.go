@@ -994,8 +994,6 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 }
 
 func (m *Manager) getHeaderSignature(header types.Header) (types.Signature, error) {
-	fmt.Println("signing header with chain ID:", header.ChainID(), "and height:", header.Height())
-
 	b, err := m.signaturePayloadProvider(&header)
 	if err != nil {
 		return nil, err
