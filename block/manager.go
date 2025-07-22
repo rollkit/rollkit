@@ -674,12 +674,12 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 			return err
 		}
 
-		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil {
+		if err = m.store.SaveBlockData(ctx, header, data, &signature); err != nil { // saved early for crash recovery, will be overwritten later with the final signature
 			return fmt.Errorf("failed to save block: %w", err)
 		}
 	}
 
-	newState, err := m.applyBlock(ctx, header, data)
+	newState, err := m.applyBlock(ctx, header.Header, data)
 	if err != nil {
 		return fmt.Errorf("error applying block: %w", err)
 	}
@@ -779,7 +779,7 @@ func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature 
 	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
 }
 
-func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
+func (m *Manager) applyBlock(ctx context.Context, header types.Header, data *types.Data) (types.State, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.execApplyBlock(ctx, m.lastState, header, data)
@@ -904,13 +904,13 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	return header, blockData, nil
 }
 
-func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
+func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header types.Header, data *types.Data) (types.State, error) {
 	rawTxs := make([][]byte, len(data.Txs))
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
 
-	ctx = context.WithValue(ctx, types.HeaderContextKey, header.Header)
+	ctx = context.WithValue(ctx, types.HeaderContextKey, header)
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
 		return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)

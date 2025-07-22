@@ -154,7 +154,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
 
-		newState, err := m.applyBlock(ctx, h, d)
+		newState, err := m.applyBlock(ctx, h.Header, d)
 		if err != nil {
 			return fmt.Errorf("failed to apply block: %w", err)
 		}

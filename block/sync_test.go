@@ -118,7 +118,7 @@ func TestSyncLoop_ProcessSingleBlock_HeaderFirst(t *testing.T) {
 	require.NotNil(privKey)
 
 	expectedNewAppHash := []byte("new_app_hash")
-	expectedNewState, err := initialState.NextState(header, expectedNewAppHash)
+	expectedNewState, err := initialState.NextState(header.Header, expectedNewAppHash)
 	require.NoError(err)
 
 	syncChan := make(chan struct{})
@@ -204,7 +204,7 @@ func TestSyncLoop_ProcessSingleBlock_DataFirst(t *testing.T) {
 	require.NotNil(privKey)
 
 	expectedNewAppHash := []byte("new_app_hash_data_first")
-	expectedNewState, err := initialState.NextState(header, expectedNewAppHash)
+	expectedNewState, err := initialState.NextState(header.Header, expectedNewAppHash)
 	require.NoError(err)
 
 	syncChan := make(chan struct{})
@@ -290,7 +290,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	require.NotNil(privKeyH1)
 
 	expectedNewAppHashH1 := []byte("app_hash_h1")
-	expectedNewStateH1, err := initialState.NextState(headerH1, expectedNewAppHashH1)
+	expectedNewStateH1, err := initialState.NextState(headerH1.Header, expectedNewAppHashH1)
 	require.NoError(err)
 
 	var txsH1 [][]byte
@@ -305,7 +305,7 @@ func TestSyncLoop_ProcessMultipleBlocks_Sequentially(t *testing.T) {
 	require.NotNil(privKeyH2)
 
 	expectedNewAppHashH2 := []byte("app_hash_h2")
-	expectedNewStateH2, err := expectedNewStateH1.NextState(headerH2, expectedNewAppHashH2)
+	expectedNewStateH2, err := expectedNewStateH1.NextState(headerH2.Header, expectedNewAppHashH2)
 	require.NoError(err)
 
 	var txsH2 [][]byte
@@ -428,7 +428,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	require.NotNil(privKeyH1)
 
 	appHashH1 := []byte("app_hash_h1_ooo")
-	expectedNewStateH1, err := initialState.NextState(headerH1, appHashH1)
+	expectedNewStateH1, err := initialState.NextState(headerH1.Header, appHashH1)
 	require.NoError(err)
 
 	var txsH1 [][]byte
@@ -443,7 +443,7 @@ func TestSyncLoop_ProcessBlocks_OutOfOrderArrival(t *testing.T) {
 	require.NotNil(privKeyH2)
 
 	appHashH2 := []byte("app_hash_h2_ooo")
-	expectedStateH2, err := expectedNewStateH1.NextState(headerH2, appHashH2)
+	expectedStateH2, err := expectedNewStateH1.NextState(headerH2.Header, appHashH2)
 	require.NoError(err)
 
 	var txsH2 [][]byte
@@ -578,7 +578,7 @@ func TestSyncLoop_IgnoreDuplicateEvents(t *testing.T) {
 	require.NotNil(privKeyH1)
 
 	appHashH1 := []byte("app_hash_h1_dup")
-	expectedStateH1, err := initialState.NextState(headerH1, appHashH1)
+	expectedStateH1, err := initialState.NextState(headerH1.Header, appHashH1)
 	require.NoError(err)
 
 	var txsH1 [][]byte
@@ -845,7 +845,7 @@ func TestSyncLoop_MultipleHeadersArriveFirst_ThenData(t *testing.T) {
 
 		expectedAppHashes[i] = []byte(fmt.Sprintf("app_hash_h%d", i+1))
 		var err error
-		expectedStates[i], err = prevState.NextState(headers[i], expectedAppHashes[i])
+		expectedStates[i], err = prevState.NextState(headers[i].Header, expectedAppHashes[i])
 		require.NoError(err)
 
 		syncChans[i] = make(chan struct{})
