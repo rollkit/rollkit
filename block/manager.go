@@ -692,6 +692,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		LastDataHash: lastDataHash,
 	}
 
+	// we sign the header after executing the block, as a signature payload provider could depend on the block's data
 	signature, err = m.getHeaderSignature(header.Header)
 	if err != nil {
 		return err
