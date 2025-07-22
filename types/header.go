@@ -17,10 +17,10 @@ type headerContextKey struct{}
 // This is useful if the execution client needs to access the header during transaction execution.
 var HeaderContextKey = headerContextKey{}
 
-func HeaderFromContext(ctx context.Context) (*Header, bool) {
-	h, ok := ctx.Value(HeaderContextKey).(*Header)
+func HeaderFromContext(ctx context.Context) (Header, bool) {
+	h, ok := ctx.Value(HeaderContextKey).(Header)
 	if !ok {
-		return nil, false
+		return Header{}, false
 	}
 
 	return h, true
