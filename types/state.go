@@ -57,7 +57,7 @@ func NewFromGenesisDoc(genDoc genesis.Genesis) (State, error) {
 	return s, nil
 }
 
-func (s *State) NextState(header *SignedHeader, stateRoot []byte) (State, error) {
+func (s *State) NextState(header Header, stateRoot []byte) (State, error) {
 	height := header.Height()
 
 	return State{

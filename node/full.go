@@ -29,7 +29,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/signer"
 	"github.com/rollkit/rollkit/pkg/store"
 	rollkitsync "github.com/rollkit/rollkit/pkg/sync"
-	"github.com/rollkit/rollkit/types"
 )
 
 // prefixes used in KV store to separate rollkit data from execution environment data (if the same data base is reused)
@@ -81,7 +80,7 @@ func newFullNode(
 	da coreda.DA,
 	metricsProvider MetricsProvider,
 	logger logging.EventLogger,
-	signaturePayloadProvider types.SignaturePayloadProvider,
+	nodeOpts NodeOptions,
 ) (fn *FullNode, err error) {
 	seqMetrics, _ := metricsProvider(genesis.ChainID)
 
@@ -113,7 +112,7 @@ func newFullNode(
 		seqMetrics,
 		nodeConfig.DA.GasPrice,
 		nodeConfig.DA.GasMultiplier,
-		signaturePayloadProvider,
+		nodeOpts.ManagerOptions,
 	)
 	if err != nil {
 		return nil, err
@@ -200,7 +199,7 @@ func initBlockManager(
 	seqMetrics *block.Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
-	signaturePayloadProvider types.SignaturePayloadProvider,
+	managerOpts block.ManagerOptions,
 ) (*block.Manager, error) {
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
 
@@ -221,7 +220,7 @@ func initBlockManager(
 		seqMetrics,
 		gasPrice,
 		gasMultiplier,
-		signaturePayloadProvider,
+		managerOpts,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)

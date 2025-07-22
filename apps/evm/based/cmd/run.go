@@ -10,6 +10,7 @@ import (
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/execution/evm" // Import the evm flags package
+	"github.com/rollkit/rollkit/node"
 
 	"github.com/rollkit/rollkit/da/jsonrpc"
 	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
@@ -172,7 +173,7 @@ func NewExtendedRunNodeCmd(ctx context.Context) *cobra.Command {
 			// StartNode might need adjustment if it strictly requires coreda.Client methods.
 			// For now, assume it can work with coreda.DA or will be adjusted later.
 			// We also need to pass the namespace config for rollDA.
-			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, p2pClient, datastore, nodeConfig, nil)
+			return rollcmd.StartNode(logger, cmd, executor, sequencer, rollDA, p2pClient, datastore, nodeConfig, node.NodeOptions{})
 		},
 	}
 
