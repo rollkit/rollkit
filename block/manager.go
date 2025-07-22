@@ -910,7 +910,7 @@ func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, hea
 		rawTxs[i] = data.Txs[i]
 	}
 
-	ctx = context.WithValue(ctx, types.SignedHeaderContextKey, header)
+	ctx = context.WithValue(ctx, types.HeaderContextKey, header.Header)
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
 		return types.State{}, fmt.Errorf("failed to execute transactions: %w", err)

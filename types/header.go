@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"context"
 	"encoding"
 	"errors"
 	"fmt"
@@ -9,6 +10,21 @@ import (
 
 	"github.com/celestiaorg/go-header"
 )
+
+type headerContextKey struct{}
+
+// HeaderContextKey is used to store the header in the context.
+// This is useful if the execution client needs to access the header during transaction execution.
+var HeaderContextKey = headerContextKey{}
+
+func HeaderFromContext(ctx context.Context) (*Header, bool) {
+	h, ok := ctx.Value(HeaderContextKey).(*Header)
+	if !ok {
+		return nil, false
+	}
+
+	return h, true
+}
 
 // Hash is a 32-byte array which is used to represent a hash result.
 type Hash = header.Hash
@@ -119,6 +135,8 @@ func (h *Header) ValidateBasic() error {
 	return nil
 }
 
-var _ header.Header[*Header] = &Header{}
-var _ encoding.BinaryMarshaler = &Header{}
-var _ encoding.BinaryUnmarshaler = &Header{}
+var (
+	_ header.Header[*Header]     = &Header{}
+	_ encoding.BinaryMarshaler   = &Header{}
+	_ encoding.BinaryUnmarshaler = &Header{}
+)

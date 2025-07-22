@@ -2,27 +2,11 @@ package types
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
 )
-
-type signedHeaderContextKey struct{}
-
-// SignedHeaderContextKey is used to store the signed header in the context.
-// This is useful if the execution client needs to access the signed header during transaction execution.
-var SignedHeaderContextKey = signedHeaderContextKey{}
-
-func SignedHeaderFromContext(ctx context.Context) (*SignedHeader, bool) {
-	sh, ok := ctx.Value(SignedHeaderContextKey).(*SignedHeader)
-	if !ok {
-		return nil, false
-	}
-
-	return sh, true
-}
 
 var (
 	// ErrLastHeaderHashMismatch is returned when the last header hash doesn't match.
