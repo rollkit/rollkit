@@ -679,17 +679,6 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		}
 	}
 
-	signature, err = m.getHeaderSignature(header.Header)
-	if err != nil {
-		return err
-	}
-
-	// set the signature to current block's signed header
-	header.Signature = signature
-
-	// set the custom verifier to ensure proper signature validation
-	header.SetCustomVerifier(m.signaturePayloadProvider)
-
 	newState, err := m.applyBlock(ctx, header, data)
 	if err != nil {
 		return fmt.Errorf("error applying block: %w", err)
@@ -702,6 +691,17 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 		Time:         header.BaseHeader.Time,
 		LastDataHash: lastDataHash,
 	}
+
+	signature, err = m.getHeaderSignature(header.Header)
+	if err != nil {
+		return err
+	}
+
+	// set the signature to current block's signed header
+	header.Signature = signature
+
+	// set the custom verifier to ensure proper signature validation
+	header.SetCustomVerifier(m.signaturePayloadProvider)
 
 	// Validate the created block before storing
 	if err := m.Validate(ctx, header, data); err != nil {
@@ -993,6 +993,8 @@ func bytesToBatchData(data []byte) ([][]byte, error) {
 }
 
 func (m *Manager) getHeaderSignature(header types.Header) (types.Signature, error) {
+	fmt.Println("signing header with chain ID:", header.ChainID(), "and height:", header.Height())
+
 	b, err := m.signaturePayloadProvider(&header)
 	if err != nil {
 		return nil, err

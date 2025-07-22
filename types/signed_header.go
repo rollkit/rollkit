@@ -136,6 +136,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 		bz  []byte
 		err error
 	)
+
 	if sh.signatureProvider == nil {
 		bz, err = DefaultSignaturePayloadProvider(&sh.Header)
 		if err != nil {
