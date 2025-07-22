@@ -133,7 +133,7 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
-	github.com/libp2p/go-libp2p-pubsub v0.14.1 // indirect
+	github.com/libp2p/go-libp2p-pubsub v0.14.2 // indirect
 	github.com/libp2p/go-msgio v0.3.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
@@ -201,7 +201,7 @@ require (
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/cobra v1.9.1 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.7 // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/testcontainers/testcontainers-go v0.37.0 // indirect
 	github.com/testcontainers/testcontainers-go/modules/compose v0.37.0 // indirect
