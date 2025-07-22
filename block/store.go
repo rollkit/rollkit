@@ -42,6 +42,10 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 					return
 				default:
 				}
+
+				// set custom verifier to do correct header verification
+				header.SetCustomVerifier(m.signaturePayloadProvider)
+
 				// early validation to reject junk headers
 				if !m.isUsingExpectedSingleSequencer(header) {
 					continue
@@ -89,7 +93,7 @@ func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
 					return
 				default:
 				}
-				//TODO: remove junk if possible
+				// TODO: remove junk if possible
 				m.logger.Debug("data retrieved from p2p data sync", "dataHeight", d.Metadata.Height, "daHeight", daHeight)
 				m.dataInCh <- NewDataEvent{d, daHeight}
 			}

@@ -53,7 +53,8 @@ func getManager(t *testing.T, da da.DA, gasPrice float64, gasMultiplier float64)
 		metrics:                  NopMetrics(),
 		store:                    mockStore,
 		txNotifyCh:               make(chan struct{}, 1),
-		signaturePayloadProvider: defaultSignaturePayloadProvider,
+		signaturePayloadProvider: types.DefaultSignaturePayloadProvider,
+		validatorHasherProvider:  types.DefaultValidatorHasherProvider,
 	}
 
 	m.publishBlock = m.publishBlockInternal
@@ -77,7 +78,7 @@ func TestInitialStateClean(t *testing.T) {
 	mockExecutor.On("InitChain", ctx, genesisData.GenesisDAStartTime, genesisData.InitialHeight, genesisData.ChainID).
 		Return([]byte("mockAppHash"), uint64(1000), nil).Once()
 
-	s, err := getInitialState(ctx, genesisData, nil, emptyStore, mockExecutor, logger, nil /* uses default signature verification */)
+	s, err := getInitialState(ctx, genesisData, nil, emptyStore, mockExecutor, logger, DefaultManagerOptions())
 	require.NoError(err)
 	initialHeight := genesisData.InitialHeight
 	require.Equal(initialHeight-1, s.LastBlockHeight)
@@ -108,7 +109,7 @@ func TestInitialStateStored(t *testing.T) {
 	mockExecutor := mocks.NewMockExecutor(t)
 
 	// getInitialState should not call InitChain if state exists
-	s, err := getInitialState(ctx, genesisData, nil, store, mockExecutor, logger, nil /* uses default signature verification */)
+	s, err := getInitialState(ctx, genesisData, nil, store, mockExecutor, logger, DefaultManagerOptions())
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -143,7 +144,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require.NoError(err)
 	mockExecutor := mocks.NewMockExecutor(t)
 
-	_, err = getInitialState(ctx, genesis, nil, store, mockExecutor, logger, nil /* uses default signature verification */)
+	_, err = getInitialState(ctx, genesis, nil, store, mockExecutor, logger, DefaultManagerOptions())
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 
 	// Assert mock expectations (InitChain should not have been called)
