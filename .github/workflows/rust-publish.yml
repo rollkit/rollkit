@@ -3,11 +3,11 @@ name: Publish Rust Crates
 on:
   push:
     tags:
-      - 'rust-v*'
+      - "rust-v*"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Perform a dry run without publishing'
+        description: "Perform a dry run without publishing"
         required: false
         type: boolean
         default: true
