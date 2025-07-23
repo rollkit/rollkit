@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Local DA service for development
+  local-da:
+    build:
+      context: ../../../
+      dockerfile: Dockerfile.da
+    ports:
+      - "7980:7980"
+    environment:
+      - DA_NAMESPACE=00000000000000000000000000000000000000000000000000000000deadbeef
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7980/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Example gRPC execution service (replace with your implementation)
+  # execution-service:
+  #   image: your-execution-service:latest
+  #   ports:
+  #     - "50051:50051"
+  #   environment:
+  #     - GRPC_PORT=50051
+  #   healthcheck:
+  #     test: ["CMD", "grpc_health_probe", "-addr=:50051"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 5
+
+  # Rollkit node with gRPC execution client
+  rollkit-grpc:
+    build:
+      context: ../../../
+      dockerfile: apps/grpc/single/Dockerfile
+    depends_on:
+      local-da:
+        condition: service_healthy
+      # execution-service:
+      #   condition: service_healthy
+    ports:
+      - "26656:26656"  # P2P
+      - "26657:26657"  # RPC
+      - "26660:26660"  # Prometheus metrics
+    environment:
+      - CHAIN_ID=grpc-test-chain
+      - DA_ADDRESS=http://local-da:7980
+      - DA_NAMESPACE=00000000000000000000000000000000000000000000000000deadbeef
+      - GRPC_EXECUTOR_URL=http://host.docker.internal:50051  # Change to your execution service
+    volumes:
+      - rollkit-data:/home/rollkit/.grpc-single
+    command:
+      - start
+      - --root-dir=/home/rollkit/.grpc-single
+      - --chain-id=${CHAIN_ID:-grpc-test-chain}
+      - --da.address=${DA_ADDRESS:-http://local-da:7980}
+      - --da.namespace=${DA_NAMESPACE}
+      - --grpc-executor-url=${GRPC_EXECUTOR_URL:-http://host.docker.internal:50051}
+      - --p2p.listen-address=/ip4/0.0.0.0/tcp/26656
+      - --rpc.laddr=tcp://0.0.0.0:26657
+      - --instrumentation.prometheus=true
+      - --instrumentation.prometheus-listen-addr=0.0.0.0:26660
+
+volumes:
+  rollkit-data:
