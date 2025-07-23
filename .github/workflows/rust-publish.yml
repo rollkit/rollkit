@@ -34,21 +34,18 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --all-features
 
-      - name: Package crates
-        run: |
-          cargo package -p rollkit-types --allow-dirty
-          cargo package -p rollkit-client --allow-dirty
-
-      - name: Publish rollkit-types (dry run)
+      - name: Package and publish rollkit-types (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
         run: |
           cd client/crates/rollkit-types
+          cargo package --allow-dirty
           cargo publish --dry-run
 
-      - name: Publish rollkit-client (dry run)
+      - name: Package and publish rollkit-client (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
         run: |
           cd client/crates/rollkit-client
+          cargo package --allow-dirty
           cargo publish --dry-run
 
       - name: Publish rollkit-types
@@ -57,13 +54,16 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           cd client/crates/rollkit-types
+          cargo package --allow-dirty
           cargo publish
 
       - name: Wait for rollkit-types to be available
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
         run: |
           echo "Waiting for rollkit-types to be available on crates.io..."
-          sleep 30
+          sleep 60
+          # Verify the package is available
+          cargo search rollkit-types --limit 1
 
       - name: Publish rollkit-client
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
@@ -71,6 +71,7 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           cd client/crates/rollkit-client
+          cargo package --allow-dirty
           cargo publish
 
       - name: Create GitHub Release
