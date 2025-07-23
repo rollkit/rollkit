@@ -5,6 +5,7 @@ This application runs a Rollkit node with a single sequencer that connects to a 
 ## Overview
 
 The gRPC single sequencer app provides:
+
 - A Rollkit consensus node with single sequencer
 - Connection to remote execution clients via gRPC
 - Full data availability layer integration
@@ -83,29 +84,32 @@ Start the Rollkit node with:
 ## Example: Running with Local DA
 
 1. Start the local DA service:
-```bash
-cd da/cmd/local-da
-go run main.go
-```
+
+  ```bash
+  cd da/cmd/local-da
+  go run main.go
+  ```
 
 2. Start your gRPC execution service:
-```bash
-# Your execution service implementation
-```
+
+  ```bash
+  # Your execution service implementation
+  ```
 
 3. Initialize and run the node:
-```bash
-./grpc-single init --root-dir ~/.grpc-single
-./grpc-single start \
-  --root-dir ~/.grpc-single \
-  --grpc-executor-url http://localhost:50051 \
-  --da.address http://localhost:7980 \
-  --chain-id test-chain
-```
+
+   ```bash
+   ./grpc-single init --root-dir ~/.grpc-single
+   ./grpc-single start \
+     --root-dir ~/.grpc-single \
+     --grpc-executor-url http://localhost:50051 \
+     --da.address http://localhost:7980 \
+     --chain-id test-chain
+   ```
 
 ## Architecture
 
-```
+```text
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐
 │   Rollkit Node  │────▶│ gRPC Execution   │────▶│  Execution  │
 │ (Single Seqr)   │◀────│     Client       │◀────│   Service   │
@@ -138,6 +142,7 @@ go test ./...
 ### Connection Refused
 
 If you see "connection refused" errors, ensure:
+
 1. Your gRPC execution service is running
 2. The execution service URL is correct
 3. No firewall is blocking the connection
@@ -145,6 +150,7 @@ If you see "connection refused" errors, ensure:
 ### DA Layer Issues
 
 If you have issues connecting to the DA layer:
+
 1. Verify the DA service is running
 2. Check the authentication token
 3. Ensure the namespace exists (if using Celestia)
