@@ -488,22 +488,6 @@ func checkBlockInfoAt(t *testing.T, ethURL string, blockHeight *uint64) (common.
 	return blockHash, stateRoot, txCount, blockNum, nil
 }
 
-// max returns the maximum of two uint64 values
-func max(a, b uint64) uint64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// min returns the minimum of two uint64 values
-func min(a, b uint64) uint64 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // setupSequencerOnlyTest performs setup for EVM sequencer-only tests.
 // This helper sets up DA, EVM engine, and sequencer node for tests that don't need full nodes.
 //
