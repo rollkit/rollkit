@@ -85,27 +85,27 @@ Start the Rollkit node with:
 
 1. Start the local DA service:
 
-  ```bash
-  cd da/cmd/local-da
-  go run main.go
-  ```
+    ```bash
+    cd da/cmd/local-da
+    go run main.go
+    ```
 
 2. Start your gRPC execution service:
 
-  ```bash
-  # Your execution service implementation
-  ```
+    ```bash
+    # Your execution service implementation
+    ```
 
 3. Initialize and run the node:
 
-   ```bash
-   ./grpc-single init --root-dir ~/.grpc-single
-   ./grpc-single start \
-     --root-dir ~/.grpc-single \
-     --grpc-executor-url http://localhost:50051 \
-     --da.address http://localhost:7980 \
-     --chain-id test-chain
-   ```
+    ```bash
+    ./grpc-single init --root-dir ~/.grpc-single
+    ./grpc-single start \
+      --root-dir ~/.grpc-single \
+      --grpc-executor-url http://localhost:50051 \
+      --da.address http://localhost:7980 \
+      --chain-id test-chain
+    ```
 
 ## Architecture
 
