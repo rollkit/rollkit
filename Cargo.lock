@@ -855,7 +855,7 @@ dependencies = [
 
 [[package]]
 name = "rollkit-client"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "async-trait",
  "futures",
@@ -871,7 +871,7 @@ dependencies = [
 
 [[package]]
 name = "rollkit-types"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "prost",
  "prost-build",

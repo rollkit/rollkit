@@ -1,6 +1,6 @@
 [package]
 name = "rollkit-client"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 authors = ["Rollkit Contributors"]
 description = "Rust client library for interacting with Rollkit nodes via gRPC"
@@ -12,7 +12,7 @@ keywords = ["rollkit", "blockchain", "client", "grpc", "api"]
 categories = ["api-bindings", "network-programming"]
 
 [dependencies]
-rollkit-types = { path = "../rollkit-types" }
+rollkit-types = { version = "0.0.1", path = "../rollkit-types" }
 tonic = { workspace = true, features = ["transport", "tls"] }
 tokio = { version = "1.45", features = ["full"] }
 tower = { version = "0.4", features = ["full"] }
