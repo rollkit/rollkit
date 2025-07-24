@@ -237,7 +237,7 @@ func (s *DockerTestSuite) StartRollkitNode(ctx context.Context, bridgeNode tasto
 func getRollkitImage() tastoradocker.DockerImage {
 	repo := strings.TrimSpace(os.Getenv("ROLLKIT_IMAGE_REPO"))
 	if repo == "" {
-		repo = "rollkit"
+		repo = "evstack"
 	}
 
 	tag := strings.TrimSpace(os.Getenv("ROLLKIT_IMAGE_TAG"))
