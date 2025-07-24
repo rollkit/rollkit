@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"connectrpc.com/connect"
@@ -38,15 +39,15 @@ func (s *Server) InitChain(
 	req *connect.Request[pb.InitChainRequest],
 ) (*connect.Response[pb.InitChainResponse], error) {
 	if req.Msg.GenesisTime == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("genesis_time is required"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("genesis_time is required"))
 	}
 
 	if req.Msg.InitialHeight == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("initial_height must be > 0"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initial_height must be > 0"))
 	}
 
 	if req.Msg.ChainId == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("chain_id is required"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("chain_id is required"))
 	}
 
 	stateRoot, maxBytes, err := s.executor.InitChain(

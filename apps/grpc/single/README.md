@@ -44,13 +44,7 @@ Edit the configuration file at `~/.grpc-single/config/config.toml` to set your p
 
 ### 3. Start the Execution Service
 
-Before starting the Rollkit node, ensure your gRPC execution service is running. For example:
-
-```bash
-# Example: Starting a test execution service
-cd execution/grpc
-go run examples/server/main.go
-```
+Before starting the Rollkit node, ensure your gRPC execution service is running.
 
 ### 4. Run the Node
 

@@ -46,7 +46,7 @@ The execution client must implement the Rollkit execution gRPC interface.`,
 		logger := rollcmd.SetupLogger(nodeConfig.Log)
 
 		// Create DA client
-		daJrpc, err := jsonrpc.NewClient(context.Background(), logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
+		daJrpc, err := jsonrpc.NewClient(cmd.Context(), logger, nodeConfig.DA.Address, nodeConfig.DA.AuthToken, nodeConfig.DA.Namespace)
 		if err != nil {
 			return err
 		}
@@ -98,7 +98,7 @@ The execution client must implement the Rollkit execution gRPC interface.`,
 func init() {
 	// Add rollkit configuration flags
 	config.AddFlags(RunCmd)
-	
+
 	// Add gRPC-specific flags
 	addGRPCFlags(RunCmd)
 }
