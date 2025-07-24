@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/evstack/ev-node/types"
-	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 // DefaultStore is a default store implementation.

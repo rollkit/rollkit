@@ -22,8 +22,8 @@ import (
 	"github.com/evstack/ev-node/pkg/p2p"
 	"github.com/evstack/ev-node/pkg/store"
 	"github.com/evstack/ev-node/types"
-	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
-	rpc "github.com/evstack/ev-node/types/pb/rollkit/v1/v1connect"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
+	rpc "github.com/evstack/ev-node/types/pb/evnode/v1/v1connect"
 )
 
 // StoreServer implements the StoreService defined in the proto file

@@ -44,7 +44,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/rollkit)
+        - prefix(github.com/evstack)
         - prefix(github.com/evstack/ev-node)
       custom-order: true
   exclusions:

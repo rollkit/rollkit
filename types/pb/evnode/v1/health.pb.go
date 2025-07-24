@@ -2,18 +2,17 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: rollkit/v1/health.proto
+// source: evnode/v1/health.proto
 
 package v1
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -64,11 +63,11 @@ func (x HealthStatus) String() string {
 }
 
 func (HealthStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_rollkit_v1_health_proto_enumTypes[0].Descriptor()
+	return file_evnode_v1_health_proto_enumTypes[0].Descriptor()
 }
 
 func (HealthStatus) Type() protoreflect.EnumType {
-	return &file_rollkit_v1_health_proto_enumTypes[0]
+	return &file_evnode_v1_health_proto_enumTypes[0]
 }
 
 func (x HealthStatus) Number() protoreflect.EnumNumber {
@@ -77,21 +76,21 @@ func (x HealthStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use HealthStatus.Descriptor instead.
 func (HealthStatus) EnumDescriptor() ([]byte, []int) {
-	return file_rollkit_v1_health_proto_rawDescGZIP(), []int{0}
+	return file_evnode_v1_health_proto_rawDescGZIP(), []int{0}
 }
 
 // GetHealthResponse defines the response for retrieving health status
 type GetHealthResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Health status
-	Status        HealthStatus `protobuf:"varint,1,opt,name=status,proto3,enum=rollkit.v1.HealthStatus" json:"status,omitempty"`
+	Status        HealthStatus `protobuf:"varint,1,opt,name=status,proto3,enum=evnode.v1.HealthStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetHealthResponse) Reset() {
 	*x = GetHealthResponse{}
-	mi := &file_rollkit_v1_health_proto_msgTypes[0]
+	mi := &file_evnode_v1_health_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -103,7 +102,7 @@ func (x *GetHealthResponse) String() string {
 func (*GetHealthResponse) ProtoMessage() {}
 
 func (x *GetHealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_health_proto_msgTypes[0]
+	mi := &file_evnode_v1_health_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -116,7 +115,7 @@ func (x *GetHealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHealthResponse.ProtoReflect.Descriptor instead.
 func (*GetHealthResponse) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_health_proto_rawDescGZIP(), []int{0}
+	return file_evnode_v1_health_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GetHealthResponse) GetStatus() HealthStatus {
@@ -126,45 +125,44 @@ func (x *GetHealthResponse) GetStatus() HealthStatus {
 	return HealthStatus_UNKNOWN
 }
 
-var File_rollkit_v1_health_proto protoreflect.FileDescriptor
+var File_evnode_v1_health_proto protoreflect.FileDescriptor
 
-const file_rollkit_v1_health_proto_rawDesc = "" +
+const file_evnode_v1_health_proto_rawDesc = "" +
 	"\n" +
-	"\x17rollkit/v1/health.proto\x12\n" +
-	"rollkit.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x18rollkit/v1/rollkit.proto\x1a\x16rollkit/v1/state.proto\"E\n" +
-	"\x11GetHealthResponse\x120\n" +
-	"\x06status\x18\x01 \x01(\x0e2\x18.rollkit.v1.HealthStatusR\x06status*9\n" +
+	"\x16evnode/v1/health.proto\x12\tevnode.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x16evnode/v1/evnode.proto\x1a\x15evnode/v1/state.proto\"D\n" +
+	"\x11GetHealthResponse\x12/\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x17.evnode.v1.HealthStatusR\x06status*9\n" +
 	"\fHealthStatus\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\b\n" +
 	"\x04PASS\x10\x01\x12\b\n" +
 	"\x04WARN\x10\x02\x12\b\n" +
-	"\x04FAIL\x10\x032Q\n" +
-	"\rHealthService\x12@\n" +
-	"\x05Livez\x12\x16.google.protobuf.Empty\x1a\x1d.rollkit.v1.GetHealthResponse\"\x00B0Z.github.com/evstack/ev-node/types/pb/rollkit/v1b\x06proto3"
+	"\x04FAIL\x10\x032P\n" +
+	"\rHealthService\x12?\n" +
+	"\x05Livez\x12\x16.google.protobuf.Empty\x1a\x1c.evnode.v1.GetHealthResponse\"\x00B/Z-github.com/evstack/ev-node/types/pb/evnode/v1b\x06proto3"
 
 var (
-	file_rollkit_v1_health_proto_rawDescOnce sync.Once
-	file_rollkit_v1_health_proto_rawDescData []byte
+	file_evnode_v1_health_proto_rawDescOnce sync.Once
+	file_evnode_v1_health_proto_rawDescData []byte
 )
 
-func file_rollkit_v1_health_proto_rawDescGZIP() []byte {
-	file_rollkit_v1_health_proto_rawDescOnce.Do(func() {
-		file_rollkit_v1_health_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_rollkit_v1_health_proto_rawDesc), len(file_rollkit_v1_health_proto_rawDesc)))
+func file_evnode_v1_health_proto_rawDescGZIP() []byte {
+	file_evnode_v1_health_proto_rawDescOnce.Do(func() {
+		file_evnode_v1_health_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_evnode_v1_health_proto_rawDesc), len(file_evnode_v1_health_proto_rawDesc)))
 	})
-	return file_rollkit_v1_health_proto_rawDescData
+	return file_evnode_v1_health_proto_rawDescData
 }
 
-var file_rollkit_v1_health_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_rollkit_v1_health_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_rollkit_v1_health_proto_goTypes = []any{
-	(HealthStatus)(0),         // 0: rollkit.v1.HealthStatus
-	(*GetHealthResponse)(nil), // 1: rollkit.v1.GetHealthResponse
+var file_evnode_v1_health_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_evnode_v1_health_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_evnode_v1_health_proto_goTypes = []any{
+	(HealthStatus)(0),         // 0: evnode.v1.HealthStatus
+	(*GetHealthResponse)(nil), // 1: evnode.v1.GetHealthResponse
 	(*emptypb.Empty)(nil),     // 2: google.protobuf.Empty
 }
-var file_rollkit_v1_health_proto_depIdxs = []int32{
-	0, // 0: rollkit.v1.GetHealthResponse.status:type_name -> rollkit.v1.HealthStatus
-	2, // 1: rollkit.v1.HealthService.Livez:input_type -> google.protobuf.Empty
-	1, // 2: rollkit.v1.HealthService.Livez:output_type -> rollkit.v1.GetHealthResponse
+var file_evnode_v1_health_proto_depIdxs = []int32{
+	0, // 0: evnode.v1.GetHealthResponse.status:type_name -> evnode.v1.HealthStatus
+	2, // 1: evnode.v1.HealthService.Livez:input_type -> google.protobuf.Empty
+	1, // 2: evnode.v1.HealthService.Livez:output_type -> evnode.v1.GetHealthResponse
 	2, // [2:3] is the sub-list for method output_type
 	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -172,29 +170,29 @@ var file_rollkit_v1_health_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_rollkit_v1_health_proto_init() }
-func file_rollkit_v1_health_proto_init() {
-	if File_rollkit_v1_health_proto != nil {
+func init() { file_evnode_v1_health_proto_init() }
+func file_evnode_v1_health_proto_init() {
+	if File_evnode_v1_health_proto != nil {
 		return
 	}
-	file_rollkit_v1_rollkit_proto_init()
-	file_rollkit_v1_state_proto_init()
+	file_evnode_v1_evnode_proto_init()
+	file_evnode_v1_state_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rollkit_v1_health_proto_rawDesc), len(file_rollkit_v1_health_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_evnode_v1_health_proto_rawDesc), len(file_evnode_v1_health_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_rollkit_v1_health_proto_goTypes,
-		DependencyIndexes: file_rollkit_v1_health_proto_depIdxs,
-		EnumInfos:         file_rollkit_v1_health_proto_enumTypes,
-		MessageInfos:      file_rollkit_v1_health_proto_msgTypes,
+		GoTypes:           file_evnode_v1_health_proto_goTypes,
+		DependencyIndexes: file_evnode_v1_health_proto_depIdxs,
+		EnumInfos:         file_evnode_v1_health_proto_enumTypes,
+		MessageInfos:      file_evnode_v1_health_proto_msgTypes,
 	}.Build()
-	File_rollkit_v1_health_proto = out.File
-	file_rollkit_v1_health_proto_goTypes = nil
-	file_rollkit_v1_health_proto_depIdxs = nil
+	File_evnode_v1_health_proto = out.File
+	file_evnode_v1_health_proto_goTypes = nil
+	file_evnode_v1_health_proto_depIdxs = nil
 }

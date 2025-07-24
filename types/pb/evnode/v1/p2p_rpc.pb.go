@@ -2,18 +2,17 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: rollkit/v1/p2p_rpc.proto
+// source: evnode/v1/p2p_rpc.proto
 
 package v1
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -34,7 +33,7 @@ type GetPeerInfoResponse struct {
 
 func (x *GetPeerInfoResponse) Reset() {
 	*x = GetPeerInfoResponse{}
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[0]
+	mi := &file_evnode_v1_p2p_rpc_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +45,7 @@ func (x *GetPeerInfoResponse) String() string {
 func (*GetPeerInfoResponse) ProtoMessage() {}
 
 func (x *GetPeerInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[0]
+	mi := &file_evnode_v1_p2p_rpc_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +58,7 @@ func (x *GetPeerInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPeerInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetPeerInfoResponse) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{0}
+	return file_evnode_v1_p2p_rpc_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GetPeerInfoResponse) GetPeers() []*PeerInfo {
@@ -80,7 +79,7 @@ type GetNetInfoResponse struct {
 
 func (x *GetNetInfoResponse) Reset() {
 	*x = GetNetInfoResponse{}
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[1]
+	mi := &file_evnode_v1_p2p_rpc_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -92,7 +91,7 @@ func (x *GetNetInfoResponse) String() string {
 func (*GetNetInfoResponse) ProtoMessage() {}
 
 func (x *GetNetInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[1]
+	mi := &file_evnode_v1_p2p_rpc_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -105,7 +104,7 @@ func (x *GetNetInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNetInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetNetInfoResponse) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{1}
+	return file_evnode_v1_p2p_rpc_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetNetInfoResponse) GetNetInfo() *NetInfo {
@@ -128,7 +127,7 @@ type PeerInfo struct {
 
 func (x *PeerInfo) Reset() {
 	*x = PeerInfo{}
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[2]
+	mi := &file_evnode_v1_p2p_rpc_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -140,7 +139,7 @@ func (x *PeerInfo) String() string {
 func (*PeerInfo) ProtoMessage() {}
 
 func (x *PeerInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[2]
+	mi := &file_evnode_v1_p2p_rpc_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -153,7 +152,7 @@ func (x *PeerInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerInfo.ProtoReflect.Descriptor instead.
 func (*PeerInfo) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{2}
+	return file_evnode_v1_p2p_rpc_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PeerInfo) GetId() string {
@@ -185,7 +184,7 @@ type NetInfo struct {
 
 func (x *NetInfo) Reset() {
 	*x = NetInfo{}
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[3]
+	mi := &file_evnode_v1_p2p_rpc_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -197,7 +196,7 @@ func (x *NetInfo) String() string {
 func (*NetInfo) ProtoMessage() {}
 
 func (x *NetInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_p2p_rpc_proto_msgTypes[3]
+	mi := &file_evnode_v1_p2p_rpc_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -210,7 +209,7 @@ func (x *NetInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetInfo.ProtoReflect.Descriptor instead.
 func (*NetInfo) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_p2p_rpc_proto_rawDescGZIP(), []int{3}
+	return file_evnode_v1_p2p_rpc_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *NetInfo) GetId() string {
@@ -234,56 +233,55 @@ func (x *NetInfo) GetConnectedPeers() []string {
 	return nil
 }
 
-var File_rollkit_v1_p2p_rpc_proto protoreflect.FileDescriptor
+var File_evnode_v1_p2p_rpc_proto protoreflect.FileDescriptor
 
-const file_rollkit_v1_p2p_rpc_proto_rawDesc = "" +
+const file_evnode_v1_p2p_rpc_proto_rawDesc = "" +
 	"\n" +
-	"\x18rollkit/v1/p2p_rpc.proto\x12\n" +
-	"rollkit.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x18rollkit/v1/rollkit.proto\x1a\x16rollkit/v1/state.proto\"A\n" +
-	"\x13GetPeerInfoResponse\x12*\n" +
-	"\x05peers\x18\x01 \x03(\v2\x14.rollkit.v1.PeerInfoR\x05peers\"D\n" +
-	"\x12GetNetInfoResponse\x12.\n" +
-	"\bnet_info\x18\x01 \x01(\v2\x13.rollkit.v1.NetInfoR\anetInfo\"4\n" +
+	"\x17evnode/v1/p2p_rpc.proto\x12\tevnode.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x16evnode/v1/evnode.proto\x1a\x15evnode/v1/state.proto\"@\n" +
+	"\x13GetPeerInfoResponse\x12)\n" +
+	"\x05peers\x18\x01 \x03(\v2\x13.evnode.v1.PeerInfoR\x05peers\"C\n" +
+	"\x12GetNetInfoResponse\x12-\n" +
+	"\bnet_info\x18\x01 \x01(\v2\x12.evnode.v1.NetInfoR\anetInfo\"4\n" +
 	"\bPeerInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aaddress\x18\x02 \x01(\tR\aaddress\"m\n" +
 	"\aNetInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
 	"\x10listen_addresses\x18\x02 \x03(\tR\x0flistenAddresses\x12'\n" +
-	"\x0fconnected_peers\x18\x03 \x03(\tR\x0econnectedPeers2\x9e\x01\n" +
+	"\x0fconnected_peers\x18\x03 \x03(\tR\x0econnectedPeers2\x9c\x01\n" +
 	"\n" +
-	"P2PService\x12H\n" +
-	"\vGetPeerInfo\x12\x16.google.protobuf.Empty\x1a\x1f.rollkit.v1.GetPeerInfoResponse\"\x00\x12F\n" +
+	"P2PService\x12G\n" +
+	"\vGetPeerInfo\x12\x16.google.protobuf.Empty\x1a\x1e.evnode.v1.GetPeerInfoResponse\"\x00\x12E\n" +
 	"\n" +
-	"GetNetInfo\x12\x16.google.protobuf.Empty\x1a\x1e.rollkit.v1.GetNetInfoResponse\"\x00B0Z.github.com/evstack/ev-node/types/pb/rollkit/v1b\x06proto3"
+	"GetNetInfo\x12\x16.google.protobuf.Empty\x1a\x1d.evnode.v1.GetNetInfoResponse\"\x00B/Z-github.com/evstack/ev-node/types/pb/evnode/v1b\x06proto3"
 
 var (
-	file_rollkit_v1_p2p_rpc_proto_rawDescOnce sync.Once
-	file_rollkit_v1_p2p_rpc_proto_rawDescData []byte
+	file_evnode_v1_p2p_rpc_proto_rawDescOnce sync.Once
+	file_evnode_v1_p2p_rpc_proto_rawDescData []byte
 )
 
-func file_rollkit_v1_p2p_rpc_proto_rawDescGZIP() []byte {
-	file_rollkit_v1_p2p_rpc_proto_rawDescOnce.Do(func() {
-		file_rollkit_v1_p2p_rpc_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_rollkit_v1_p2p_rpc_proto_rawDesc), len(file_rollkit_v1_p2p_rpc_proto_rawDesc)))
+func file_evnode_v1_p2p_rpc_proto_rawDescGZIP() []byte {
+	file_evnode_v1_p2p_rpc_proto_rawDescOnce.Do(func() {
+		file_evnode_v1_p2p_rpc_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_evnode_v1_p2p_rpc_proto_rawDesc), len(file_evnode_v1_p2p_rpc_proto_rawDesc)))
 	})
-	return file_rollkit_v1_p2p_rpc_proto_rawDescData
+	return file_evnode_v1_p2p_rpc_proto_rawDescData
 }
 
-var file_rollkit_v1_p2p_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_rollkit_v1_p2p_rpc_proto_goTypes = []any{
-	(*GetPeerInfoResponse)(nil), // 0: rollkit.v1.GetPeerInfoResponse
-	(*GetNetInfoResponse)(nil),  // 1: rollkit.v1.GetNetInfoResponse
-	(*PeerInfo)(nil),            // 2: rollkit.v1.PeerInfo
-	(*NetInfo)(nil),             // 3: rollkit.v1.NetInfo
+var file_evnode_v1_p2p_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_evnode_v1_p2p_rpc_proto_goTypes = []any{
+	(*GetPeerInfoResponse)(nil), // 0: evnode.v1.GetPeerInfoResponse
+	(*GetNetInfoResponse)(nil),  // 1: evnode.v1.GetNetInfoResponse
+	(*PeerInfo)(nil),            // 2: evnode.v1.PeerInfo
+	(*NetInfo)(nil),             // 3: evnode.v1.NetInfo
 	(*emptypb.Empty)(nil),       // 4: google.protobuf.Empty
 }
-var file_rollkit_v1_p2p_rpc_proto_depIdxs = []int32{
-	2, // 0: rollkit.v1.GetPeerInfoResponse.peers:type_name -> rollkit.v1.PeerInfo
-	3, // 1: rollkit.v1.GetNetInfoResponse.net_info:type_name -> rollkit.v1.NetInfo
-	4, // 2: rollkit.v1.P2PService.GetPeerInfo:input_type -> google.protobuf.Empty
-	4, // 3: rollkit.v1.P2PService.GetNetInfo:input_type -> google.protobuf.Empty
-	0, // 4: rollkit.v1.P2PService.GetPeerInfo:output_type -> rollkit.v1.GetPeerInfoResponse
-	1, // 5: rollkit.v1.P2PService.GetNetInfo:output_type -> rollkit.v1.GetNetInfoResponse
+var file_evnode_v1_p2p_rpc_proto_depIdxs = []int32{
+	2, // 0: evnode.v1.GetPeerInfoResponse.peers:type_name -> evnode.v1.PeerInfo
+	3, // 1: evnode.v1.GetNetInfoResponse.net_info:type_name -> evnode.v1.NetInfo
+	4, // 2: evnode.v1.P2PService.GetPeerInfo:input_type -> google.protobuf.Empty
+	4, // 3: evnode.v1.P2PService.GetNetInfo:input_type -> google.protobuf.Empty
+	0, // 4: evnode.v1.P2PService.GetPeerInfo:output_type -> evnode.v1.GetPeerInfoResponse
+	1, // 5: evnode.v1.P2PService.GetNetInfo:output_type -> evnode.v1.GetNetInfoResponse
 	4, // [4:6] is the sub-list for method output_type
 	2, // [2:4] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -291,28 +289,28 @@ var file_rollkit_v1_p2p_rpc_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_rollkit_v1_p2p_rpc_proto_init() }
-func file_rollkit_v1_p2p_rpc_proto_init() {
-	if File_rollkit_v1_p2p_rpc_proto != nil {
+func init() { file_evnode_v1_p2p_rpc_proto_init() }
+func file_evnode_v1_p2p_rpc_proto_init() {
+	if File_evnode_v1_p2p_rpc_proto != nil {
 		return
 	}
-	file_rollkit_v1_rollkit_proto_init()
-	file_rollkit_v1_state_proto_init()
+	file_evnode_v1_evnode_proto_init()
+	file_evnode_v1_state_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rollkit_v1_p2p_rpc_proto_rawDesc), len(file_rollkit_v1_p2p_rpc_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_evnode_v1_p2p_rpc_proto_rawDesc), len(file_evnode_v1_p2p_rpc_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_rollkit_v1_p2p_rpc_proto_goTypes,
-		DependencyIndexes: file_rollkit_v1_p2p_rpc_proto_depIdxs,
-		MessageInfos:      file_rollkit_v1_p2p_rpc_proto_msgTypes,
+		GoTypes:           file_evnode_v1_p2p_rpc_proto_goTypes,
+		DependencyIndexes: file_evnode_v1_p2p_rpc_proto_depIdxs,
+		MessageInfos:      file_evnode_v1_p2p_rpc_proto_msgTypes,
 	}.Build()
-	File_rollkit_v1_p2p_rpc_proto = out.File
-	file_rollkit_v1_p2p_rpc_proto_goTypes = nil
-	file_rollkit_v1_p2p_rpc_proto_depIdxs = nil
+	File_evnode_v1_p2p_rpc_proto = out.File
+	file_evnode_v1_p2p_rpc_proto_goTypes = nil
+	file_evnode_v1_p2p_rpc_proto_depIdxs = nil
 }

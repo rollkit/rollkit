@@ -2,18 +2,17 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: rollkit/v1/rollkit.proto
+// source: evnode/v1/evnode.proto
 
 package v1
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -37,7 +36,7 @@ type Version struct {
 
 func (x *Version) Reset() {
 	*x = Version{}
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[0]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -49,7 +48,7 @@ func (x *Version) String() string {
 func (*Version) ProtoMessage() {}
 
 func (x *Version) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[0]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -62,7 +61,7 @@ func (x *Version) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Version.ProtoReflect.Descriptor instead.
 func (*Version) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{0}
+	return file_evnode_v1_evnode_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Version) GetBlock() uint64 {
@@ -118,7 +117,7 @@ type Header struct {
 
 func (x *Header) Reset() {
 	*x = Header{}
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[1]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -130,7 +129,7 @@ func (x *Header) String() string {
 func (*Header) ProtoMessage() {}
 
 func (x *Header) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[1]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -143,7 +142,7 @@ func (x *Header) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Header.ProtoReflect.Descriptor instead.
 func (*Header) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{1}
+	return file_evnode_v1_evnode_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Header) GetVersion() *Version {
@@ -242,7 +241,7 @@ type SignedHeader struct {
 
 func (x *SignedHeader) Reset() {
 	*x = SignedHeader{}
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[2]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -254,7 +253,7 @@ func (x *SignedHeader) String() string {
 func (*SignedHeader) ProtoMessage() {}
 
 func (x *SignedHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[2]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -267,7 +266,7 @@ func (x *SignedHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedHeader.ProtoReflect.Descriptor instead.
 func (*SignedHeader) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{2}
+	return file_evnode_v1_evnode_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SignedHeader) GetHeader() *Header {
@@ -304,7 +303,7 @@ type Signer struct {
 
 func (x *Signer) Reset() {
 	*x = Signer{}
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[3]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -316,7 +315,7 @@ func (x *Signer) String() string {
 func (*Signer) ProtoMessage() {}
 
 func (x *Signer) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[3]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -329,7 +328,7 @@ func (x *Signer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Signer.ProtoReflect.Descriptor instead.
 func (*Signer) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{3}
+	return file_evnode_v1_evnode_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Signer) GetAddress() []byte {
@@ -363,7 +362,7 @@ type Metadata struct {
 
 func (x *Metadata) Reset() {
 	*x = Metadata{}
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[4]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -375,7 +374,7 @@ func (x *Metadata) String() string {
 func (*Metadata) ProtoMessage() {}
 
 func (x *Metadata) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[4]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -388,7 +387,7 @@ func (x *Metadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Metadata.ProtoReflect.Descriptor instead.
 func (*Metadata) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{4}
+	return file_evnode_v1_evnode_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Metadata) GetChainId() string {
@@ -430,7 +429,7 @@ type Data struct {
 
 func (x *Data) Reset() {
 	*x = Data{}
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[5]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -442,7 +441,7 @@ func (x *Data) String() string {
 func (*Data) ProtoMessage() {}
 
 func (x *Data) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[5]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -455,7 +454,7 @@ func (x *Data) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data.ProtoReflect.Descriptor instead.
 func (*Data) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{5}
+	return file_evnode_v1_evnode_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Data) GetMetadata() *Metadata {
@@ -484,7 +483,7 @@ type SignedData struct {
 
 func (x *SignedData) Reset() {
 	*x = SignedData{}
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[6]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +495,7 @@ func (x *SignedData) String() string {
 func (*SignedData) ProtoMessage() {}
 
 func (x *SignedData) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[6]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +508,7 @@ func (x *SignedData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedData.ProtoReflect.Descriptor instead.
 func (*SignedData) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{6}
+	return file_evnode_v1_evnode_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SignedData) GetData() *Data {
@@ -552,7 +551,7 @@ type Vote struct {
 
 func (x *Vote) Reset() {
 	*x = Vote{}
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[7]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -564,7 +563,7 @@ func (x *Vote) String() string {
 func (*Vote) ProtoMessage() {}
 
 func (x *Vote) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_rollkit_proto_msgTypes[7]
+	mi := &file_evnode_v1_evnode_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -577,7 +576,7 @@ func (x *Vote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vote.ProtoReflect.Descriptor instead.
 func (*Vote) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_rollkit_proto_rawDescGZIP(), []int{7}
+	return file_evnode_v1_evnode_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Vote) GetChainId() string {
@@ -615,17 +614,16 @@ func (x *Vote) GetValidatorAddress() []byte {
 	return nil
 }
 
-var File_rollkit_v1_rollkit_proto protoreflect.FileDescriptor
+var File_evnode_v1_evnode_proto protoreflect.FileDescriptor
 
-const file_rollkit_v1_rollkit_proto_rawDesc = "" +
+const file_evnode_v1_evnode_proto_rawDesc = "" +
 	"\n" +
-	"\x18rollkit/v1/rollkit.proto\x12\n" +
-	"rollkit.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"1\n" +
+	"\x16evnode/v1/evnode.proto\x12\tevnode.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"1\n" +
 	"\aVersion\x12\x14\n" +
 	"\x05block\x18\x01 \x01(\x04R\x05block\x12\x10\n" +
-	"\x03app\x18\x02 \x01(\x04R\x03app\"\xaf\x03\n" +
-	"\x06Header\x12-\n" +
-	"\aversion\x18\x01 \x01(\v2\x13.rollkit.v1.VersionR\aversion\x12\x16\n" +
+	"\x03app\x18\x02 \x01(\x04R\x03app\"\xae\x03\n" +
+	"\x06Header\x12,\n" +
+	"\aversion\x18\x01 \x01(\v2\x12.evnode.v1.VersionR\aversion\x12\x16\n" +
 	"\x06height\x18\x02 \x01(\x04R\x06height\x12\x12\n" +
 	"\x04time\x18\x03 \x01(\x04R\x04time\x12(\n" +
 	"\x10last_header_hash\x18\x04 \x01(\fR\x0elastHeaderHash\x12(\n" +
@@ -637,11 +635,11 @@ const file_rollkit_v1_rollkit_proto_rawDesc = "" +
 	"\x10proposer_address\x18\n" +
 	" \x01(\fR\x0fproposerAddress\x12%\n" +
 	"\x0evalidator_hash\x18\v \x01(\fR\rvalidatorHash\x12\x19\n" +
-	"\bchain_id\x18\f \x01(\tR\achainId\"\x84\x01\n" +
-	"\fSignedHeader\x12*\n" +
-	"\x06header\x18\x01 \x01(\v2\x12.rollkit.v1.HeaderR\x06header\x12\x1c\n" +
-	"\tsignature\x18\x02 \x01(\fR\tsignature\x12*\n" +
-	"\x06signer\x18\x03 \x01(\v2\x12.rollkit.v1.SignerR\x06signer\";\n" +
+	"\bchain_id\x18\f \x01(\tR\achainId\"\x82\x01\n" +
+	"\fSignedHeader\x12)\n" +
+	"\x06header\x18\x01 \x01(\v2\x11.evnode.v1.HeaderR\x06header\x12\x1c\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\x12)\n" +
+	"\x06signer\x18\x03 \x01(\v2\x11.evnode.v1.SignerR\x06signer\";\n" +
 	"\x06Signer\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\fR\aaddress\x12\x17\n" +
 	"\apub_key\x18\x02 \x01(\fR\x06pubKey\"w\n" +
@@ -649,54 +647,54 @@ const file_rollkit_v1_rollkit_proto_rawDesc = "" +
 	"\bchain_id\x18\x01 \x01(\tR\achainId\x12\x16\n" +
 	"\x06height\x18\x02 \x01(\x04R\x06height\x12\x12\n" +
 	"\x04time\x18\x03 \x01(\x04R\x04time\x12$\n" +
-	"\x0elast_data_hash\x18\x04 \x01(\fR\flastDataHash\"J\n" +
-	"\x04Data\x120\n" +
-	"\bmetadata\x18\x01 \x01(\v2\x14.rollkit.v1.MetadataR\bmetadata\x12\x10\n" +
-	"\x03txs\x18\x02 \x03(\fR\x03txs\"|\n" +
+	"\x0elast_data_hash\x18\x04 \x01(\fR\flastDataHash\"I\n" +
+	"\x04Data\x12/\n" +
+	"\bmetadata\x18\x01 \x01(\v2\x13.evnode.v1.MetadataR\bmetadata\x12\x10\n" +
+	"\x03txs\x18\x02 \x03(\fR\x03txs\"z\n" +
 	"\n" +
-	"SignedData\x12$\n" +
-	"\x04data\x18\x01 \x01(\v2\x10.rollkit.v1.DataR\x04data\x12\x1c\n" +
-	"\tsignature\x18\x02 \x01(\fR\tsignature\x12*\n" +
-	"\x06signer\x18\x03 \x01(\v2\x12.rollkit.v1.SignerR\x06signer\"\xc4\x01\n" +
+	"SignedData\x12#\n" +
+	"\x04data\x18\x01 \x01(\v2\x0f.evnode.v1.DataR\x04data\x12\x1c\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\x12)\n" +
+	"\x06signer\x18\x03 \x01(\v2\x11.evnode.v1.SignerR\x06signer\"\xc4\x01\n" +
 	"\x04Vote\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\tR\achainId\x12\x16\n" +
 	"\x06height\x18\x02 \x01(\x04R\x06height\x128\n" +
 	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\"\n" +
 	"\rblock_id_hash\x18\x04 \x01(\fR\vblockIdHash\x12+\n" +
-	"\x11validator_address\x18\x05 \x01(\fR\x10validatorAddressB0Z.github.com/evstack/ev-node/types/pb/rollkit/v1b\x06proto3"
+	"\x11validator_address\x18\x05 \x01(\fR\x10validatorAddressB/Z-github.com/evstack/ev-node/types/pb/evnode/v1b\x06proto3"
 
 var (
-	file_rollkit_v1_rollkit_proto_rawDescOnce sync.Once
-	file_rollkit_v1_rollkit_proto_rawDescData []byte
+	file_evnode_v1_evnode_proto_rawDescOnce sync.Once
+	file_evnode_v1_evnode_proto_rawDescData []byte
 )
 
-func file_rollkit_v1_rollkit_proto_rawDescGZIP() []byte {
-	file_rollkit_v1_rollkit_proto_rawDescOnce.Do(func() {
-		file_rollkit_v1_rollkit_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_rollkit_v1_rollkit_proto_rawDesc), len(file_rollkit_v1_rollkit_proto_rawDesc)))
+func file_evnode_v1_evnode_proto_rawDescGZIP() []byte {
+	file_evnode_v1_evnode_proto_rawDescOnce.Do(func() {
+		file_evnode_v1_evnode_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_evnode_v1_evnode_proto_rawDesc), len(file_evnode_v1_evnode_proto_rawDesc)))
 	})
-	return file_rollkit_v1_rollkit_proto_rawDescData
+	return file_evnode_v1_evnode_proto_rawDescData
 }
 
-var file_rollkit_v1_rollkit_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
-var file_rollkit_v1_rollkit_proto_goTypes = []any{
-	(*Version)(nil),               // 0: rollkit.v1.Version
-	(*Header)(nil),                // 1: rollkit.v1.Header
-	(*SignedHeader)(nil),          // 2: rollkit.v1.SignedHeader
-	(*Signer)(nil),                // 3: rollkit.v1.Signer
-	(*Metadata)(nil),              // 4: rollkit.v1.Metadata
-	(*Data)(nil),                  // 5: rollkit.v1.Data
-	(*SignedData)(nil),            // 6: rollkit.v1.SignedData
-	(*Vote)(nil),                  // 7: rollkit.v1.Vote
+var file_evnode_v1_evnode_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_evnode_v1_evnode_proto_goTypes = []any{
+	(*Version)(nil),               // 0: evnode.v1.Version
+	(*Header)(nil),                // 1: evnode.v1.Header
+	(*SignedHeader)(nil),          // 2: evnode.v1.SignedHeader
+	(*Signer)(nil),                // 3: evnode.v1.Signer
+	(*Metadata)(nil),              // 4: evnode.v1.Metadata
+	(*Data)(nil),                  // 5: evnode.v1.Data
+	(*SignedData)(nil),            // 6: evnode.v1.SignedData
+	(*Vote)(nil),                  // 7: evnode.v1.Vote
 	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
 }
-var file_rollkit_v1_rollkit_proto_depIdxs = []int32{
-	0, // 0: rollkit.v1.Header.version:type_name -> rollkit.v1.Version
-	1, // 1: rollkit.v1.SignedHeader.header:type_name -> rollkit.v1.Header
-	3, // 2: rollkit.v1.SignedHeader.signer:type_name -> rollkit.v1.Signer
-	4, // 3: rollkit.v1.Data.metadata:type_name -> rollkit.v1.Metadata
-	5, // 4: rollkit.v1.SignedData.data:type_name -> rollkit.v1.Data
-	3, // 5: rollkit.v1.SignedData.signer:type_name -> rollkit.v1.Signer
-	8, // 6: rollkit.v1.Vote.timestamp:type_name -> google.protobuf.Timestamp
+var file_evnode_v1_evnode_proto_depIdxs = []int32{
+	0, // 0: evnode.v1.Header.version:type_name -> evnode.v1.Version
+	1, // 1: evnode.v1.SignedHeader.header:type_name -> evnode.v1.Header
+	3, // 2: evnode.v1.SignedHeader.signer:type_name -> evnode.v1.Signer
+	4, // 3: evnode.v1.Data.metadata:type_name -> evnode.v1.Metadata
+	5, // 4: evnode.v1.SignedData.data:type_name -> evnode.v1.Data
+	3, // 5: evnode.v1.SignedData.signer:type_name -> evnode.v1.Signer
+	8, // 6: evnode.v1.Vote.timestamp:type_name -> google.protobuf.Timestamp
 	7, // [7:7] is the sub-list for method output_type
 	7, // [7:7] is the sub-list for method input_type
 	7, // [7:7] is the sub-list for extension type_name
@@ -704,26 +702,26 @@ var file_rollkit_v1_rollkit_proto_depIdxs = []int32{
 	0, // [0:7] is the sub-list for field type_name
 }
 
-func init() { file_rollkit_v1_rollkit_proto_init() }
-func file_rollkit_v1_rollkit_proto_init() {
-	if File_rollkit_v1_rollkit_proto != nil {
+func init() { file_evnode_v1_evnode_proto_init() }
+func file_evnode_v1_evnode_proto_init() {
+	if File_evnode_v1_evnode_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rollkit_v1_rollkit_proto_rawDesc), len(file_rollkit_v1_rollkit_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_evnode_v1_evnode_proto_rawDesc), len(file_evnode_v1_evnode_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_rollkit_v1_rollkit_proto_goTypes,
-		DependencyIndexes: file_rollkit_v1_rollkit_proto_depIdxs,
-		MessageInfos:      file_rollkit_v1_rollkit_proto_msgTypes,
+		GoTypes:           file_evnode_v1_evnode_proto_goTypes,
+		DependencyIndexes: file_evnode_v1_evnode_proto_depIdxs,
+		MessageInfos:      file_evnode_v1_evnode_proto_msgTypes,
 	}.Build()
-	File_rollkit_v1_rollkit_proto = out.File
-	file_rollkit_v1_rollkit_proto_goTypes = nil
-	file_rollkit_v1_rollkit_proto_depIdxs = nil
+	File_evnode_v1_evnode_proto = out.File
+	file_evnode_v1_evnode_proto_goTypes = nil
+	file_evnode_v1_evnode_proto_depIdxs = nil
 }

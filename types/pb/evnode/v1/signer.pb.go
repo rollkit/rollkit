@@ -2,17 +2,16 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: rollkit/v1/signer.proto
+// source: evnode/v1/signer.proto
 
 package v1
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -32,7 +31,7 @@ type SignRequest struct {
 
 func (x *SignRequest) Reset() {
 	*x = SignRequest{}
-	mi := &file_rollkit_v1_signer_proto_msgTypes[0]
+	mi := &file_evnode_v1_signer_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +43,7 @@ func (x *SignRequest) String() string {
 func (*SignRequest) ProtoMessage() {}
 
 func (x *SignRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_signer_proto_msgTypes[0]
+	mi := &file_evnode_v1_signer_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +56,7 @@ func (x *SignRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignRequest.ProtoReflect.Descriptor instead.
 func (*SignRequest) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_signer_proto_rawDescGZIP(), []int{0}
+	return file_evnode_v1_signer_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *SignRequest) GetMessage() []byte {
@@ -77,7 +76,7 @@ type SignResponse struct {
 
 func (x *SignResponse) Reset() {
 	*x = SignResponse{}
-	mi := &file_rollkit_v1_signer_proto_msgTypes[1]
+	mi := &file_evnode_v1_signer_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -89,7 +88,7 @@ func (x *SignResponse) String() string {
 func (*SignResponse) ProtoMessage() {}
 
 func (x *SignResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_signer_proto_msgTypes[1]
+	mi := &file_evnode_v1_signer_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -102,7 +101,7 @@ func (x *SignResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignResponse.ProtoReflect.Descriptor instead.
 func (*SignResponse) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_signer_proto_rawDescGZIP(), []int{1}
+	return file_evnode_v1_signer_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *SignResponse) GetSignature() []byte {
@@ -121,7 +120,7 @@ type GetPublicRequest struct {
 
 func (x *GetPublicRequest) Reset() {
 	*x = GetPublicRequest{}
-	mi := &file_rollkit_v1_signer_proto_msgTypes[2]
+	mi := &file_evnode_v1_signer_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -133,7 +132,7 @@ func (x *GetPublicRequest) String() string {
 func (*GetPublicRequest) ProtoMessage() {}
 
 func (x *GetPublicRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_signer_proto_msgTypes[2]
+	mi := &file_evnode_v1_signer_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -146,7 +145,7 @@ func (x *GetPublicRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPublicRequest.ProtoReflect.Descriptor instead.
 func (*GetPublicRequest) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_signer_proto_rawDescGZIP(), []int{2}
+	return file_evnode_v1_signer_proto_rawDescGZIP(), []int{2}
 }
 
 // The GetPublicResponse returns the public key.
@@ -159,7 +158,7 @@ type GetPublicResponse struct {
 
 func (x *GetPublicResponse) Reset() {
 	*x = GetPublicResponse{}
-	mi := &file_rollkit_v1_signer_proto_msgTypes[3]
+	mi := &file_evnode_v1_signer_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -171,7 +170,7 @@ func (x *GetPublicResponse) String() string {
 func (*GetPublicResponse) ProtoMessage() {}
 
 func (x *GetPublicResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_signer_proto_msgTypes[3]
+	mi := &file_evnode_v1_signer_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -184,7 +183,7 @@ func (x *GetPublicResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPublicResponse.ProtoReflect.Descriptor instead.
 func (*GetPublicResponse) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_signer_proto_rawDescGZIP(), []int{3}
+	return file_evnode_v1_signer_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetPublicResponse) GetPublicKey() []byte {
@@ -194,12 +193,11 @@ func (x *GetPublicResponse) GetPublicKey() []byte {
 	return nil
 }
 
-var File_rollkit_v1_signer_proto protoreflect.FileDescriptor
+var File_evnode_v1_signer_proto protoreflect.FileDescriptor
 
-const file_rollkit_v1_signer_proto_rawDesc = "" +
+const file_evnode_v1_signer_proto_rawDesc = "" +
 	"\n" +
-	"\x17rollkit/v1/signer.proto\x12\n" +
-	"rollkit.v1\"'\n" +
+	"\x16evnode/v1/signer.proto\x12\tevnode.v1\"'\n" +
 	"\vSignRequest\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\fR\amessage\",\n" +
 	"\fSignResponse\x12\x1c\n" +
@@ -207,35 +205,35 @@ const file_rollkit_v1_signer_proto_rawDesc = "" +
 	"\x10GetPublicRequest\"2\n" +
 	"\x11GetPublicResponse\x12\x1d\n" +
 	"\n" +
-	"public_key\x18\x01 \x01(\fR\tpublicKey2\x94\x01\n" +
-	"\rSignerService\x129\n" +
-	"\x04Sign\x12\x17.rollkit.v1.SignRequest\x1a\x18.rollkit.v1.SignResponse\x12H\n" +
-	"\tGetPublic\x12\x1c.rollkit.v1.GetPublicRequest\x1a\x1d.rollkit.v1.GetPublicResponseB0Z.github.com/evstack/ev-node/types/pb/rollkit/v1b\x06proto3"
+	"public_key\x18\x01 \x01(\fR\tpublicKey2\x90\x01\n" +
+	"\rSignerService\x127\n" +
+	"\x04Sign\x12\x16.evnode.v1.SignRequest\x1a\x17.evnode.v1.SignResponse\x12F\n" +
+	"\tGetPublic\x12\x1b.evnode.v1.GetPublicRequest\x1a\x1c.evnode.v1.GetPublicResponseB/Z-github.com/evstack/ev-node/types/pb/evnode/v1b\x06proto3"
 
 var (
-	file_rollkit_v1_signer_proto_rawDescOnce sync.Once
-	file_rollkit_v1_signer_proto_rawDescData []byte
+	file_evnode_v1_signer_proto_rawDescOnce sync.Once
+	file_evnode_v1_signer_proto_rawDescData []byte
 )
 
-func file_rollkit_v1_signer_proto_rawDescGZIP() []byte {
-	file_rollkit_v1_signer_proto_rawDescOnce.Do(func() {
-		file_rollkit_v1_signer_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_rollkit_v1_signer_proto_rawDesc), len(file_rollkit_v1_signer_proto_rawDesc)))
+func file_evnode_v1_signer_proto_rawDescGZIP() []byte {
+	file_evnode_v1_signer_proto_rawDescOnce.Do(func() {
+		file_evnode_v1_signer_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_evnode_v1_signer_proto_rawDesc), len(file_evnode_v1_signer_proto_rawDesc)))
 	})
-	return file_rollkit_v1_signer_proto_rawDescData
+	return file_evnode_v1_signer_proto_rawDescData
 }
 
-var file_rollkit_v1_signer_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_rollkit_v1_signer_proto_goTypes = []any{
-	(*SignRequest)(nil),       // 0: rollkit.v1.SignRequest
-	(*SignResponse)(nil),      // 1: rollkit.v1.SignResponse
-	(*GetPublicRequest)(nil),  // 2: rollkit.v1.GetPublicRequest
-	(*GetPublicResponse)(nil), // 3: rollkit.v1.GetPublicResponse
+var file_evnode_v1_signer_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_evnode_v1_signer_proto_goTypes = []any{
+	(*SignRequest)(nil),       // 0: evnode.v1.SignRequest
+	(*SignResponse)(nil),      // 1: evnode.v1.SignResponse
+	(*GetPublicRequest)(nil),  // 2: evnode.v1.GetPublicRequest
+	(*GetPublicResponse)(nil), // 3: evnode.v1.GetPublicResponse
 }
-var file_rollkit_v1_signer_proto_depIdxs = []int32{
-	0, // 0: rollkit.v1.SignerService.Sign:input_type -> rollkit.v1.SignRequest
-	2, // 1: rollkit.v1.SignerService.GetPublic:input_type -> rollkit.v1.GetPublicRequest
-	1, // 2: rollkit.v1.SignerService.Sign:output_type -> rollkit.v1.SignResponse
-	3, // 3: rollkit.v1.SignerService.GetPublic:output_type -> rollkit.v1.GetPublicResponse
+var file_evnode_v1_signer_proto_depIdxs = []int32{
+	0, // 0: evnode.v1.SignerService.Sign:input_type -> evnode.v1.SignRequest
+	2, // 1: evnode.v1.SignerService.GetPublic:input_type -> evnode.v1.GetPublicRequest
+	1, // 2: evnode.v1.SignerService.Sign:output_type -> evnode.v1.SignResponse
+	3, // 3: evnode.v1.SignerService.GetPublic:output_type -> evnode.v1.GetPublicResponse
 	2, // [2:4] is the sub-list for method output_type
 	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -243,26 +241,26 @@ var file_rollkit_v1_signer_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_rollkit_v1_signer_proto_init() }
-func file_rollkit_v1_signer_proto_init() {
-	if File_rollkit_v1_signer_proto != nil {
+func init() { file_evnode_v1_signer_proto_init() }
+func file_evnode_v1_signer_proto_init() {
+	if File_evnode_v1_signer_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rollkit_v1_signer_proto_rawDesc), len(file_rollkit_v1_signer_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_evnode_v1_signer_proto_rawDesc), len(file_evnode_v1_signer_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_rollkit_v1_signer_proto_goTypes,
-		DependencyIndexes: file_rollkit_v1_signer_proto_depIdxs,
-		MessageInfos:      file_rollkit_v1_signer_proto_msgTypes,
+		GoTypes:           file_evnode_v1_signer_proto_goTypes,
+		DependencyIndexes: file_evnode_v1_signer_proto_depIdxs,
+		MessageInfos:      file_evnode_v1_signer_proto_msgTypes,
 	}.Build()
-	File_rollkit_v1_signer_proto = out.File
-	file_rollkit_v1_signer_proto_goTypes = nil
-	file_rollkit_v1_signer_proto_depIdxs = nil
+	File_evnode_v1_signer_proto = out.File
+	file_evnode_v1_signer_proto_goTypes = nil
+	file_evnode_v1_signer_proto_depIdxs = nil
 }

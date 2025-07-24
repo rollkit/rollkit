@@ -1,11 +1,11 @@
 syntax = "proto3";
-package rollkit.v1;
+package evnode.v1;
 
 import "google/protobuf/empty.proto";
-import "rollkit/v1/rollkit.proto";
-import "rollkit/v1/state.proto";
+import "evnode/v1/evnode.proto";
+import "evnode/v1/state.proto";
 
-option go_package = "github.com/evstack/ev-node/types/pb/rollkit/v1";
+option go_package = "github.com/evstack/ev-node/types/pb/evnode/v1";
 
 // P2PService defines the RPC service for the P2P package
 service P2PService {

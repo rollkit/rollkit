@@ -22,7 +22,7 @@ It serves as a reference implementation and helps you understand how to build yo
 #### Install
 
 To install the example `testapp`, simply run the following command at the root of the
-rollkit repo:
+ev-node repo:
 
 ```bash
 make install
@@ -100,4 +100,4 @@ make proto-lint
 | 2024/01/12 | [Informal Systems](https://informal.systems/) | [eccdd...bcb9d](https://github.com/evstack/ev-node/commit/eccdd0f1793a5ac532011ef4d896de9e0d8bcb9d) | [informal-systems.pdf](docs/audit/informal-systems.pdf) |
 | 2024/01/10 | [Binary Builders](https://binary.builders/)   | [eccdd...bcb9d](https://github.com/evstack/ev-node/commit/eccdd0f1793a5ac532011ef4d896de9e0d8bcb9d) | [binary-builders.pdf](docs/audit/binary-builders.pdf)   |
 
-[docs]: https://rollkit.dev
+[docs]: <https://rollkit.dev> <!-- todo rename once we have the domain-->

@@ -1,18 +1,18 @@
 [package]
-name = "rollkit-client"
+name = "ev-client"
 version = "0.0.1"
 edition = "2021"
-authors = ["Rollkit Contributors"]
-description = "Rust client library for interacting with Rollkit nodes via gRPC"
+authors = ["Ev Contributors"]
+description = "Rust client library for interacting with Ev nodes via gRPC"
 license = "Apache-2.0"
 repository = "https://github.com/evstack/ev-node"
-homepage = "https://rollkit.dev"
-documentation = "https://docs.rs/rollkit-client"
-keywords = ["rollkit", "blockchain", "client", "grpc", "api"]
+# homepage = "https://ev.dev"
+documentation = "https://docs.rs/ev-client"
+keywords = ["ev", "blockchain", "client", "grpc", "api"]
 categories = ["api-bindings", "network-programming"]
 
 [dependencies]
-rollkit-types = { version = "0.0.1", path = "../rollkit-types" }
+ev-types = { version = "0.0.1", path = "../types" }
 tonic = { workspace = true, features = ["transport", "tls"] }
 tokio = { version = "1.45", features = ["full"] }
 tower = { version = "0.4", features = ["full"] }

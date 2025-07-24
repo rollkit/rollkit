@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	rpc "github.com/evstack/ev-node/types/pb/rollkit/v1/v1connect"
+	rpc "github.com/evstack/ev-node/types/pb/evnode/v1/v1connect"
 )
 
 // NodeInfoCmd returns information about the running node via RPC

@@ -14,7 +14,7 @@ import (
 
 	coresequencer "github.com/evstack/ev-node/core/sequencer"
 
-	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 // ErrQueueFull is returned when the batch queue has reached its maximum size

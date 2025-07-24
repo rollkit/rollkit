@@ -1,14 +1,14 @@
 [package]
-name = "rollkit-types"
+name = "ev-types"
 version = "0.0.1"
 edition = "2021"
-authors = ["Rollkit Contributors"]
-description = "Protocol buffer generated types for Rollkit"
-documentation = "https://docs.rs/rollkit-types"
-homepage = "https://rollkit.dev"
+authors = ["Ev Contributors"]
+description = "Protocol buffer generated types for Ev"
+documentation = "https://docs.rs/ev-types"
+# homepage = "https://ev.dev"
 repository = "https://github.com/evstack/ev-node"
 license = "Apache-2.0"
-keywords = ["rollkit", "blockchain", "protobuf", "grpc"]
+keywords = ["ev", "blockchain", "protobuf", "grpc"]
 categories = ["api-bindings", "encoding"]
 
 [features]

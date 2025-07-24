@@ -19,7 +19,7 @@ import (
 	"github.com/evstack/ev-node/pkg/rpc/server"
 	"github.com/evstack/ev-node/test/mocks"
 	"github.com/evstack/ev-node/types"
-	rpc "github.com/evstack/ev-node/types/pb/rollkit/v1/v1connect"
+	rpc "github.com/evstack/ev-node/types/pb/evnode/v1/v1connect"
 )
 
 // setupTestServer creates a test server with mock store and mock p2p manager

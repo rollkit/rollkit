@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 // MarshalBinary encodes Metadata into binary form and returns it.

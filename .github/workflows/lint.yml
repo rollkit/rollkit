@@ -32,7 +32,7 @@ jobs:
 
   # hadolint lints the Dockerfile
   hadolint:
-    uses: rollkit/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.5.0 # yamllint disable-line rule:line-length
+    uses: evstack/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.5.0 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
       failure-threshold: error
@@ -41,13 +41,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: rollkit/.github/.github/actions/yamllint@v0.5.0
+      - uses: evstack/.github/.github/actions/yamllint@v0.5.0
 
   markdown-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: rollkit/.github/.github/actions/markdown-lint@v0.5.0
+      - uses: evstack/.github/.github/actions/markdown-lint@v0.5.0
 
   # Checks that the .goreleaser.yaml file is valid
   goreleaser-check:

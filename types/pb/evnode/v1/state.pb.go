@@ -2,18 +2,17 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: rollkit/v1/state.proto
+// source: evnode/v1/state.proto
 
 package v1
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -40,7 +39,7 @@ type State struct {
 
 func (x *State) Reset() {
 	*x = State{}
-	mi := &file_rollkit_v1_state_proto_msgTypes[0]
+	mi := &file_evnode_v1_state_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -52,7 +51,7 @@ func (x *State) String() string {
 func (*State) ProtoMessage() {}
 
 func (x *State) ProtoReflect() protoreflect.Message {
-	mi := &file_rollkit_v1_state_proto_msgTypes[0]
+	mi := &file_evnode_v1_state_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -65,7 +64,7 @@ func (x *State) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use State.ProtoReflect.Descriptor instead.
 func (*State) Descriptor() ([]byte, []int) {
-	return file_rollkit_v1_state_proto_rawDescGZIP(), []int{0}
+	return file_evnode_v1_state_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *State) GetVersion() *Version {
@@ -124,43 +123,42 @@ func (x *State) GetAppHash() []byte {
 	return nil
 }
 
-var File_rollkit_v1_state_proto protoreflect.FileDescriptor
+var File_evnode_v1_state_proto protoreflect.FileDescriptor
 
-const file_rollkit_v1_state_proto_rawDesc = "" +
+const file_evnode_v1_state_proto_rawDesc = "" +
 	"\n" +
-	"\x16rollkit/v1/state.proto\x12\n" +
-	"rollkit.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18rollkit/v1/rollkit.proto\"\xcc\x02\n" +
-	"\x05State\x12-\n" +
-	"\aversion\x18\x01 \x01(\v2\x13.rollkit.v1.VersionR\aversion\x12\x19\n" +
+	"\x15evnode/v1/state.proto\x12\tevnode.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16evnode/v1/evnode.proto\"\xcb\x02\n" +
+	"\x05State\x12,\n" +
+	"\aversion\x18\x01 \x01(\v2\x12.evnode.v1.VersionR\aversion\x12\x19\n" +
 	"\bchain_id\x18\x02 \x01(\tR\achainId\x12%\n" +
 	"\x0einitial_height\x18\x03 \x01(\x04R\rinitialHeight\x12*\n" +
 	"\x11last_block_height\x18\x04 \x01(\x04R\x0flastBlockHeight\x12B\n" +
 	"\x0flast_block_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\rlastBlockTime\x12\x1b\n" +
 	"\tda_height\x18\x06 \x01(\x04R\bdaHeight\x12*\n" +
 	"\x11last_results_hash\x18\a \x01(\fR\x0flastResultsHash\x12\x19\n" +
-	"\bapp_hash\x18\b \x01(\fR\aappHashB0Z.github.com/evstack/ev-node/types/pb/rollkit/v1b\x06proto3"
+	"\bapp_hash\x18\b \x01(\fR\aappHashB/Z-github.com/evstack/ev-node/types/pb/evnode/v1b\x06proto3"
 
 var (
-	file_rollkit_v1_state_proto_rawDescOnce sync.Once
-	file_rollkit_v1_state_proto_rawDescData []byte
+	file_evnode_v1_state_proto_rawDescOnce sync.Once
+	file_evnode_v1_state_proto_rawDescData []byte
 )
 
-func file_rollkit_v1_state_proto_rawDescGZIP() []byte {
-	file_rollkit_v1_state_proto_rawDescOnce.Do(func() {
-		file_rollkit_v1_state_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_rollkit_v1_state_proto_rawDesc), len(file_rollkit_v1_state_proto_rawDesc)))
+func file_evnode_v1_state_proto_rawDescGZIP() []byte {
+	file_evnode_v1_state_proto_rawDescOnce.Do(func() {
+		file_evnode_v1_state_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_evnode_v1_state_proto_rawDesc), len(file_evnode_v1_state_proto_rawDesc)))
 	})
-	return file_rollkit_v1_state_proto_rawDescData
+	return file_evnode_v1_state_proto_rawDescData
 }
 
-var file_rollkit_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_rollkit_v1_state_proto_goTypes = []any{
-	(*State)(nil),                 // 0: rollkit.v1.State
-	(*Version)(nil),               // 1: rollkit.v1.Version
+var file_evnode_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_evnode_v1_state_proto_goTypes = []any{
+	(*State)(nil),                 // 0: evnode.v1.State
+	(*Version)(nil),               // 1: evnode.v1.Version
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 }
-var file_rollkit_v1_state_proto_depIdxs = []int32{
-	1, // 0: rollkit.v1.State.version:type_name -> rollkit.v1.Version
-	2, // 1: rollkit.v1.State.last_block_time:type_name -> google.protobuf.Timestamp
+var file_evnode_v1_state_proto_depIdxs = []int32{
+	1, // 0: evnode.v1.State.version:type_name -> evnode.v1.Version
+	2, // 1: evnode.v1.State.last_block_time:type_name -> google.protobuf.Timestamp
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -168,27 +166,27 @@ var file_rollkit_v1_state_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_rollkit_v1_state_proto_init() }
-func file_rollkit_v1_state_proto_init() {
-	if File_rollkit_v1_state_proto != nil {
+func init() { file_evnode_v1_state_proto_init() }
+func file_evnode_v1_state_proto_init() {
+	if File_evnode_v1_state_proto != nil {
 		return
 	}
-	file_rollkit_v1_rollkit_proto_init()
+	file_evnode_v1_evnode_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rollkit_v1_state_proto_rawDesc), len(file_rollkit_v1_state_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_evnode_v1_state_proto_rawDesc), len(file_evnode_v1_state_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_rollkit_v1_state_proto_goTypes,
-		DependencyIndexes: file_rollkit_v1_state_proto_depIdxs,
-		MessageInfos:      file_rollkit_v1_state_proto_msgTypes,
+		GoTypes:           file_evnode_v1_state_proto_goTypes,
+		DependencyIndexes: file_evnode_v1_state_proto_depIdxs,
+		MessageInfos:      file_evnode_v1_state_proto_msgTypes,
 	}.Build()
-	File_rollkit_v1_state_proto = out.File
-	file_rollkit_v1_state_proto_goTypes = nil
-	file_rollkit_v1_state_proto_depIdxs = nil
+	File_evnode_v1_state_proto = out.File
+	file_evnode_v1_state_proto_goTypes = nil
+	file_evnode_v1_state_proto_depIdxs = nil
 }

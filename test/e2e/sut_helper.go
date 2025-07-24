@@ -24,7 +24,7 @@ import (
 
 	"github.com/evstack/ev-node/pkg/p2p/key"
 	"github.com/evstack/ev-node/pkg/rpc/client"
-	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 // WorkDir defines the default working directory for spawned processes.

@@ -1,6 +1,6 @@
-# Rollkit Release Process
+# ev-node Release Process
 
-This document outlines the release process for all Go packages in the Rollkit repository. The packages must be released in a specific order due to inter-dependencies.
+This document outlines the release process for all Go packages in the ev-node repository. The packages must be released in a specific order due to inter-dependencies.
 
 ## Package Dependency Graph
 
@@ -13,7 +13,7 @@ This document outlines the release process for all Go packages in the Rollkit re
         │                    │                    │
         ▼                    ▼                    ▼
    ┌─────────┐         ┌─────────┐      ┌──────────────┐
-   │   da    │         │ rollkit │      │execution/evm │
+   │   da    │         │ ev-node │      │execution/evm │
    └─────────┘         └────┬────┘      └──────────────┘
                             │
                 ┌───────────┴───────────┐
@@ -46,27 +46,27 @@ These packages only depend on `core` and can be released in parallel after `core
 
 1. **github.com/evstack/ev-node/da**
    - Path: `./da`
-   - Dependencies: `rollkit/core`
+   - Dependencies: `ev-node/core`
 
 2. **github.com/evstack/ev-node**
    - Path: `./` (root)
-   - Dependencies: `rollkit/core`
+   - Dependencies: `ev-node/core`
 
 3. **github.com/evstack/ev-node/execution/evm**
    - Path: `./execution/evm`
-   - Dependencies: `rollkit/core`
+   - Dependencies: `ev-node/core`
 
 ### Phase 3: Sequencer Packages
 
-These packages depend on both `core` and the main `rollkit` package:
+These packages depend on both `core` and the main `ev-node` package:
 
 1. **github.com/evstack/ev-node/sequencers/based**
    - Path: `./sequencers/based`
-   - Dependencies: `rollkit/core`, `rollkit`
+   - Dependencies: `ev-node/core`, `ev-node`
 
 2. **github.com/evstack/ev-node/sequencers/single**
    - Path: `./sequencers/single`
-   - Dependencies: `rollkit/core`, `rollkit`
+   - Dependencies: `ev-node/core`, `ev-node`
 
 ### Phase 4: Application Packages
 
@@ -74,11 +74,11 @@ These packages have the most dependencies and should be released last:
 
 1. **github.com/evstack/ev-node/apps/evm/based**
    - Path: `./apps/evm/based`
-   - Dependencies: `rollkit/core`, `rollkit/da`, `rollkit/execution/evm`, `rollkit`, `rollkit/sequencers/based`
+   - Dependencies: `ev-node/core`, `ev-node/da`, `ev-node/execution/evm`, `ev-node`, `ev-node/sequencers/based`
 
 2. **github.com/evstack/ev-node/apps/evm/single**
    - Path: `./apps/evm/single`
-   - Dependencies: `rollkit/core`, `rollkit/da`, `rollkit/execution/evm`, `rollkit`, `rollkit/sequencers/single`
+   - Dependencies: `ev-node/core`, `ev-node/da`, `ev-node/execution/evm`, `ev-node`, `ev-node/sequencers/single`
 
 ## Release Process Workflow
 
@@ -128,7 +128,7 @@ git push origin da/v<version>
 go list -m github.com/evstack/ev-node/da@v<version>
 ```
 
-#### 3. Update and release main `rollkit` module
+#### 3. Update and release main `ev-node` module
 
 ```bash
 cd . # root directory
@@ -165,7 +165,7 @@ go list -m github.com/evstack/ev-node/execution/evm@v<version>
 
 ### Phase 3: Release Sequencer Packages
 
-After core and main rollkit are available, update and release sequencers:
+After core and main ev-node are available, update and release sequencers:
 
 #### 5. Update and release `sequencers/*`
 
