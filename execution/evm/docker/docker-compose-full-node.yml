@@ -36,7 +36,7 @@ services:
       - ./jwttoken:/root/jwt:ro
       - reth:/home/reth/eth-home
     environment:
-      - RUST_LOG=warn,lumen_rollkit=info
+      - RUST_LOG=info,lumen_rollkit=info
     entrypoint: /bin/sh -c
     command:
       - |
