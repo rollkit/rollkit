@@ -52,7 +52,7 @@ services:
       - rollkit-network
 
   rollkit-evm-single:
-    image: ghcr.io/rollkit/rollkit-evm-single:main
+    image: ghcr.io/evstack/ev-node-evm-single:main
     depends_on:
       rollkit-reth:
         condition: service_started

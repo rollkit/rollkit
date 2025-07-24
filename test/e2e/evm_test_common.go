@@ -34,7 +34,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/execution/evm"
+	"github.com/evstack/ev-node/execution/evm"
 )
 
 // evmSingleBinaryPath is the path to the evm-single binary used in tests

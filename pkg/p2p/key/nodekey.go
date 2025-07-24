@@ -9,8 +9,8 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	rollhash "github.com/rollkit/rollkit/pkg/hash"
-	rollos "github.com/rollkit/rollkit/pkg/os"
+	rollhash "github.com/evstack/ev-node/pkg/hash"
+	rollos "github.com/evstack/ev-node/pkg/os"
 )
 
 const (

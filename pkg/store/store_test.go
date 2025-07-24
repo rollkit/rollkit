@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/evstack/ev-node/types"
 )
 
 // mockBatchingDatastore is a mock implementation of ds.Batching for testing error cases.

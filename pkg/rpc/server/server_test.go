@@ -19,11 +19,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/store"
-	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	"github.com/evstack/ev-node/pkg/p2p"
+	"github.com/evstack/ev-node/pkg/store"
+	"github.com/evstack/ev-node/test/mocks"
+	"github.com/evstack/ev-node/types"
+	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
 )
 
 func TestGetBlock(t *testing.T) {

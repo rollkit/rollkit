@@ -17,11 +17,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/rpc/server"
-	testmocks "github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
+	"github.com/evstack/ev-node/pkg/config"
+	"github.com/evstack/ev-node/pkg/p2p"
+	"github.com/evstack/ev-node/pkg/rpc/server"
+	testmocks "github.com/evstack/ev-node/test/mocks"
+	"github.com/evstack/ev-node/types/pb/rollkit/v1/v1connect"
 )
 
 type contextKey string

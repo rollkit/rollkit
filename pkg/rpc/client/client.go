@@ -7,8 +7,8 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
-	rpc "github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
+	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
+	rpc "github.com/evstack/ev-node/types/pb/rollkit/v1/v1connect"
 )
 
 // Client is the client for StoreService, P2PService, and HealthService

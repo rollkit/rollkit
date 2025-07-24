@@ -19,11 +19,11 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/store"
-	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
-	rpc "github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
+	"github.com/evstack/ev-node/pkg/p2p"
+	"github.com/evstack/ev-node/pkg/store"
+	"github.com/evstack/ev-node/types"
+	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
+	rpc "github.com/evstack/ev-node/types/pb/rollkit/v1/v1connect"
 )
 
 // StoreServer implements the StoreService defined in the proto file

@@ -7,12 +7,13 @@
 package v1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -662,7 +663,7 @@ const file_rollkit_v1_rollkit_proto_rawDesc = "" +
 	"\x06height\x18\x02 \x01(\x04R\x06height\x128\n" +
 	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\"\n" +
 	"\rblock_id_hash\x18\x04 \x01(\fR\vblockIdHash\x12+\n" +
-	"\x11validator_address\x18\x05 \x01(\fR\x10validatorAddressB0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
+	"\x11validator_address\x18\x05 \x01(\fR\x10validatorAddressB0Z.github.com/evstack/ev-node/types/pb/rollkit/v1b\x06proto3"
 
 var (
 	file_rollkit_v1_rollkit_proto_rawDescOnce sync.Once

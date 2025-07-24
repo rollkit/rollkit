@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rollkit/rollkit/apps/evm/based/cmd"
-	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
+	"github.com/evstack/ev-node/apps/evm/based/cmd"
+	rollcmd "github.com/evstack/ev-node/pkg/cmd"
 	"github.com/spf13/cobra"
 )
 

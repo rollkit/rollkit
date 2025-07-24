@@ -1,7 +1,7 @@
 # Rollkit Rust Client
 
-[![Rust Tests](https://github.com/rollkit/rollkit/actions/workflows/rust-test.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/rust-test.yml)
-[![Rust Lint](https://github.com/rollkit/rollkit/actions/workflows/rust-lint.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/rust-lint.yml)
+[![Rust Tests](https://github.com/evstack/ev-node/actions/workflows/rust-test.yml/badge.svg)](https://github.com/evstack/ev-node/actions/workflows/rust-test.yml)
+[![Rust Lint](https://github.com/evstack/ev-node/actions/workflows/rust-lint.yml/badge.svg)](https://github.com/evstack/ev-node/actions/workflows/rust-lint.yml)
 <!-- markdown-link-check-disable -->
 [![crates.io](https://img.shields.io/crates/v/rollkit-client.svg)](https://crates.io/crates/rollkit-client)
 [![docs.rs](https://docs.rs/rollkit-client/badge.svg)](https://docs.rs/rollkit-client)

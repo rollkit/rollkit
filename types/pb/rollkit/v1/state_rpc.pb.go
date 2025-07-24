@@ -7,12 +7,13 @@
 package v1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -383,7 +384,7 @@ const file_rollkit_v1_state_rpc_proto_rawDesc = "" +
 	"\fStoreService\x12G\n" +
 	"\bGetBlock\x12\x1b.rollkit.v1.GetBlockRequest\x1a\x1c.rollkit.v1.GetBlockResponse\"\x00\x12B\n" +
 	"\bGetState\x12\x16.google.protobuf.Empty\x1a\x1c.rollkit.v1.GetStateResponse\"\x00\x12P\n" +
-	"\vGetMetadata\x12\x1e.rollkit.v1.GetMetadataRequest\x1a\x1f.rollkit.v1.GetMetadataResponse\"\x00B0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
+	"\vGetMetadata\x12\x1e.rollkit.v1.GetMetadataRequest\x1a\x1f.rollkit.v1.GetMetadataResponse\"\x00B0Z.github.com/evstack/ev-node/types/pb/rollkit/v1b\x06proto3"
 
 var (
 	file_rollkit_v1_state_rpc_proto_rawDescOnce sync.Once

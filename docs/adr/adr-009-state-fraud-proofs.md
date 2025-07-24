@@ -13,7 +13,7 @@ Manav Aggarwal (@Manav-Aggarwal)
 
 This ADR introduces a design for state fraud proofs in optimistic cosmos-sdk using Rollkit.
 It implements parts of Section 4 (Fraud Proofs) of Al-Bassam et al’s paper “Fraud and Data Availability Proofs: Detecting Invalid Blocks in Light Clients”.
-Some previous notes regarding this topic in the context of cosmos-sdk are described in Matthew Di Ferrante's [notes](https://github.com/rollkit/rollkit/issues/132).
+Some previous notes regarding this topic in the context of cosmos-sdk are described in Matthew Di Ferrante's [notes](https://github.com/evstack/ev-node/issues/132).
 
 Rollkit's design consists of a single sequencer that posts blocks to the DA layer, and multiple (optional) full nodes. Sequencers gossip block headers to full nodes and full nodes fetch posted blocks from the DA layer. Full nodes then execute transactions in these blocks to update their state, and gossip block headers over P2P to Rollkit light nodes. Once State Fraud Proofs are enabled, when a block contains a fraudulent state transition, Rollkit full nodes can detect it by comparing intermediate state roots (ISRs) between transactions, and generate a state fraud proof that can be gossiped over P2P to Rollkit light nodes. These Rollkit light nodes can then use this state fraud proof to verify whether a fraudulent state transition occurred or not by themselves.
 
@@ -270,7 +270,7 @@ Proposed
 
 A prototype implementation of the above design is available in the following working branches:
 
-- [Rollkit](https://github.com/rollkit/rollkit/releases/tag/v0.6.0): Contains fraud proof detection and gossiping logic. As fraud proofs are currently a work in progress, this logic can be toggled using a flag `--rollkit.experimental_insecure_fraud_proofs`. By default, this flag is set to `false`.
+- [Rollkit](https://github.com/evstack/ev-node/releases/tag/v0.6.0): Contains fraud proof detection and gossiping logic. As fraud proofs are currently a work in progress, this logic can be toggled using a flag `--rollkit.experimental_insecure_fraud_proofs`. By default, this flag is set to `false`.
 - [Cosmos-SDK](https://github.com/rollkit/cosmos-sdk-old/tree/manav/fraudproof_iavl_prototype): Implements the new ABCI methods described.
 - [Tendermint](https://github.com/rollkit/tendermint/tree/abci_fraud_proofs): Contains modifications to the ABCI interface described.
 - [IAVL](https://github.com/rollkit/iavl/tree/deepsubtrees_0.19.x): Adds support for Deep Subtrees and tracing.
@@ -279,5 +279,5 @@ A prototype implementation of the above design is available in the following wor
 
 > Are there any relevant PR comments, issues that led up to this, or articles referenced for why we made the given design choice? If so link them here!
 
-- <https://github.com/rollkit/rollkit/issues/132>
-- <https://github.com/rollkit/rollkit/issues/514>
+- <https://github.com/evstack/ev-node/issues/132>
+- <https://github.com/evstack/ev-node/issues/514>

@@ -13,7 +13,7 @@ builds:
       # need to be created.
       # REF: https://goreleaser.com/limitations/cgo/
       - CGO_ENABLED=0
-      - VersioningPath={{ "github.com/rollkit/rollkit/cmd/rollkit/commands" }}
+      - VersioningPath={{ "github.com/evstack/ev-node/cmd/rollkit/commands" }}
     goos:
       - linux
       - darwin
@@ -33,7 +33,7 @@ builds:
       - -X "{{ .Env.VersioningPath }}.Version={{ .Version }}"
 dist: ./build/goreleaser
 archives:
-  - formats: ['tar.gz']
+  - formats: ["tar.gz"]
     # this name template makes the OS and Arch compatible with the results of
     # uname.
     name_template: >-

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package rollkit.v1;
 
-option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
+option go_package = "github.com/evstack/ev-node/types/pb/rollkit/v1";
 
 // The SignRequest holds the bytes we want to sign.
 message SignRequest {

@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
+	coreda "github.com/evstack/ev-node/core/da"
+	"github.com/evstack/ev-node/test/mocks"
+	"github.com/evstack/ev-node/types"
 )
 
 func TestSubmitWithHelpers(t *testing.T) {

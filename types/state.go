@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/evstack/ev-node/pkg/genesis"
 )
 
 // InitStateVersion sets the Consensus.Block and Software versions,

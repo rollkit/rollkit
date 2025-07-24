@@ -13,11 +13,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/cache"
-	"github.com/rollkit/rollkit/pkg/config"
-	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
-	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
+	"github.com/evstack/ev-node/pkg/cache"
+	"github.com/evstack/ev-node/pkg/config"
+	genesispkg "github.com/evstack/ev-node/pkg/genesis"
+	"github.com/evstack/ev-node/test/mocks"
+	"github.com/evstack/ev-node/types"
 )
 
 // TestAggregationLoop_Normal_BasicInterval verifies that the aggregation loop publishes blocks at the expected interval under normal conditions.

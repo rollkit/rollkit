@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	ds "github.com/ipfs/go-datastore"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	damocks "github.com/rollkit/rollkit/test/mocks"
+	coreda "github.com/evstack/ev-node/core/da"
+	coresequencer "github.com/evstack/ev-node/core/sequencer"
+	damocks "github.com/evstack/ev-node/test/mocks"
 )
 
 func TestNewSequencer(t *testing.T) {
@@ -26,7 +26,7 @@ func TestNewSequencer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	seq, err := NewSequencer(ctx, logger, db, dummyDA, []byte("test1"), 10*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
@@ -60,7 +60,7 @@ func TestSequencer_SubmitBatchTxs(t *testing.T) {
 	defer cancel()
 	Id := []byte("test1")
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	seq, err := NewSequencer(ctx, logger, db, dummyDA, Id, 10*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
@@ -114,7 +114,7 @@ func TestSequencer_SubmitBatchTxs_EmptyBatch(t *testing.T) {
 	defer cancel()
 	Id := []byte("test1")
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	seq, err := NewSequencer(ctx, logger, db, dummyDA, Id, 10*time.Second, metrics, false)
 	require.NoError(t, err, "Failed to create sequencer")
 	defer func() {
@@ -154,7 +154,7 @@ func TestSequencer_SubmitBatchTxs_EmptyBatch(t *testing.T) {
 func TestSequencer_GetNextBatch_NoLastBatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 
 	seq := &Sequencer{
 		logger: logger,
@@ -191,7 +191,7 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 
 	db := ds.NewMapDatastore()
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 
 	seq := &Sequencer{
 		logger: logger,
@@ -252,7 +252,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	t.Run("Proposer Mode", func(t *testing.T) {
 		mockDA := damocks.NewMockDA(t)
 		logger := logging.Logger("test")
-		_ = logging.SetLogLevel("test", "FATAL") 
+		_ = logging.SetLogLevel("test", "FATAL")
 
 		seq := &Sequencer{
 			logger:   logger,
@@ -275,7 +275,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		t.Run("Valid Proofs", func(t *testing.T) {
 			mockDA := damocks.NewMockDA(t)
 			logger := logging.Logger("test")
-			_ = logging.SetLogLevel("test", "FATAL") 
+			_ = logging.SetLogLevel("test", "FATAL")
 			seq := &Sequencer{
 				logger:   logger,
 				Id:       Id,
@@ -297,7 +297,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		t.Run("Invalid Proof", func(t *testing.T) {
 			mockDA := damocks.NewMockDA(t)
 			logger := logging.Logger("test")
-			_ = logging.SetLogLevel("test", "FATAL") 
+			_ = logging.SetLogLevel("test", "FATAL")
 			seq := &Sequencer{
 				logger:   logger,
 				Id:       Id,
@@ -319,7 +319,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		t.Run("GetProofs Error", func(t *testing.T) {
 			mockDA := damocks.NewMockDA(t)
 			logger := logging.Logger("test")
-			_ = logging.SetLogLevel("test", "FATAL") 
+			_ = logging.SetLogLevel("test", "FATAL")
 			seq := &Sequencer{
 				logger:   logger,
 				Id:       Id,
@@ -342,7 +342,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		t.Run("Validate Error", func(t *testing.T) {
 			mockDA := damocks.NewMockDA(t)
 			logger := logging.Logger("test")
-			_ = logging.SetLogLevel("test", "FATAL") 
+			_ = logging.SetLogLevel("test", "FATAL")
 			seq := &Sequencer{
 				logger:   logger,
 				Id:       Id,
@@ -365,7 +365,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 		t.Run("Invalid ID", func(t *testing.T) {
 			mockDA := damocks.NewMockDA(t)
 			logger := logging.Logger("test")
-			_ = logging.SetLogLevel("test", "FATAL") 
+			_ = logging.SetLogLevel("test", "FATAL")
 
 			seq := &Sequencer{
 				logger:   logger,
@@ -396,7 +396,7 @@ func TestSequencer_GetNextBatch_BeforeDASubmission(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	seq, err := NewSequencer(ctx, logger, db, mockDA, []byte("test1"), 1*time.Second, metrics, false)
 	if err != nil {
 		t.Fatalf("Failed to create sequencer: %v", err)
@@ -452,7 +452,7 @@ func TestSequencer_RecordMetrics(t *testing.T) {
 		metrics, err := NopMetrics()
 		require.NoError(t, err)
 		logger := logging.Logger("test")
-		_ = logging.SetLogLevel("test", "FATAL") 
+		_ = logging.SetLogLevel("test", "FATAL")
 
 		seq := &Sequencer{
 			logger:  logger,
@@ -477,7 +477,7 @@ func TestSequencer_RecordMetrics(t *testing.T) {
 	t.Run("Without Metrics", func(t *testing.T) {
 		// Create a sequencer without metrics
 		logger := logging.Logger("test")
-		_ = logging.SetLogLevel("test", "FATAL") 
+		_ = logging.SetLogLevel("test", "FATAL")
 		seq := &Sequencer{
 			logger:  logger,
 			metrics: nil, // No metrics
@@ -502,7 +502,7 @@ func TestSequencer_RecordMetrics(t *testing.T) {
 		metrics, err := NopMetrics()
 		require.NoError(t, err)
 		logger := logging.Logger("test")
-		_ = logging.SetLogLevel("test", "FATAL") 
+		_ = logging.SetLogLevel("test", "FATAL")
 
 		seq := &Sequencer{
 			logger:  logger,
@@ -540,10 +540,10 @@ func TestSequencer_QueueLimit_Integration(t *testing.T) {
 	defer db.Close()
 
 	mockDA := &damocks.MockDA{}
-	
+
 	// Create a sequencer with a small queue limit for testing
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	seq := &Sequencer{
 		logger:    logger,
 		da:        mockDA,
@@ -647,19 +647,19 @@ func TestSequencer_DAFailureAndQueueThrottling_Integration(t *testing.T) {
 	// 3. Make DA layer go down
 	// 4. Continue sending transactions
 	// 5. Eventually batch queue fills up and returns ErrQueueFull
-	
+
 	db := ds.NewMapDatastore()
 	defer db.Close()
-	
+
 	// Create a dummy DA that we can make fail
 	dummyDA := coreda.NewDummyDA(100_000, 0, 0, 100*time.Millisecond)
 	dummyDA.StartHeightTicker()
 	defer dummyDA.StopHeightTicker()
-	
+
 	// Create sequencer with small queue size to trigger throttling quickly
 	queueSize := 3 // Small for testing
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	seq, err := NewSequencerWithQueueSize(
 		context.Background(),
 		logger,
@@ -667,14 +667,14 @@ func TestSequencer_DAFailureAndQueueThrottling_Integration(t *testing.T) {
 		dummyDA,
 		[]byte("test-chain"),
 		100*time.Millisecond,
-		nil, // metrics
+		nil,  // metrics
 		true, // proposer
 		queueSize,
 	)
 	require.NoError(t, err)
-	
+
 	ctx := context.Background()
-	
+
 	// Phase 1: Normal operation - send some batches successfully
 	t.Log("Phase 1: Normal operation")
 	for i := 0; i < queueSize; i++ {
@@ -683,48 +683,48 @@ func TestSequencer_DAFailureAndQueueThrottling_Integration(t *testing.T) {
 			Id:    []byte("test-chain"),
 			Batch: &batch,
 		}
-		
+
 		resp, err := seq.SubmitBatchTxs(ctx, req)
 		require.NoError(t, err, "Expected successful batch submission during normal operation")
 		require.NotNil(t, resp)
 	}
-	
+
 	// At this point the queue should be full (queueSize batches)
 	t.Log("Phase 2: Queue should now be full")
-	
+
 	// Try to add one more batch - should fail with ErrQueueFull
 	overflowBatch := createTestBatch(t, queueSize+1)
 	overflowReq := coresequencer.SubmitBatchTxsRequest{
 		Id:    []byte("test-chain"),
 		Batch: &overflowBatch,
 	}
-	
+
 	resp, err := seq.SubmitBatchTxs(ctx, overflowReq)
 	require.Error(t, err, "Expected error when queue is full")
 	require.True(t, errors.Is(err, ErrQueueFull), "Expected ErrQueueFull, got %v", err)
 	require.Nil(t, resp, "Expected nil response when queue is full")
-	
+
 	t.Log("✅ Successfully demonstrated ErrQueueFull when queue reaches limit")
-	
+
 	// Phase 3: Simulate DA layer going down (this would be used in block manager)
 	t.Log("Phase 3: Simulating DA layer failure")
 	dummyDA.SetSubmitFailure(true)
-	
+
 	// Phase 4: Process one batch to free up space, simulating block manager getting batches
 	t.Log("Phase 4: Process one batch to free up space")
 	nextResp, err := seq.GetNextBatch(ctx, coresequencer.GetNextBatchRequest{Id: []byte("test-chain")})
 	require.NoError(t, err)
 	require.NotNil(t, nextResp)
 	require.NotNil(t, nextResp.Batch)
-	
+
 	// Now we should be able to add the overflow batch
 	resp, err = seq.SubmitBatchTxs(ctx, overflowReq)
 	require.NoError(t, err, "Expected successful submission after freeing space")
 	require.NotNil(t, resp)
-	
+
 	// Phase 5: Continue adding batches until queue is full again
 	t.Log("Phase 5: Fill queue again to demonstrate continued throttling")
-	
+
 	// Add batches until queue is full again
 	batchesAdded := 0
 	for i := 0; i < 10; i++ { // Try to add many batches
@@ -733,7 +733,7 @@ func TestSequencer_DAFailureAndQueueThrottling_Integration(t *testing.T) {
 			Id:    []byte("test-chain"),
 			Batch: &batch,
 		}
-		
+
 		resp, err := seq.SubmitBatchTxs(ctx, req)
 		if err != nil {
 			if errors.Is(err, ErrQueueFull) {
@@ -746,25 +746,25 @@ func TestSequencer_DAFailureAndQueueThrottling_Integration(t *testing.T) {
 		require.NotNil(t, resp, "Expected non-nil response for successful submission")
 		batchesAdded++
 	}
-	
+
 	// The queue is already full from the overflow batch we added, so we expect 0 additional batches
 	t.Log("✅ Successfully demonstrated that queue throttling prevents unbounded resource consumption")
 	t.Logf("📊 Queue size limit: %d, Additional batches attempted: %d", queueSize, batchesAdded)
-	
+
 	// Final verification: try one more batch to confirm queue is still full
 	finalBatch := createTestBatch(t, 999)
 	finalReq := coresequencer.SubmitBatchTxsRequest{
 		Id:    []byte("test-chain"),
 		Batch: &finalBatch,
 	}
-	
+
 	resp, err = seq.SubmitBatchTxs(ctx, finalReq)
 	require.Error(t, err, "Expected final batch to fail due to full queue")
 	require.True(t, errors.Is(err, ErrQueueFull), "Expected final ErrQueueFull")
 	require.Nil(t, resp)
-	
+
 	t.Log("✅ Final verification: Queue throttling still active")
-	
+
 	// This test demonstrates the complete integration scenario:
 	// 1. ✅ Sequencer accepts batches normally when queue has space
 	// 2. ✅ Returns ErrQueueFull when queue reaches its limit

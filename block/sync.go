@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/evstack/ev-node/types"
 )
 
 // SyncLoop is responsible for syncing blocks.

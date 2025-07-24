@@ -12,9 +12,9 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	"google.golang.org/protobuf/proto"
 
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	coresequencer "github.com/evstack/ev-node/core/sequencer"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
 )
 
 // ErrQueueFull is returned when the batch queue has reached its maximum size

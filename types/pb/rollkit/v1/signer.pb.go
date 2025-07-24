@@ -7,11 +7,12 @@
 package v1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -209,7 +210,7 @@ const file_rollkit_v1_signer_proto_rawDesc = "" +
 	"public_key\x18\x01 \x01(\fR\tpublicKey2\x94\x01\n" +
 	"\rSignerService\x129\n" +
 	"\x04Sign\x12\x17.rollkit.v1.SignRequest\x1a\x18.rollkit.v1.SignResponse\x12H\n" +
-	"\tGetPublic\x12\x1c.rollkit.v1.GetPublicRequest\x1a\x1d.rollkit.v1.GetPublicResponseB0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
+	"\tGetPublic\x12\x1c.rollkit.v1.GetPublicRequest\x1a\x1d.rollkit.v1.GetPublicResponseB0Z.github.com/evstack/ev-node/types/pb/rollkit/v1b\x06proto3"
 
 var (
 	file_rollkit_v1_signer_proto_rawDescOnce sync.Once

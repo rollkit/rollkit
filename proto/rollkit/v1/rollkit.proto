@@ -3,7 +3,7 @@ package rollkit.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
+option go_package = "github.com/evstack/ev-node/types/pb/rollkit/v1";
 
 // Version captures the consensus rules for processing a block in the blockchain,
 // including all blockchain data structures and the rules of the application's
@@ -11,7 +11,7 @@ option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
 // This is equivalent to the tmversion.Consensus type in Tendermint.
 message Version {
   uint64 block = 1;
-  uint64 app = 2;
+  uint64 app   = 2;
 }
 
 // Header is the header of a block in the blockchain.
@@ -61,9 +61,9 @@ message Header {
 
 // SignedHeader is a header with a signature and a signer.
 message SignedHeader {
-  Header header = 1;
-  bytes signature = 2;
-  Signer signer = 3;
+  Header header    = 1;
+  bytes  signature = 2;
+  Signer signer    = 3;
 }
 
 // Signer is a signer of a block in the blockchain.
@@ -91,15 +91,15 @@ message Metadata {
 
 // Data is the data of a block in the blockchain.
 message Data {
-  Metadata metadata = 1;
-  repeated bytes txs = 2;
+  Metadata       metadata = 1;
+  repeated bytes txs      = 2;
 }
 
 // SignedData is a data with a signature and a signer.
 message SignedData {
-  Data data = 1;
-  bytes signature = 2;
-  Signer signer = 3;
+  Data   data      = 1;
+  bytes  signature = 2;
+  Signer signer    = 3;
 }
 
 // Vote is a vote for a block in the blockchain.

@@ -94,6 +94,6 @@ jobs:
             rollkit-client = "<version>"
             ```
 
-            See the [README](https://github.com/rollkit/rollkit/tree/main/client/crates/rollkit-client) for usage examples.
+            See the [README](https://github.com/evstack/ev-node/tree/main/client/crates/rollkit-client) for usage examples.
           draft: false
           prerelease: false

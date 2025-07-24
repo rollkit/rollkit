@@ -5,7 +5,7 @@ import "google/protobuf/empty.proto";
 import "rollkit/v1/rollkit.proto";
 import "rollkit/v1/state.proto";
 
-option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
+option go_package = "github.com/evstack/ev-node/types/pb/rollkit/v1";
 
 // StoreService defines the RPC service for the store package
 service StoreService {
@@ -36,9 +36,9 @@ message GetBlockRequest {
 
 // GetBlockResponse defines the response for retrieving a block
 message GetBlockResponse {
-  Block block = 1;
+  Block  block            = 1;
   uint64 header_da_height = 2;
-  uint64 data_da_height = 3;
+  uint64 data_da_height   = 3;
 }
 
 // GetStateResponse defines the response for retrieving the current state

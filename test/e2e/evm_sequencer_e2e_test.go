@@ -29,7 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/execution/evm"
+	"github.com/evstack/ev-node/execution/evm"
 )
 
 // TestEvmSequencerComprehensiveE2E runs a comprehensive test suite that combines

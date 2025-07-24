@@ -9,8 +9,8 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	"github.com/evstack/ev-node/types"
+	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
 )
 
 // DefaultStore is a default store implementation.

@@ -147,7 +147,7 @@ The Block Manager uses several channels for communication between its components
 - `github.com/ipfs/go-datastore/sync` - Thread-safe datastore wrapper
 - `github.com/celestiaorg/go-header` - Header synchronization library
 - `github.com/libp2p/go-libp2p` - P2P networking stack
-- `github.com/rollkit/rollkit/core/da` - Data Availability client interface
+- `github.com/evstack/ev-node/core/da` - Data Availability client interface
 
 ## Data Flow
 

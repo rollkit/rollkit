@@ -9,9 +9,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	coreda "github.com/evstack/ev-node/core/da"
+	"github.com/evstack/ev-node/types"
+	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
 )
 
 const (

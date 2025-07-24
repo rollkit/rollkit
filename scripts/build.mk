@@ -2,8 +2,8 @@
 VERSION := $(shell git describe --tags --abbrev=0)
 GITSHA := $(shell git rev-parse --short HEAD)
 LDFLAGS := \
-	-X github.com/rollkit/rollkit/pkg/cmd.Version=$(VERSION) \
-	-X github.com/rollkit/rollkit/pkg/cmd.GitSHA=$(GITSHA)
+	-X github.com/evstack/ev-node/pkg/cmd.Version=$(VERSION) \
+	-X github.com/evstack/ev-node/pkg/cmd.GitSHA=$(GITSHA)
 
 ## build: build Testapp CLI
 build:

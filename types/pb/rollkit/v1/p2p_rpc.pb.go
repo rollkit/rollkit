@@ -7,12 +7,13 @@
 package v1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -254,7 +255,7 @@ const file_rollkit_v1_p2p_rpc_proto_rawDesc = "" +
 	"P2PService\x12H\n" +
 	"\vGetPeerInfo\x12\x16.google.protobuf.Empty\x1a\x1f.rollkit.v1.GetPeerInfoResponse\"\x00\x12F\n" +
 	"\n" +
-	"GetNetInfo\x12\x16.google.protobuf.Empty\x1a\x1e.rollkit.v1.GetNetInfoResponse\"\x00B0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
+	"GetNetInfo\x12\x16.google.protobuf.Empty\x1a\x1e.rollkit.v1.GetNetInfoResponse\"\x00B0Z.github.com/evstack/ev-node/types/pb/rollkit/v1b\x06proto3"
 
 var (
 	file_rollkit_v1_p2p_rpc_proto_rawDescOnce sync.Once

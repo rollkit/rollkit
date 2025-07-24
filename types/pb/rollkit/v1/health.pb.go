@@ -7,12 +7,13 @@
 package v1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -139,7 +140,7 @@ const file_rollkit_v1_health_proto_rawDesc = "" +
 	"\x04WARN\x10\x02\x12\b\n" +
 	"\x04FAIL\x10\x032Q\n" +
 	"\rHealthService\x12@\n" +
-	"\x05Livez\x12\x16.google.protobuf.Empty\x1a\x1d.rollkit.v1.GetHealthResponse\"\x00B0Z.github.com/rollkit/rollkit/types/pb/rollkit/v1b\x06proto3"
+	"\x05Livez\x12\x16.google.protobuf.Empty\x1a\x1d.rollkit.v1.GetHealthResponse\"\x00B0Z.github.com/evstack/ev-node/types/pb/rollkit/v1b\x06proto3"
 
 var (
 	file_rollkit_v1_health_proto_rawDescOnce sync.Once
