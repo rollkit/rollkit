@@ -94,6 +94,6 @@ jobs:
             ev-client = "<version>"
             ```
 
-            See the [README](https://github.com/evstack/ev-node/tree/main/client/crates/ev-client) for usage examples.
+            See the [README](https://github.com/evstack/ev-node/tree/main/client/crates/client) for usage examples.
           draft: false
           prerelease: false
