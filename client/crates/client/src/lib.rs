@@ -5,7 +5,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use rollkit_client::{RollkitClient, HealthClient};
+//! use ev_client::{RollkitClient, HealthClient};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,7 +24,7 @@
 //! # Using the Builder Pattern
 //!
 //! ```no_run
-//! use rollkit_client::RollkitClient;
+//! use ev_client::RollkitClient;
 //! use std::time::Duration;
 //!
 //! #[tokio::main]
@@ -44,7 +44,7 @@
 //! # Using TLS
 //!
 //! ```no_run
-//! use rollkit_client::RollkitClient;
+//! use ev_client::RollkitClient;
 //! use tonic::transport::ClientTlsConfig;
 //!
 //! #[tokio::main]

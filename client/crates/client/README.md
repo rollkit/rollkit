@@ -32,7 +32,7 @@ tokio = { version = "1.45", features = ["full"] }
 ### Basic Example
 
 ```rust
-use rollkit_client::{RollkitClient, HealthClient};
+use ev_client::{RollkitClient, HealthClient};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Using the Builder Pattern
 
 ```rust
-use rollkit_client::RollkitClient;
+use ev_client::RollkitClient;
 use std::time::Duration;
 
 // Create a client with custom timeouts
@@ -66,7 +66,7 @@ let client = RollkitClient::builder()
 ### TLS Configuration
 
 ```rust
-use rollkit_client::{RollkitClient, ClientTlsConfig};
+use ev_client::{RollkitClient, ClientTlsConfig};
 
 // Enable TLS with default configuration
 let client = RollkitClient::builder()
@@ -89,7 +89,7 @@ let client = RollkitClient::builder()
 ### Legacy Connection Method
 
 ```rust
-use rollkit_client::RollkitClient;
+use ev_client::RollkitClient;
 use std::time::Duration;
 
 // Still supported for backward compatibility
@@ -141,7 +141,7 @@ cargo run --example basic
 ### Concurrent Usage Example
 
 ```rust
-use rollkit_client::{RollkitClient, StoreClient};
+use ev_client::{RollkitClient, StoreClient};
 use tokio::task;
 
 #[tokio::main]
