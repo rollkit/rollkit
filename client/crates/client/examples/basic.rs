@@ -1,4 +1,4 @@
-use rollkit_client::{HealthClient, P2PClient, RollkitClient, StoreClient};
+use ev_client::{HealthClient, P2PClient, RollkitClient, StoreClient};
 use std::error::Error;
 
 #[tokio::main]

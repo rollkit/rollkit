@@ -1,5 +1,5 @@
 use crate::{client::RollkitClient, error::Result};
-use rollkit_types::v1::{
+use ev_types::v1::{
     signer_service_client::SignerServiceClient, GetPublicRequest, GetPublicResponse, SignRequest,
     SignResponse,
 };

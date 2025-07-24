@@ -1,4 +1,4 @@
-use rollkit_client::{RollkitClient, RollkitClientError};
+use ev_client::{RollkitClient, RollkitClientError};
 
 #[tokio::test]
 async fn test_client_creation() {

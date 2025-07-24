@@ -1,5 +1,5 @@
 use crate::{client::RollkitClient, error::Result};
-use rollkit_types::v1::{
+use ev_types::v1::{
     p2p_service_client::P2pServiceClient, GetNetInfoResponse, GetPeerInfoResponse, NetInfo,
     PeerInfo,
 };

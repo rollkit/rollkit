@@ -1,7 +1,5 @@
 use crate::{client::RollkitClient, error::Result};
-use rollkit_types::v1::{
-    health_service_client::HealthServiceClient, GetHealthResponse, HealthStatus,
-};
+use ev_types::v1::{health_service_client::HealthServiceClient, GetHealthResponse, HealthStatus};
 use tonic::Request;
 
 pub struct HealthClient {

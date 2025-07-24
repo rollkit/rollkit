@@ -1,5 +1,5 @@
 use crate::{client::RollkitClient, error::Result};
-use rollkit_types::v1::{
+use ev_types::v1::{
     get_block_request::Identifier, store_service_client::StoreServiceClient, Block,
     GetBlockRequest, GetBlockResponse, GetMetadataRequest, GetMetadataResponse, GetStateResponse,
     State,

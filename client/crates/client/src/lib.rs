@@ -86,7 +86,7 @@ pub use signer::SignerClient;
 pub use store::StoreClient;
 
 // Re-export types from rollkit-types for convenience
-pub use rollkit_types::v1;
+pub use ev_types::v1;
 
 // Re-export tonic transport types for convenience
 pub use tonic::transport::ClientTlsConfig;
