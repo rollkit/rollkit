@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum RollkitClientError {
+pub enum ClientError {
     #[error("Transport error: {0}")]
     Transport(#[from] tonic::transport::Error),
 
@@ -18,4 +18,4 @@ pub enum RollkitClientError {
     Timeout,
 }
 
-pub type Result<T> = std::result::Result<T, RollkitClientError>;
+pub type Result<T> = std::result::Result<T, ClientError>;

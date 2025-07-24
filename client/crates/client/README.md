@@ -1,17 +1,17 @@
-# Rollkit Rust Client
+# Evolve Rust Client
 
 [![Rust Tests](https://github.com/evstack/ev-node/actions/workflows/rust-test.yml/badge.svg)](https://github.com/evstack/ev-node/actions/workflows/rust-test.yml)
 [![Rust Lint](https://github.com/evstack/ev-node/actions/workflows/rust-lint.yml/badge.svg)](https://github.com/evstack/ev-node/actions/workflows/rust-lint.yml)
 <!-- markdown-link-check-disable -->
-[![crates.io](https://img.shields.io/crates/v/rollkit-client.svg)](https://crates.io/crates/rollkit-client)
-[![docs.rs](https://docs.rs/rollkit-client/badge.svg)](https://docs.rs/rollkit-client)
+[![crates.io](https://img.shields.io/crates/v/ev-client.svg)](https://crates.io/crates/ev-client)
+[![docs.rs](https://docs.rs/ev-client/badge.svg)](https://docs.rs/ev-client)
 <!-- markdown-link-check-enable -->
 
-A Rust client library for interacting with Rollkit nodes via gRPC.
+A Rust client library for interacting with Evolve nodes via gRPC.
 
 ## Features
 
-- Full gRPC client implementation for all Rollkit services
+- Full gRPC client implementation for all Evolve services
 - Type-safe interfaces using generated protobuf types
 - Async/await support with Tokio
 - Connection management with configurable timeouts
@@ -23,7 +23,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rollkit-client = { path = "path/to/rollkit-client" }
+ev-client = { path = "path/to/client" }
 tokio = { version = "1.45", features = ["full"] }
 ```
 
@@ -32,12 +32,12 @@ tokio = { version = "1.45", features = ["full"] }
 ### Basic Example
 
 ```rust
-use ev_client::{RollkitClient, HealthClient};
+use ev_client::{Client, HealthClient};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Connect to a Rollkit node
-    let client = RollkitClient::connect("http://localhost:50051").await?;
+    let client = Client::connect("http://localhost:50051").await?;
 
     // Check health
     let health = HealthClient::new(&client);
@@ -51,11 +51,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Using the Builder Pattern
 
 ```rust
-use ev_client::RollkitClient;
+use ev_client::Client;
 use std::time::Duration;
 
 // Create a client with custom timeouts
-let client = RollkitClient::builder()
+let client = Client::builder()
     .endpoint("http://localhost:50051")
     .timeout(Duration::from_secs(30))
     .connect_timeout(Duration::from_secs(10))
@@ -66,10 +66,10 @@ let client = RollkitClient::builder()
 ### TLS Configuration
 
 ```rust
-use ev_client::{RollkitClient, ClientTlsConfig};
+use ev_client::{Client, ClientTlsConfig};
 
 // Enable TLS with default configuration
-let client = RollkitClient::builder()
+let client = Client::builder()
     .endpoint("https://secure-node.rollkit.dev")
     .tls()
     .build()
@@ -79,7 +79,7 @@ let client = RollkitClient::builder()
 let tls_config = ClientTlsConfig::new()
     .domain_name("secure-node.rollkit.dev");
 
-let client = RollkitClient::builder()
+let client = Client::builder()
     .endpoint("https://secure-node.rollkit.dev")
     .tls_config(tls_config)
     .build()
@@ -89,11 +89,11 @@ let client = RollkitClient::builder()
 ### Legacy Connection Method
 
 ```rust
-use ev_client::RollkitClient;
+use ev_client::Client;
 use std::time::Duration;
 
 // Still supported for backward compatibility
-let client = RollkitClient::connect_with_config(
+let client = Client::connect_with_config(
     "http://localhost:50051",
     |endpoint| {
         endpoint
@@ -141,12 +141,12 @@ cargo run --example basic
 ### Concurrent Usage Example
 
 ```rust
-use ev_client::{RollkitClient, StoreClient};
+use ev_client::{Client, StoreClient};
 use tokio::task;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = RollkitClient::connect("http://localhost:50051").await?;
+    let client = Client::connect("http://localhost:50051").await?;
     let store = StoreClient::new(&client);
 
     // Service clients can be used concurrently
@@ -172,7 +172,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Error Handling
 
-All methods return `Result<T, RollkitClientError>` where `RollkitClientError` encompasses:
+All methods return `Result<T, ClientError>` where `ClientError` encompasses:
 
 - Transport errors
 - RPC errors

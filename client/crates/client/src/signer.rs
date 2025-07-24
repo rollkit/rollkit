@@ -1,4 +1,4 @@
-use crate::{client::RollkitClient, error::Result};
+use crate::{client::Client, error::Result};
 use ev_types::v1::{
     signer_service_client::SignerServiceClient, GetPublicRequest, GetPublicResponse, SignRequest,
     SignResponse,
@@ -10,8 +10,8 @@ pub struct SignerClient {
 }
 
 impl SignerClient {
-    /// Create a new SignerClient from a RollkitClient
-    pub fn new(client: &RollkitClient) -> Self {
+    /// Create a new SignerClient from a Client
+    pub fn new(client: &Client) -> Self {
         let inner = SignerServiceClient::new(client.channel().clone());
         Self { inner }
     }

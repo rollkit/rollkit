@@ -5,12 +5,12 @@
 //! # Example
 //!
 //! ```no_run
-//! use ev_client::{RollkitClient, HealthClient};
+//! use ev_client::{Client, HealthClient};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Connect to a Rollkit node
-//!     let client = RollkitClient::connect("http://localhost:50051").await?;
+//!     let client = Client::connect("http://localhost:50051").await?;
 //!     
 //!     // Check health
 //!     let health = HealthClient::new(&client);
@@ -24,13 +24,13 @@
 //! # Using the Builder Pattern
 //!
 //! ```no_run
-//! use ev_client::RollkitClient;
+//! use ev_client::Client;
 //! use std::time::Duration;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create a client with custom timeouts
-//!     let client = RollkitClient::builder()
+//!     let client = Client::builder()
 //!         .endpoint("http://localhost:50051")
 //!         .timeout(Duration::from_secs(30))
 //!         .connect_timeout(Duration::from_secs(10))
@@ -44,13 +44,13 @@
 //! # Using TLS
 //!
 //! ```no_run
-//! use ev_client::RollkitClient;
+//! use ev_client::Client;
 //! use tonic::transport::ClientTlsConfig;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create a client with TLS enabled
-//!     let client = RollkitClient::builder()
+//!     let client = Client::builder()
 //!         .endpoint("https://secure-node.rollkit.dev")
 //!         .tls()  // Enable TLS with default configuration
 //!         .build()
@@ -60,7 +60,7 @@
 //!     let tls_config = ClientTlsConfig::new()
 //!         .domain_name("secure-node.rollkit.dev");
 //!     
-//!     let client = RollkitClient::builder()
+//!     let client = Client::builder()
 //!         .endpoint("https://secure-node.rollkit.dev")
 //!         .tls_config(tls_config)
 //!         .build()
@@ -78,8 +78,8 @@ pub mod signer;
 pub mod store;
 
 // Re-export main types for convenience
-pub use client::{RollkitClient, RollkitClientBuilder};
-pub use error::{Result, RollkitClientError};
+pub use client::{Client, ClientBuilder};
+pub use error::{ClientError, Result};
 pub use health::HealthClient;
 pub use p2p::P2PClient;
 pub use signer::SignerClient;

@@ -1,4 +1,4 @@
-use ev_client::{HealthClient, P2PClient, RollkitClient, StoreClient};
+use ev_client::{Client, HealthClient, P2PClient, StoreClient};
 use std::error::Error;
 
 #[tokio::main]
@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         std::env::var("ROLLKIT_ENDPOINT").unwrap_or_else(|_| "http://localhost:50051".to_string());
     println!("Connecting to Rollkit node at: {endpoint}");
 
-    let client = RollkitClient::connect(&endpoint).await?;
+    let client = Client::connect(&endpoint).await?;
     println!("Successfully connected to Rollkit node");
 
     // Check health status

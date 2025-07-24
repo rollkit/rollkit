@@ -1,4 +1,4 @@
-use crate::{client::RollkitClient, error::Result};
+use crate::{client::Client, error::Result};
 use ev_types::v1::{
     get_block_request::Identifier, store_service_client::StoreServiceClient, Block,
     GetBlockRequest, GetBlockResponse, GetMetadataRequest, GetMetadataResponse, GetStateResponse,
@@ -11,8 +11,8 @@ pub struct StoreClient {
 }
 
 impl StoreClient {
-    /// Create a new StoreClient from a RollkitClient
-    pub fn new(client: &RollkitClient) -> Self {
+    /// Create a new StoreClient from a Client
+    pub fn new(client: &Client) -> Self {
         let inner = StoreServiceClient::new(client.channel().clone());
         Self { inner }
     }

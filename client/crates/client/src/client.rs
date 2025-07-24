@@ -1,24 +1,24 @@
-use crate::error::{Result, RollkitClientError};
+use crate::error::{ClientError, Result};
 use std::time::Duration;
 use tonic::transport::{Channel, ClientTlsConfig, Endpoint};
 
 #[derive(Clone, Debug)]
-pub struct RollkitClient {
+pub struct Client {
     channel: Channel,
     endpoint: String,
 }
 
-/// Builder for configuring a RollkitClient
+/// Builder for configuring a Client
 #[derive(Debug)]
-pub struct RollkitClientBuilder {
+pub struct ClientBuilder {
     endpoint: String,
     timeout: Option<Duration>,
     connect_timeout: Option<Duration>,
     tls_config: Option<ClientTlsConfig>,
 }
 
-impl RollkitClient {
-    /// Create a new RollkitClient with the given endpoint
+impl Client {
+    /// Create a new Client with the given endpoint
     pub async fn connect(endpoint: impl Into<String>) -> Result<Self> {
         let endpoint = endpoint.into();
         let channel = Self::create_channel(&endpoint).await?;
@@ -26,9 +26,9 @@ impl RollkitClient {
         Ok(Self { channel, endpoint })
     }
 
-    /// Create a new RollkitClient builder
-    pub fn builder() -> RollkitClientBuilder {
-        RollkitClientBuilder {
+    /// Create a new Client builder
+    pub fn builder() -> ClientBuilder {
+        ClientBuilder {
             endpoint: String::new(),
             timeout: None,
             connect_timeout: None,
@@ -36,20 +36,17 @@ impl RollkitClient {
         }
     }
 
-    /// Create a new RollkitClient with custom channel configuration
+    /// Create a new Client with custom channel configuration
     pub async fn connect_with_config<F>(endpoint: impl Into<String>, config: F) -> Result<Self>
     where
         F: FnOnce(Endpoint) -> Endpoint,
     {
         let endpoint_str = endpoint.into();
         let endpoint = Endpoint::from_shared(endpoint_str.clone())
-            .map_err(|e| RollkitClientError::InvalidEndpoint(e.to_string()))?;
+            .map_err(|e| ClientError::InvalidEndpoint(e.to_string()))?;
 
         let endpoint = config(endpoint);
-        let channel = endpoint
-            .connect()
-            .await
-            .map_err(RollkitClientError::Transport)?;
+        let channel = endpoint.connect().await.map_err(ClientError::Transport)?;
 
         Ok(Self {
             channel,
@@ -69,20 +66,17 @@ impl RollkitClient {
 
     async fn create_channel(endpoint: &str) -> Result<Channel> {
         let endpoint = Endpoint::from_shared(endpoint.to_string())
-            .map_err(|e| RollkitClientError::InvalidEndpoint(e.to_string()))?
+            .map_err(|e| ClientError::InvalidEndpoint(e.to_string()))?
             .timeout(Duration::from_secs(10))
             .connect_timeout(Duration::from_secs(5));
 
-        let channel = endpoint
-            .connect()
-            .await
-            .map_err(RollkitClientError::Transport)?;
+        let channel = endpoint.connect().await.map_err(ClientError::Transport)?;
 
         Ok(channel)
     }
 }
 
-impl RollkitClientBuilder {
+impl ClientBuilder {
     /// Set the endpoint URL
     pub fn endpoint(mut self, endpoint: impl Into<String>) -> Self {
         self.endpoint = endpoint.into();
@@ -113,16 +107,16 @@ impl RollkitClientBuilder {
         self
     }
 
-    /// Build the RollkitClient
-    pub async fn build(self) -> Result<RollkitClient> {
+    /// Build the Client
+    pub async fn build(self) -> Result<Client> {
         if self.endpoint.is_empty() {
-            return Err(RollkitClientError::InvalidEndpoint(
+            return Err(ClientError::InvalidEndpoint(
                 "Endpoint cannot be empty".to_string(),
             ));
         }
 
         let endpoint = Endpoint::from_shared(self.endpoint.clone())
-            .map_err(|e| RollkitClientError::InvalidEndpoint(e.to_string()))?;
+            .map_err(|e| ClientError::InvalidEndpoint(e.to_string()))?;
 
         // Apply timeout configurations
         let endpoint = if let Some(timeout) = self.timeout {
@@ -144,12 +138,9 @@ impl RollkitClientBuilder {
             endpoint
         };
 
-        let channel = endpoint
-            .connect()
-            .await
-            .map_err(RollkitClientError::Transport)?;
+        let channel = endpoint.connect().await.map_err(ClientError::Transport)?;
 
-        Ok(RollkitClient {
+        Ok(Client {
             channel,
             endpoint: self.endpoint,
         })

@@ -1,4 +1,4 @@
-use crate::{client::RollkitClient, error::Result};
+use crate::{client::Client, error::Result};
 use ev_types::v1::{health_service_client::HealthServiceClient, GetHealthResponse, HealthStatus};
 use tonic::Request;
 
@@ -7,8 +7,8 @@ pub struct HealthClient {
 }
 
 impl HealthClient {
-    /// Create a new HealthClient from a RollkitClient
-    pub fn new(client: &RollkitClient) -> Self {
+    /// Create a new HealthClient from a Client
+    pub fn new(client: &Client) -> Self {
         let inner = HealthServiceClient::new(client.channel().clone());
         Self { inner }
     }

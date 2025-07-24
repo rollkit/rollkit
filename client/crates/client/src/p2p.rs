@@ -1,4 +1,4 @@
-use crate::{client::RollkitClient, error::Result};
+use crate::{client::Client, error::Result};
 use ev_types::v1::{
     p2p_service_client::P2pServiceClient, GetNetInfoResponse, GetPeerInfoResponse, NetInfo,
     PeerInfo,
@@ -10,8 +10,8 @@ pub struct P2PClient {
 }
 
 impl P2PClient {
-    /// Create a new P2PClient from a RollkitClient
-    pub fn new(client: &RollkitClient) -> Self {
+    /// Create a new P2PClient from a Client
+    pub fn new(client: &Client) -> Self {
         let inner = P2pServiceClient::new(client.channel().clone());
         Self { inner }
     }
