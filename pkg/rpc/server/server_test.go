@@ -23,7 +23,7 @@ import (
 	"github.com/evstack/ev-node/pkg/store"
 	"github.com/evstack/ev-node/test/mocks"
 	"github.com/evstack/ev-node/types"
-	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 func TestGetBlock(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 
 	coreda "github.com/evstack/ev-node/core/da"
 	"github.com/evstack/ev-node/types"
-	pb "github.com/evstack/ev-node/types/pb/rollkit/v1"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 const (
