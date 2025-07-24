@@ -44,7 +44,7 @@ jobs:
       - name: Package and publish ev-client (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
         run: |
-          cd client/crates/ev-client
+          cd client/crates/client
           cargo package --allow-dirty
           cargo publish --dry-run
 
