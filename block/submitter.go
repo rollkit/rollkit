@@ -76,7 +76,7 @@ func submitToDA(
 	m *Manager,
 	ctx context.Context,
 	marshaled [][]byte,
-	postSubmit func(int, *coreda.ResultSubmit, float64),
+	onSuccessfulSubmission func(int, *coreda.ResultSubmit, float64),
 	itemType string,
 ) error {
 	submittedAll := false
@@ -86,7 +86,7 @@ func submitToDA(
 	gasPrice := initialGasPrice
 	remaining := marshaled
 	numSubmitted := 0
-
+	var remainingLen int
 	for !submittedAll && attempt < maxSubmitAttempts {
 		select {
 		case <-ctx.Done():
@@ -95,7 +95,7 @@ func submitToDA(
 		case <-time.After(backoff):
 		}
 
-		remLen := len(remaining)
+		remainingLen = len(remaining)
 
 		submitctx, submitCtxCancel := context.WithTimeout(ctx, 60*time.Second)
 
@@ -111,13 +111,16 @@ func submitToDA(
 			m.recordDAMetrics("submission", DAModeSuccess)
 
 			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer", itemType), "gasPrice", gasPrice, "count", res.SubmittedCount)
-			if res.SubmittedCount == uint64(remLen) {
+			if res.SubmittedCount == uint64(remainingLen) {
 				submittedAll = true
 			}
 
+			// submittedCount represents both:
+			// 1. The number of items successfully submitted in this batch
+			// 2. The index range [submissionOffset : submissionOffset+submittedCount) of submitted items
 			submittedCount := int(res.SubmittedCount)
 			numSubmitted += submittedCount
-			postSubmit(submittedCount, &res, gasPrice)
+			onSuccessfulSubmission(submittedCount, &res, gasPrice)
 
 			remaining = remaining[res.SubmittedCount:]
 			backoff = 0
@@ -152,7 +155,7 @@ func submitToDA(
 		// Record final failure after all retries are exhausted
 		m.recordDAMetrics("submission", DAModeFail)
 		// If not all items are submitted, the remaining items will be retried in the next submission loop.
-		return fmt.Errorf("failed to submit all %s(s) to DA layer, submitted %d items (%d left) after %d attempts", itemType, numSubmitted, len(remaining), attempt)
+		return fmt.Errorf("failed to submit all %s(s) to DA layer, submitted %d items (%d left) after %d attempts", itemType, numSubmitted, remainingLen, attempt)
 	}
 	return nil
 }
@@ -178,7 +181,7 @@ func (m *Manager) submitHeadersToDA(ctx context.Context, headersToSubmit []*type
 	submissionOffset := 0
 
 	return submitToDA(m, ctx, marshaledHeaders,
-		func(submittedCount int, res *coreda.ResultSubmit, gasPrice float64) {
+		func(submittedCount int, res *coreda.ResultSubmit, currentGasPrice float64) {
 			for i := 0; i < submittedCount; i++ {
 				headerIdx := submissionOffset + i
 				if headerIdx < len(headersToSubmit) {
@@ -196,7 +199,7 @@ func (m *Manager) submitHeadersToDA(ctx context.Context, headersToSubmit []*type
 			m.pendingHeaders.setLastSubmittedHeaderHeight(ctx, lastSubmittedHeaderHeight)
 			// Update sequencer metrics if the sequencer supports it
 			if seq, ok := m.sequencer.(MetricsRecorder); ok {
-				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeaderHeight)
+				seq.RecordMetrics(currentGasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeaderHeight)
 			}
 			m.sendNonBlockingSignalToDAIncluderCh()
 		},
@@ -222,7 +225,7 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedDataToSubmit []*type
 	submissionOffset := 0
 
 	return submitToDA(m, ctx, marshaledSignedDataToSubmit,
-		func(submittedCount int, res *coreda.ResultSubmit, gasPrice float64) {
+		func(submittedCount int, res *coreda.ResultSubmit, currentGasPrice float64) {
 			for i := 0; i < submittedCount; i++ {
 				dataIdx := submissionOffset + i
 				if dataIdx < len(signedDataToSubmit) {
@@ -240,7 +243,7 @@ func (m *Manager) submitDataToDA(ctx context.Context, signedDataToSubmit []*type
 			m.pendingData.setLastSubmittedDataHeight(ctx, lastSubmittedDataHeight)
 			// Update sequencer metrics if the sequencer supports it
 			if seq, ok := m.sequencer.(MetricsRecorder); ok {
-				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingData.numPendingData(), lastSubmittedDataHeight)
+				seq.RecordMetrics(currentGasPrice, res.BlobSize, res.Code, m.pendingData.numPendingData(), lastSubmittedDataHeight)
 			}
 			m.sendNonBlockingSignalToDAIncluderCh()
 		},
