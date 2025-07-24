@@ -1,6 +1,6 @@
-# Rollkit
+# EV-node
 
-Rollkit is the first sovereign application framework. For more in-depth information about Rollkit, please visit our [website][docs].
+Ev-node is the basis of the Evolve Stack. For more in-depth information about Evolve, please visit our [website][docs].
 
 <!-- markdownlint-disable MD013 -->
 [![Go Report Card](https://goreportcard.com/badge/github.com/evstack/ev-node)](https://goreportcard.com/report/github.com/evstack/ev-node)
@@ -92,8 +92,6 @@ make proto-lint
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
-
-
 
 ## Audits
 
