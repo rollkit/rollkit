@@ -70,15 +70,13 @@ func (m *Manager) DataSubmissionLoop(ctx context.Context) {
 	}
 }
 
-// submitToDA is a generic helper for submitting items to the DA layer with retry, backoff, and gas price logic.
-// marshalFn marshals an item to []byte.
+// submitToDA is a helper for submitting marshaled items to the DA layer with retry, backoff, and gas price logic.
 // postSubmit is called after a successful submission to update caches, pending lists, etc.
-func submitToDA[T any](
+func submitToDA(
 	m *Manager,
 	ctx context.Context,
-	items []T,
-	marshalFn func(T) ([]byte, error),
-	postSubmit func([]T, *coreda.ResultSubmit, float64),
+	marshaled [][]byte,
+	onSuccessfulSubmission func(int, *coreda.ResultSubmit, float64),
 	itemType string,
 ) error {
 	submittedAll := false
@@ -86,20 +84,9 @@ func submitToDA[T any](
 	attempt := 0
 	initialGasPrice := m.gasPrice
 	gasPrice := initialGasPrice
-	remaining := items
+	remaining := marshaled
 	numSubmitted := 0
-
-	// Marshal all items once before the loop
-	marshaled := make([][]byte, len(items))
-	for i, item := range items {
-		bz, err := marshalFn(item)
-		if err != nil {
-			return fmt.Errorf("failed to marshal item: %w", err)
-		}
-		marshaled[i] = bz
-	}
-	remLen := len(items)
-
+	var remainingLen int
 	for !submittedAll && attempt < maxSubmitAttempts {
 		select {
 		case <-ctx.Done():
@@ -108,16 +95,14 @@ func submitToDA[T any](
 		case <-time.After(backoff):
 		}
 
-		// Use the current remaining items and marshaled bytes
-		currMarshaled := marshaled
-		remLen = len(remaining)
+		remainingLen = len(remaining)
 
 		submitctx, submitCtxCancel := context.WithTimeout(ctx, 60*time.Second)
 
 		// Record DA submission retry attempt
 		m.recordDAMetrics("submission", DAModeRetry)
 
-		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, currMarshaled, gasPrice, nil)
+		res := types.SubmitWithHelpers(submitctx, m.da, m.logger, remaining, gasPrice, nil)
 		submitCtxCancel()
 
 		switch res.Code {
@@ -126,16 +111,18 @@ func submitToDA[T any](
 			m.recordDAMetrics("submission", DAModeSuccess)
 
 			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer", itemType), "gasPrice", gasPrice, "count", res.SubmittedCount)
-			if res.SubmittedCount == uint64(remLen) {
+			if res.SubmittedCount == uint64(remainingLen) {
 				submittedAll = true
 			}
-			submitted := remaining[:res.SubmittedCount]
-			notSubmitted := remaining[res.SubmittedCount:]
-			notSubmittedMarshaled := currMarshaled[res.SubmittedCount:]
-			numSubmitted += int(res.SubmittedCount)
-			postSubmit(submitted, &res, gasPrice)
-			remaining = notSubmitted
-			marshaled = notSubmittedMarshaled
+
+			// submittedCount represents both:
+			// 1. The number of items successfully submitted in this batch
+			// 2. The index range [submissionOffset : submissionOffset+submittedCount) of submitted items
+			submittedCount := int(res.SubmittedCount)
+			numSubmitted += submittedCount
+			onSuccessfulSubmission(submittedCount, &res, gasPrice)
+
+			remaining = remaining[res.SubmittedCount:]
 			backoff = 0
 			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice / m.gasMultiplier
@@ -168,33 +155,51 @@ func submitToDA[T any](
 		// Record final failure after all retries are exhausted
 		m.recordDAMetrics("submission", DAModeFail)
 		// If not all items are submitted, the remaining items will be retried in the next submission loop.
-		return fmt.Errorf("failed to submit all %s(s) to DA layer, submitted %d items (%d left) after %d attempts", itemType, numSubmitted, remLen, attempt)
+		return fmt.Errorf("failed to submit all %s(s) to DA layer, submitted %d items (%d left) after %d attempts", itemType, numSubmitted, remainingLen, attempt)
 	}
 	return nil
 }
 
 // submitHeadersToDA submits a list of headers to the DA layer using the generic submitToDA helper.
 func (m *Manager) submitHeadersToDA(ctx context.Context, headersToSubmit []*types.SignedHeader) error {
-	return submitToDA(m, ctx, headersToSubmit,
-		func(header *types.SignedHeader) ([]byte, error) {
-			headerPb, err := header.ToProto()
-			if err != nil {
-				return nil, fmt.Errorf("failed to transform header to proto: %w", err)
+	if len(headersToSubmit) == 0 {
+		return nil
+	}
+	marshaledHeaders := make([][]byte, len(headersToSubmit))
+	for i, header := range headersToSubmit {
+		headerPb, err := header.ToProto()
+		if err != nil {
+			return fmt.Errorf("failed to transform header to proto: %w", err)
+		}
+		marshaledHeaders[i], err = proto.Marshal(headerPb)
+		if err != nil {
+			return fmt.Errorf("failed to marshal header to proto: %w", err)
+		}
+	}
+
+	// Track submission offset to maintain correspondence with original headers
+	submissionOffset := 0
+
+	return submitToDA(m, ctx, marshaledHeaders,
+		func(submittedCount int, res *coreda.ResultSubmit, currentGasPrice float64) {
+			for i := 0; i < submittedCount; i++ {
+				headerIdx := submissionOffset + i
+				if headerIdx < len(headersToSubmit) {
+					m.headerCache.SetDAIncluded(headersToSubmit[headerIdx].Hash().String(), res.Height)
+				}
 			}
-			return proto.Marshal(headerPb)
-		},
-		func(submitted []*types.SignedHeader, res *coreda.ResultSubmit, gasPrice float64) {
-			for _, header := range submitted {
-				m.headerCache.SetDAIncluded(header.Hash().String(), res.Height)
-			}
+
+			// Update submission offset for next potential retry
+			submissionOffset += submittedCount
+
 			lastSubmittedHeaderHeight := uint64(0)
-			if l := len(submitted); l > 0 {
-				lastSubmittedHeaderHeight = submitted[l-1].Height()
+			if submissionOffset > 0 && submissionOffset <= len(headersToSubmit) {
+				lastSubmittedHeaderHeight = headersToSubmit[submissionOffset-1].Height()
 			}
 			m.pendingHeaders.setLastSubmittedHeaderHeight(ctx, lastSubmittedHeaderHeight)
 			// Update sequencer metrics if the sequencer supports it
 			if seq, ok := m.sequencer.(MetricsRecorder); ok {
-				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeaderHeight)
+				seq.RecordMetrics(currentGasPrice, res.BlobSize, res.Code, m.pendingHeaders.numPendingHeaders(), lastSubmittedHeaderHeight)
 			}
 			m.sendNonBlockingSignalToDAIncluderCh()
 		},
@@ -204,22 +209,41 @@ func (m *Manager) submitHeadersToDA(ctx context.Context, headersToSubmit []*type
 
 // submitDataToDA submits a list of signed data to the DA layer using the generic submitToDA helper.
 func (m *Manager) submitDataToDA(ctx context.Context, signedDataToSubmit []*types.SignedData) error {
-	return submitToDA(m, ctx, signedDataToSubmit,
-		func(signedData *types.SignedData) ([]byte, error) {
-			return signedData.MarshalBinary()
-		},
-		func(submitted []*types.SignedData, res *coreda.ResultSubmit, gasPrice float64) {
-			for _, signedData := range submitted {
-				m.dataCache.SetDAIncluded(signedData.Data.DACommitment().String(), res.Height)
+	if len(signedDataToSubmit) == 0 {
+		return nil
+	}
+	marshaledSignedDataToSubmit := make([][]byte, len(signedDataToSubmit))
+	for i, signedData := range signedDataToSubmit {
+		marshaled, err := signedData.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("failed to marshal signed data: %w", err)
+		}
+		marshaledSignedDataToSubmit[i] = marshaled
+	}
+
+	// Track submission offset to maintain correspondence with original data
+	submissionOffset := 0
+
+	return submitToDA(m, ctx, marshaledSignedDataToSubmit,
+		func(submittedCount int, res *coreda.ResultSubmit, currentGasPrice float64) {
+			for i := 0; i < submittedCount; i++ {
+				dataIdx := submissionOffset + i
+				if dataIdx < len(signedDataToSubmit) {
+					m.dataCache.SetDAIncluded(signedDataToSubmit[dataIdx].Data.DACommitment().String(), res.Height)
+				}
 			}
+
+			// Update submission offset for next potential retry
+			submissionOffset += submittedCount
+
 			lastSubmittedDataHeight := uint64(0)
-			if l := len(submitted); l > 0 {
-				lastSubmittedDataHeight = submitted[l-1].Height()
+			if submissionOffset > 0 && submissionOffset <= len(signedDataToSubmit) {
+				lastSubmittedDataHeight = signedDataToSubmit[submissionOffset-1].Height()
 			}
 			m.pendingData.setLastSubmittedDataHeight(ctx, lastSubmittedDataHeight)
 			// Update sequencer metrics if the sequencer supports it
 			if seq, ok := m.sequencer.(MetricsRecorder); ok {
-				seq.RecordMetrics(gasPrice, res.BlobSize, res.Code, m.pendingData.numPendingData(), lastSubmittedDataHeight)
+				seq.RecordMetrics(currentGasPrice, res.BlobSize, res.Code, m.pendingData.numPendingData(), lastSubmittedDataHeight)
 			}
 			m.sendNonBlockingSignalToDAIncluderCh()
 		},
