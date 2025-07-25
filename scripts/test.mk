@@ -11,7 +11,7 @@ test:
 .PHONY: test
 
 ## test-all: Running all tests including Docker E2E
-test-all: test test-docker-e2e
+test-all: test test-docker-e2e-celestia
 	@echo "--> All tests completed"
 .PHONY: test-all
 
@@ -44,9 +44,9 @@ test-evm:
 	@echo "--> Running EVM tests"
 	@cd execution/evm && go test -mod=readonly -failfast -timeout=15m ./... -tags=evm
 
-## test-docker-e2e: Running Docker E2E tests
-test-docker-e2e: docker-build-if-local
-	@echo "--> Running Docker E2E tests"
+## test-docker-e2e-celestia: Running Docker E2E tests with Celestia
+test-docker-e2e-celestia: docker-build-if-local
+	@echo "--> Running Docker E2E tests with Celestia"
 	@echo "--> Verifying Docker image exists locally..."
 	@if [ -z "$(ROLLKIT_IMAGE_REPO)" ] || [ "$(ROLLKIT_IMAGE_REPO)" = "ev-node" ]; then \
 		echo "--> Verifying Docker image exists locally..."; \
@@ -54,6 +54,15 @@ test-docker-e2e: docker-build-if-local
 	fi
 	@cd test/docker-e2e && go test -mod=readonly -failfast -v -tags='docker_e2e' -timeout=30m ./...
 	@$(MAKE) docker-cleanup-if-local
+.PHONY: test-docker-e2e-celestia
+
+## test-docker-compose-e2e: Running Docker Compose E2E tests against locally running stack
+test-docker-compose-e2e:
+	@echo "--> Running Docker Compose E2E tests"
+	@echo "--> Note: This assumes docker-compose services are already running"
+	@echo "--> Start services first with: cd apps/evm/single && docker compose up -d"
+	@cd test/e2e && go test -v -timeout=10m -tags='evm' -run TestDockerComposeE2E ./...
+.PHONY: test-docker-compose-e2e
 
 ## docker-build-if-local: Build Docker image if using local repository
 docker-build-if-local:

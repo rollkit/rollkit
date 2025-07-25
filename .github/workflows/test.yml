@@ -79,10 +79,110 @@ jobs:
         with:
           go-version-file: ./test/docker-e2e/go.mod
       - name: Run Docker E2E Tests
-        run: make test-docker-e2e
+        run: make test-docker-e2e-celestia
         env:
           EV_NODE_IMAGE_REPO: ghcr.io/${{ github.repository }}
           EV_NODE_IMAGE_TAG: ${{ inputs.image-tag }}
+
+  docker-compose-e2e-tests:
+    name: Docker Compose E2E Tests
+    needs: build-ev-node-evm-single-image
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update docker-compose.yml to use PR image
+        run: |
+          cd apps/evm/single
+          # Replace the main image tag with PR-specific tag
+          sed -i 's|ghcr.io/evstack/ev-node-evm-single:main|ghcr.io/${{ github.repository_owner }}/ev-node-evm-single:${{ inputs.image-tag }}|g' docker-compose.yml
+          echo "Updated docker-compose.yml to use image: ghcr.io/${{ github.repository_owner }}/ev-node-evm-single:${{ inputs.image-tag }}"
+      - name: Pull required images
+        run: |
+          cd apps/evm/single
+          docker compose pull
+
+      - name: Start Docker Compose services
+        run: |
+          cd apps/evm/single
+          docker compose up -d
+          echo "Started docker-compose services"
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for all services to be healthy..."
+          cd apps/evm/single
+          
+          # Wait for all services to be healthy (Docker Compose health checks)
+          timeout 180s bash -c '
+            while true; do
+              echo "Checking service health status..."
+              docker compose ps
+              
+              # Check if all services are healthy by counting healthy services
+              healthy_services=$(docker compose ps --format "table {{.Service}}\t{{.Status}}" | grep -i "healthy" | wc -l)
+              total_services=3  # rollkit-reth, local-da, rollkit-evm-single
+              
+              if [ "$healthy_services" -eq "$total_services" ]; then
+                echo "✅ All $total_services services are healthy!"
+                break
+              fi
+              
+              echo "⏳ $healthy_services/$total_services services are healthy, waiting..."
+              sleep 10
+            done
+          '
+          
+          # Display final status  
+          echo "=== Final Service Status ==="
+          docker compose ps
+
+      - name: Run comprehensive Docker Compose E2E tests
+        run: |
+          # Run the comprehensive Go-based e2e test
+          cd test/e2e
+          echo "Running comprehensive Docker Compose E2E tests..."
+          go test -v -timeout=10m -tags='evm' -run TestDockerComposeE2E ./...
+        env:
+          # Ensure test can find the EVM at the expected Docker Compose ports
+          EVM_ENDPOINT: "http://localhost:8545"
+          DA_ENDPOINT: "http://localhost:7980"
+
+      - name: Display container logs on failure
+        if: failure()
+        run: |
+          cd apps/evm/single
+          echo "=== Container Status ==="
+          docker compose ps
+
+          echo "=== Rollkit Reth Logs ==="
+          docker compose logs rollkit-reth
+
+          echo "=== Local DA Logs ==="
+          docker compose logs local-da
+
+          echo "=== Rollkit EVM Single Logs ==="
+          docker compose logs rollkit-evm-single
+
+      - name: Cleanup
+        if: always()
+        run: |
+          cd apps/evm/single
+          docker compose down -v
+          docker system prune -f
 
   build_all-apps:
     name: Build All ev-node Binaries

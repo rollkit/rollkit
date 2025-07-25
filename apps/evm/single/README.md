@@ -7,6 +7,59 @@ This directory contains the implementation of a single EVM sequencer using Rollk
 - Go 1.20 or later
 - Docker and Docker Compose
 
+## Docker Compose Setup
+
+The easiest way to run the full EVM single sequencer stack is using Docker Compose:
+
+```bash
+# Start all services (Reth, Local DA, and Rollkit EVM Single)
+docker compose up -d
+
+# Check service status
+docker compose ps
+
+# View logs
+docker compose logs -f rollkit-evm-single
+
+# Stop all services
+docker compose down
+```
+
+This will start:
+- **rollkit-reth**: EVM execution engine (Reth) on ports 8545 (HTTP), 8551 (Engine API), 8546 (WebSocket)
+- **local-da**: Local data availability layer on port 7980
+- **rollkit-evm-single**: Rollkit EVM sequencer node
+
+### Testing the Docker Compose Setup
+
+To run comprehensive end-to-end tests against the Docker Compose stack:
+
+```bash
+# Start the services
+docker compose up -d
+
+# Wait for services to be ready (about 30-60 seconds)
+
+# Run the comprehensive e2e tests
+make test-docker-compose-e2e
+
+# Or run directly with Go
+cd ../../test/e2e
+go test -v -timeout=10m -tags='evm' -run TestDockerComposeE2E ./...
+```
+
+The e2e test suite will verify:
+- Service health and connectivity
+- Basic transaction processing
+- High-throughput transaction handling (20 transactions)
+- Error handling and system stability
+
+The test runs in approximately 5-7 seconds and provides comprehensive validation of the Docker Compose stack.
+
+## Manual Setup
+
+If you prefer to run components manually:
+
 ## Starting the Sequencer Node
 
 1. Both EVM and DA layers must be running before starting the sequencer

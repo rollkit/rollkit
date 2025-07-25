@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   rollkit-reth:
     container_name: rollkit-reth
@@ -15,6 +13,12 @@ services:
       - ./chain:/root/chain:ro
       - ./jwttoken:/root/jwt:ro
       - reth:/home/reth/eth-home
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/8545' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     entrypoint: /bin/sh -c
     command:
       - |
@@ -48,6 +52,12 @@ services:
     ports:
       - "7980:7980"
     command: ["-listen-all"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7980/health || nc -z localhost 7980 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
       - rollkit-network
 
@@ -55,12 +65,18 @@ services:
     image: ghcr.io/evstack/ev-node-evm-single:main
     depends_on:
       rollkit-reth:
-        condition: service_started
+        condition: service_healthy
       local-da:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - evm-single-data:/root/.evm-single/
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'evm-single start' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     entrypoint: /usr/bin/entrypoint.sh
     command: start
     environment:
