@@ -123,21 +123,32 @@ jobs:
           echo "Started docker-compose services"
       - name: Wait for services to be ready
         run: |
-          echo "Waiting for services to start..."
-          sleep 30
-          # Check if containers are running
+          echo "Waiting for all services to be healthy..."
           cd apps/evm/single
+          
+          # Wait for all services to be healthy (Docker Compose health checks)
+          timeout 180s bash -c '
+            while true; do
+              echo "Checking service health status..."
+              docker compose ps
+              
+              # Check if all services are healthy by counting healthy services
+              healthy_services=$(docker compose ps --format "table {{.Service}}\t{{.Status}}" | grep -i "healthy" | wc -l)
+              total_services=3  # rollkit-reth, local-da, rollkit-evm-single
+              
+              if [ "$healthy_services" -eq "$total_services" ]; then
+                echo "✅ All $total_services services are healthy!"
+                break
+              fi
+              
+              echo "⏳ $healthy_services/$total_services services are healthy, waiting..."
+              sleep 10
+            done
+          '
+          
+          # Display final status  
+          echo "=== Final Service Status ==="
           docker compose ps
-          # Wait for rollkit-reth to be ready
-          echo "Waiting for rollkit-reth to be ready..."
-          timeout 60s bash -c 'until curl -f http://localhost:8545 -X POST -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"net_version\",\"params\":[],\"id\":1}" &>/dev/null; do sleep 2; done'
-          # Wait for local-da to be ready (it uses JSON-RPC, not REST)
-          echo "Waiting for local-da to be ready..."
-          timeout 60s bash -c 'until curl -s -X POST http://localhost:7980 -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"da.Get\",\"params\":[\"test\",\"test\"],\"id\":1}" | grep -q "jsonrpc" &>/dev/null; do sleep 2; done'
-          # Wait for rollkit-evm-single to be ready
-          echo "Waiting for rollkit-evm-single to be ready..."
-          sleep 15
-          echo "All services are ready!"
 
       - name: Run comprehensive Docker Compose E2E tests
         run: |

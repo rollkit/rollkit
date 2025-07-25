@@ -45,13 +45,34 @@ import (
 func TestDockerComposeE2E(t *testing.T) {
 	flag.Parse()
 
-	// Connect to EVM (should be running on localhost:8545 in Docker Compose)
-	client, err := ethclient.Dial("http://localhost:8545")
-	require.NoError(t, err, "Should be able to connect to EVM via Docker Compose")
-	defer client.Close()
-
 	ctx := context.Background()
 	var globalNonce uint64 = 0
+
+	// Connect to EVM with retry logic (Docker Compose services might still be starting)
+	var client *ethclient.Client
+	var err error
+
+	t.Log("Connecting to EVM endpoint with retry logic...")
+	for attempt := 1; attempt <= 10; attempt++ {
+		client, err = ethclient.Dial("http://localhost:8545")
+		if err == nil {
+			// Test the connection immediately
+			_, testErr := client.ChainID(ctx)
+			if testErr == nil {
+				t.Logf("✅ Successfully connected to EVM on attempt %d", attempt)
+				break
+			}
+			client.Close()
+			err = testErr
+		}
+
+		if attempt < 10 {
+			t.Logf("Connection attempt %d failed: %v, retrying in 3 seconds...", attempt, err)
+			time.Sleep(3 * time.Second)
+		}
+	}
+	require.NoError(t, err, "Should be able to connect to EVM via Docker Compose after retries")
+	defer client.Close()
 
 	// ===== PHASE 1: Service Health Verification =====
 	t.Log("🔄 PHASE 1: Service Health Verification")
@@ -72,18 +93,33 @@ func TestDockerComposeE2E(t *testing.T) {
 	require.NoError(t, err, "Should be able to get network ID")
 	t.Logf("✅ Network ID: %s", networkID.String())
 
-	// Test DA endpoint connectivity (it uses JSON-RPC, not REST)
+	// Test DA endpoint connectivity with retry logic (it uses JSON-RPC, not REST)
 	t.Log("1b. Testing DA endpoint connectivity...")
 	httpClient := &http.Client{Timeout: 5 * time.Second}
-	// DA service responds to JSON-RPC calls, not simple GET requests
-	// We'll test connectivity by making a JSON-RPC request (even if it errors, that proves it's responsive)
-	daTestReq := strings.NewReader(`{"jsonrpc":"2.0","method":"da.Get","params":["test","test"],"id":1}`)
-	resp, err := httpClient.Post("http://localhost:7980", "application/json", daTestReq)
-	require.NoError(t, err, "DA endpoint should be accessible")
+
+	var resp *http.Response
+	for attempt := 1; attempt <= 5; attempt++ {
+		daTestReq := strings.NewReader(`{"jsonrpc":"2.0","method":"da.Get","params":["test","test"],"id":1}`)
+		resp, err = httpClient.Post("http://localhost:7980", "application/json", daTestReq)
+		if err == nil && (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusInternalServerError) {
+			t.Logf("✅ DA endpoint is responding to JSON-RPC requests (attempt %d)", attempt)
+			resp.Body.Close()
+			break
+		}
+
+		if resp != nil {
+			resp.Body.Close()
+		}
+
+		if attempt < 5 {
+			t.Logf("DA connection attempt %d failed (status: %v, err: %v), retrying...", attempt,
+				map[bool]interface{}{true: resp.StatusCode, false: "no response"}[resp != nil], err)
+			time.Sleep(2 * time.Second)
+		}
+	}
+	require.NoError(t, err, "DA endpoint should be accessible after retries")
 	require.True(t, resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusInternalServerError,
 		"DA should respond with JSON-RPC (status: %d)", resp.StatusCode)
-	resp.Body.Close()
-	t.Log("✅ DA endpoint is responding to JSON-RPC requests")
 
 	t.Log("✅ All services are healthy and responding")
 
