@@ -79,7 +79,7 @@ jobs:
         with:
           go-version-file: ./test/docker-e2e/go.mod
       - name: Run Docker E2E Tests
-        run: make test-docker-e2e
+        run: make test-docker-e2e-celestia
         env:
           EV_NODE_IMAGE_REPO: ghcr.io/${{ github.repository }}
           EV_NODE_IMAGE_TAG: ${{ inputs.image-tag }}

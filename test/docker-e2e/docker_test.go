@@ -37,7 +37,7 @@ func init() {
 	sdkConf.Seal()
 }
 
-func TestDockerSuite(t *testing.T) {
+func TestDockerCelestiaE2E(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping due to short mode")
 	}
