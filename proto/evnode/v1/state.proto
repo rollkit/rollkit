@@ -1,0 +1,19 @@
+syntax = "proto3";
+package evnode.v1;
+
+import "google/protobuf/timestamp.proto";
+import "evnode/v1/evnode.proto";
+
+option go_package = "github.com/evstack/ev-node/types/pb/evnode/v1";
+
+// State is the state of the blockchain.
+message State {
+  evnode.v1.Version         version           = 1;
+  string                    chain_id          = 2;
+  uint64                    initial_height    = 3;
+  uint64                    last_block_height = 4;
+  google.protobuf.Timestamp last_block_time   = 5;
+  uint64                    da_height         = 6;
+  bytes                     last_results_hash = 7;
+  bytes                     app_hash          = 8;
+}

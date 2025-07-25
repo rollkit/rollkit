@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package evnode.v1;
+
+option go_package = "github.com/evstack/ev-node/types/pb/evnode/v1";
+
+// The SignRequest holds the bytes we want to sign.
+message SignRequest {
+  bytes message = 1;
+}
+
+// The SignResponse returns the signature bytes.
+message SignResponse {
+  bytes signature = 1;
+}
+
+// The GetPublicRequest is an empty request.
+message GetPublicRequest {}
+
+// The GetPublicResponse returns the public key.
+message GetPublicResponse {
+  bytes public_key = 1;
+}
+
+// The SignerService defines the RPCs to sign and to retrieve the public key.
+service SignerService {
+  // Sign signs the given message.
+  rpc Sign(SignRequest) returns (SignResponse);
+  // GetPublic returns the public key.
+  rpc GetPublic(GetPublicRequest) returns (GetPublicResponse);
+}

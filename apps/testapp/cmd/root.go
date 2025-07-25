@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	rollkitconfig "github.com/evstack/ev-node/pkg/config"
 )
 
 const (

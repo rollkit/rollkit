@@ -164,4 +164,4 @@ Proposed
 
 ## References
 
-- [Block Manager Implementation](https://github.com/rollkit/rollkit/blob/main/block/manager.go)
+- [Block Manager Implementation](https://github.com/evstack/ev-node/blob/main/block/manager.go)

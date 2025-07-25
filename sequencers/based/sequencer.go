@@ -12,9 +12,9 @@ import (
 
 	datastore "github.com/ipfs/go-datastore"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/types"
+	coreda "github.com/evstack/ev-node/core/da"
+	coresequencer "github.com/evstack/ev-node/core/sequencer"
+	"github.com/evstack/ev-node/types"
 )
 
 var (

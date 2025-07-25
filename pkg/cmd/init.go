@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	rollconf "github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/hash"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
-	"github.com/rollkit/rollkit/pkg/signer/file"
+	rollconf "github.com/evstack/ev-node/pkg/config"
+	"github.com/evstack/ev-node/pkg/hash"
+	"github.com/evstack/ev-node/pkg/p2p/key"
+	"github.com/evstack/ev-node/pkg/signer/file"
 )
 
 // CreateSigner sets up the signer configuration and creates necessary files

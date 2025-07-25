@@ -10,7 +10,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/rollkit/rollkit/core/da"
+	"github.com/evstack/ev-node/core/da"
 )
 
 // Server is a jsonrpc service that can serve the DA interface

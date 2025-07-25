@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Rollkit is a sovereign rollup framework built in Go that allows developers to build rollups on any DA layer. It provides a modular architecture where components like the data availability layer, executor, and sequencer can be plugged in.
+ev-node is a sovereign rollup framework built in Go that allows developers to build rollups on any DA layer. It provides a modular architecture where components like the data availability layer, executor, and sequencer can be plugged in.
 
 ## Build and Development Commands
 
@@ -12,8 +12,8 @@ Rollkit is a sovereign rollup framework built in Go that allows developers to bu
 
 - `make build` - Builds the Testapp CLI to `./build/testapp`
 - `make install` - Installs Testapp CLI to your Go bin directory
-- `make build-all` - Builds all Rollkit binaries
-- `make docker-build` - Builds Docker image tagged as `rollkit:local-dev`
+- `make build-all` - Builds all ev-node binaries
+- `make docker-build` - Builds Docker image tagged as `evstack:local-dev`
 
 ### Testing
 

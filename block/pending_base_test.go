@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	storepkg "github.com/rollkit/rollkit/pkg/store"
-	mocksStore "github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
+	storepkg "github.com/evstack/ev-node/pkg/store"
+	mocksStore "github.com/evstack/ev-node/test/mocks"
+	"github.com/evstack/ev-node/types"
 )
 
 // --- Generic test case struct and helpers for pendingBase tests ---

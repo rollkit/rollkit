@@ -10,8 +10,8 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/rollkit/rollkit/core/da"
-	internal "github.com/rollkit/rollkit/da/jsonrpc/internal"
+	"github.com/evstack/ev-node/core/da"
+	internal "github.com/evstack/ev-node/da/jsonrpc/internal"
 )
 
 //go:generate mockgen -destination=mocks/api.go -package=mocks . Module

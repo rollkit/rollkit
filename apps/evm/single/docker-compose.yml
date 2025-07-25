@@ -4,7 +4,7 @@ services:
   rollkit-reth:
     container_name: rollkit-reth
     restart: unless-stopped
-    image: ghcr.io/rollkit/lumen:latest
+    image: ghcr.io/evstack/lumen:latest
     ports:
       - "9001:9001" # metrics
       - "30303:30303" # eth/66 peering
@@ -52,7 +52,7 @@ services:
       - rollkit-network
 
   rollkit-evm-single:
-    image: ghcr.io/rollkit/rollkit-evm-single:main
+    image: ghcr.io/evstack/ev-node-evm-single:main
     depends_on:
       rollkit-reth:
         condition: service_started

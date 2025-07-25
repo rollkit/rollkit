@@ -9,8 +9,8 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	coreexecutor "github.com/evstack/ev-node/core/execution"
+	coresequencer "github.com/evstack/ev-node/core/sequencer"
 )
 
 const DefaultInterval = 1 * time.Second

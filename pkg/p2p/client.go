@@ -24,9 +24,9 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
 
-	"github.com/rollkit/rollkit/pkg/config"
-	rollhash "github.com/rollkit/rollkit/pkg/hash"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
+	"github.com/evstack/ev-node/pkg/config"
+	rollhash "github.com/evstack/ev-node/pkg/hash"
+	"github.com/evstack/ev-node/pkg/p2p/key"
 )
 
 // TODO(tzdybal): refactor to configuration parameters

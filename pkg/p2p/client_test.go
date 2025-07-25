@@ -20,8 +20,8 @@ import (
 
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 
-	"github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
+	"github.com/evstack/ev-node/pkg/config"
+	"github.com/evstack/ev-node/pkg/p2p/key"
 )
 
 func TestNewClientWithHost(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	coreexecutor "github.com/evstack/ev-node/core/execution"
+	rollkitconfig "github.com/evstack/ev-node/pkg/config"
 )
 
 // TestTxGossipingMultipleNodesNoDA tests that transactions are gossiped and blocks are sequenced and synced across multiple nodes without the DA layer over P2P.
@@ -469,5 +469,3 @@ func testTwoChainsInOneNamespace(t *testing.T, chainID1 string, chainID2 string)
 	shutdownAndWait(t, cancels1, &runningWg1, 5*time.Second)
 	shutdownAndWait(t, cancels2, &runningWg2, 5*time.Second)
 }
-
-

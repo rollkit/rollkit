@@ -2,10 +2,10 @@
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/rollkit/rollkit"
+repository = "https://github.com/evstack/ev-node"
 
 [workspace]
-members = ["client/crates/rollkit-types", "client/crates/rollkit-client"]
+members = ["client/crates/types", "client/crates/client"]
 resolver = "2"
 
 [workspace.dependencies]

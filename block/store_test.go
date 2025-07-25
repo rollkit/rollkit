@@ -16,14 +16,14 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/signer/noop"
-	storepkg "github.com/rollkit/rollkit/pkg/store"
+	"github.com/evstack/ev-node/pkg/config"
+	"github.com/evstack/ev-node/pkg/signer/noop"
+	storepkg "github.com/evstack/ev-node/pkg/store"
 
 	// Use existing store mock if available, or define one
-	mocksStore "github.com/rollkit/rollkit/test/mocks"
-	extmocks "github.com/rollkit/rollkit/test/mocks/external"
-	"github.com/rollkit/rollkit/types"
+	mocksStore "github.com/evstack/ev-node/test/mocks"
+	extmocks "github.com/evstack/ev-node/test/mocks/external"
+	"github.com/evstack/ev-node/types"
 )
 
 func setupManagerForStoreRetrieveTest(t *testing.T) (

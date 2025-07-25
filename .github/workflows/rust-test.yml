@@ -53,7 +53,7 @@ jobs:
 
       - name: Check examples
         run: |
-          cd client/crates/rollkit-client
+          cd client/crates/client
           cargo check --examples --verbose
 
   coverage:

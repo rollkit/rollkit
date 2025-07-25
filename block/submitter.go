@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/types"
+	coreda "github.com/evstack/ev-node/core/da"
+	"github.com/evstack/ev-node/types"
 	"google.golang.org/protobuf/proto"
 )
 

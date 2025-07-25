@@ -22,9 +22,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/p2p/key"
-	"github.com/rollkit/rollkit/pkg/rpc/client"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	"github.com/evstack/ev-node/pkg/p2p/key"
+	"github.com/evstack/ev-node/pkg/rpc/client"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 // WorkDir defines the default working directory for spawned processes.
