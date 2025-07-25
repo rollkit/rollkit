@@ -1,0 +1,88 @@
+syntax = "proto3";
+package evnode.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/evstack/ev-node/types/pb/evnode/v1";
+
+// ExecutorService defines the execution layer interface for EVNode
+service ExecutorService {
+  // InitChain initializes a new blockchain instance with genesis parameters
+  rpc InitChain(InitChainRequest) returns (InitChainResponse) {}
+
+  // GetTxs fetches available transactions from the execution layer's mempool
+  rpc GetTxs(GetTxsRequest) returns (GetTxsResponse) {}
+
+  // ExecuteTxs processes transactions to produce a new block state
+  rpc ExecuteTxs(ExecuteTxsRequest) returns (ExecuteTxsResponse) {}
+
+  // SetFinal marks a block as finalized at the specified height
+  rpc SetFinal(SetFinalRequest) returns (SetFinalResponse) {}
+}
+
+// InitChainRequest contains the genesis parameters for chain initialization
+message InitChainRequest {
+  // Timestamp marking chain start time in UTC
+  google.protobuf.Timestamp genesis_time = 1;
+
+  // First block height (must be > 0)
+  uint64 initial_height = 2;
+
+  // Unique identifier string for the blockchain
+  string chain_id = 3;
+}
+
+// InitChainResponse contains the initial state and configuration
+message InitChainResponse {
+  // Hash representing initial state
+  bytes state_root = 1;
+
+  // Maximum allowed bytes for transactions in a block
+  uint64 max_bytes = 2;
+}
+
+// GetTxsRequest is the request for fetching transactions
+message GetTxsRequest {
+  // Empty for now, may include filtering criteria in the future
+}
+
+// GetTxsResponse contains the available transactions
+message GetTxsResponse {
+  // Slice of valid transactions from mempool
+  repeated bytes txs = 1;
+}
+
+// ExecuteTxsRequest contains transactions and block context for execution
+message ExecuteTxsRequest {
+  // Ordered list of transactions to execute
+  repeated bytes txs = 1;
+
+  // Height of block being created (must be > 0)
+  uint64 block_height = 2;
+
+  // Block creation time in UTC
+  google.protobuf.Timestamp timestamp = 3;
+
+  // Previous block's state root hash
+  bytes prev_state_root = 4;
+}
+
+// ExecuteTxsResponse contains the result of transaction execution
+message ExecuteTxsResponse {
+  // New state root after executing transactions
+  bytes updated_state_root = 1;
+
+  // Maximum allowed transaction size (may change with protocol updates)
+  uint64 max_bytes = 2;
+}
+
+// SetFinalRequest marks a block as finalized
+message SetFinalRequest {
+  // Height of block to finalize
+  uint64 block_height = 1;
+}
+
+// SetFinalResponse indicates whether finalization was successful
+message SetFinalResponse {
+  // Empty response, errors are returned via gRPC status
+}

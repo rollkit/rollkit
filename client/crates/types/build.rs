@@ -30,8 +30,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     prost_config.compile_protos(&proto_files, &[proto_root.as_path()])?;
 
     // Rename the generated file to messages.rs
-    let generated_file = proto_dir.join("rollkit.v1.rs");
-    let messages_file = proto_dir.join("rollkit.v1.messages.rs");
+    let generated_file = proto_dir.join("evnode.v1.rs");
+    let messages_file = proto_dir.join("evnode.v1.messages.rs");
     if generated_file.exists() {
         fs::rename(&generated_file, &messages_file)?;
     }
@@ -44,9 +44,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .compile(&proto_files, &[proto_root.as_path()])?;
 
     // Rename to services.rs
-    let services_file = proto_dir.join("rollkit.v1.services.rs");
-    if generated_file.exists() {
-        fs::rename(&generated_file, &services_file)?;
+    let generated_file_2 = proto_dir.join("evnode.v1.rs");
+    let services_file = proto_dir.join("evnode.v1.services.rs");
+    if generated_file_2.exists() {
+        fs::rename(&generated_file_2, &services_file)?;
     }
 
     println!("cargo:rerun-if-changed={}", proto_root.display());
