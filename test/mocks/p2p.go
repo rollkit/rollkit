@@ -5,8 +5,8 @@
 package mocks
 
 import (
+	"github.com/evstack/ev-node/pkg/p2p"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/rollkit/rollkit/pkg/p2p"
 	mock "github.com/stretchr/testify/mock"
 )
 

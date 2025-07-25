@@ -1,24 +1,24 @@
-module github.com/rollkit/rollkit/apps/evm/based
+module github.com/evstack/ev-node/apps/evm/based
 
 go 1.24.1
 
 toolchain go1.24.2
 
 replace (
-	github.com/rollkit/rollkit => ../../../
-	github.com/rollkit/rollkit/core => ../../../core
-	github.com/rollkit/rollkit/da => ../../../da
-	github.com/rollkit/rollkit/execution/evm => ../../../execution/evm
-	github.com/rollkit/rollkit/sequencers/based => ../../../sequencers/based
+	github.com/evstack/ev-node => ../../../
+	github.com/evstack/ev-node/core => ../../../core
+	github.com/evstack/ev-node/da => ../../../da
+	github.com/evstack/ev-node/execution/evm => ../../../execution/evm
+	github.com/evstack/ev-node/sequencers/based => ../../../sequencers/based
 )
 
 require (
 	github.com/ethereum/go-ethereum v1.15.0
-	github.com/rollkit/rollkit v0.14.2-0.20250317130407-e9e0a1b0485e
-	github.com/rollkit/rollkit/core v0.0.0-20250317130407-e9e0a1b0485e
-	github.com/rollkit/rollkit/da v0.0.0-20250317130407-e9e0a1b0485e
-	github.com/rollkit/rollkit/execution/evm v0.0.0-00010101000000-000000000000
-	github.com/rollkit/rollkit/sequencers/based v0.0.0-00010101000000-000000000000
+	github.com/evstack/ev-node v0.14.2-0.20250317130407-e9e0a1b0485e
+	github.com/evstack/ev-node/core v0.0.0-20250317130407-e9e0a1b0485e
+	github.com/evstack/ev-node/da v0.0.0-20250317130407-e9e0a1b0485e
+	github.com/evstack/ev-node/execution/evm v0.0.0-00010101000000-000000000000
+	github.com/evstack/ev-node/sequencers/based v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.9.1
 )
 

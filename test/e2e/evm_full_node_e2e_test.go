@@ -34,8 +34,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/rpc/client"
-	"github.com/rollkit/rollkit/pkg/store"
+	"github.com/evstack/ev-node/pkg/rpc/client"
+	"github.com/evstack/ev-node/pkg/store"
 )
 
 // Note: evmSingleBinaryPath is declared in evm_sequencer_e2e_test.go to avoid duplicate declaration

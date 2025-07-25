@@ -199,6 +199,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "ev-client"
+version = "0.0.1"
+dependencies = [
+ "async-trait",
+ "ev-types",
+ "futures",
+ "thiserror",
+ "tokio",
+ "tokio-test",
+ "tonic",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "ev-types"
+version = "0.0.1"
+dependencies = [
+ "prost",
+ "prost-build",
+ "prost-types",
+ "tonic",
+ "tonic-build",
+ "walkdir",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -851,34 +879,6 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "rollkit-client"
-version = "0.0.1"
-dependencies = [
- "async-trait",
- "futures",
- "rollkit-types",
- "thiserror",
- "tokio",
- "tokio-test",
- "tonic",
- "tower",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "rollkit-types"
-version = "0.0.1"
-dependencies = [
- "prost",
- "prost-build",
- "prost-types",
- "tonic",
- "tonic-build",
- "walkdir",
 ]
 
 [[package]]

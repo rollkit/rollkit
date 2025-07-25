@@ -1,16 +1,17 @@
-module github.com/rollkit/rollkit
+module github.com/evstack/ev-node
 
 go 1.24.1
 
 retract v0.12.0 // Published by accident
 
-replace github.com/rollkit/rollkit/core => ./core
+replace github.com/evstack/ev-node/core => ./core
 
 require (
 	connectrpc.com/connect v1.18.1
 	connectrpc.com/grpcreflect v1.3.0
 	github.com/celestiaorg/go-header v0.6.6
 	github.com/celestiaorg/utils v0.1.0
+	github.com/evstack/ev-node/core v0.0.0-00010101000000-000000000000
 	github.com/go-kit/kit v0.13.0
 	github.com/goccy/go-yaml v1.18.0
 	github.com/ipfs/go-datastore v0.8.2
@@ -22,7 +23,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/multiformats/go-multiaddr v0.16.0
 	github.com/prometheus/client_golang v1.22.0
-	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.20.1

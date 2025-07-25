@@ -7,7 +7,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/evstack/ev-node/types"
 	mock "github.com/stretchr/testify/mock"
 )
 

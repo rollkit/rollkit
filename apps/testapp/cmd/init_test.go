@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	rollconf "github.com/rollkit/rollkit/pkg/config"
+	rollconf "github.com/evstack/ev-node/pkg/config"
 )
 
 func TestInitCommand(t *testing.T) {

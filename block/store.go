@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/evstack/ev-node/types"
 )
 
 // HeaderStoreRetrieveLoop is responsible for retrieving headers from the Header Store.

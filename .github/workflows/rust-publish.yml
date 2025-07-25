@@ -28,49 +28,49 @@ jobs:
       - name: Check crate versions
         run: |
           echo "=== Checking crate versions ==="
-          echo "rollkit-types version: $(cargo pkgid -p rollkit-types | cut -d# -f2)"
-          echo "rollkit-client version: $(cargo pkgid -p rollkit-client | cut -d# -f2)"
+          echo "types version: $(cargo pkgid -p ev-types | cut -d# -f2)"
+          echo "ev-client version: $(cargo pkgid -p ev-client | cut -d# -f2)"
 
       - name: Run tests
         run: cargo test --workspace --all-features
 
-      - name: Package and publish rollkit-types (dry run)
+      - name: Package and publish ev-types (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
         run: |
-          cd client/crates/rollkit-types
+          cd client/crates/types
           cargo package --allow-dirty
           cargo publish --dry-run
 
-      - name: Package and publish rollkit-client (dry run)
+      - name: Package and publish ev-client (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
         run: |
-          cd client/crates/rollkit-client
+          cd client/crates/client
           cargo package --allow-dirty
           cargo publish --dry-run
 
-      - name: Publish rollkit-types
+      - name: Publish ev-types
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          cd client/crates/rollkit-types
+          cd client/crates/types
           cargo package --allow-dirty
           cargo publish
 
-      - name: Wait for rollkit-types to be available
+      - name: Wait for ev-types to be available
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
         run: |
-          echo "Waiting for rollkit-types to be available on crates.io..."
+          echo "Waiting for ev-types to be available on crates.io..."
           sleep 60
           # Verify the package is available
-          cargo search rollkit-types --limit 1
+          cargo search ev-types --limit 1
 
-      - name: Publish rollkit-client
+      - name: Publish ev-client
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          cd client/crates/rollkit-client
+          cd client/crates/client
           cargo package --allow-dirty
           cargo publish
 
@@ -83,17 +83,17 @@ jobs:
             # Rust Client Release
 
             This release includes:
-            - `rollkit-types`: Proto-generated types for Rollkit
-            - `rollkit-client`: High-level Rust client for Rollkit gRPC services
+            - `ev-types`: Proto-generated types for ev-node
+            - `ev-client`: High-level Rust client for ev-node gRPC services
 
             ## Installation
 
             Add to your `Cargo.toml`:
             ```toml
             [dependencies]
-            rollkit-client = "<version>"
+            ev-client = "<version>"
             ```
 
-            See the [README](https://github.com/rollkit/rollkit/tree/main/client/crates/rollkit-client) for usage examples.
+            See the [README](https://github.com/evstack/ev-node/tree/main/client/crates/client) for usage examples.
           draft: false
           prerelease: false

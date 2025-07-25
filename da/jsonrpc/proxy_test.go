@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/evstack/ev-node/da/internal/mocks"
+	proxy "github.com/evstack/ev-node/da/jsonrpc"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/rollkit/rollkit/da/internal/mocks"
-	proxy "github.com/rollkit/rollkit/da/jsonrpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	coreda "github.com/rollkit/rollkit/core/da"
+	coreda "github.com/evstack/ev-node/core/da"
 )
 
 const (

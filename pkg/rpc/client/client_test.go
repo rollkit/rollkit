@@ -15,11 +15,11 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/rpc/server"
-	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
-	rpc "github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
+	"github.com/evstack/ev-node/pkg/p2p"
+	"github.com/evstack/ev-node/pkg/rpc/server"
+	"github.com/evstack/ev-node/test/mocks"
+	"github.com/evstack/ev-node/types"
+	rpc "github.com/evstack/ev-node/types/pb/evnode/v1/v1connect"
 )
 
 // setupTestServer creates a test server with mock store and mock p2p manager

@@ -1,20 +1,20 @@
-module github.com/rollkit/rollkit/test/e2e
+module github.com/evstack/ev-node/test/e2e
 
 go 1.24.2
 
 require (
 	github.com/ethereum/go-ethereum v1.15.0
+	github.com/evstack/ev-node v0.0.0-00010101000000-000000000000
+	github.com/evstack/ev-node/execution/evm v0.0.0-20250602130019-2a732cf903a5
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/libp2p/go-libp2p v0.41.1
-	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
-	github.com/rollkit/rollkit/execution/evm v0.0.0-20250602130019-2a732cf903a5
 	github.com/stretchr/testify v1.10.0
 )
 
 replace (
-	github.com/rollkit/rollkit => ../../
-	github.com/rollkit/rollkit/core => ../../core
-	github.com/rollkit/rollkit/execution/evm => ../../execution/evm
+	github.com/evstack/ev-node => ../../
+	github.com/evstack/ev-node/core => ../../core
+	github.com/evstack/ev-node/execution/evm => ../../execution/evm
 )
 
 require (
@@ -87,6 +87,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.3 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
+	github.com/evstack/ev-node/core v0.0.0-20250312114929-104787ba1a4c // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsevents v0.2.0 // indirect
 	github.com/fvbommel/sortorder v1.1.0 // indirect
@@ -191,7 +192,6 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/r3labs/sse v0.0.0-20210224172625-26fe804710bc // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.4.0 // indirect
 	github.com/serialx/hashring v0.0.0-20200727003509-22c0c7ab6b1b // indirect
 	github.com/shibumi/go-pathspec v1.3.0 // indirect

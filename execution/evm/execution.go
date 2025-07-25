@@ -18,7 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/rollkit/rollkit/core/execution"
+	"github.com/evstack/ev-node/core/execution"
 )
 
 var (

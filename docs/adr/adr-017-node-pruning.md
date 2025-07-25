@@ -942,6 +942,6 @@ Proposed
 
 ## References
 
-- [Rollkit Store Implementation](https://github.com/rollkit/rollkit/blob/main/pkg/store/store.go)
-- [Block Manager](https://github.com/rollkit/rollkit/blob/main/block/manager.go)
-- [Store Interface](https://github.com/rollkit/rollkit/blob/main/pkg/store/types.go)
+- [Rollkit Store Implementation](https://github.com/evstack/ev-node/blob/main/pkg/store/store.go)
+- [Block Manager](https://github.com/evstack/ev-node/blob/main/block/manager.go)
+- [Store Interface](https://github.com/evstack/ev-node/blob/main/pkg/store/types.go)

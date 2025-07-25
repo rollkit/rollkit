@@ -5,8 +5,8 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/rollkit/rollkit/pkg/store"
-	"github.com/rollkit/rollkit/types"
+	"github.com/evstack/ev-node/pkg/store"
+	"github.com/evstack/ev-node/types"
 )
 
 // LastSubmittedDataHeightKey is the key used for persisting the last submitted data height in store.

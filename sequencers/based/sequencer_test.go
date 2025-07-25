@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
+	coreda "github.com/evstack/ev-node/core/da"
+	coresequencer "github.com/evstack/ev-node/core/sequencer"
 	ds "github.com/ipfs/go-datastore"
-	coreda "github.com/rollkit/rollkit/core/da"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/rollkit/rollkit/sequencers/based"
+	"github.com/evstack/ev-node/sequencers/based"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +23,7 @@ func newTestSequencer(t *testing.T) *based.Sequencer {
 	dummyDA.StartHeightTicker()
 	store := ds.NewMapDatastore()
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	seq, err := based.NewSequencer(logger, dummyDA, []byte("test1"), 0, 2, store)
 	assert.NoError(t, err)
 	return seq
@@ -97,7 +97,7 @@ func TestSequencer_GetNextBatch_ExceedsMaxDrift(t *testing.T) {
 	dummyDA := coreda.NewDummyDA(100_000_000, 1.0, 1.5, 10*time.Second)
 	store := ds.NewMapDatastore()
 	logger := logging.Logger("test")
-	_ = logging.SetLogLevel("test", "FATAL") 
+	_ = logging.SetLogLevel("test", "FATAL")
 	sequencer, err := based.NewSequencer(logger, dummyDA, []byte("test1"), 0, 0, store)
 	assert.NoError(t, err)
 

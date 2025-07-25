@@ -59,7 +59,7 @@ jobs:
         run: |
           rm -rf /opt/homebrew/bin/gtar
       - name: Version Release
-        uses: rollkit/.github/.github/actions/version-release@v0.5.0
+        uses: evstack/.github/.github/actions/version-release@v0.5.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           version-bump: ${{inputs.version}}

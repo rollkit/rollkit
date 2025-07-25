@@ -5,8 +5,8 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	storepkg "github.com/rollkit/rollkit/pkg/store"
-	"github.com/rollkit/rollkit/types"
+	storepkg "github.com/evstack/ev-node/pkg/store"
+	"github.com/evstack/ev-node/types"
 )
 
 // PendingHeaders maintains headers that need to be published to DA layer

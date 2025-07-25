@@ -1,0 +1,56 @@
+use crate::{client::Client, error::Result};
+use ev_types::v1::{
+    p2p_service_client::P2pServiceClient, GetNetInfoResponse, GetPeerInfoResponse, NetInfo,
+    PeerInfo,
+};
+use tonic::Request;
+
+pub struct P2PClient {
+    inner: P2pServiceClient<tonic::transport::Channel>,
+}
+
+impl P2PClient {
+    /// Create a new P2PClient from a Client
+    pub fn new(client: &Client) -> Self {
+        let inner = P2pServiceClient::new(client.channel().clone());
+        Self { inner }
+    }
+
+    /// Get information about connected peers
+    pub async fn get_peer_info(&self) -> Result<Vec<PeerInfo>> {
+        let request = Request::new(());
+        let response = self.inner.clone().get_peer_info(request).await?;
+
+        Ok(response.into_inner().peers)
+    }
+
+    /// Get network information
+    pub async fn get_net_info(&self) -> Result<NetInfo> {
+        let request = Request::new(());
+        let response = self.inner.clone().get_net_info(request).await?;
+
+        Ok(response.into_inner().net_info.unwrap_or_default())
+    }
+
+    /// Get the full peer info response
+    pub async fn get_peer_info_response(&self) -> Result<GetPeerInfoResponse> {
+        let request = Request::new(());
+        let response = self.inner.clone().get_peer_info(request).await?;
+
+        Ok(response.into_inner())
+    }
+
+    /// Get the full network info response
+    pub async fn get_net_info_response(&self) -> Result<GetNetInfoResponse> {
+        let request = Request::new(());
+        let response = self.inner.clone().get_net_info(request).await?;
+
+        Ok(response.into_inner())
+    }
+
+    /// Get the number of connected peers
+    pub async fn peer_count(&self) -> Result<usize> {
+        let peers = self.get_peer_info().await?;
+        Ok(peers.len())
+    }
+}

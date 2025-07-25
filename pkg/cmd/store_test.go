@@ -38,7 +38,7 @@ func TestStoreUnsafeCleanCmd(t *testing.T) {
 	tempDir := t.TempDir()
 	dataDir := filepath.Join(tempDir, "data")
 	configDir := filepath.Join(tempDir, "config")
-	configFile := filepath.Join(configDir, "rollkit.yml")
+	configFile := filepath.Join(configDir, "evnode.yml")
 
 	// Create necessary directories
 	require.NoError(t, os.Mkdir(configDir, 0755))

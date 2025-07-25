@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/cmd"
-	rollconf "github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/signer/file"
+	"github.com/evstack/ev-node/pkg/cmd"
+	rollconf "github.com/evstack/ev-node/pkg/config"
+	"github.com/evstack/ev-node/pkg/signer/file"
 )
 
 // setupRootCmd creates a new root command and adds the keys command to it.

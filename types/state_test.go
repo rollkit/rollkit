@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/evstack/ev-node/pkg/genesis"
 )
 
 // TestNewFromGenesisDoc tests the creation of State from a Genesis document.

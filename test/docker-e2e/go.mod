@@ -1,4 +1,4 @@
-module github.com/rollkit/rollkit/test/docker-e2e
+module github.com/evstack/ev-node/test/docker-e2e
 
 go 1.24.2
 
