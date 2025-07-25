@@ -55,6 +55,14 @@ test-docker-e2e: docker-build-if-local
 	@cd test/docker-e2e && go test -mod=readonly -failfast -v -tags='docker_e2e' -timeout=30m ./...
 	@$(MAKE) docker-cleanup-if-local
 
+## test-docker-compose-e2e: Running Docker Compose E2E tests against locally running stack
+test-docker-compose-e2e:
+	@echo "--> Running Docker Compose E2E tests"
+	@echo "--> Note: This assumes docker-compose services are already running"
+	@echo "--> Start services first with: cd apps/evm/single && docker compose up -d"
+	@cd test/e2e && go test -v -timeout=10m -tags='evm' -run TestDockerComposeE2E ./...
+.PHONY: test-docker-compose-e2e
+
 ## docker-build-if-local: Build Docker image if using local repository
 docker-build-if-local:
 	@if [ -z "$(ROLLKIT_IMAGE_REPO)" ] || [ "$(ROLLKIT_IMAGE_REPO)" = "evstack" ]; then \
