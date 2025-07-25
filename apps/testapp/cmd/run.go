@@ -7,14 +7,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	kvexecutor "github.com/rollkit/rollkit/apps/testapp/kv"
-	"github.com/rollkit/rollkit/da/jsonrpc"
-	"github.com/rollkit/rollkit/node"
-	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
-	"github.com/rollkit/rollkit/pkg/store"
-	"github.com/rollkit/rollkit/sequencers/single"
+	kvexecutor "github.com/evstack/ev-node/apps/testapp/kv"
+	"github.com/evstack/ev-node/da/jsonrpc"
+	"github.com/evstack/ev-node/node"
+	rollcmd "github.com/evstack/ev-node/pkg/cmd"
+	"github.com/evstack/ev-node/pkg/p2p"
+	"github.com/evstack/ev-node/pkg/p2p/key"
+	"github.com/evstack/ev-node/pkg/store"
+	"github.com/evstack/ev-node/sequencers/single"
 )
 
 var RunCmd = &cobra.Command{

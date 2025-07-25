@@ -1,12 +1,12 @@
 reviewers:
   defaults:
-    - rollkit
+    - ev-node
   groups:
-    rollkit:
+    ev-node:
       - team:core
 files:
   ".github/**":
-    - rollkit
+    - ev-node
 options:
   ignore_draft: true
   ignored_keywords:

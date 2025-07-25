@@ -19,7 +19,7 @@ updates:
     schedule:
       interval: daily
     allow:
-      - dependency-name: "rollkit/*"
+      - dependency-name: "ev-node/*"
     labels:
       - T:dependencies
     # Group all patch updates into a single PR
@@ -48,7 +48,7 @@ updates:
     schedule:
       interval: daily
     allow:
-      - dependency-name: "github.com/rollkit/*"
+      - dependency-name: "github.com/ev-node/*"
     labels:
       - T:dependencies
     # Group all patch updates into a single PR

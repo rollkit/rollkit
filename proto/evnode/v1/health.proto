@@ -1,0 +1,32 @@
+syntax = "proto3";
+package evnode.v1;
+
+import "google/protobuf/empty.proto";
+import "evnode/v1/evnode.proto";
+import "evnode/v1/state.proto";
+
+option go_package = "github.com/evstack/ev-node/types/pb/evnode/v1";
+
+// HealthService defines the RPC service for the health package
+service HealthService {
+  // Livez returns the health status of the node
+  rpc Livez(google.protobuf.Empty) returns (GetHealthResponse) {}
+}
+
+// HealthStatus defines the health status of the node
+enum HealthStatus {
+  // Unknown health status
+  UNKNOWN = 0;
+  // Healthy status (Healthy)
+  PASS = 1;
+  // Degraded but still serving
+  WARN = 2;
+  // Hard fail
+  FAIL = 3;
+}
+
+// GetHealthResponse defines the response for retrieving health status
+message GetHealthResponse {
+  // Health status
+  HealthStatus status = 1;
+}

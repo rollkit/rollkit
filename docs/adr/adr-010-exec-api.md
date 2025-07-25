@@ -309,5 +309,5 @@ Accepted
 
 ## References
 
-- [Rollkit EPIC for Execution API](https://github.com/rollkit/rollkit/issues/1802)
+- [Rollkit EPIC for Execution API](https://github.com/evstack/ev-node/issues/1802)
 - [go-execution repository](https://github.com/rollkit/go-execution)

@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/cmd"
-	rollconf "github.com/rollkit/rollkit/pkg/config"
+	"github.com/evstack/ev-node/pkg/cmd"
+	rollconf "github.com/evstack/ev-node/pkg/config"
 )
 
 // Test CreateSigner scenarios

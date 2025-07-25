@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/signer/noop"
+	"github.com/evstack/ev-node/pkg/signer/noop"
 )
 
 func TestSignedHeader(t *testing.T) {

@@ -27,8 +27,8 @@ import (
     "context"
     "log"
 
-    "github.com/rollkit/rollkit/pkg/rpc/server"
-    "github.com/rollkit/rollkit/pkg/store"
+    "github.com/evstack/ev-node/pkg/rpc/server"
+    "github.com/evstack/ev-node/pkg/store"
 )
 
 func main() {
@@ -49,7 +49,7 @@ import (
     "context"
     "fmt"
 
-    "github.com/rollkit/rollkit/pkg/rpc/client"
+    "github.com/evstack/ev-node/pkg/rpc/client"
 )
 
 func main() {

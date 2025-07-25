@@ -215,9 +215,9 @@ sequenceDiagram
 
 ## Implementation
 
-The implementation of this separation can be found in the Rollkit repository, specifically in the changes made to the `manager.go` file. The `publishBlock` method illustrates the creation of separate header and data structures, and the associated logic for handling them independently. See [Rollkit PR #1789](https://github.com/rollkit/rollkit/pull/1789)
+The implementation of this separation can be found in the Rollkit repository, specifically in the changes made to the `manager.go` file. The `publishBlock` method illustrates the creation of separate header and data structures, and the associated logic for handling them independently. See [Rollkit PR #1789](https://github.com/evstack/ev-node/pull/1789)
 
 ## References
 
-- [Rollkit PR #1789](https://github.com/rollkit/rollkit/pull/1789)
+- [Rollkit PR #1789](https://github.com/evstack/ev-node/pull/1789)
 - [Proposer-Builder Separation](https://www.alchemy.com/overviews/proposer-builder-separation)

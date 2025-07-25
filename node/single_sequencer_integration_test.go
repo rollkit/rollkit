@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	coreda "github.com/evstack/ev-node/core/da"
+	coreexecutor "github.com/evstack/ev-node/core/execution"
+	rollkitconfig "github.com/evstack/ev-node/pkg/config"
 
 	testutils "github.com/celestiaorg/utils/test"
 )
@@ -300,9 +300,9 @@ func TestBatchQueueThrottlingWithDAFailure(t *testing.T) {
 
 	// Set up configuration with low limits to trigger throttling quickly
 	config := getTestConfig(t, 1)
-	config.Node.MaxPendingHeadersAndData = 3  // Low limit to quickly reach pending limit after DA failure
+	config.Node.MaxPendingHeadersAndData = 3 // Low limit to quickly reach pending limit after DA failure
 	config.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 100 * time.Millisecond}
-	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 1 * time.Second}  // Longer DA time to ensure blocks are produced first
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 1 * time.Second} // Longer DA time to ensure blocks are produced first
 
 	// Create test components
 	executor, sequencer, dummyDA, p2pClient, ds, _, stopDAHeightTicker := createTestComponents(t, config)
@@ -382,11 +382,11 @@ func TestBatchQueueThrottlingWithDAFailure(t *testing.T) {
 	// The height should not have increased much due to MaxPendingHeadersAndData limit
 	// Allow at most 3 additional blocks due to timing and pending blocks in queue
 	heightIncrease := finalHeight - heightAfterDAFailure
-	require.LessOrEqual(heightIncrease, uint64(3), 
+	require.LessOrEqual(heightIncrease, uint64(3),
 		"Height should not increase significantly when DA is down and MaxPendingHeadersAndData limit is reached")
 
 	t.Logf("Successfully demonstrated that MaxPendingHeadersAndData prevents runaway block production when DA fails")
-	t.Logf("Height progression: initial=%d, after_DA_failure=%d, final=%d", 
+	t.Logf("Height progression: initial=%d, after_DA_failure=%d, final=%d",
 		initialHeight, heightAfterDAFailure, finalHeight)
 
 	// This test demonstrates the scenario described in the PR:

@@ -10,7 +10,7 @@
 1. [PayForMessage transactions](https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#signedtransactiondatapayformessage) include a commitment of roots of subtrees of the Celestia data root. This is a requirement for compact proofs that a message was or was not included correctly.
 1. [Over the wire](https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#wiretxpayformessage), PayForMessage transactions include (potentially) multiple signatures for the same message with different sizes of Celestia block, to allow for [non-interactive message inclusion](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules).
 
-Blocks must follow a similar strategy to the above. Specifically, the data root in block headers [must commit to subtree roots in the Celestia data root](https://github.com/rollkit/rollkit/issues/133), otherwise nodes would not have any guarantees that the data behind the data root in a block header is available.
+Blocks must follow a similar strategy to the above. Specifically, the data root in block headers [must commit to subtree roots in the Celestia data root](https://github.com/evstack/ev-node/issues/133), otherwise nodes would not have any guarantees that the data behind the data root in a block header is available.
 
 ## Alternative Approaches
 
@@ -62,4 +62,4 @@ Discarded
 
 ## References
 
-1. <https://github.com/rollkit/rollkit/issues/133>
+1. <https://github.com/evstack/ev-node/issues/133>

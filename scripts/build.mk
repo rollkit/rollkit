@@ -2,8 +2,8 @@
 VERSION := $(shell git describe --tags --abbrev=0)
 GITSHA := $(shell git rev-parse --short HEAD)
 LDFLAGS := \
-	-X github.com/rollkit/rollkit/pkg/cmd.Version=$(VERSION) \
-	-X github.com/rollkit/rollkit/pkg/cmd.GitSHA=$(GITSHA)
+	-X github.com/evstack/ev-node/pkg/cmd.Version=$(VERSION) \
+	-X github.com/evstack/ev-node/pkg/cmd.GitSHA=$(GITSHA)
 
 ## build: build Testapp CLI
 build:
@@ -25,7 +25,7 @@ install:
 .PHONY: install
 
 build-all:
-	@echo "--> Building all rollkit binaries"
+	@echo "--> Building all ev-node binaries"
 	@mkdir -p $(CURDIR)/build
 	@echo "--> Building testapp"
 	@cd apps/testapp && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/testapp .
@@ -35,7 +35,7 @@ build-all:
 	@cd apps/evm/based && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/evm-based .
 	@echo "--> Building local-da"
 	@cd da && go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/local-da ./cmd/local-da
-	@echo "--> All rollkit binaries built!"
+	@echo "--> All ev-node binaries built!"
 
 ## build-testapp-bench:
 build-testapp-bench:
@@ -69,10 +69,10 @@ build-da:
 ## docker-build: Build Docker image for local testing
 docker-build:
 	@echo "--> Building Docker image for local testing"
-	@docker build -t rollkit:local-dev .
-	@echo "--> Docker image built: rollkit:local-dev"
+	@docker build -t evstack:local-dev .
+	@echo "--> Docker image built: evstack:local-dev"
 	@echo "--> Checking if image exists locally..."
-	@docker images rollkit:local-dev
+	@docker images evstack:local-dev
 .PHONY: docker-build
 
 ## clean: clean and build

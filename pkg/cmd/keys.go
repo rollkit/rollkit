@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	rollconf "github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/signer/file"
+	rollconf "github.com/evstack/ev-node/pkg/config"
+	"github.com/evstack/ev-node/pkg/signer/file"
 )
 
 // KeysCmd returns a command for managing keys.

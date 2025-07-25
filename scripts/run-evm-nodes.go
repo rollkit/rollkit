@@ -268,7 +268,7 @@ func (nm *nodeManager) startEVMDocker(name string, rpcPort, enginePort, wsPort i
 		"-p", fmt.Sprintf("%d:8546", wsPort),
 		"-v", fmt.Sprintf("%s:/jwt/jwt.hex:ro", nm.jwtPath),
 		"-v", fmt.Sprintf("%s:/chain/genesis.json:ro", chainPath),
-		"ghcr.io/rollkit/lumen:latest",
+		"ghcr.io/evstack/lumen:latest",
 		"node",
 		"--chain", "/chain/genesis.json",
 		"--authrpc.addr", "0.0.0.0",

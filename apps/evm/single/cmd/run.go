@@ -5,21 +5,21 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/rollkit/rollkit/da/jsonrpc"
-	"github.com/rollkit/rollkit/node"
-	"github.com/rollkit/rollkit/sequencers/single"
+	"github.com/evstack/ev-node/da/jsonrpc"
+	"github.com/evstack/ev-node/node"
+	"github.com/evstack/ev-node/sequencers/single"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 
-	"github.com/rollkit/rollkit/execution/evm"
+	"github.com/evstack/ev-node/execution/evm"
 
-	"github.com/rollkit/rollkit/core/execution"
-	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	"github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
-	"github.com/rollkit/rollkit/pkg/store"
+	"github.com/evstack/ev-node/core/execution"
+	rollcmd "github.com/evstack/ev-node/pkg/cmd"
+	"github.com/evstack/ev-node/pkg/config"
+	"github.com/evstack/ev-node/pkg/p2p"
+	"github.com/evstack/ev-node/pkg/p2p/key"
+	"github.com/evstack/ev-node/pkg/store"
 )
 
 var RunCmd = &cobra.Command{

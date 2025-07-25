@@ -3,9 +3,9 @@ package node
 import (
 	"time"
 
-	"github.com/rollkit/rollkit/block"
-	"github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/p2p"
+	"github.com/evstack/ev-node/block"
+	"github.com/evstack/ev-node/pkg/config"
+	"github.com/evstack/ev-node/pkg/p2p"
 )
 
 const readHeaderTimeout = 10 * time.Second

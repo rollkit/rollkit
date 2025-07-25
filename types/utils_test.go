@@ -8,9 +8,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rollkit/rollkit/pkg/signer" // Used for signer.Signer interface
-	"github.com/rollkit/rollkit/pkg/signer/noop"
-	"github.com/rollkit/rollkit/types" // Import the types package
+	"github.com/evstack/ev-node/pkg/signer" // Used for signer.Signer interface
+	"github.com/evstack/ev-node/pkg/signer/noop"
+	"github.com/evstack/ev-node/types" // Import the types package
 )
 
 var _ time.Time     // Dummy usage to prevent time import from being removed

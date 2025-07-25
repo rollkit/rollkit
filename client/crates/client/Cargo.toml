@@ -1,0 +1,26 @@
+[package]
+name = "ev-client"
+version = "0.0.1"
+edition = "2021"
+authors = ["Ev Contributors"]
+description = "Rust client library for interacting with Ev nodes via gRPC"
+license = "Apache-2.0"
+repository = "https://github.com/evstack/ev-node"
+# homepage = "https://ev.dev"
+documentation = "https://docs.rs/ev-client"
+keywords = ["ev", "blockchain", "client", "grpc", "api"]
+categories = ["api-bindings", "network-programming"]
+
+[dependencies]
+ev-types = { version = "0.0.1", path = "../types" }
+tonic = { workspace = true, features = ["transport", "tls"] }
+tokio = { version = "1.45", features = ["full"] }
+tower = { version = "0.4", features = ["full"] }
+thiserror = "1.0"
+tracing = "0.1"
+futures = "0.3"
+async-trait = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tracing-subscriber = "0.3"

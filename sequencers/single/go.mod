@@ -1,19 +1,19 @@
-module github.com/rollkit/rollkit/sequencers/single
+module github.com/evstack/ev-node/sequencers/single
 
 go 1.24.1
 
 replace (
-	github.com/rollkit/rollkit => ../../
-	github.com/rollkit/rollkit/core => ../../core
+	github.com/evstack/ev-node => ../../
+	github.com/evstack/ev-node/core => ../../core
 )
 
 require (
+	github.com/evstack/ev-node v0.0.0-00010101000000-000000000000
+	github.com/evstack/ev-node/core v0.0.0-20250312114929-104787ba1a4c
 	github.com/go-kit/kit v0.13.0
 	github.com/ipfs/go-datastore v0.8.2
 	github.com/ipfs/go-log/v2 v2.6.0
 	github.com/prometheus/client_golang v1.22.0
-	github.com/rollkit/rollkit v0.0.0-00010101000000-000000000000
-	github.com/rollkit/rollkit/core v0.0.0-20250312114929-104787ba1a4c
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/protobuf v1.36.6
 )

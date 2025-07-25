@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/evstack/ev-node/pkg/store"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
-	"github.com/rollkit/rollkit/pkg/store"
 )
 
 var (

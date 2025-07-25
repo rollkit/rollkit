@@ -1,6 +1,6 @@
 # Go Execution EVM
 
-This repository implements the `execution.Executor` interface from `github.com/rollkit/rollkit/core/execution` (currently on feature branch `feature/exec_api`). It provides a pure Engine API-based execution client for Rollkit.
+This repository implements the `execution.Executor` interface from `github.com/evstack/ev-node/core/execution` (currently on feature branch `feature/exec_api`). It provides a pure Engine API-based execution client for Rollkit.
 
 ## EngineClient Implementation
 

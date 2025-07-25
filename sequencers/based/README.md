@@ -1,6 +1,6 @@
-# based-rollkit
+# Based
 
-🚀 **Based Rollkit Node** is a sovereign application node powered by [Rollkit](https://rollkit.dev), configured to operate in *based sequencing mode*. This mode leverages Celestia as a base layer for ordering transactions and data availability.
+🚀 **BasedNode** is configured to operate in *based sequencing mode*. This mode leverages Celestia as a base layer for ordering transactions and data availability.
 
 This implementation supports EVM execution via `go-execution-evm` and allows configuration for both **chain DA** and **based sequencing DA** independently.
 
@@ -27,7 +27,7 @@ based start [flags]
 
 ```bash
 based start \
-  --home ~/.rollkit/based \
+  --home ~/.evnode/based \
   --evm.eth-url http://localhost:8545 \
   --evm.engine-url http://localhost:8551 \
   --evm.jwt-secret /path/to/jwt.hex \
@@ -75,7 +75,7 @@ based start \
 
 | Flag | Description |
 |------|-------------|
-| `--home` | Directory to store config, keys, and state (default `~/.rollkit/based`) |
+| `--home` | Directory to store config, keys, and state (default `~/.evnode/based`) |
 
 ---
 
