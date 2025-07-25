@@ -85,20 +85,20 @@ jobs:
           EV_NODE_IMAGE_TAG: ${{ inputs.image-tag }}
 
   docker-compose-e2e-tests:
-    name: Docker Compose E2E Tests  
+    name: Docker Compose E2E Tests
     needs: build-ev-node-evm-single-image
     runs-on: ubuntu-latest
     permissions:
       packages: read
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: ./go.mod
 
-      - name: Log in to GHCR  
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -111,7 +111,6 @@ jobs:
           # Replace the main image tag with PR-specific tag
           sed -i 's|ghcr.io/evstack/ev-node-evm-single:main|ghcr.io/${{ github.repository_owner }}/ev-node-evm-single:${{ inputs.image-tag }}|g' docker-compose.yml
           echo "Updated docker-compose.yml to use image: ghcr.io/${{ github.repository_owner }}/ev-node-evm-single:${{ inputs.image-tag }}"
-          
       - name: Pull required images
         run: |
           cd apps/evm/single
@@ -122,28 +121,22 @@ jobs:
           cd apps/evm/single
           docker compose up -d
           echo "Started docker-compose services"
-          
       - name: Wait for services to be ready
         run: |
           echo "Waiting for services to start..."
           sleep 30
-          
           # Check if containers are running
           cd apps/evm/single
           docker compose ps
-          
           # Wait for rollkit-reth to be ready
           echo "Waiting for rollkit-reth to be ready..."
           timeout 60s bash -c 'until curl -f http://localhost:8545 -X POST -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"net_version\",\"params\":[],\"id\":1}" &>/dev/null; do sleep 2; done'
-          
           # Wait for local-da to be ready (it uses JSON-RPC, not REST)
           echo "Waiting for local-da to be ready..."
           timeout 60s bash -c 'until curl -s -X POST http://localhost:7980 -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"da.Get\",\"params\":[\"test\",\"test\"],\"id\":1}" | grep -q "jsonrpc" &>/dev/null; do sleep 2; done'
-          
           # Wait for rollkit-evm-single to be ready
           echo "Waiting for rollkit-evm-single to be ready..."
           sleep 15
-          
           echo "All services are ready!"
 
       - name: Run comprehensive Docker Compose E2E tests
@@ -163,13 +156,13 @@ jobs:
           cd apps/evm/single
           echo "=== Container Status ==="
           docker compose ps
-          
+
           echo "=== Rollkit Reth Logs ==="
           docker compose logs rollkit-reth
-          
-          echo "=== Local DA Logs ===" 
+
+          echo "=== Local DA Logs ==="
           docker compose logs local-da
-          
+
           echo "=== Rollkit EVM Single Logs ==="
           docker compose logs rollkit-evm-single
 
