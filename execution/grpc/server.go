@@ -7,8 +7,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/rollkit/rollkit/core/execution"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	"github.com/evstack/ev-node/core/execution"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 // Server is a gRPC server that wraps an execution.Executor implementation.

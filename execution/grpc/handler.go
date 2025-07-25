@@ -9,8 +9,8 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/rollkit/rollkit/core/execution"
-	"github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
+	"github.com/evstack/ev-node/core/execution"
+	"github.com/evstack/ev-node/types/pb/evnode/v1/v1connect"
 )
 
 // NewExecutorServiceHandler creates a new HTTP handler for the ExecutorService.
@@ -25,23 +25,23 @@ import (
 // - http.Handler: The configured HTTP handler
 func NewExecutorServiceHandler(executor execution.Executor, opts ...connect.HandlerOption) http.Handler {
 	server := NewServer(executor)
-	
+
 	mux := http.NewServeMux()
-	
+
 	// Configure compression to start at 1KB
 	compress1KB := connect.WithCompressMinBytes(1024)
-	
+
 	// Set up gRPC reflection for debugging and discovery
 	reflector := grpcreflect.NewStaticReflector(
 		v1connect.ExecutorServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector, compress1KB))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector, compress1KB))
-	
+
 	// Register the ExecutorService
 	path, handler := v1connect.NewExecutorServiceHandler(server, append(opts, compress1KB)...)
 	mux.Handle(path, handler)
-	
+
 	// Use h2c to support HTTP/2 without TLS
 	return h2c.NewHandler(mux, &http2.Server{
 		IdleTimeout:          120 * time.Second,

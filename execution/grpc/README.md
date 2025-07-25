@@ -14,7 +14,7 @@ To connect to a remote execution service:
 
 ```go
 import (
-    "github.com/rollkit/rollkit/execution/grpc"
+    "github.com/evstack/ev-node/execution/grpc"
 )
 
 // Create a new gRPC client
@@ -32,7 +32,7 @@ To serve an execution implementation via gRPC:
 ```go
 import (
     "net/http"
-    "github.com/rollkit/rollkit/execution/grpc"
+    "github.com/evstack/ev-node/execution/grpc"
 )
 
 // Wrap your executor implementation

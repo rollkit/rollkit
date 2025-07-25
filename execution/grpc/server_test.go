@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 func TestServer_InitChain(t *testing.T) {
@@ -21,11 +21,11 @@ func TestServer_InitChain(t *testing.T) {
 	expectedMaxBytes := uint64(1000000)
 
 	tests := []struct {
-		name      string
-		req       *pb.InitChainRequest
-		mockFunc  func(ctx context.Context, genesisTime time.Time, initialHeight uint64, chainID string) ([]byte, uint64, error)
-		wantErr   bool
-		wantCode  connect.Code
+		name     string
+		req      *pb.InitChainRequest
+		mockFunc func(ctx context.Context, genesisTime time.Time, initialHeight uint64, chainID string) ([]byte, uint64, error)
+		wantErr  bool
+		wantCode connect.Code
 	}{
 		{
 			name: "success",
@@ -198,11 +198,11 @@ func TestServer_ExecuteTxs(t *testing.T) {
 	expectedMaxBytes := uint64(2000000)
 
 	tests := []struct {
-		name      string
-		req       *pb.ExecuteTxsRequest
-		mockFunc  func(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) ([]byte, uint64, error)
-		wantErr   bool
-		wantCode  connect.Code
+		name     string
+		req      *pb.ExecuteTxsRequest
+		mockFunc func(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) ([]byte, uint64, error)
+		wantErr  bool
+		wantCode connect.Code
 	}{
 		{
 			name: "success",
@@ -307,11 +307,11 @@ func TestServer_SetFinal(t *testing.T) {
 	blockHeight := uint64(100)
 
 	tests := []struct {
-		name      string
-		req       *pb.SetFinalRequest
-		mockFunc  func(ctx context.Context, blockHeight uint64) error
-		wantErr   bool
-		wantCode  connect.Code
+		name     string
+		req      *pb.SetFinalRequest
+		mockFunc func(ctx context.Context, blockHeight uint64) error
+		wantErr  bool
+		wantCode connect.Code
 	}{
 		{
 			name: "success",
@@ -324,8 +324,8 @@ func TestServer_SetFinal(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "missing block height",
-			req:  &pb.SetFinalRequest{},
+			name:     "missing block height",
+			req:      &pb.SetFinalRequest{},
 			wantErr:  true,
 			wantCode: connect.CodeInvalidArgument,
 		},

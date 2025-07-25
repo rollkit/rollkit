@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	rollconf "github.com/rollkit/rollkit/pkg/config"
-	rollgenesis "github.com/rollkit/rollkit/pkg/genesis"
+	rollcmd "github.com/evstack/ev-node/pkg/cmd"
+	rollconf "github.com/evstack/ev-node/pkg/config"
+	rollgenesis "github.com/evstack/ev-node/pkg/genesis"
 )
 
 // InitCmd returns the init command for initializing the gRPC single sequencer node

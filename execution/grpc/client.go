@@ -9,9 +9,9 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/rollkit/rollkit/core/execution"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
-	"github.com/rollkit/rollkit/types/pb/rollkit/v1/v1connect"
+	"github.com/evstack/ev-node/core/execution"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
+	"github.com/evstack/ev-node/types/pb/evnode/v1/v1connect"
 )
 
 // Ensure Client implements the execution.Executor interface

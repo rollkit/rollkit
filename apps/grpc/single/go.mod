@@ -1,15 +1,15 @@
-module github.com/rollkit/rollkit/apps/grpc/single
+module github.com/evstack/ev-node/apps/grpc/single
 
 go 1.24.1
 
 toolchain go1.24.5
 
 require (
-	github.com/rollkit/rollkit v0.0.0
-	github.com/rollkit/rollkit/core v1.0.0-beta.1
-	github.com/rollkit/rollkit/da v1.0.0-beta.1
-	github.com/rollkit/rollkit/execution/grpc v0.0.0
-	github.com/rollkit/rollkit/sequencers/single v0.0.0
+	github.com/evstack/ev-node v0.0.0
+	github.com/evstack/ev-node/core v1.0.0-beta.1
+	github.com/evstack/ev-node/da v1.0.0-beta.1
+	github.com/evstack/ev-node/execution/grpc v0.0.0
+	github.com/evstack/ev-node/sequencers/single v0.0.0
 	github.com/spf13/cobra v1.9.1
 )
 
@@ -170,8 +170,9 @@ require (
 )
 
 replace (
-	github.com/rollkit/rollkit => ../../../
-	github.com/rollkit/rollkit/core => ../../../core
-	github.com/rollkit/rollkit/execution/grpc => ../../../execution/grpc
-	github.com/rollkit/rollkit/sequencers/single => ../../../sequencers/single
+	github.com/evstack/ev-node => ../../../
+	github.com/evstack/ev-node/core => ../../../core
+	github.com/evstack/ev-node/da => ../../../da
+	github.com/evstack/ev-node/execution/grpc => ../../../execution/grpc
+	github.com/evstack/ev-node/sequencers/single => ../../../sequencers/single
 )

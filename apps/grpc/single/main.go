@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	rollcmd "github.com/rollkit/rollkit/pkg/cmd"
-	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
+	rollcmd "github.com/evstack/ev-node/pkg/cmd"
+	rollkitconfig "github.com/evstack/ev-node/pkg/config"
 
-	"github.com/rollkit/rollkit/apps/grpc/single/cmd"
+	"github.com/evstack/ev-node/apps/grpc/single/cmd"
 )
 
 func main() {
