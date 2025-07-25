@@ -656,7 +656,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 					m.logger.Info("no batch retrieved from sequencer, skipping block production")
 					return nil
 				}
-				m.logger.Debug("creating empty block, height: ", newHeight)
+				m.logger.Info("creating empty block, height: ", newHeight)
 			} else {
 				m.logger.Warn("failed to get transactions from batch", "error", err)
 				return nil
@@ -665,8 +665,7 @@ func (m *Manager) publishBlockInternal(ctx context.Context) error {
 			if batchData.Before(lastHeaderTime) {
 				return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 			}
-			m.logger.Info("creating and publishing block", "height", newHeight)
-			m.logger.Debug("block info", "num_tx", len(batchData.Transactions))
+			m.logger.Info("creating and publishing block", "height", newHeight, "num_tx", len(batchData.Transactions))
 		}
 
 		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)

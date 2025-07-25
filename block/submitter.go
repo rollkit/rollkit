@@ -125,7 +125,7 @@ func submitToDA[T any](
 			// Record successful DA submission
 			m.recordDAMetrics("submission", DAModeSuccess)
 
-			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer", itemType), "gasPrice", gasPrice, "count", res.SubmittedCount)
+			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer with gasPrice %v and count %d", itemType, gasPrice, res.SubmittedCount))
 			if res.SubmittedCount == uint64(remLen) {
 				submittedAll = true
 			}
