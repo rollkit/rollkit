@@ -8,11 +8,11 @@ Ev-node is the basis of the Evolve Stack. For more in-depth information about Ev
 [![GoDoc](https://godoc.org/github.com/evstack/ev-node?status.svg)](https://godoc.org/github.com/evstack/ev-node)
 <!-- markdownlint-enable MD013 -->
 
-## Using Ev-node
+## Using Evolve
 
 ### Example Implementation: TestApp CLI
 
-The easiest way to understand how to use ev-node is by exploring our example implementation, TestApp.
+The easiest way to understand how to use Evolve is by exploring our example implementation, TestApp.
 
 Requires Go version >= 1.22.
 
