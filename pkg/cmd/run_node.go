@@ -67,6 +67,13 @@ func SetupLogger(config rollconf.LogConfig) logging.EventLogger {
 
 	logging.SetupLogging(logCfg)
 
+	// Suppress noisy external component logs by default, unless debug logging is enabled
+	if logCfg.Level != logging.LevelDebug {
+		_ = logging.SetLogLevel("header/store", "FATAL")
+		_ = logging.SetLogLevel("header/sync", "FATAL")
+		_ = logging.SetLogLevel("header/p2p", "FATAL")
+	}
+
 	// Return a logger instance for the "main" subsystem
 	return logging.Logger("main")
 }
