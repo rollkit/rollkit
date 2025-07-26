@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/evstack/ev-node/types"
 )
 
 // Store is minimal interface for storing and retrieving blocks, commits and state.

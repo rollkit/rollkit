@@ -3,7 +3,7 @@ package store
 import (
 	"strconv"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/evstack/ev-node/types"
 )
 
 const (

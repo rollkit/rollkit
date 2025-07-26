@@ -17,15 +17,15 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	coreda "github.com/evstack/ev-node/core/da"
+	coreexecutor "github.com/evstack/ev-node/core/execution"
+	coresequencer "github.com/evstack/ev-node/core/sequencer"
 
-	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/p2p/key"
-	remote_signer "github.com/rollkit/rollkit/pkg/signer/noop"
-	"github.com/rollkit/rollkit/types"
+	rollkitconfig "github.com/evstack/ev-node/pkg/config"
+	"github.com/evstack/ev-node/pkg/p2p"
+	"github.com/evstack/ev-node/pkg/p2p/key"
+	remote_signer "github.com/evstack/ev-node/pkg/signer/noop"
+	"github.com/evstack/ev-node/types"
 )
 
 const (
@@ -126,7 +126,7 @@ func newTestNode(
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		logging.Logger("test"),
-		nil,
+		NodeOptions{},
 	)
 	require.NoError(t, err)
 
@@ -191,7 +191,7 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 		ds,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		logging.Logger("test"),
-		nil,
+		NodeOptions{},
 	)
 	require.NoError(err)
 
@@ -229,7 +229,7 @@ func createNodesWithCleanup(t *testing.T, num int, config rollkitconfig.Config) 
 			dssync.MutexWrap(datastore.NewMapDatastore()),
 			DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 			logging.Logger("test"),
-			nil,
+			NodeOptions{},
 		)
 		require.NoError(err)
 		// Update cleanup to cancel the context instead of calling Stop

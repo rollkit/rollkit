@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	testmocks "github.com/rollkit/rollkit/test/mocks"
+	coresequencer "github.com/evstack/ev-node/core/sequencer"
+	testmocks "github.com/evstack/ev-node/test/mocks"
 )
 
 // TestReaper_SubmitTxs_Success verifies that the Reaper successfully submits new transactions to the sequencer.

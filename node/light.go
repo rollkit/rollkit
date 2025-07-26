@@ -10,13 +10,13 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 
-	"github.com/rollkit/rollkit/pkg/config"
-	"github.com/rollkit/rollkit/pkg/genesis"
-	"github.com/rollkit/rollkit/pkg/p2p"
-	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
-	"github.com/rollkit/rollkit/pkg/service"
-	"github.com/rollkit/rollkit/pkg/store"
-	"github.com/rollkit/rollkit/pkg/sync"
+	"github.com/evstack/ev-node/pkg/config"
+	"github.com/evstack/ev-node/pkg/genesis"
+	"github.com/evstack/ev-node/pkg/p2p"
+	rpcserver "github.com/evstack/ev-node/pkg/rpc/server"
+	"github.com/evstack/ev-node/pkg/service"
+	"github.com/evstack/ev-node/pkg/store"
+	"github.com/evstack/ev-node/pkg/sync"
 )
 
 var _ Node = &LightNode{}

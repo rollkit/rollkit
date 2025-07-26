@@ -14,7 +14,7 @@ func TestDefaultInstrumentationConfig(t *testing.T) {
 	assert.False(t, cfg.Prometheus)
 	assert.Equal(t, ":26660", cfg.PrometheusListenAddr)
 	assert.Equal(t, 3, cfg.MaxOpenConnections)
-	assert.Equal(t, "rollkit", cfg.Namespace)
+	assert.Equal(t, "evnode", cfg.Namespace)
 	assert.False(t, cfg.Pprof)
 	assert.Equal(t, ":6060", cfg.PprofListenAddr)
 }

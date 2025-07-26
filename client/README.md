@@ -7,8 +7,8 @@ This directory contains client libraries for interacting with Rollkit nodes in v
 ```ascii
 client/
 ├── crates/           # Rust client libraries
-│   ├── rollkit-types/    # Generated protobuf types for Rust
-│   └── rollkit-client/   # High-level Rust client for gRPC services
+│   ├── types/    # Generated protobuf types for Rust
+│   └── client/   # High-level Rust client for gRPC services
 └── README.md
 ```
 
@@ -16,11 +16,11 @@ client/
 
 The Rust client consists of two crates:
 
-### rollkit-types
+### ev-types
 
-Contains all the protobuf-generated types and service definitions. This crate is automatically generated from the proto files in `/proto/rollkit/v1/`.
+Contains all the protobuf-generated types and service definitions. This crate is automatically generated from the proto files in `/proto/evnode/v1/`.
 
-### rollkit-client
+### ev-client
 
 A high-level client library that provides:
 
@@ -30,7 +30,7 @@ A high-level client library that provides:
 - Comprehensive error handling
 - Example usage code
 
-See the [rollkit-client README](crates/rollkit-client/README.md) for detailed usage instructions.
+See the [ev-client README](crates/ev-client/README.md) for detailed usage instructions.
 
 ## Future Client Libraries
 

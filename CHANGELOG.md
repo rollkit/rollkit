@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 <!-- Changes to existing functionality -->
--
+- Updated EVM execution client to use new `txpoolExt_getTxs` RPC API for retrieving pending transactions as RLP-encoded bytes
 
 ### Deprecated
 
@@ -109,4 +109,4 @@ Pre-release versions: 0.x.y (anything may change)
 -->
 
 <!-- Links -->
-[Unreleased]: https://github.com/rollkit/rollkit/compare/v1.0.0-beta.1...HEAD
+[Unreleased]: https://github.com/evstack/ev-node/compare/v1.0.0-beta.1...HEAD

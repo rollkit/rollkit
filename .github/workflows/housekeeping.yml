@@ -10,7 +10,7 @@ jobs:
   issue-management:
     if: ${{ github.event.issue }}
     name: Add issues to project and add triage label
-    uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.5.0
+    uses: evstack/.github/.github/workflows/reusable_housekeeping.yml@v0.5.0
     secrets: inherit
     permissions:
       issues: write
@@ -19,7 +19,7 @@ jobs:
       run-labels: true
       labels-to-add: "needs-triage"
       run-projects: true
-      project-url: https://github.com/orgs/rollkit/projects/7
+      project-url: https://github.com/orgs/evstack/projects/7
 
   auto-add-assignee-pr:
     # ignore dependabot PRs

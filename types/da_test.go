@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
+	coreda "github.com/evstack/ev-node/core/da"
+	"github.com/evstack/ev-node/test/mocks"
+	"github.com/evstack/ev-node/types"
 )
 
 func TestSubmitWithHelpers(t *testing.T) {
@@ -213,7 +213,7 @@ func TestRetrieveWithHelpers(t *testing.T) {
 			},
 			getBlobsErr:    errors.New("network error during blob retrieval"),
 			expectedCode:   coreda.StatusError,
-			expectedErrMsg: "failed to get blobs: network error during blob retrieval",
+			expectedErrMsg: "failed to get blobs for batch 0-1: network error during blob retrieval",
 			expectedHeight: dataLayerHeight,
 		},
 	}

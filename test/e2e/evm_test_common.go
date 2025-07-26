@@ -34,7 +34,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/execution/evm"
+	"github.com/evstack/ev-node/execution/evm"
 )
 
 // evmSingleBinaryPath is the path to the evm-single binary used in tests
@@ -486,22 +486,6 @@ func checkBlockInfoAt(t *testing.T, ethURL string, blockHeight *uint64) (common.
 
 	txCount := len(block.Transactions())
 	return blockHash, stateRoot, txCount, blockNum, nil
-}
-
-// max returns the maximum of two uint64 values
-func max(a, b uint64) uint64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// min returns the minimum of two uint64 values
-func min(a, b uint64) uint64 {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // setupSequencerOnlyTest performs setup for EVM sequencer-only tests.

@@ -8,7 +8,7 @@ import (
 
 const (
 	// ConfigFileName is the base name of the rollkit configuration file without extension.
-	ConfigFileName = "rollkit"
+	ConfigFileName = "evnode"
 	// ConfigExtension is the file extension for the configuration file without the leading dot.
 	ConfigExtension = "yaml"
 	// ConfigPath is the filename for the rollkit configuration file.

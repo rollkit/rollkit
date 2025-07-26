@@ -17,19 +17,18 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/rollkit/rollkit/block"
-	coreda "github.com/rollkit/rollkit/core/da"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/pkg/config"
-	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
-	"github.com/rollkit/rollkit/pkg/p2p"
-	rpcserver "github.com/rollkit/rollkit/pkg/rpc/server"
-	"github.com/rollkit/rollkit/pkg/service"
-	"github.com/rollkit/rollkit/pkg/signer"
-	"github.com/rollkit/rollkit/pkg/store"
-	rollkitsync "github.com/rollkit/rollkit/pkg/sync"
-	"github.com/rollkit/rollkit/types"
+	"github.com/evstack/ev-node/block"
+	coreda "github.com/evstack/ev-node/core/da"
+	coreexecutor "github.com/evstack/ev-node/core/execution"
+	coresequencer "github.com/evstack/ev-node/core/sequencer"
+	"github.com/evstack/ev-node/pkg/config"
+	genesispkg "github.com/evstack/ev-node/pkg/genesis"
+	"github.com/evstack/ev-node/pkg/p2p"
+	rpcserver "github.com/evstack/ev-node/pkg/rpc/server"
+	"github.com/evstack/ev-node/pkg/service"
+	"github.com/evstack/ev-node/pkg/signer"
+	"github.com/evstack/ev-node/pkg/store"
+	rollkitsync "github.com/evstack/ev-node/pkg/sync"
 )
 
 // prefixes used in KV store to separate rollkit data from execution environment data (if the same data base is reused)
@@ -82,7 +81,7 @@ func newFullNode(
 	da coreda.DA,
 	metricsProvider MetricsProvider,
 	logger logging.EventLogger,
-	signaturePayloadProvider types.SignaturePayloadProvider,
+	nodeOpts NodeOptions,
 ) (fn *FullNode, err error) {
 	seqMetrics, _ := metricsProvider(genesis.ChainID)
 
@@ -114,7 +113,7 @@ func newFullNode(
 		seqMetrics,
 		nodeConfig.DA.GasPrice,
 		nodeConfig.DA.GasMultiplier,
-		signaturePayloadProvider,
+		nodeOpts.ManagerOptions,
 	)
 	if err != nil {
 		return nil, err
@@ -207,7 +206,7 @@ func initBlockManager(
 	seqMetrics *block.Metrics,
 	gasPrice float64,
 	gasMultiplier float64,
-	signaturePayloadProvider types.SignaturePayloadProvider,
+	managerOpts block.ManagerOptions,
 ) (*block.Manager, error) {
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
 
@@ -228,7 +227,7 @@ func initBlockManager(
 		seqMetrics,
 		gasPrice,
 		gasMultiplier,
-		signaturePayloadProvider,
+		managerOpts,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)

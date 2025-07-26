@@ -1,6 +1,6 @@
-# Rollkit Release Process
+# ev-node Release Process
 
-This document outlines the release process for all Go packages in the Rollkit repository. The packages must be released in a specific order due to inter-dependencies.
+This document outlines the release process for all Go packages in the ev-node repository. The packages must be released in a specific order due to inter-dependencies.
 
 ## Package Dependency Graph
 
@@ -13,7 +13,7 @@ This document outlines the release process for all Go packages in the Rollkit re
         │                    │                    │
         ▼                    ▼                    ▼
    ┌─────────┐         ┌─────────┐      ┌──────────────┐
-   │   da    │         │ rollkit │      │execution/evm │
+   │   da    │         │ ev-node │      │execution/evm │
    └─────────┘         └────┬────┘      └──────────────┘
                             │
                 ┌───────────┴───────────┐
@@ -35,7 +35,7 @@ Packages must be released in the following order to ensure dependencies are sati
 
 ### Phase 1: Core Package
 
-1. **github.com/rollkit/rollkit/core**
+1. **github.com/evstack/ev-node/core**
    - Path: `./core`
    - Dependencies: None (zero-dependency package)
    - This is the foundation package containing all interfaces and types
@@ -44,41 +44,41 @@ Packages must be released in the following order to ensure dependencies are sati
 
 These packages only depend on `core` and can be released in parallel after `core`:
 
-1. **github.com/rollkit/rollkit/da**
+1. **github.com/evstack/ev-node/da**
    - Path: `./da`
-   - Dependencies: `rollkit/core`
+   - Dependencies: `ev-node/core`
 
-2. **github.com/rollkit/rollkit**
+2. **github.com/evstack/ev-node**
    - Path: `./` (root)
-   - Dependencies: `rollkit/core`
+   - Dependencies: `ev-node/core`
 
-3. **github.com/rollkit/rollkit/execution/evm**
+3. **github.com/evstack/ev-node/execution/evm**
    - Path: `./execution/evm`
-   - Dependencies: `rollkit/core`
+   - Dependencies: `ev-node/core`
 
 ### Phase 3: Sequencer Packages
 
-These packages depend on both `core` and the main `rollkit` package:
+These packages depend on both `core` and the main `ev-node` package:
 
-1. **github.com/rollkit/rollkit/sequencers/based**
+1. **github.com/evstack/ev-node/sequencers/based**
    - Path: `./sequencers/based`
-   - Dependencies: `rollkit/core`, `rollkit`
+   - Dependencies: `ev-node/core`, `ev-node`
 
-2. **github.com/rollkit/rollkit/sequencers/single**
+2. **github.com/evstack/ev-node/sequencers/single**
    - Path: `./sequencers/single`
-   - Dependencies: `rollkit/core`, `rollkit`
+   - Dependencies: `ev-node/core`, `ev-node`
 
 ### Phase 4: Application Packages
 
 These packages have the most dependencies and should be released last:
 
-1. **github.com/rollkit/rollkit/apps/evm/based**
+1. **github.com/evstack/ev-node/apps/evm/based**
    - Path: `./apps/evm/based`
-   - Dependencies: `rollkit/core`, `rollkit/da`, `rollkit/execution/evm`, `rollkit`, `rollkit/sequencers/based`
+   - Dependencies: `ev-node/core`, `ev-node/da`, `ev-node/execution/evm`, `ev-node`, `ev-node/sequencers/based`
 
-2. **github.com/rollkit/rollkit/apps/evm/single**
+2. **github.com/evstack/ev-node/apps/evm/single**
    - Path: `./apps/evm/single`
-   - Dependencies: `rollkit/core`, `rollkit/da`, `rollkit/execution/evm`, `rollkit`, `rollkit/sequencers/single`
+   - Dependencies: `ev-node/core`, `ev-node/da`, `ev-node/execution/evm`, `ev-node`, `ev-node/sequencers/single`
 
 ## Release Process Workflow
 
@@ -104,7 +104,7 @@ git push origin core/v<version>
 
 # Wait for Go proxy (5-10 minutes)
 # Verify availability
-go list -m github.com/rollkit/rollkit/core@v<version>
+go list -m github.com/evstack/ev-node/core@v<version>
 ```
 
 ### Phase 2: Release First-Level Dependencies
@@ -117,7 +117,7 @@ After core is available, update and release modules that only depend on core:
 cd da
 
 # Update core dependency
-go get github.com/rollkit/rollkit/core@v<version>
+go get github.com/evstack/ev-node/core@v<version>
 go mod tidy
 
 # Create and push tag
@@ -125,16 +125,16 @@ git tag da/v<version>
 git push origin da/v<version>
 
 # Verify availability
-go list -m github.com/rollkit/rollkit/da@v<version>
+go list -m github.com/evstack/ev-node/da@v<version>
 ```
 
-#### 3. Update and release main `rollkit` module
+#### 3. Update and release main `ev-node` module
 
 ```bash
 cd . # root directory
 
 # Update core dependency
-go get github.com/rollkit/rollkit/core@v<version>
+go get github.com/evstack/ev-node/core@v<version>
 go mod tidy
 
 # Create and push tag
@@ -142,7 +142,7 @@ git tag v<version>
 git push origin v<version>
 
 # Verify availability
-go list -m github.com/rollkit/rollkit@v<version>
+go list -m github.com/evstack/ev-node@v<version>
 ```
 
 #### 4. Update and release `execution/evm` module
@@ -151,7 +151,7 @@ go list -m github.com/rollkit/rollkit@v<version>
 cd execution/evm
 
 # Update core dependency
-go get github.com/rollkit/rollkit/core@v<version>
+go get github.com/evstack/ev-node/core@v<version>
 go mod tidy
 
 
@@ -160,19 +160,19 @@ git tag execution/evm/v<version>
 git push origin execution/evm/v<version>
 
 # Verify availability
-go list -m github.com/rollkit/rollkit/execution/evm@v<version>
+go list -m github.com/evstack/ev-node/execution/evm@v<version>
 ```
 
 ### Phase 3: Release Sequencer Packages
 
-After core and main rollkit are available, update and release sequencers:
+After core and main ev-node are available, update and release sequencers:
 
 #### 5. Update and release `sequencers/*`
 
 ```bash
 # Update dependencies
-go get github.com/rollkit/rollkit/core@v<version>
-go get github.com/rollkit/rollkit@v<version>
+go get github.com/evstack/ev-node/core@v<version>
+go get github.com/evstack/ev-node@v<version>
 go mod tidy
 
 
@@ -181,7 +181,7 @@ git tag sequencers/based/v<version>
 git push origin sequencers/based/v<version>
 
 # Verify availability
-go list -m github.com/rollkit/rollkit/sequencers/based@v<version>
+go list -m github.com/evstack/ev-node/sequencers/based@v<version>
 ```
 
 #### 6. Update and release `sequencers/single`
@@ -190,8 +190,8 @@ go list -m github.com/rollkit/rollkit/sequencers/based@v<version>
 cd sequencers/single
 
 # Update dependencies
-go get github.com/rollkit/rollkit/core@v<version>
-go get github.com/rollkit/rollkit@v<version>
+go get github.com/evstack/ev-node/core@v<version>
+go get github.com/evstack/ev-node@v<version>
 go mod tidy
 
 # Create and push tag
@@ -199,7 +199,7 @@ git tag sequencers/single/v<version>
 git push origin sequencers/single/v<version>
 
 # Verify availability
-go list -m github.com/rollkit/rollkit/sequencers/single@v<version>
+go list -m github.com/evstack/ev-node/sequencers/single@v<version>
 ```
 
 ### Phase 4: Release Application Packages
@@ -212,11 +212,11 @@ After all dependencies are available, update and release applications:
 cd apps/evm/based
 
 # Update all dependencies
-go get github.com/rollkit/rollkit/core@v<version>
-go get github.com/rollkit/rollkit/da@v<version>
-go get github.com/rollkit/rollkit/execution/evm@v<version>
-go get github.com/rollkit/rollkit@v<version>
-go get github.com/rollkit/rollkit/sequencers/based@v<version>
+go get github.com/evstack/ev-node/core@v<version>
+go get github.com/evstack/ev-node/da@v<version>
+go get github.com/evstack/ev-node/execution/evm@v<version>
+go get github.com/evstack/ev-node@v<version>
+go get github.com/evstack/ev-node/sequencers/based@v<version>
 go mod tidy
 
 # Create and push tag
@@ -224,7 +224,7 @@ git tag apps/evm/based/v<version>
 git push origin apps/evm/based/v<version>
 
 # Verify availability
-go list -m github.com/rollkit/rollkit/apps/evm/based@v<version>
+go list -m github.com/evstack/ev-node/apps/evm/based@v<version>
 ```
 
 #### 8. Update and release `apps/evm/single`
@@ -233,11 +233,11 @@ go list -m github.com/rollkit/rollkit/apps/evm/based@v<version>
 cd apps/evm/single
 
 # Update all dependencies
-go get github.com/rollkit/rollkit/core@v<version>
-go get github.com/rollkit/rollkit/da@v<version>
-go get github.com/rollkit/rollkit/execution/evm@v<version>
-go get github.com/rollkit/rollkit@v<version>
-go get github.com/rollkit/rollkit/sequencers/single@v<version>
+go get github.com/evstack/ev-node/core@v<version>
+go get github.com/evstack/ev-node/da@v<version>
+go get github.com/evstack/ev-node/execution/evm@v<version>
+go get github.com/evstack/ev-node@v<version>
+go get github.com/evstack/ev-node/sequencers/single@v<version>
 go mod tidy
 
 
@@ -246,7 +246,7 @@ git tag apps/evm/single/v<version>
 git push origin apps/evm/single/v<version>
 
 # Verify availability
-go list -m github.com/rollkit/rollkit/apps/evm/single@v<version>
+go list -m github.com/evstack/ev-node/apps/evm/single@v<version>
 ```
 
 ## Important Notes

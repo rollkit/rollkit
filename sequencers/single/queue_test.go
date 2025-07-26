@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	coresequencer "github.com/evstack/ev-node/core/sequencer"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 // createTestBatch creates a batch with dummy transactions for testing
@@ -559,7 +559,7 @@ func TestBatchQueue_QueueLimit_Concurrency(t *testing.T) {
 
 	// Verify the sum makes sense
 	if addedCount+errorCount != int64(totalBatches) {
-		t.Errorf("expected %d total operations, got %d added + %d errors = %d", 
+		t.Errorf("expected %d total operations, got %d added + %d errors = %d",
 			totalBatches, addedCount, errorCount, addedCount+errorCount)
 	}
 

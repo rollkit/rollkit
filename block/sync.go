@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/evstack/ev-node/types"
 )
 
 // SyncLoop is responsible for syncing blocks.
@@ -145,12 +145,16 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 		hHeight := h.Height()
 		m.logger.Info("syncing header and data, height: ", hHeight)
-		// Validate the received block before applying
+
+		// set the custom verifier to ensure proper signature validation
+		h.SetCustomVerifier(m.signaturePayloadProvider)
+
+		// validate the received block before applying
 		if err := m.Validate(ctx, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
 
-		newState, err := m.applyBlock(ctx, h, d)
+		newState, err := m.applyBlock(ctx, h.Header, d)
 		if err != nil {
 			return fmt.Errorf("failed to apply block: %w", err)
 		}

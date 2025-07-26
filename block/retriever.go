@@ -9,9 +9,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+	coreda "github.com/evstack/ev-node/core/da"
+	"github.com/evstack/ev-node/types"
+	pb "github.com/evstack/ev-node/types/pb/evnode/v1"
 )
 
 const (
@@ -112,22 +112,27 @@ func (m *Manager) processNextDAHeaderAndData(ctx context.Context) error {
 func (m *Manager) handlePotentialHeader(ctx context.Context, bz []byte, daHeight uint64) bool {
 	header := new(types.SignedHeader)
 	var headerPb pb.SignedHeader
-	err := proto.Unmarshal(bz, &headerPb)
-	if err != nil {
+
+	if err := proto.Unmarshal(bz, &headerPb); err != nil {
 		m.logger.Debug("failed to unmarshal header, error", err)
 		return false
 	}
-	err = header.FromProto(&headerPb)
-	if err != nil {
+
+	if err := header.FromProto(&headerPb); err != nil {
 		// treat as handled, but not valid
 		m.logger.Debug("failed to decode unmarshalled header, error", err)
 		return true
 	}
+
+	// set custom verifier to do correct header verification
+	header.SetCustomVerifier(m.signaturePayloadProvider)
+
 	// Stronger validation: check for obviously invalid headers using ValidateBasic
 	if err := header.ValidateBasic(); err != nil {
 		m.logger.Debug("blob does not look like a valid header, daHeight: ", daHeight, "error", err)
 		return false
 	}
+
 	// early validation to reject junk headers
 	if !m.isUsingExpectedSingleSequencer(header) {
 		m.logger.Debug("skipping header from unexpected sequencer",

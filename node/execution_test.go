@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	testmocks "github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
+	coreexecutor "github.com/evstack/ev-node/core/execution"
+	testmocks "github.com/evstack/ev-node/test/mocks"
+	"github.com/evstack/ev-node/types"
 )
 
 func TestBasicExecutionFlow(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	coreda "github.com/rollkit/rollkit/core/da"
+	coreda "github.com/evstack/ev-node/core/da"
 )
 
 var placeholder = []byte("placeholder")
@@ -152,21 +152,26 @@ func RetrieveWithHelpers(
 			},
 		}
 	}
+	// 2. Get Blobs using the retrieved IDs in batches
+	batchSize := 100
+	blobs := make([][]byte, 0, len(idsResult.IDs))
+	for i := 0; i < len(idsResult.IDs); i += batchSize {
+		end := min(i+batchSize, len(idsResult.IDs))
 
-	// 2. Get Blobs using the retrieved IDs
-	blobs, err := da.Get(ctx, idsResult.IDs, namespace)
-	if err != nil {
-		// Handle errors during Get
-		logger.Error("Retrieve helper: Failed to get blobs", "height", dataLayerHeight, "num_ids", len(idsResult.IDs), "error", err)
-		return coreda.ResultRetrieve{
-			BaseResult: coreda.BaseResult{
-				Code:    coreda.StatusError,
-				Message: fmt.Sprintf("failed to get blobs: %s", err.Error()),
-				Height:  dataLayerHeight,
-			},
+		batchBlobs, err := da.Get(ctx, idsResult.IDs[i:end], namespace)
+		if err != nil {
+			// Handle errors during Get
+			logger.Error("Retrieve helper: Failed to get blobs", "height", dataLayerHeight, "num_ids", len(idsResult.IDs), "error", err)
+			return coreda.ResultRetrieve{
+				BaseResult: coreda.BaseResult{
+					Code:    coreda.StatusError,
+					Message: fmt.Sprintf("failed to get blobs for batch %d-%d: %s", i, end-1, err.Error()),
+					Height:  dataLayerHeight,
+				},
+			}
 		}
+		blobs = append(blobs, batchBlobs...)
 	}
-
 	// Success
 	logger.Debug("Retrieve helper: Successfully retrieved blobs", "height", dataLayerHeight, "num_blobs", len(blobs))
 	return coreda.ResultRetrieve{

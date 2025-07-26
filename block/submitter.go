@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	"github.com/rollkit/rollkit/types"
+	coreda "github.com/evstack/ev-node/core/da"
+	"github.com/evstack/ev-node/types"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -125,7 +125,7 @@ func submitToDA[T any](
 			// Record successful DA submission
 			m.recordDAMetrics("submission", DAModeSuccess)
 
-			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer", itemType), "gasPrice", gasPrice, "count", res.SubmittedCount)
+			m.logger.Info(fmt.Sprintf("successfully submitted %s to DA layer with gasPrice %v and count %d", itemType, gasPrice, res.SubmittedCount))
 			if res.SubmittedCount == uint64(remLen) {
 				submittedAll = true
 			}

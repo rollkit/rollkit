@@ -10,7 +10,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 
-	proxy "github.com/rollkit/rollkit/da/jsonrpc"
+	proxy "github.com/evstack/ev-node/da/jsonrpc"
 )
 
 const (

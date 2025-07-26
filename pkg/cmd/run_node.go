@@ -14,16 +14,15 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/node"
-	rollconf "github.com/rollkit/rollkit/pkg/config"
-	genesispkg "github.com/rollkit/rollkit/pkg/genesis"
-	"github.com/rollkit/rollkit/pkg/p2p"
-	"github.com/rollkit/rollkit/pkg/signer"
-	"github.com/rollkit/rollkit/pkg/signer/file"
-	"github.com/rollkit/rollkit/types"
+	coreda "github.com/evstack/ev-node/core/da"
+	coreexecutor "github.com/evstack/ev-node/core/execution"
+	coresequencer "github.com/evstack/ev-node/core/sequencer"
+	"github.com/evstack/ev-node/node"
+	rollconf "github.com/evstack/ev-node/pkg/config"
+	genesispkg "github.com/evstack/ev-node/pkg/genesis"
+	"github.com/evstack/ev-node/pkg/p2p"
+	"github.com/evstack/ev-node/pkg/signer"
+	"github.com/evstack/ev-node/pkg/signer/file"
 )
 
 // ParseConfig is an helpers that loads the node configuration and validates it.
@@ -73,6 +72,13 @@ func SetupLogger(config rollconf.LogConfig) logging.EventLogger {
 
 	logging.SetupLogging(logCfg)
 
+	// Suppress noisy external component logs by default, unless debug logging is enabled
+	if logCfg.Level != logging.LevelDebug {
+		_ = logging.SetLogLevel("header/store", "FATAL")
+		_ = logging.SetLogLevel("header/sync", "FATAL")
+		_ = logging.SetLogLevel("header/p2p", "FATAL")
+	}
+
 	// Return a logger instance for the "main" subsystem
 	return logging.Logger("main")
 }
@@ -87,7 +93,7 @@ func StartNode(
 	p2pClient *p2p.Client,
 	datastore datastore.Batching,
 	nodeConfig rollconf.Config,
-	signaturePayloadProvider types.SignaturePayloadProvider,
+	nodeOptions node.NodeOptions,
 ) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
@@ -131,7 +137,7 @@ func StartNode(
 		datastore,
 		metrics,
 		logger,
-		signaturePayloadProvider,
+		nodeOptions,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create node: %w", err)

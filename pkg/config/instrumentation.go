@@ -48,7 +48,7 @@ func DefaultInstrumentationConfig() *InstrumentationConfig {
 		Prometheus:           false,
 		PrometheusListenAddr: ":26660",
 		MaxOpenConnections:   3,
-		Namespace:            "rollkit",
+		Namespace:            "evnode",
 		Pprof:                false,
 		PprofListenAddr:      ":6060",
 	}

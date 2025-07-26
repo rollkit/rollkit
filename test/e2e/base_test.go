@@ -14,7 +14,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	nodeclient "github.com/rollkit/rollkit/pkg/rpc/client"
+	nodeclient "github.com/evstack/ev-node/pkg/rpc/client"
 )
 
 var binaryPath string

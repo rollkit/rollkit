@@ -1,0 +1,27 @@
+[package]
+name = "ev-types"
+version = "0.0.1"
+edition = "2021"
+authors = ["Ev Contributors"]
+description = "Protocol buffer generated types for Ev"
+documentation = "https://docs.rs/ev-types"
+# homepage = "https://ev.dev"
+repository = "https://github.com/evstack/ev-node"
+license = "Apache-2.0"
+keywords = ["ev", "blockchain", "protobuf", "grpc"]
+categories = ["api-bindings", "encoding"]
+
+[features]
+default = ["grpc"]
+grpc = ["tonic", "transport"]
+transport = ["tonic/transport"]
+
+[build-dependencies]
+tonic-build = { workspace = true }
+prost-build = { workspace = true }
+walkdir = { workspace = true }
+
+[dependencies]
+prost = { workspace = true }
+prost-types = { workspace = true }
+tonic = { workspace = true, optional = true, features = ["transport"] }

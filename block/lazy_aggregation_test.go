@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/evstack/ev-node/pkg/config"
 )
 
 // mockPublishBlock is used to control the behavior of publishBlock during tests

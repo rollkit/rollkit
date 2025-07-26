@@ -1,0 +1,9 @@
+syntax = "proto3";
+package evnode.v1;
+
+option go_package = "github.com/evstack/ev-node/types/pb/evnode/v1";
+
+// Batch is a collection of transactions.
+message Batch {
+  repeated bytes txs = 1;
+}

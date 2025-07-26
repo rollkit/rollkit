@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/rollkit/rollkit/pkg/genesis"
+	"github.com/evstack/ev-node/pkg/genesis"
 )
 
 // InitStateVersion sets the Consensus.Block and Software versions,
@@ -57,7 +57,7 @@ func NewFromGenesisDoc(genDoc genesis.Genesis) (State, error) {
 	return s, nil
 }
 
-func (s *State) NextState(header *SignedHeader, stateRoot []byte) (State, error) {
+func (s *State) NextState(header Header, stateRoot []byte) (State, error) {
 	height := header.Height()
 
 	return State{
