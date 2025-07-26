@@ -82,7 +82,7 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 
 	batch, err := s.db.Batch(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to create a new batch: %w", err)
+		return fmt.Errorf("failed to create a new batch for saving block data: %w", err)
 	}
 
 	if err := batch.Put(ctx, ds.NewKey(getHeaderKey(height)), headerBlob); err != nil {
@@ -103,6 +103,31 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 
 	return nil
 }
+
+// DeleteBlockData deletes block at given height.
+func (s *DefaultStore) DeleteBlockData(ctx context.Context, height uint64) error {
+	batch, err := s.db.Batch(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create a new batch for deleting block data: %w", err)
+	}
+
+	if err := batch.Delete(ctx, ds.NewKey(getHeaderKey(height))); err != nil {
+		return fmt.Errorf("failed to delete header blob in batch: %w", err)
+	}
+	if err := batch.Delete(ctx, ds.NewKey(getDataKey(height))); err != nil {
+		return fmt.Errorf("failed to delete data blob in batch: %w", err)
+	}
+	if err := batch.Delete(ctx, ds.NewKey(getSignatureKey(height))); err != nil {
+		return fmt.Errorf("failed to delete signature of block blob in batch: %w", err)
+	}
+	if err := batch.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit batch: %w", err)
+	}
+
+	return nil
+}
+
+// TODO: We unmarshal the header and data here, but then we re-marshal them to proto to hash or send them to DA, we should not unmarshal them here and allow the caller to handle them as needed.
 
 // GetBlockData returns block header and data at given height, or error if it's not found in Store.
 func (s *DefaultStore) GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error) {

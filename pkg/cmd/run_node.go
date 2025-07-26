@@ -32,6 +32,11 @@ func ParseConfig(cmd *cobra.Command) (rollconf.Config, error) {
 		return rollconf.Config{}, fmt.Errorf("failed to load node config: %w", err)
 	}
 
+	if nodeConfig.Node.Pruning.Strategy != rollconf.PruningConfigStrategyCustom {
+		pruningConfig := rollconf.GetPruningConfigFromStrategy(nodeConfig.Node.Pruning.Strategy)
+		nodeConfig.Node.Pruning = pruningConfig
+	}
+
 	if err := nodeConfig.Validate(); err != nil {
 		return rollconf.Config{}, fmt.Errorf("failed to validate node config: %w", err)
 	}
