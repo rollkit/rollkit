@@ -234,13 +234,11 @@ func isRetryableKMSError(err error) bool {
 		return true
 	}
 
-	var netErr net.Error
-	if errors.As(err, &netErr) {
+	if _, ok := errors.AsType[net.Error](err); ok {
 		return true
 	}
 
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 		switch apiErr.ErrorCode() {
 		case "DependencyTimeoutException", "KMSInternalException", "KeyUnavailableException", "ThrottlingException", "ServiceUnavailableException", "InternalFailure", "InternalException", "RequestTimeout", "RequestTimeoutException":
 			return true
