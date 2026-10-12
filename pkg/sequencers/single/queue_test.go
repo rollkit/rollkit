@@ -59,7 +59,7 @@ func createTestBatch(t *testing.T, txCount int) coresequencer.Batch {
 	txs := make([][]byte, txCount)
 	for i := range txCount {
 		n := testBatchNonce.Add(1)
-		txs[i] = []byte(fmt.Sprintf("tx-%d-%d", n, i))
+		txs[i] = fmt.Appendf(nil, "tx-%d-%d", n, i)
 	}
 	return coresequencer.Batch{Transactions: txs}
 }
@@ -745,7 +745,7 @@ func TestBatchQueue_Drain_RollbackBulkPrependAfterCompact(t *testing.T) {
 	// are in flight, forcing the bulk-prepend rollback path on next drain
 	const n = 150
 	for i := range n {
-		tx := []byte(fmt.Sprintf("tx-%03d", i))
+		tx := fmt.Appendf(nil, "tx-%03d", i)
 		require.NoError(t, queue.AddBatch(ctx, coresequencer.Batch{Transactions: [][]byte{tx}}))
 	}
 
@@ -762,7 +762,7 @@ func TestBatchQueue_Drain_RollbackBulkPrependAfterCompact(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, batch2.Transactions, n+1)
 	for i := range n {
-		assert.Equal(t, []byte(fmt.Sprintf("tx-%03d", i)), batch2.Transactions[i])
+		assert.Equal(t, fmt.Appendf(nil, "tx-%03d", i), batch2.Transactions[i])
 	}
 	assert.Equal(t, []byte("tx-new"), batch2.Transactions[n])
 }
@@ -876,7 +876,7 @@ func TestBatchQueue_InFlight_CountsTowardQueueLimit(t *testing.T) {
 	// fill to capacity
 	for i := range maxSize {
 		require.NoError(t, queue.AddBatch(ctx, coresequencer.Batch{
-			Transactions: [][]byte{[]byte(fmt.Sprintf("tx%d", i))},
+			Transactions: [][]byte{fmt.Appendf(nil, "tx%d", i)},
 		}))
 	}
 
