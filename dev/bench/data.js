@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791829247271,
+  "lastUpdate": 1791830580044,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -94,6 +94,54 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkEvmContractRoundtrip - allocs/op",
             "value": 36194,
+            "unit": "allocs/op",
+            "extra": "2 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "marko@baricevic.me",
+            "name": "tac0turtle",
+            "username": "tac0turtle"
+          },
+          "committer": {
+            "email": "marko@baricevic.me",
+            "name": "tac0turtle",
+            "username": "tac0turtle"
+          },
+          "distinct": true,
+          "id": "8053e8f0c570fdcf56509f3641cc4b76aea60efd",
+          "message": "fix(build): compile current ev-node modules in apps and images\n\nPin EVM and testapp dependencies to cd339dcc81c9, which includes the pruning and DA-finalization fixes. Apply local module replacements inside Docker builds so later main and PR images compile the checked-out root, core, and EVM execution modules instead of stale release dependencies.",
+          "timestamp": "2026-10-12T20:39:43+02:00",
+          "tree_id": "ba1f3a8b8ec42cffc8f0da5ad8190cccf436493e",
+          "url": "https://github.com/evstack/ev-node/commit/8053e8f0c570fdcf56509f3641cc4b76aea60efd"
+        },
+        "date": 1791830573409,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkEvmContractRoundtrip",
+            "value": 913145091,
+            "unit": "ns/op\t 4255624 B/op\t   36451 allocs/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - ns/op",
+            "value": 913145091,
+            "unit": "ns/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - B/op",
+            "value": 4255624,
+            "unit": "B/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - allocs/op",
+            "value": 36451,
             "unit": "allocs/op",
             "extra": "2 times\n4 procs"
           }
