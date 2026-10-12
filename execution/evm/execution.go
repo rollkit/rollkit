@@ -584,13 +584,31 @@ func (c *EngineClient) doForkchoiceUpdate(ctx context.Context, args engine.Forkc
 	return nil
 }
 
-// SetFinal marks the block at the given height as finalized
+// SetFinal marks the block at the given height as finalized.
+//
+// When DA inclusion lags far behind the head, the requested height may no
+// longer be served by the execution layer (e.g. pruned history). If the
+// lookup fails but the EL head is at or above the height, the block exists
+// but is unavailable, so the update is skipped: a later height will move the
+// finalized label forward. Lookup failures for heights above the head, or
+// when the head itself cannot be read, are returned as errors.
 func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
 	blockHash, _, _, _, err := c.getBlockInfo(ctx, blockHeight)
-	if err != nil {
+	if err == nil {
+		return c.setFinal(ctx, blockHash, true)
+	}
+
+	head, headErr := c.ethClient.HeaderByNumber(ctx, nil)
+	if headErr != nil || head == nil || head.Number == nil || !head.Number.IsUint64() || head.Number.Uint64() < blockHeight {
 		return fmt.Errorf("failed to get block info: %w", err)
 	}
-	return c.setFinal(ctx, blockHash, true)
+
+	c.logger.Warn().
+		Uint64("height", blockHeight).
+		Uint64("el_head", head.Number.Uint64()).
+		Err(err).
+		Msg("SetFinal: historical block unavailable on execution layer, skipping finalized update")
+	return nil
 }
 
 // SetSafe explicitly sets the safe block hash.
