@@ -10,12 +10,7 @@ RUN go mod download
 COPY . .
 
 WORKDIR /src/apps/evm
-# Compile the checked-out modules instead of the release versions in go.mod.
-RUN go mod edit \
-      -replace github.com/evstack/ev-node=../.. \
-      -replace github.com/evstack/ev-node/core=../../core \
-      -replace github.com/evstack/ev-node/execution/evm=../../execution/evm && \
-    go mod tidy && CGO_ENABLED=0 GOOS=linux go build -o evm .
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -o evm .
 
 FROM alpine:3.22.2
 
