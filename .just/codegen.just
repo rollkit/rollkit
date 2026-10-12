@@ -2,7 +2,7 @@
 [group('codegen')]
 mock-gen:
     @echo "-> Generating mocks"
-    go run github.com/vektra/mockery/v3@latest
+    go run github.com/vektra/mockery/v3@v3.8.1
 
 # Install dependencies and tidy all modules
 [group('codegen')]
