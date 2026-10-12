@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -587,15 +588,18 @@ func (c *EngineClient) doForkchoiceUpdate(ctx context.Context, args engine.Forkc
 // SetFinal marks the block at the given height as finalized.
 //
 // When DA inclusion lags far behind the head, the requested height may no
-// longer be served by the execution layer (e.g. pruned history). If the
-// lookup fails but the EL head is at or above the height, the block exists
-// but is unavailable, so the update is skipped: a later height will move the
-// finalized label forward. Lookup failures for heights above the head, or
-// when the head itself cannot be read, are returned as errors.
+// longer be served by the execution layer (pruned history). If the lookup
+// reports the block as pruned or not found and the EL head is at or above the
+// height, the update is skipped: a later height will move the finalized label
+// forward. Any other lookup failure (e.g. transient RPC errors), lookups above
+// the head, or an unreadable head are returned as errors so the caller retries.
 func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
 	blockHash, _, _, _, err := c.getBlockInfo(ctx, blockHeight)
 	if err == nil {
 		return c.setFinal(ctx, blockHash, true)
+	}
+	if !isHistoryUnavailable(err) {
+		return fmt.Errorf("failed to get block info: %w", err)
 	}
 
 	head, headErr := c.ethClient.HeaderByNumber(ctx, nil)
@@ -609,6 +613,20 @@ func (c *EngineClient) SetFinal(ctx context.Context, blockHeight uint64) error {
 		Err(err).
 		Msg("SetFinal: historical block unavailable on execution layer, skipping finalized update")
 	return nil
+}
+
+// prunedHistoryErrorCode is the JSON-RPC error code execution clients (geth,
+// reth) return when a request touches pruned history (EIP-4444).
+const prunedHistoryErrorCode = 4444
+
+// isHistoryUnavailable reports whether err means the execution layer no longer
+// serves the requested block, as opposed to a transient failure.
+func isHistoryUnavailable(err error) bool {
+	if errors.Is(err, ethereum.NotFound) {
+		return true
+	}
+	var rpcErr rpc.Error
+	return errors.As(err, &rpcErr) && rpcErr.ErrorCode() == prunedHistoryErrorCode
 }
 
 // SetSafe explicitly sets the safe block hash.

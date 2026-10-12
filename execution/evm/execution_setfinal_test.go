@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -14,22 +15,39 @@ import (
 )
 
 func TestSetFinal_UnavailableBlock(t *testing.T) {
+	prunedErr := &testRPCError{code: prunedHistoryErrorCode, msg: "pruned history unavailable"}
+
 	specs := map[string]struct {
-		head        *big.Int
-		headErr     error
-		expectErr   bool
-		expectFCUpd bool
+		lookupErr error
+		head      *big.Int
+		headErr   error
+		expectErr bool
 	}{
-		"skip_when_below_head": {
-			head:        big.NewInt(1_000),
-			expectErr:   false,
-			expectFCUpd: false,
+		"skip_pruned_below_head": {
+			lookupErr: prunedErr,
+			head:      big.NewInt(1_000),
 		},
-		"error_when_above_head": {
+		"skip_not_found_below_head": {
+			lookupErr: ethereum.NotFound,
+			head:      big.NewInt(1_000),
+		},
+		"error_transient_lookup_below_head": {
+			lookupErr: errors.New("i/o timeout"),
+			head:      big.NewInt(1_000),
+			expectErr: true,
+		},
+		"error_other_rpc_code_below_head": {
+			lookupErr: &testRPCError{code: -32000, msg: "internal error"},
+			head:      big.NewInt(1_000),
+			expectErr: true,
+		},
+		"error_pruned_above_head": {
+			lookupErr: prunedErr,
 			head:      big.NewInt(50),
 			expectErr: true,
 		},
-		"error_when_head_unavailable": {
+		"error_pruned_head_unavailable": {
+			lookupErr: prunedErr,
 			headErr:   errors.New("connection refused"),
 			expectErr: true,
 		},
@@ -40,8 +58,9 @@ func TestSetFinal_UnavailableBlock(t *testing.T) {
 			client := &EngineClient{
 				engineClient: engineRPC,
 				ethClient: mockSetFinalEthRPCClient{
-					head:    spec.head,
-					headErr: spec.headErr,
+					lookupErr: spec.lookupErr,
+					head:      spec.head,
+					headErr:   spec.headErr,
 				},
 				logger: zerolog.Nop(),
 			}
@@ -53,21 +72,22 @@ func TestSetFinal_UnavailableBlock(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, spec.expectFCUpd, engineRPC.forkchoiceCalls > 0)
+			require.Zero(t, engineRPC.forkchoiceCalls)
 		})
 	}
 }
 
-// mockSetFinalEthRPCClient fails every historical lookup, as if the EL had
-// pruned it, and serves the configured head for latest-block queries.
+// mockSetFinalEthRPCClient fails every numbered lookup with lookupErr and
+// serves the configured head for latest-block queries.
 type mockSetFinalEthRPCClient struct {
-	head    *big.Int
-	headErr error
+	lookupErr error
+	head      *big.Int
+	headErr   error
 }
 
 func (m mockSetFinalEthRPCClient) HeaderByNumber(_ context.Context, number *big.Int) (*types.Header, error) {
 	if number != nil {
-		return nil, errors.New("block pruned")
+		return nil, m.lookupErr
 	}
 	if m.headErr != nil {
 		return nil, m.headErr
