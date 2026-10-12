@@ -989,6 +989,63 @@ func (_c *MockStore_PruneBlocks_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// PruneStates provides a mock function for the type MockStore
+func (_mock *MockStore) PruneStates(ctx context.Context, height uint64) error {
+	ret := _mock.Called(ctx, height)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PruneStates")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint64) error); ok {
+		r0 = returnFunc(ctx, height)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockStore_PruneStates_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PruneStates'
+type MockStore_PruneStates_Call struct {
+	*mock.Call
+}
+
+// PruneStates is a helper method to define mock.On call
+//   - ctx context.Context
+//   - height uint64
+func (_e *MockStore_Expecter) PruneStates(ctx interface{}, height interface{}) *MockStore_PruneStates_Call {
+	return &MockStore_PruneStates_Call{Call: _e.mock.On("PruneStates", ctx, height)}
+}
+
+func (_c *MockStore_PruneStates_Call) Run(run func(ctx context.Context, height uint64)) *MockStore_PruneStates_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uint64
+		if args[1] != nil {
+			arg1 = args[1].(uint64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStore_PruneStates_Call) Return(err error) *MockStore_PruneStates_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockStore_PruneStates_Call) RunAndReturn(run func(ctx context.Context, height uint64) error) *MockStore_PruneStates_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Rollback provides a mock function for the type MockStore
 func (_mock *MockStore) Rollback(ctx context.Context, height uint64, aggregator bool) error {
 	ret := _mock.Called(ctx, height, aggregator)

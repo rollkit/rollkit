@@ -230,6 +230,21 @@ func (t *tracedStore) BatchMetadata(ctx context.Context, puts []MetadataKV, dele
 	return nil
 }
 
+func (t *tracedStore) PruneStates(ctx context.Context, height uint64) error {
+	ctx, span := t.tracer.Start(ctx, "Store.PruneStates",
+		trace.WithAttributes(attribute.Int64("height", int64(height))),
+	)
+	defer span.End()
+
+	if err := t.inner.PruneStates(ctx, height); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	return nil
+}
+
 func (t *tracedStore) DeleteStateAtHeight(ctx context.Context, height uint64) error {
 	ctx, span := t.tracer.Start(ctx, "Store.DeleteStateAtHeight",
 		trace.WithAttributes(attribute.Int64("height", int64(height))),
