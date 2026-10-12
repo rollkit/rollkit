@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791826901561,
+  "lastUpdate": 1791829244481,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -46,6 +46,54 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkEvmContractRoundtrip - allocs/op",
             "value": 36292,
+            "unit": "allocs/op",
+            "extra": "2 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "marko@baricevic.me",
+            "name": "Marko",
+            "username": "tac0turtle"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cd339dcc81c9ceb98d26069cca0c16c765fefafa",
+          "message": "fix(submitter): don't halt the node when SetFinal fails during DA backlog (#3473)\n\n* fix(submitter): don't halt the node when SetFinal fails during DA backlog\n\nWhen the DA-included height lags far behind the head, the DA inclusion\nloop finalizes historical heights one by one. EVM SetFinal resolves each\nheight through HeaderByNumber; once Reth has pruned that history, every\nretry fails and the submitter reports a critical error that shuts down an\notherwise healthy node.\n\n- EVM SetFinal: if the block lookup fails but the EL head is at or above\n  the requested height, the block is historical and unavailable, so skip\n  the finalized update with a warning. Lookups above the head, or when the\n  head cannot be read, still return an error.\n- Submitter: on exhausted SetFinal retries, log and retry on the next tick\n  instead of sending a critical error. The DA-included height does not\n  advance past a height that failed to finalize.\n\n* chore: add changelog entry for #3473\n\n* fix(evm): only skip SetFinal for pruned or missing history\n\nRestrict the historical-block skip in SetFinal to lookup errors that mean\nthe execution layer no longer serves the block: JSON-RPC code 4444\n(pruned history, EIP-4444, used by geth and reth) or ethereum.NotFound.\nTransient lookup failures are returned so the submitter retries the\nheight instead of advancing the DA-included height past it.",
+          "timestamp": "2026-10-12T20:17:03+02:00",
+          "tree_id": "589771274f6c86613ad057330346f761c0a6cef4",
+          "url": "https://github.com/evstack/ev-node/commit/cd339dcc81c9ceb98d26069cca0c16c765fefafa"
+        },
+        "date": 1791829239366,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkEvmContractRoundtrip",
+            "value": 904706816,
+            "unit": "ns/op\t 4181568 B/op\t   36194 allocs/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - ns/op",
+            "value": 904706816,
+            "unit": "ns/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - B/op",
+            "value": 4181568,
+            "unit": "B/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - allocs/op",
+            "value": 36194,
             "unit": "allocs/op",
             "extra": "2 times\n4 procs"
           }
