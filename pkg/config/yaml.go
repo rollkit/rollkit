@@ -50,8 +50,6 @@ func (c *Config) SaveAsYaml() error {
 	var processFields func(t reflect.Type, prefix string)
 	processFields = func(t reflect.Type, prefix string) {
 		for field := range t.Fields() {
-			field := field
-
 			// Skip unexported fields
 			if !field.IsExported() {
 				continue
