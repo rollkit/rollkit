@@ -557,6 +557,52 @@ func TestDeleteStateAtHeight(t *testing.T) {
 	require.ErrorIs(err, ds.ErrNotFound)
 }
 
+func TestPruneStates(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctx := t.Context()
+
+	kv, err := NewTestInMemoryKVStore()
+	require.NoError(err)
+	store := New(kv)
+
+	for h := uint64(1); h <= 10; h++ {
+		batch, err := store.NewBatch(ctx)
+		require.NoError(err)
+		require.NoError(batch.SetHeight(h))
+		require.NoError(batch.UpdateState(types.State{LastBlockHeight: h}))
+		require.NoError(batch.Commit())
+	}
+
+	require.NoError(store.PruneStates(ctx, 4))
+	// Lower or equal heights are no-ops.
+	require.NoError(store.PruneStates(ctx, 2))
+	require.NoError(store.PruneStates(ctx, 4))
+	// Resumes from the recorded marker.
+	require.NoError(store.PruneStates(ctx, 6))
+
+	for h := uint64(1); h <= 6; h++ {
+		_, err := store.GetStateAtHeight(ctx, h)
+		require.ErrorIs(err, ds.ErrNotFound, "state at height %d should be pruned", h)
+	}
+	for h := uint64(7); h <= 10; h++ {
+		_, err := store.GetStateAtHeight(ctx, h)
+		require.NoError(err, "state at height %d should be kept", h)
+	}
+
+	meta, err := store.GetMetadata(ctx, LastPrunedStateHeightKey)
+	require.NoError(err)
+	require.Equal(uint64(6), binary.LittleEndian.Uint64(meta))
+
+	// Block height and current state are untouched.
+	height, err := store.Height(ctx)
+	require.NoError(err)
+	require.Equal(uint64(10), height)
+	state, err := store.GetState(ctx)
+	require.NoError(err)
+	require.Equal(uint64(10), state.LastBlockHeight)
+}
+
 func TestGetStateError(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

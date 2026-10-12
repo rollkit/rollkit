@@ -139,44 +139,66 @@ func (p *Pruner) pruneBlocks() error {
 
 	targetHeight := upperBound - p.cfg.KeepRecent
 
-	// Get the last pruned height to determine batch size
 	lastPruned, err := p.getLastPrunedBlockHeight(p.ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get last pruned block height: %w", err)
 	}
 
-	// prune in batches to avoid overwhelming the system
-	batchSize := p.calculateBatchSize()
-	batchEnd := min(lastPruned+batchSize, targetHeight)
+	// Bound the work done per tick; a backlog drains over several ticks.
+	blocksEnd := max(min(lastPruned+p.pruneBudget(), targetHeight), lastPruned)
+	if err := p.pruneInChunks(lastPruned, blocksEnd, p.store.PruneBlocks); err != nil {
+		p.logger.Error().Err(err).Uint64("target_height", blocksEnd).Msg("failed to prune old block data")
+		return err
+	}
 
-	if err := p.store.PruneBlocks(p.ctx, batchEnd); err != nil {
-		p.logger.Error().Err(err).Uint64("target_height", batchEnd).Msg("failed to prune old block data")
+	if blocksEnd == 0 {
+		return nil
+	}
+
+	// PruneBlocks leaves per-height state snapshots in place. Keep the state at
+	// blocksEnd: replaying the first retained block (blocksEnd+1) needs it.
+	if _, err := p.pruneStates(blocksEnd - 1); err != nil {
 		return err
 	}
 
 	if p.execPruner != nil {
-		if err := p.execPruner.PruneExec(p.ctx, batchEnd); err != nil && !errors.Is(err, ds.ErrNotFound) {
+		if err := p.execPruner.PruneExec(p.ctx, blocksEnd); err != nil && !errors.Is(err, ds.ErrNotFound) {
 			return err
 		}
 	}
 
-	p.logger.Debug().Uint64("pruned_up_to_height", batchEnd).Bool("da_enabled", p.daEnabled).Msg("pruned blocks up to height")
+	p.logger.Debug().Uint64("pruned_up_to_height", blocksEnd).Bool("da_enabled", p.daEnabled).Msg("pruned blocks up to height")
 	return nil
 }
 
-// calculateBatchSize returns the appropriate batch size for pruning operations.
-// The batch size is based on the pruning interval and block time to ensure reasonable progress
-// without overwhelming the node.
-func (p *Pruner) calculateBatchSize() uint64 {
-	// Calculate batch size based on pruning interval and block time.
-	// We use 4x the blocks produced during one pruning interval as the batch size.
-	// This ensures we catch up at 3x the block production rate when there's a backlog.
-	// Example: With 100ms blocks and 15min interval: 15*60/0.1 = 9000 blocks/interval
-	//   - Batch size: 36,000 blocks (prunes 36k, chain grows 9k = net 27k catch-up per interval)
-	blocksPerInterval := uint64(p.cfg.Interval.Duration / p.blockTime)
+// maxPruneChunk bounds the number of heights pruned in a single store batch,
+// keeping individual write transactions small.
+const maxPruneChunk uint64 = 10_000
 
-	// Ensure reasonable minimum
-	return min(blocksPerInterval*4, 10000)
+// pruneBudget returns the maximum number of heights to prune per tick.
+// It is 4x the blocks produced during one pruning interval, so a backlog drains
+// at ~3x the block production rate and pruning never falls behind the chain.
+// Example: 100ms blocks and a 15m interval produce 9,000 blocks per interval,
+// giving a budget of 36,000 heights (net catch-up of 27,000 per interval).
+func (p *Pruner) pruneBudget() uint64 {
+	blocksPerInterval := uint64(p.cfg.Interval.Duration / p.blockTime)
+	return max(blocksPerInterval*4, maxPruneChunk)
+}
+
+// pruneInChunks calls prune for successive heights in (from, to], at most
+// maxPruneChunk heights per call. The loop is bounded by (to-from)/maxPruneChunk.
+func (p *Pruner) pruneInChunks(from, to uint64, prune func(context.Context, uint64) error) error {
+	for from < to {
+		if err := p.ctx.Err(); err != nil {
+			return err
+		}
+		end := min(from+maxPruneChunk, to)
+		if err := prune(p.ctx, end); err != nil {
+			return err
+		}
+		from = end
+	}
+	return nil
 }
 
 // pruneMetadata prunes old state and execution metadata entries based on the configured retention depth.
@@ -188,47 +210,46 @@ func (p *Pruner) pruneMetadata() error {
 		return err
 	}
 
-	if height <= p.cfg.KeepRecent {
+	// Blocks in (target, height] stay replayable; the oldest one, target+1,
+	// needs the state at target, so only states below target are pruned.
+	if height <= p.cfg.KeepRecent+1 {
 		return nil
 	}
-
-	lastPrunedState, err := p.getLastPrunedStateHeight(p.ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get last pruned state height: %w", err)
-	}
-
-	if lastPrunedBlock, err := p.getLastPrunedBlockHeight(p.ctx); err == nil && lastPrunedBlock > lastPrunedState {
-		lastPrunedState = lastPrunedBlock
-	}
-
 	target := height - p.cfg.KeepRecent
-	if target <= lastPrunedState {
-		return nil
-	}
 
-	batchSize := p.calculateBatchSize()
-
-	// prune in batches to avoid overwhelming the system
-	batchEnd := min(lastPrunedState+batchSize, target)
-
-	for h := lastPrunedState + 1; h <= batchEnd; h++ {
-		if err := p.store.DeleteStateAtHeight(p.ctx, h); err != nil && !errors.Is(err, ds.ErrNotFound) {
-			return err
-		}
+	statesEnd, err := p.pruneStates(target - 1)
+	if err != nil || statesEnd == 0 {
+		return err
 	}
 
 	if p.execPruner != nil {
-		if err := p.execPruner.PruneExec(p.ctx, batchEnd); err != nil && !errors.Is(err, ds.ErrNotFound) {
+		if err := p.execPruner.PruneExec(p.ctx, statesEnd); err != nil && !errors.Is(err, ds.ErrNotFound) {
 			return err
 		}
 	}
 
-	if err := p.setLastPrunedStateHeight(p.ctx, batchEnd); err != nil {
-		return fmt.Errorf("failed to set last pruned block height: %w", err)
+	return nil
+}
+
+// pruneStates deletes per-height state snapshots in (lastPrunedState, upTo],
+// bounded by pruneBudget per call. It returns the last pruned state height.
+func (p *Pruner) pruneStates(upTo uint64) (uint64, error) {
+	lastPrunedState, err := p.getLastPrunedStateHeight(p.ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last pruned state height: %w", err)
 	}
 
-	p.logger.Debug().Uint64("pruned_to", batchEnd).Msg("pruned state height metadata up to height")
-	return nil
+	if upTo <= lastPrunedState {
+		return lastPrunedState, nil
+	}
+
+	statesEnd := min(lastPrunedState+p.pruneBudget(), upTo)
+	if err := p.pruneInChunks(lastPrunedState, statesEnd, p.store.PruneStates); err != nil {
+		return 0, fmt.Errorf("failed to prune state snapshots: %w", err)
+	}
+
+	p.logger.Debug().Uint64("pruned_to", statesEnd).Msg("pruned state snapshots up to height")
+	return statesEnd, nil
 }
 
 // getLastPrunedBlockHeight returns the height of the last block that was pruned using PruneBlocks.
@@ -251,7 +272,7 @@ func (p *Pruner) getLastPrunedBlockHeight(ctx context.Context) (uint64, error) {
 	return lastPrunedBlockHeight, nil
 }
 
-// getLastPrunedStateHeight returns the height of the last state that was pruned using DeleteStateAtHeight.
+// getLastPrunedStateHeight returns the height of the last state that was pruned using PruneStates.
 func (p *Pruner) getLastPrunedStateHeight(ctx context.Context) (uint64, error) {
 	lastPrunedStateHeightBz, err := p.store.GetMetadata(ctx, store.LastPrunedStateHeightKey)
 	if errors.Is(err, ds.ErrNotFound) {
@@ -269,10 +290,4 @@ func (p *Pruner) getLastPrunedStateHeight(ctx context.Context) (uint64, error) {
 	}
 
 	return lastPrunedStateHeight, nil
-}
-
-func (p *Pruner) setLastPrunedStateHeight(ctx context.Context, height uint64) error {
-	bz := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bz, height)
-	return p.store.SetMetadata(ctx, store.LastPrunedStateHeightKey, bz)
 }

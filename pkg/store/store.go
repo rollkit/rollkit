@@ -342,17 +342,9 @@ func (s *DefaultStore) PruneBlocks(ctx context.Context, height uint64) error {
 	}
 
 	// Track the last successfully pruned height so we can resume across restarts.
-	var lastPruned uint64
-	meta, err := s.GetMetadata(ctx, LastPrunedBlockHeightKey)
+	lastPruned, err := s.getLastPrunedHeight(ctx, LastPrunedBlockHeightKey)
 	if err != nil {
-		if !errors.Is(err, ds.ErrNotFound) {
-			return fmt.Errorf("failed to get last pruned height: %w", err)
-		}
-	} else if len(meta) == heightLength {
-		lastPruned, err = decodeHeight(meta)
-		if err != nil {
-			return fmt.Errorf("failed to decode last pruned height: %w", err)
-		}
+		return err
 	}
 
 	// Nothing new to prune.
@@ -420,6 +412,63 @@ func (s *DefaultStore) PruneBlocks(ctx context.Context, height uint64) error {
 	}
 
 	return nil
+}
+
+// PruneStates removes per-height state snapshots up to and including the
+// given height. Progress is recorded under LastPrunedStateHeightKey in the
+// same batch, so the call is atomic and safe to repeat with the same or
+// increasing heights. It does not modify block data or the current height.
+func (s *DefaultStore) PruneStates(ctx context.Context, height uint64) error {
+	lastPruned, err := s.getLastPrunedHeight(ctx, LastPrunedStateHeightKey)
+	if err != nil {
+		return err
+	}
+
+	if height <= lastPruned {
+		return nil
+	}
+
+	batch, err := s.db.Batch(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create a new batch for state pruning: %w", err)
+	}
+
+	for h := lastPruned + 1; h <= height; h++ {
+		if err := batch.Delete(ctx, ds.NewKey(getStateAtHeightKey(h))); err != nil && !errors.Is(err, ds.ErrNotFound) {
+			return fmt.Errorf("failed to delete state at height %d during pruning: %w", h, err)
+		}
+	}
+
+	if err := batch.Put(ctx, ds.NewKey(GetMetaKey(LastPrunedStateHeightKey)), encodeHeight(height)); err != nil {
+		return fmt.Errorf("failed to update last pruned state height: %w", err)
+	}
+
+	if err := batch.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit state pruning batch: %w", err)
+	}
+
+	return nil
+}
+
+// getLastPrunedHeight reads a last-pruned height marker, returning 0 if unset.
+func (s *DefaultStore) getLastPrunedHeight(ctx context.Context, key string) (uint64, error) {
+	meta, err := s.GetMetadata(ctx, key)
+	if err != nil {
+		if errors.Is(err, ds.ErrNotFound) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to get last pruned height %q: %w", key, err)
+	}
+
+	if len(meta) != heightLength {
+		return 0, nil
+	}
+
+	lastPruned, err := decodeHeight(meta)
+	if err != nil {
+		return 0, fmt.Errorf("failed to decode last pruned height %q: %w", key, err)
+	}
+	return lastPruned, nil
 }
 
 const heightLength = 8

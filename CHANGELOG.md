@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prune per-height state snapshots in `all` pruning mode, keep the state needed to replay the oldest retained block, and stop pruning from falling behind when more than 10k blocks are produced per interval [#3469](https://github.com/evstack/ev-node/pull/3469).
+
 ## v1.2.3
 
 ### Changed

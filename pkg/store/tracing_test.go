@@ -134,6 +134,10 @@ func (m *tracingMockStore) PruneBlocks(ctx context.Context, height uint64) error
 	return nil
 }
 
+func (m *tracingMockStore) PruneStates(ctx context.Context, height uint64) error {
+	return nil
+}
+
 func (m *tracingMockStore) DeleteStateAtHeight(ctx context.Context, height uint64) error {
 	if m.deleteStateAtHeightFn != nil {
 		return m.deleteStateAtHeightFn(ctx, height)

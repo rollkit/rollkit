@@ -110,6 +110,9 @@ type Pruner interface {
 	// up to and including the given height from the store, without modifying
 	// state snapshots or the current chain height.
 	PruneBlocks(ctx context.Context, height uint64) error
+	// PruneStates removes per-height state snapshots up to and including the
+	// given height, tracking progress so repeated calls resume where they left off.
+	PruneStates(ctx context.Context, height uint64) error
 	// DeleteStateAtHeight removes the state at the given height from the store.
 	// It does not affect the current state or any states at other heights, allowing for targeted pruning of historical state snapshots.
 	DeleteStateAtHeight(ctx context.Context, height uint64) error
