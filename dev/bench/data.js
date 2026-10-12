@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791817832453,
+  "lastUpdate": 1791819580304,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -286,6 +286,54 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkEvmContractRoundtrip - allocs/op",
             "value": 35653,
+            "unit": "allocs/op",
+            "extra": "2 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "marko@baricevic.me",
+            "name": "Marko",
+            "username": "tac0turtle"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7dd3eb4dfb71c2f763151439eb3326e0233ffb99",
+          "message": "fix(pruner): prune state snapshots in all mode and stop pruning from falling behind (#3469)\n\n* fix(pruner): prune state snapshots in all mode and stop pruning from falling behind\n\n- Pruning mode \"all\" deleted block data but never the per-height state\n  snapshots (/s/<height>), so state grew without bound. Block pruning now\n  also prunes states, keeping the state at the last pruned height so the\n  oldest retained block can still be replayed.\n- Add Store.PruneStates, which deletes states and records\n  LastPrunedStateHeightKey in a single batch (mirrors PruneBlocks), instead\n  of one write per height.\n- Metadata mode no longer jumps its state marker to the last pruned block\n  height, which skipped states that were never deleted.\n- Metadata mode keeps the state for the oldest retained block (previously\n  it deleted it, leaving keep_recent-1 replayable blocks).\n- Replace the hard 10k per-tick cap with a budget of 4x blocks per\n  interval (min 10k), executed in store batches of at most 10k heights.\n  With the cap, pruning fell behind permanently whenever more than 10k\n  blocks were produced per interval.\n\n* chore: add changelog entry for #3469",
+          "timestamp": "2026-10-12T17:23:43+02:00",
+          "tree_id": "661cbeef3b49310592b4942b3fc13da228dbc489",
+          "url": "https://github.com/evstack/ev-node/commit/7dd3eb4dfb71c2f763151439eb3326e0233ffb99"
+        },
+        "date": 1791819573908,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkEvmContractRoundtrip",
+            "value": 910350866,
+            "unit": "ns/op\t 4285840 B/op\t   36504 allocs/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - ns/op",
+            "value": 910350866,
+            "unit": "ns/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - B/op",
+            "value": 4285840,
+            "unit": "B/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - allocs/op",
+            "value": 36504,
             "unit": "allocs/op",
             "extra": "2 times\n4 procs"
           }
