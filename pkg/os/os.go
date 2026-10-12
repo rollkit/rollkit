@@ -74,7 +74,9 @@ func MustWriteFile(filePath string, contents []byte, mode os.FileMode) {
 }
 
 // CopyFile copies a file. It truncates the destination file if it exists.
-func CopyFile(src, dst string) error {
+// The result is named so that the deferred Close calls below can surface a
+// close error to the caller when the copy itself succeeded.
+func CopyFile(src, dst string) (err error) {
 	srcfile, err := os.Open(src) //nolint:gosec
 	if err != nil {
 		return err
