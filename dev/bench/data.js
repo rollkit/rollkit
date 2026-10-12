@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791819616341,
+  "lastUpdate": 1791819618947,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -1058,6 +1058,102 @@ window.BENCHMARK_DATA = {
             "value": 55,
             "unit": "allocs/op",
             "extra": "27121 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "marko@baricevic.me",
+            "name": "Marko",
+            "username": "tac0turtle"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef08d9f8296182e01b1224c0cff2ac25c130b6b9",
+          "message": "chore: pin mockery and golangci-lint to Go 1.27-compatible versions (#3470)\n\n- Pin mockery to v3.8.1 in `just mock-gen` (was @latest). Older v3.4.0\n  fails to load packages under Go 1.27 (\"package context without types\").\n- Pin golangci-lint to v2.14.0 in CI (was latest), so lint results don't\n  change underneath PRs when a new release ships.\n- Remove a redundant loop variable copy in pkg/config/yaml.go flagged by\n  copyloopvar in golangci-lint v2.14.0.",
+          "timestamp": "2026-10-12T17:23:54+02:00",
+          "tree_id": "132bb08d88e9394b3a7a1947bfb2c2a3124e3973",
+          "url": "https://github.com/evstack/ev-node/commit/ef08d9f8296182e01b1224c0cff2ac25c130b6b9"
+        },
+        "date": 1791819618465,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkProduceBlock/100_txs",
+            "value": 43399,
+            "unit": "ns/op\t   10349 B/op\t      55 allocs/op",
+            "extra": "28206 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs - ns/op",
+            "value": 43399,
+            "unit": "ns/op",
+            "extra": "28206 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs - B/op",
+            "value": 10349,
+            "unit": "B/op",
+            "extra": "28206 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs - allocs/op",
+            "value": 55,
+            "unit": "allocs/op",
+            "extra": "28206 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch",
+            "value": 36636,
+            "unit": "ns/op\t    4845 B/op\t      51 allocs/op",
+            "extra": "33590 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch - ns/op",
+            "value": 36636,
+            "unit": "ns/op",
+            "extra": "33590 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch - B/op",
+            "value": 4845,
+            "unit": "B/op",
+            "extra": "33590 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch - allocs/op",
+            "value": 51,
+            "unit": "allocs/op",
+            "extra": "33590 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx",
+            "value": 36656,
+            "unit": "ns/op\t    5048 B/op\t      55 allocs/op",
+            "extra": "33087 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx - ns/op",
+            "value": 36656,
+            "unit": "ns/op",
+            "extra": "33087 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx - B/op",
+            "value": 5048,
+            "unit": "B/op",
+            "extra": "33087 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx - allocs/op",
+            "value": 55,
+            "unit": "allocs/op",
+            "extra": "33087 times\n4 procs"
           }
         ]
       }
