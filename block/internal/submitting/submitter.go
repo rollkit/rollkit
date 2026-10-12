@@ -353,11 +353,12 @@ func (s *Submitter) processDAInclusionLoop() {
 					break
 				}
 
-				// Set final height in executor
+				// Set final height in executor. A failure must not stop the node:
+				// block production and P2P sync do not depend on finality, so the
+				// DA included height stays put and the next tick retries.
 				if err := s.setFinalWithRetry(nextHeight); err != nil {
-					s.sendCriticalError(fmt.Errorf("failed to set final height: %w", err))
-					s.logger.Error().Err(err).Uint64("height", nextHeight).Msg("CRITICAL: Failed to set final height after retries - halting DA inclusion processing")
-					return
+					s.logger.Error().Err(err).Uint64("height", nextHeight).Msg("failed to set final height after retries, will retry on next tick")
+					break
 				}
 
 				// Persist DA included height before advancing in-memory state
@@ -379,7 +380,7 @@ func (s *Submitter) processDAInclusionLoop() {
 }
 
 // setFinalWithRetry sets the final height in executor with retry logic.
-// NOTE: the function retries the execution client call regardless of the error. Some execution client errors are irrecoverable, and will eventually halt the node, as expected.
+// NOTE: the function retries the execution client call regardless of the error. Callers decide how to handle exhaustion.
 func (s *Submitter) setFinalWithRetry(nextHeight uint64) error {
 	for attempt := 1; attempt <= common.MaxRetriesBeforeHalt; attempt++ {
 		if err := s.exec.SetFinal(s.ctx, nextHeight); err != nil {

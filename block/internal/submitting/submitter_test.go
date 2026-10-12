@@ -316,6 +316,68 @@ func TestSubmitter_processDAInclusionLoop_advances(t *testing.T) {
 
 }
 
+// TestSubmitter_processDAInclusionLoop_setFinalFailureDoesNotHalt ensures that
+// exhausting SetFinal retries holds the DA included height and retries on the
+// next tick instead of reporting a critical error that stops the node.
+func TestSubmitter_processDAInclusionLoop_setFinalFailureDoesNotHalt(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		cm, st := newTestCacheAndStore(t)
+
+		cfg := config.DefaultConfig()
+		cfg.DA.BlockTime.Duration = 5 * time.Millisecond
+
+		exec := testmocks.NewMockExecutor(t)
+		exec.On("SetFinal", mock.Anything, uint64(1)).Return(errors.New("block pruned")).Times(common.MaxRetriesBeforeHalt)
+		exec.On("SetFinal", mock.Anything, uint64(1)).Return(nil).Once()
+		exec.On("SetFinal", mock.Anything, uint64(2)).Return(nil).Once()
+
+		errCh := make(chan error, 1)
+		ctx, cancel := context.WithCancel(t.Context())
+		s := &Submitter{
+			store:            st,
+			exec:             exec,
+			cache:            cm,
+			metrics:          common.NopMetrics(),
+			config:           cfg,
+			daIncludedHeight: &atomic.Uint64{},
+			errorCh:          errCh,
+			logger:           zerolog.Nop(),
+			ctx:              ctx,
+		}
+
+		sig := types.Signature([]byte("sig"))
+		for height := uint64(1); height <= 2; height++ {
+			h, d := newHeaderAndData("chain", height, true)
+			batch, err := st.NewBatch(ctx)
+			require.NoError(t, err)
+			require.NoError(t, batch.SaveBlockData(h, d, &sig))
+			require.NoError(t, batch.SetHeight(height))
+			require.NoError(t, batch.Commit())
+			cm.SetHeaderDAIncluded(h.Hash().String(), 100+height, height)
+			cm.SetDataDAIncluded(d.DACommitment().String(), 100+height, height)
+		}
+
+		done := make(chan struct{})
+		go func() {
+			s.processDAInclusionLoop()
+			close(done)
+		}()
+
+		require.Eventually(t, func() bool {
+			return s.GetDAIncludedHeight() == 2
+		}, time.Minute, cfg.DA.BlockTime.Duration)
+
+		cancel()
+		<-done
+
+		select {
+		case err := <-errCh:
+			t.Fatalf("unexpected critical error: %v", err)
+		default:
+		}
+	})
+}
+
 // helper to create a minimal header and data for tests
 func newHeaderAndData(chainID string, height uint64, nonEmpty bool) (*types.SignedHeader, *types.Data) {
 	now := time.Now()
