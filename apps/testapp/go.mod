@@ -3,7 +3,7 @@ module github.com/evstack/ev-node/apps/testapp
 go 1.26.0
 
 require (
-	github.com/evstack/ev-node v1.2.3
+	github.com/evstack/ev-node v1.2.4-0.20261012181703-cd339dcc81c9
 	github.com/evstack/ev-node/core v1.1.0
 	github.com/ipfs/go-datastore v0.9.2
 	github.com/rs/zerolog v1.35.1

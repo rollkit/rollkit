@@ -30,7 +30,12 @@ COPY . .
 WORKDIR /ev-node/apps/testapp
 
 # 125829120 = 120 MB
-RUN go build -ldflags "-X github.com/evstack/ev-node/pkg/blobsize.defaultMaxBlobSizeStr=125829120" -o /go/bin/testapp .
+# Compile the checked-out modules instead of the release versions in go.mod.
+RUN go mod edit \
+      -replace github.com/evstack/ev-node=../.. \
+      -replace github.com/evstack/ev-node/core=../../core && \
+    go mod tidy && \
+    go build -ldflags "-X github.com/evstack/ev-node/pkg/blobsize.defaultMaxBlobSizeStr=125829120" -o /go/bin/testapp .
 
 ## prep the final image.
 #
