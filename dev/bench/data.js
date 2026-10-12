@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791830580044,
+  "lastUpdate": 1791830582770,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -338,6 +338,102 @@ window.BENCHMARK_DATA = {
             "value": 55,
             "unit": "allocs/op",
             "extra": "27050 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "marko@baricevic.me",
+            "name": "tac0turtle",
+            "username": "tac0turtle"
+          },
+          "committer": {
+            "email": "marko@baricevic.me",
+            "name": "tac0turtle",
+            "username": "tac0turtle"
+          },
+          "distinct": true,
+          "id": "8053e8f0c570fdcf56509f3641cc4b76aea60efd",
+          "message": "fix(build): compile current ev-node modules in apps and images\n\nPin EVM and testapp dependencies to cd339dcc81c9, which includes the pruning and DA-finalization fixes. Apply local module replacements inside Docker builds so later main and PR images compile the checked-out root, core, and EVM execution modules instead of stale release dependencies.",
+          "timestamp": "2026-10-12T20:39:43+02:00",
+          "tree_id": "ba1f3a8b8ec42cffc8f0da5ad8190cccf436493e",
+          "url": "https://github.com/evstack/ev-node/commit/8053e8f0c570fdcf56509f3641cc4b76aea60efd"
+        },
+        "date": 1791830581921,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkProduceBlock/empty_batch",
+            "value": 30315,
+            "unit": "ns/op\t    4722 B/op\t      51 allocs/op",
+            "extra": "40150 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch - ns/op",
+            "value": 30315,
+            "unit": "ns/op",
+            "extra": "40150 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch - B/op",
+            "value": 4722,
+            "unit": "B/op",
+            "extra": "40150 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch - allocs/op",
+            "value": 51,
+            "unit": "allocs/op",
+            "extra": "40150 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx",
+            "value": 30496,
+            "unit": "ns/op\t    4917 B/op\t      55 allocs/op",
+            "extra": "40002 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx - ns/op",
+            "value": 30496,
+            "unit": "ns/op",
+            "extra": "40002 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx - B/op",
+            "value": 4917,
+            "unit": "B/op",
+            "extra": "40002 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx - allocs/op",
+            "value": 55,
+            "unit": "allocs/op",
+            "extra": "40002 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs",
+            "value": 35771,
+            "unit": "ns/op\t   10195 B/op\t      55 allocs/op",
+            "extra": "34060 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs - ns/op",
+            "value": 35771,
+            "unit": "ns/op",
+            "extra": "34060 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs - B/op",
+            "value": 10195,
+            "unit": "B/op",
+            "extra": "34060 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs - allocs/op",
+            "value": 55,
+            "unit": "allocs/op",
+            "extra": "34060 times\n4 procs"
           }
         ]
       }
