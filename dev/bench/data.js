@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791816321911,
+  "lastUpdate": 1791816368012,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -94,6 +94,54 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkEvmContractRoundtrip - allocs/op",
             "value": 36607,
+            "unit": "allocs/op",
+            "extra": "2 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f12f62812a7c4698fe5f073f03f016c926390f60",
+          "message": "build(deps): Bump dompurify from 3.4.15 to 3.4.16 in /docs in the npm_and_yarn group across 1 directory (#3463)\n\nbuild(deps): Bump dompurify\n\nBumps the npm_and_yarn group with 1 update in the /docs directory: [dompurify](https://github.com/cure53/DOMPurify).\n\n\nUpdates `dompurify` from 3.4.15 to 3.4.16\n- [Release notes](https://github.com/cure53/DOMPurify/releases)\n- [Commits](https://github.com/cure53/DOMPurify/compare/3.4.15...3.4.16)\n\n---\nupdated-dependencies:\n- dependency-name: dompurify\n  dependency-version: 3.4.16\n  dependency-type: indirect\n  dependency-group: npm_and_yarn\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-12T16:34:12+02:00",
+          "tree_id": "3842f9bbc86e6817e272898a3bca12588acf7615",
+          "url": "https://github.com/evstack/ev-node/commit/f12f62812a7c4698fe5f073f03f016c926390f60"
+        },
+        "date": 1791816363160,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkEvmContractRoundtrip",
+            "value": 914627373,
+            "unit": "ns/op\t 4280052 B/op\t   36803 allocs/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - ns/op",
+            "value": 914627373,
+            "unit": "ns/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - B/op",
+            "value": 4280052,
+            "unit": "B/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - allocs/op",
+            "value": 36803,
             "unit": "allocs/op",
             "extra": "2 times\n4 procs"
           }
