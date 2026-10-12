@@ -38,7 +38,7 @@ var (
 	ErrInvalidLastAppHash = errors.New("invalid last app hash")
 )
 
-// State contains information about current state of the blockchain.
+// State contains information about the current state of the blockchain.
 type State struct {
 	Version Version
 

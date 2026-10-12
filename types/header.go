@@ -56,7 +56,7 @@ type BaseHeader struct {
 	ChainID string
 }
 
-// Header defines the structure of Evolve block header.
+// Header defines the structure of an Evolve block header.
 type Header struct {
 	BaseHeader
 	// Block and App version

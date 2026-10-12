@@ -110,7 +110,7 @@ func (d *Data) Time() time.Time {
 	return time.Unix(0, int64(d.Metadata.Time))
 }
 
-// Verify Verifies a new, untrusted block against a trusted block.
+// Verify a new, untrusted block against a trusted block.
 func (d *Data) Verify(untrustedData *Data) error {
 	if untrustedData == nil {
 		return errors.New("untrusted block cannot be nil")
