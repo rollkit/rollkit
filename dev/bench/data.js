@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791819582759,
+  "lastUpdate": 1791819616341,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -334,6 +334,54 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkEvmContractRoundtrip - allocs/op",
             "value": 36504,
+            "unit": "allocs/op",
+            "extra": "2 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "marko@baricevic.me",
+            "name": "Marko",
+            "username": "tac0turtle"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef08d9f8296182e01b1224c0cff2ac25c130b6b9",
+          "message": "chore: pin mockery and golangci-lint to Go 1.27-compatible versions (#3470)\n\n- Pin mockery to v3.8.1 in `just mock-gen` (was @latest). Older v3.4.0\n  fails to load packages under Go 1.27 (\"package context without types\").\n- Pin golangci-lint to v2.14.0 in CI (was latest), so lint results don't\n  change underneath PRs when a new release ships.\n- Remove a redundant loop variable copy in pkg/config/yaml.go flagged by\n  copyloopvar in golangci-lint v2.14.0.",
+          "timestamp": "2026-10-12T17:23:54+02:00",
+          "tree_id": "132bb08d88e9394b3a7a1947bfb2c2a3124e3973",
+          "url": "https://github.com/evstack/ev-node/commit/ef08d9f8296182e01b1224c0cff2ac25c130b6b9"
+        },
+        "date": 1791819611621,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkEvmContractRoundtrip",
+            "value": 912027891,
+            "unit": "ns/op\t 4236040 B/op\t   36472 allocs/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - ns/op",
+            "value": 912027891,
+            "unit": "ns/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - B/op",
+            "value": 4236040,
+            "unit": "B/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - allocs/op",
+            "value": 36472,
             "unit": "allocs/op",
             "extra": "2 times\n4 procs"
           }
