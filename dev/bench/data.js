@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791830582770,
+  "lastUpdate": 1791830828850,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -142,6 +142,54 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkEvmContractRoundtrip - allocs/op",
             "value": 36451,
+            "unit": "allocs/op",
+            "extra": "2 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "marko@baricevic.me",
+            "name": "tac0turtle",
+            "username": "tac0turtle"
+          },
+          "committer": {
+            "email": "marko@baricevic.me",
+            "name": "tac0turtle",
+            "username": "tac0turtle"
+          },
+          "distinct": true,
+          "id": "fab7190c4e88cffc922d8e6e1218eef8c25b81b9",
+          "message": "fix(build): honor pinned modules in Docker images",
+          "timestamp": "2026-10-12T20:44:09+02:00",
+          "tree_id": "d202f4998eaa6fdb1a29f141a05588458a819995",
+          "url": "https://github.com/evstack/ev-node/commit/fab7190c4e88cffc922d8e6e1218eef8c25b81b9"
+        },
+        "date": 1791830823892,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkEvmContractRoundtrip",
+            "value": 897263136,
+            "unit": "ns/op\t 4130604 B/op\t   36047 allocs/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - ns/op",
+            "value": 897263136,
+            "unit": "ns/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - B/op",
+            "value": 4130604,
+            "unit": "B/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - allocs/op",
+            "value": 36047,
             "unit": "allocs/op",
             "extra": "2 times\n4 procs"
           }
