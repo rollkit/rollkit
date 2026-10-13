@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791830831573,
+  "lastUpdate": 1791895122559,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -190,6 +190,54 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkEvmContractRoundtrip - allocs/op",
             "value": 36047,
+            "unit": "allocs/op",
+            "extra": "2 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "zerozebrazone@outlook.com",
+            "name": "zerozebrazone",
+            "username": "zerozebrazone"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a64ea554e471f24458d65fa0c8a9ecbaa9fe23c2",
+          "message": "Clarify public API and store comments (#3479)\n\nSigned-off-by: zerozebrazone <zerozebrazone@outlook.com>",
+          "timestamp": "2026-10-13T14:36:59+02:00",
+          "tree_id": "841b982af3a0baf61d6c2d83bc772b949624784b",
+          "url": "https://github.com/evstack/ev-node/commit/a64ea554e471f24458d65fa0c8a9ecbaa9fe23c2"
+        },
+        "date": 1791895116114,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkEvmContractRoundtrip",
+            "value": 914609302,
+            "unit": "ns/op\t 4294184 B/op\t   36801 allocs/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - ns/op",
+            "value": 914609302,
+            "unit": "ns/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - B/op",
+            "value": 4294184,
+            "unit": "B/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - allocs/op",
+            "value": 36801,
             "unit": "allocs/op",
             "extra": "2 times\n4 procs"
           }
