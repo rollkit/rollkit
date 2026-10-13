@@ -19,7 +19,7 @@ func DefaultBlockOptions() BlockOptions {
 	return common.DefaultBlockOptions()
 }
 
-// Expose Metrics for constructor
+// Expose the Metrics type for constructors
 type Metrics = common.Metrics
 
 // PrometheusMetrics creates a new PrometheusMetrics instance with the given namespace and labelsAndValues.
@@ -100,5 +100,5 @@ func NewForcedInclusionRetriever(
 	)
 }
 
-// Expose Raft types for consensus integration
+// Expose the Raft node type for consensus integration
 type RaftNode = common.RaftNode
