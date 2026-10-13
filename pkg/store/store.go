@@ -40,8 +40,8 @@ func (s *DefaultStore) Height(ctx context.Context) (uint64, error) {
 		return 0, nil
 	}
 	if err != nil {
-		// Since we can't return an error due to interface constraints,
-		// we log by returning 0 when there's an error reading from disk
+		// Since we can return an error alongside the height,
+		// we return 0 when there's an error reading from disk
 		return 0, err
 	}
 
