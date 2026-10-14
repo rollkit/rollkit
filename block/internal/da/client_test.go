@@ -80,7 +80,54 @@ func TestClient_Submit_ErrorMapping(t *testing.T) {
 			res := cl.Submit(context.Background(), [][]byte{[]byte("data")}, 0, ns, nil)
 			assert.Equal(t, tc.wantStatus, res.Code)
 		})
+		t.Run(tc.name+"/injected", func(t *testing.T) {
+			cl := NewClient(Config{
+				DA: makeBlobRPCClient(mocks.NewMockBlobModule(t), nil),
+				Submitter: submitFunc(func(context.Context, []*blobrpc.Blob, *blobrpc.SubmitOptions) (uint64, error) {
+					return 0, tc.err
+				}),
+				Logger:        zerolog.Nop(),
+				Namespace:     "ns",
+				DataNamespace: "ns",
+			})
+			res := cl.Submit(context.Background(), [][]byte{[]byte("data")}, 0, ns, nil)
+			assert.Equal(t, tc.wantStatus, res.Code)
+		})
 	}
+}
+
+type submitFunc func(context.Context, []*blobrpc.Blob, *blobrpc.SubmitOptions) (uint64, error)
+
+func (f submitFunc) Submit(ctx context.Context, blobs []*blobrpc.Blob, opts *blobrpc.SubmitOptions) (uint64, error) {
+	return f(ctx, blobs, opts)
+}
+
+func TestClient_Submit_InjectedSubmitter(t *testing.T) {
+	ns := share.MustNewV0Namespace([]byte("ns")).Bytes()
+	// No Submit expectation: the JSON-RPC path must not be used.
+	blobModule := mocks.NewMockBlobModule(t)
+
+	var gotBlobs []*blobrpc.Blob
+	var gotOpts *blobrpc.SubmitOptions
+	cl := NewClient(Config{
+		DA: makeBlobRPCClient(blobModule, nil),
+		Submitter: submitFunc(func(_ context.Context, blobs []*blobrpc.Blob, opts *blobrpc.SubmitOptions) (uint64, error) {
+			gotBlobs, gotOpts = blobs, opts
+			return 42, nil
+		}),
+		Logger:        zerolog.Nop(),
+		Namespace:     "ns",
+		DataNamespace: "ns",
+	})
+	res := cl.Submit(context.Background(), [][]byte{[]byte("a"), []byte("b")}, 0, ns, []byte(`{"gas_price":0.004,"is_gas_price_set":true}`))
+	require.Equal(t, datypes.StatusSuccess, res.Code)
+	require.Equal(t, uint64(42), res.Height)
+	require.Len(t, res.IDs, 2)
+	require.Len(t, gotBlobs, 2)
+	require.Equal(t, []byte("a"), gotBlobs[0].Data())
+	require.Equal(t, 0.004, gotOpts.GasPrice)
+	require.True(t, gotOpts.IsGasPriceSet)
+	blobModule.AssertNotCalled(t, "Submit", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestClient_Submit_Success(t *testing.T) {

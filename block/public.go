@@ -42,21 +42,38 @@ type DAVerifier = da.Verifier
 // This is the complete interface implemented by the concrete DA client.
 type FullDAClient = da.FullClient
 
+// BlobSubmitter submits blobs to DA and returns the inclusion height.
+type BlobSubmitter = da.BlobSubmitter
+
+// DAClientOption configures NewDAClient.
+type DAClientOption func(*da.Config)
+
+// WithSubmitter routes blob submission through s instead of the blob JSON-RPC
+// API, e.g. to sign PayForBlobs locally. Reads still use the JSON-RPC client.
+func WithSubmitter(s BlobSubmitter) DAClientOption {
+	return func(c *da.Config) { c.Submitter = s }
+}
+
 // NewDAClient creates a new DA client backed by the blob JSON-RPC API.
 // The returned client implements both DAClient and DAVerifier interfaces.
 func NewDAClient(
 	blobRPC *blobrpc.Client,
 	config config.Config,
 	logger zerolog.Logger,
+	opts ...DAClientOption,
 ) FullDAClient {
-	base := da.NewClient(da.Config{
+	cfg := da.Config{
 		DA:                       blobRPC,
 		Logger:                   logger,
 		Namespace:                config.DA.GetNamespace(),
 		DefaultTimeout:           config.DA.RequestTimeout.Duration,
 		DataNamespace:            config.DA.GetDataNamespace(),
 		ForcedInclusionNamespace: config.DA.GetForcedInclusionNamespace(),
-	})
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	base := da.NewClient(cfg)
 	if config.Instrumentation.IsTracingEnabled() {
 		return da.WithTracingClient(base)
 	}
