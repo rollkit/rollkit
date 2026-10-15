@@ -5,6 +5,7 @@ package celestia
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -36,6 +37,8 @@ import (
 // over tx_signer.passphrase_file.
 const PassphraseEnv = "EVNODE_DA_KEYRING_PASSPHRASE" //nolint:gosec // env var name, not a credential
 
+var errSignerAddress = errors.New("submit option signer_address is not supported with da.tx_signer; use key_name")
+
 // Config configures the Submitter.
 type Config struct {
 	GRPCAddress       string
@@ -52,20 +55,33 @@ type Config struct {
 func ConfigFromNode(nc config.Config) (Config, error) {
 	t := nc.DA.TxSigner
 	dir := t.KeyringDir
-	if dir != "" && !filepath.IsAbs(dir) {
+	if !filepath.IsAbs(dir) {
 		dir = filepath.Join(nc.RootDir, dir)
 	}
 
-	pass := os.Getenv(PassphraseEnv)
-	if pass == "" && t.PassphraseFile != "" {
-		b, err := os.ReadFile(t.PassphraseFile)
-		if err != nil {
-			return Config{}, fmt.Errorf("read keyring passphrase file: %w", err)
+	var pass string
+	if t.KeyringBackend == keyring.BackendFile {
+		pass = os.Getenv(PassphraseEnv)
+		if pass == "" && t.PassphraseFile != "" {
+			b, err := os.ReadFile(t.PassphraseFile)
+			if err != nil {
+				return Config{}, fmt.Errorf("read keyring passphrase file: %w", err)
+			}
+			pass = strings.TrimSpace(string(b))
 		}
-		pass = strings.TrimSpace(string(b))
+		if pass == "" {
+			return Config{}, fmt.Errorf("file keyring requires a passphrase via %s or tx_signer.passphrase_file", PassphraseEnv)
+		}
 	}
-	if t.KeyringBackend == keyring.BackendFile && pass == "" {
-		return Config{}, fmt.Errorf("file keyring requires a passphrase via %s or tx_signer.passphrase_file", PassphraseEnv)
+
+	if nc.DA.SubmitOptions != "" {
+		var o blobrpc.SubmitOptions
+		if err := json.Unmarshal([]byte(nc.DA.SubmitOptions), &o); err != nil {
+			return Config{}, fmt.Errorf("parse da.submit_options: %w", err)
+		}
+		if o.SignerAddress != "" {
+			return Config{}, errSignerAddress
+		}
 	}
 
 	return Config{
@@ -85,6 +101,7 @@ type priceEstimator func(context.Context, gasestimation.TxPriority) (float64, er
 type Submitter struct {
 	tc      *user.TxClient
 	conn    *grpc.ClientConn
+	cancel  context.CancelFunc
 	price   priceEstimator
 	account string
 }
@@ -110,15 +127,20 @@ func New(ctx context.Context, cfg Config, logger zerolog.Logger) (*Submitter, er
 	if err != nil {
 		return nil, fmt.Errorf("dial consensus gRPC %s: %w", cfg.GRPCAddress, err)
 	}
-	if _, _, err := user.QueryAccount(ctx, conn, encCfg.InterfaceRegistry, addr); err != nil {
+	// SetupTxClient starts a queue worker that runs until ctx is cancelled.
+	ctx, cancel := context.WithCancel(ctx)
+	fail := func(err error) (*Submitter, error) {
+		cancel()
 		_ = conn.Close()
-		return nil, fmt.Errorf("DA signer %s has no account on chain, fund it first: %w", addr, err)
+		return nil, err
+	}
+	if _, _, err := user.QueryAccount(ctx, conn, encCfg.InterfaceRegistry, addr); err != nil {
+		return fail(fmt.Errorf("DA signer %s has no account on chain, fund it first: %w", addr, err))
 	}
 
 	tc, err := user.SetupTxClient(ctx, kr, conn, encCfg, user.WithDefaultAccount(cfg.KeyName))
 	if err != nil {
-		_ = conn.Close()
-		return nil, fmt.Errorf("set up tx client: %w", err)
+		return fail(fmt.Errorf("set up tx client: %w", err))
 	}
 
 	l := logger.With().Str("component", "da_tx_signer").Str("address", addr.String()).Logger()
@@ -130,8 +152,9 @@ func New(ctx context.Context, cfg Config, logger zerolog.Logger) (*Submitter, er
 
 	estimator := gasestimation.NewGasEstimatorClient(conn)
 	return &Submitter{
-		tc:   tc,
-		conn: conn,
+		tc:     tc,
+		conn:   conn,
+		cancel: cancel,
 		price: func(ctx context.Context, p gasestimation.TxPriority) (float64, error) {
 			resp, err := estimator.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{TxPriority: p})
 			if err != nil {
@@ -186,7 +209,7 @@ func (s *Submitter) Submit(ctx context.Context, blobs []*blobrpc.Blob, opts *blo
 		opts = &blobrpc.SubmitOptions{}
 	}
 	if opts.SignerAddress != "" {
-		return 0, errors.New("submit option signer_address is not supported with da.tx_signer; use key_name")
+		return 0, errSignerAddress
 	}
 	account := s.account
 	if opts.KeyName != "" {
@@ -209,8 +232,11 @@ func (s *Submitter) Submit(ctx context.Context, blobs []*blobrpc.Blob, opts *blo
 	return uint64(resp.Height), nil
 }
 
-// Close releases the gRPC connection.
-func (s *Submitter) Close() error { return s.conn.Close() }
+// Close stops the tx client and releases the gRPC connection.
+func (s *Submitter) Close() error {
+	s.cancel()
+	return s.conn.Close()
+}
 
 // toV4 converts ev-node's go-square v3 blobs to the v4 type celestia-app uses.
 func toV4(blobs []*blobrpc.Blob) ([]*share.Blob, error) {

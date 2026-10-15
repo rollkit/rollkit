@@ -12,9 +12,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	sharev3 "github.com/celestiaorg/go-square/v3/share"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
+	"github.com/evstack/ev-node/pkg/config"
 	blobrpc "github.com/evstack/ev-node/pkg/da/jsonrpc"
 )
 
@@ -82,5 +84,44 @@ func TestTxOptions(t *testing.T) {
 	t.Run("estimator error surfaces", func(t *testing.T) {
 		_, err := txOptions(t.Context(), testSigner, v4, &blobrpc.SubmitOptions{TxPriority: blobrpc.TxPriorityLow}, failing)
 		require.ErrorContains(t, err, "estimate gas price")
+	})
+}
+
+func TestConfigFromNode(t *testing.T) {
+	base := func() config.Config {
+		nc := config.DefaultConfig()
+		nc.RootDir = t.TempDir()
+		nc.DA.TxSigner.KeyringBackend = keyring.BackendTest
+		return nc
+	}
+
+	t.Run("empty keyring dir resolves to node home", func(t *testing.T) {
+		nc := base()
+		nc.DA.TxSigner.KeyringDir = ""
+		cfg, err := ConfigFromNode(nc)
+		require.NoError(t, err)
+		require.Equal(t, nc.RootDir, cfg.KeyringDir)
+	})
+
+	t.Run("test backend ignores passphrase file", func(t *testing.T) {
+		nc := base()
+		nc.DA.TxSigner.PassphraseFile = "/does/not/exist"
+		_, err := ConfigFromNode(nc)
+		require.NoError(t, err)
+	})
+
+	t.Run("file backend requires a passphrase", func(t *testing.T) {
+		t.Setenv(PassphraseEnv, "")
+		nc := base()
+		nc.DA.TxSigner.KeyringBackend = keyring.BackendFile
+		_, err := ConfigFromNode(nc)
+		require.ErrorContains(t, err, "requires a passphrase")
+	})
+
+	t.Run("signer_address in submit options is rejected", func(t *testing.T) {
+		nc := base()
+		nc.DA.SubmitOptions = `{"signer_address":"celestia1abc"}`
+		_, err := ConfigFromNode(nc)
+		require.ErrorIs(t, err, errSignerAddress)
 	})
 }
