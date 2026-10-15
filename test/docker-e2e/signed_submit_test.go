@@ -75,15 +75,17 @@ func (s *DockerTestSuite) TestSignedBlobSubmission() {
 	s.Require().NoError(err)
 	defer conn.Close()
 	bank := banktypes.NewQueryClient(conn)
-	signerBalance := func() math.Int {
+	signerBalance := func() (math.Int, error) {
 		res, err := bank.Balance(ctx, &banktypes.QueryBalanceRequest{Address: signerAddr.String(), Denom: "utia"})
 		if err != nil {
-			return math.ZeroInt()
+			return math.Int{}, err
 		}
-		return res.Balance.Amount
+		return res.Balance.Amount, nil
 	}
-	s.Require().Eventually(func() bool { return signerBalance().Equal(math.NewInt(daSignerFunds)) },
-		30*time.Second, time.Second, "DA signer was not funded")
+	s.Require().Eventually(func() bool {
+		bal, err := signerBalance()
+		return err == nil && bal.Equal(math.NewInt(daSignerFunds))
+	}, 30*time.Second, time.Second, "DA signer was not funded")
 
 	evNode := s.evNodeChain.GetNodes()[0]
 	s.Require().NoError(evNode.Init(ctx))
@@ -126,7 +128,8 @@ func (s *DockerTestSuite) TestSignedBlobSubmission() {
 		return daIncluded >= 5
 	}, 3*time.Minute, 2*time.Second, "DA included height did not reach 5")
 
-	bal := signerBalance()
+	bal, err := signerBalance()
+	s.Require().NoError(err)
 	s.T().Logf("DA included height %d; signer %s balance %sutia", daIncluded, signerAddr, bal)
 	s.Require().True(bal.LT(math.NewInt(daSignerFunds)), "ev-node's key paid no fees")
 }
