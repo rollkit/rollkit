@@ -17,6 +17,7 @@ import (
 	"github.com/evstack/ev-node/block"
 	"github.com/evstack/ev-node/core/execution"
 	coresequencer "github.com/evstack/ev-node/core/sequencer"
+	"github.com/evstack/ev-node/da/celestia"
 	"github.com/evstack/ev-node/execution/evm"
 	"github.com/evstack/ev-node/node"
 	rollcmd "github.com/evstack/ev-node/pkg/cmd"
@@ -59,6 +60,20 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
+		var daOpts []block.DAClientOption
+		if nodeConfig.DA.TxSigner.Enabled && (nodeConfig.Node.Aggregator || nodeConfig.Node.Promotable) {
+			signerCfg, err := celestia.ConfigFromNode(nodeConfig)
+			if err != nil {
+				return err
+			}
+			submitter, err := celestia.New(cmd.Context(), signerCfg, logger)
+			if err != nil {
+				return fmt.Errorf("failed to create DA tx signer: %w", err)
+			}
+			defer submitter.Close()
+			daOpts = append(daOpts, block.WithSubmitter(submitter))
+		}
+
 		var daClient block.FullDAClient
 		if nodeConfig.DAEnabled() {
 			blobClient, err := blobrpc.NewWSClient(cmd.Context(), logger, nodeConfig.GetDAAddress(), nodeConfig.DA.AuthToken, "")
@@ -66,7 +81,7 @@ var RunCmd = &cobra.Command{
 				return fmt.Errorf("failed to create blob client: %w", err)
 			}
 			defer blobClient.Close()
-			daClient = block.NewDAClient(blobClient, nodeConfig, logger)
+			daClient = block.NewDAClient(blobClient, nodeConfig, logger, daOpts...)
 		} else {
 			logger.Info().Msg("DA address is not configured; syncing through P2P only")
 		}
@@ -139,7 +154,7 @@ var RunCmd = &cobra.Command{
 			}()
 		}
 
-		return rollcmd.StartNode(logger, cmd, executor, sequencer, nodeKey, datastore, nodeConfig, genesis, node.NodeOptions{})
+		return rollcmd.StartNode(logger, cmd, executor, sequencer, nodeKey, datastore, nodeConfig, genesis, node.NodeOptions{}, daOpts...)
 	},
 }
 
