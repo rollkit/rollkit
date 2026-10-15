@@ -168,7 +168,6 @@ The chain-id is taken from the gRPC endpoint. Startup fails if the key is missin
 
 Once running, you can view your chain's data on Celestia block explorers:
 
-- [Celenium (Arabica)](https://arabica.celenium.io/)
 - [Celenium (Mocha)](https://mocha.celenium.io/)
 - [Celenium (Mainnet)](https://celenium.io/)
 

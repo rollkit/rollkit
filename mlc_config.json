@@ -28,6 +28,9 @@
       "pattern": "^https://docs\\.cosmos\\.network/main"
     },
     {
+      "pattern": "^https://celestia\\.org/"
+    },
+    {
       "pattern": "^https://medium\\.com/zeeve/exploring-data-availability-layer-and-its-importance-in-rollups-0a4fbf2e0ffc$"
     }
   ]
