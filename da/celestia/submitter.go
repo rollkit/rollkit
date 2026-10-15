@@ -1,5 +1,3 @@
-// Package celestia signs PayForBlobs locally and broadcasts them over
-// consensus gRPC, for DA endpoints that cannot sign (e.g. da-proxy).
 package celestia
 
 import (
