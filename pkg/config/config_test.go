@@ -158,11 +158,9 @@ func TestAddFlags(t *testing.T) {
 		assertFlagValue(t, flags, FlagDATxSignerGRPCAddress, "")
 		assertFlagValue(t, flags, FlagDATxSignerGRPCAuthToken, "")
 		assertFlagValue(t, flags, FlagDATxSignerGRPCTLS, true)
-		assertFlagValue(t, flags, FlagDATxSignerNetwork, "")
 		assertFlagValue(t, flags, FlagDATxSignerKeyringDir, "keys")
 		assertFlagValue(t, flags, FlagDATxSignerKeyringBackend, "file")
 		assertFlagValue(t, flags, FlagDATxSignerKeyName, "")
-		assertFlagValue(t, flags, FlagDATxSignerWorkerAccounts, 0)
 		assertFlagValue(t, flags, FlagDATxSignerPassphraseFile, "")
 
 		// P2P flags
@@ -230,7 +228,7 @@ func TestAddFlags(t *testing.T) {
 		assertFlagValue(t, flags, FlagPruningInterval, DefaultConfig().Pruning.Interval.Duration)
 
 		// Count the number of flags we're explicitly checking
-		expectedFlagCount := 93 // Update this number if you add more flag checks above
+		expectedFlagCount := 91 // Update this number if you add more flag checks above
 
 		// Get the actual number of flags (both regular and persistent)
 		actualFlagCount := 0
@@ -800,9 +798,9 @@ func TestSignerValidation(t *testing.T) {
 
 func TestTxSignerValidation(t *testing.T) {
 	enabled := func(cfg *Config) {
+		cfg.DA.Address = "https://da.da-proxy-lb.celestia-mocha.com"
 		cfg.DA.TxSigner.Enabled = true
 		cfg.DA.TxSigner.GRPCAddress = "grpc.da-proxy-lb.celestia-mocha.com:443"
-		cfg.DA.TxSigner.Network = "mocha-4"
 		cfg.DA.TxSigner.KeyName = "ev"
 	}
 	tests := []struct {
@@ -819,9 +817,9 @@ func TestTxSignerValidation(t *testing.T) {
 			expectError: "evnode.da.tx_signer.grpc_address is required",
 		},
 		{
-			name:        "requires network",
-			modify:      func(cfg *Config) { enabled(cfg); cfg.DA.TxSigner.Network = "" },
-			expectError: "evnode.da.tx_signer.network is required",
+			name:        "requires da address",
+			modify:      func(cfg *Config) { enabled(cfg); cfg.DA.Address = "" },
+			expectError: "evnode.da.address is required",
 		},
 		{
 			name:        "requires key name",
@@ -832,11 +830,6 @@ func TestTxSignerValidation(t *testing.T) {
 			name:        "rejects os backend",
 			modify:      func(cfg *Config) { enabled(cfg); cfg.DA.TxSigner.KeyringBackend = "os" },
 			expectError: "evnode.da.tx_signer.keyring_backend must be file or test",
-		},
-		{
-			name:        "rejects negative worker accounts",
-			modify:      func(cfg *Config) { enabled(cfg); cfg.DA.TxSigner.WorkerAccounts = -1 },
-			expectError: "evnode.da.tx_signer.worker_accounts must be non-negative",
 		},
 		{
 			name: "rejects signing addresses",

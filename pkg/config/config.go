@@ -101,16 +101,12 @@ const (
 	FlagDATxSignerGRPCAuthToken = FlagPrefixEvnode + "da.tx_signer.grpc_auth_token" // #nosec G101
 	// FlagDATxSignerGRPCTLS enables TLS for the consensus gRPC connection
 	FlagDATxSignerGRPCTLS = FlagPrefixEvnode + "da.tx_signer.grpc_tls"
-	// FlagDATxSignerNetwork is the DA chain-id
-	FlagDATxSignerNetwork = FlagPrefixEvnode + "da.tx_signer.network"
 	// FlagDATxSignerKeyringDir is the keyring directory
 	FlagDATxSignerKeyringDir = FlagPrefixEvnode + "da.tx_signer.keyring_dir"
 	// FlagDATxSignerKeyringBackend is the keyring backend (file, test)
 	FlagDATxSignerKeyringBackend = FlagPrefixEvnode + "da.tx_signer.keyring_backend"
 	// FlagDATxSignerKeyName is the keyring key that signs and pays for blobs
 	FlagDATxSignerKeyName = FlagPrefixEvnode + "da.tx_signer.key_name"
-	// FlagDATxSignerWorkerAccounts is the number of accounts used for parallel submission
-	FlagDATxSignerWorkerAccounts = FlagPrefixEvnode + "da.tx_signer.worker_accounts"
 	// FlagDATxSignerPassphraseFile is the file holding the keyring passphrase for the file backend
 	FlagDATxSignerPassphraseFile = FlagPrefixEvnode + "da.tx_signer.passphrase_file"
 
@@ -300,11 +296,9 @@ type DATxSignerConfig struct {
 	GRPCAddress    string `mapstructure:"grpc_address" yaml:"grpc_address" comment:"Consensus gRPC endpoint (host:port), e.g. grpc.da-proxy-lb.celestia-mocha.com:443."`
 	GRPCAuthToken  string `mapstructure:"grpc_auth_token" yaml:"grpc_auth_token" comment:"Token sent as x-token metadata on consensus gRPC calls. Defaults to da.auth_token."` //nolint:gosec // user-provided config
 	GRPCTLS        bool   `mapstructure:"grpc_tls" yaml:"grpc_tls" comment:"Use TLS for the consensus gRPC connection."`
-	Network        string `mapstructure:"network" yaml:"network" comment:"DA chain-id, e.g. mocha-4 or celestia."`
 	KeyringDir     string `mapstructure:"keyring_dir" yaml:"keyring_dir" comment:"Keyring directory; relative paths are resolved against the node home."`
 	KeyringBackend string `mapstructure:"keyring_backend" yaml:"keyring_backend" comment:"Keyring backend: file, or test for local development."`
 	KeyName        string `mapstructure:"key_name" yaml:"key_name" comment:"Keyring key that signs and pays for blobs."`
-	WorkerAccounts int    `mapstructure:"worker_accounts" yaml:"worker_accounts" comment:"Accounts used for submission. 0 submits immediately; >1 submits in parallel and does not preserve blob ordering."`
 	PassphraseFile string `mapstructure:"passphrase_file" yaml:"passphrase_file" comment:"File holding the file-backend keyring passphrase. EVNODE_DA_KEYRING_PASSPHRASE takes precedence."`
 }
 
@@ -322,11 +316,11 @@ func (d *DAConfig) validateTxSigner() error {
 	if !t.Enabled {
 		return nil
 	}
+	if d.Address == "" {
+		return errors.New("evnode.da.address is required when tx_signer is enabled")
+	}
 	if t.GRPCAddress == "" {
 		return errors.New("evnode.da.tx_signer.grpc_address is required when tx_signer is enabled")
-	}
-	if t.Network == "" {
-		return errors.New("evnode.da.tx_signer.network is required when tx_signer is enabled")
 	}
 	if t.KeyName == "" {
 		return errors.New("evnode.da.tx_signer.key_name is required when tx_signer is enabled")
@@ -334,11 +328,8 @@ func (d *DAConfig) validateTxSigner() error {
 	if t.KeyringBackend != "file" && t.KeyringBackend != "test" {
 		return fmt.Errorf("evnode.da.tx_signer.keyring_backend must be file or test, got %q", t.KeyringBackend)
 	}
-	if t.WorkerAccounts < 0 {
-		return errors.New("evnode.da.tx_signer.worker_accounts must be non-negative")
-	}
 	if len(d.SigningAddresses) > 0 {
-		return errors.New("evnode.da.signing_addresses must be empty when tx_signer is enabled; use tx_signer.worker_accounts")
+		return errors.New("evnode.da.signing_addresses must be empty when tx_signer is enabled")
 	}
 	return nil
 }
@@ -729,11 +720,9 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagDATxSignerGRPCAddress, def.DA.TxSigner.GRPCAddress, "consensus gRPC endpoint (host:port) for signed blob submission")
 	cmd.Flags().String(FlagDATxSignerGRPCAuthToken, def.DA.TxSigner.GRPCAuthToken, "x-token for consensus gRPC (defaults to the DA auth token)")
 	cmd.Flags().Bool(FlagDATxSignerGRPCTLS, def.DA.TxSigner.GRPCTLS, "use TLS for consensus gRPC")
-	cmd.Flags().String(FlagDATxSignerNetwork, def.DA.TxSigner.Network, "DA chain-id (e.g. mocha-4, celestia)")
 	cmd.Flags().String(FlagDATxSignerKeyringDir, def.DA.TxSigner.KeyringDir, "keyring directory, relative to home unless absolute")
 	cmd.Flags().String(FlagDATxSignerKeyringBackend, def.DA.TxSigner.KeyringBackend, "keyring backend (file, test)")
 	cmd.Flags().String(FlagDATxSignerKeyName, def.DA.TxSigner.KeyName, "keyring key that signs and pays for blobs")
-	cmd.Flags().Int(FlagDATxSignerWorkerAccounts, def.DA.TxSigner.WorkerAccounts, "accounts for submission; >1 submits in parallel without ordering guarantees")
 	cmd.Flags().String(FlagDATxSignerPassphraseFile, def.DA.TxSigner.PassphraseFile, "file holding the keyring passphrase (file backend)")
 
 	// P2P configuration flags
