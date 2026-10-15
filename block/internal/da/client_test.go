@@ -63,6 +63,7 @@ func TestClient_Submit_ErrorMapping(t *testing.T) {
 		{"tooBig", datypes.ErrBlobSizeOverLimit, datypes.StatusTooBig},
 		{"appBlobsTooLarge", errors.New("broadcast tx error: blob(s) too large: code: 11139"), datypes.StatusTooBig},
 		{"mempoolTxTooLarge", errors.New("Tx too large. Max size is 8388608, but got 9000000"), datypes.StatusTooBig},
+		{"appTxExceedsMaxSize", errors.New("broadcast tx error: transaction size exceeds maximum allowed limit: code: 11142"), datypes.StatusTooBig},
 		{"evicted", errors.New("eviction poll timeout: transaction ABC was evicted"), datypes.StatusNotIncludedInBlock},
 		{"deadline", datypes.ErrContextDeadline, datypes.StatusContextDeadline},
 		{"canceled", context.Canceled, datypes.StatusContextCanceled},

@@ -220,7 +220,8 @@ func (c *client) Submit(ctx context.Context, data [][]byte, _ float64, namespace
 		case strings.Contains(err.Error(), datypes.ErrTxIncorrectAccountSequence.Error()):
 			code = datypes.StatusIncorrectAccountSequence
 		case strings.Contains(err.Error(), datypes.ErrBlobSizeOverLimit.Error()),
-			strings.Contains(strings.ToLower(err.Error()), "too large"):
+			strings.Contains(strings.ToLower(err.Error()), "too large"),
+			strings.Contains(err.Error(), "size exceeds maximum allowed limit"):
 			code = datypes.StatusTooBig
 		case strings.Contains(err.Error(), datypes.ErrContextDeadline.Error()):
 			code = datypes.StatusContextDeadline
