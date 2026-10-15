@@ -212,13 +212,15 @@ func (c *client) Submit(ctx context.Context, data [][]byte, _ float64, namespace
 		switch {
 		case errors.Is(err, context.Canceled):
 			code = datypes.StatusContextCanceled
-		case strings.Contains(err.Error(), datypes.ErrTxTimedOut.Error()):
+		case strings.Contains(err.Error(), datypes.ErrTxTimedOut.Error()),
+			strings.Contains(err.Error(), "eviction poll timeout"):
 			code = datypes.StatusNotIncludedInBlock
 		case strings.Contains(err.Error(), datypes.ErrTxAlreadyInMempool.Error()):
 			code = datypes.StatusAlreadyInMempool
 		case strings.Contains(err.Error(), datypes.ErrTxIncorrectAccountSequence.Error()):
 			code = datypes.StatusIncorrectAccountSequence
-		case strings.Contains(err.Error(), datypes.ErrBlobSizeOverLimit.Error()):
+		case strings.Contains(err.Error(), datypes.ErrBlobSizeOverLimit.Error()),
+			strings.Contains(strings.ToLower(err.Error()), "too large"):
 			code = datypes.StatusTooBig
 		case strings.Contains(err.Error(), datypes.ErrContextDeadline.Error()):
 			code = datypes.StatusContextDeadline
