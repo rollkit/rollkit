@@ -92,7 +92,8 @@ func (s *DefaultStore) getHeightByHash(ctx context.Context, hash []byte) (uint64
 	return height, nil
 }
 
-// GetSignatureByHash returns signature for a block at given height, or error if it's not found in Store.
+// GetSignatureByHash returns the signature for the block with the given block header hash,
+// or an error if it's not found in Store.
 func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash []byte) (*types.Signature, error) {
 	height, err := s.getHeightByHash(ctx, hash)
 	if err != nil {
@@ -115,7 +116,8 @@ func (s *DefaultStore) GetHeader(ctx context.Context, height uint64) (*types.Sig
 	return header, nil
 }
 
-// GetSignature returns signature for a block with given block header hash, or error if it's not found in Store.
+// GetSignature returns the signature for the block at the given height, or an error if it's not
+// found in Store.
 func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.Signature, error) {
 	signatureData, err := s.db.Get(ctx, ds.NewKey(getSignatureKey(height)))
 	if err != nil {
