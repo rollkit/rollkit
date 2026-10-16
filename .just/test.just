@@ -69,6 +69,12 @@ test-docker-upgrade-e2e:
     @echo "--> Running Docker Upgrade E2E tests"
     @cd test/docker-e2e && go test -mod=readonly -failfast -v -tags='docker_e2e evm' -timeout=30m -run '^TestEVMSingleUpgradeSuite$$/^TestEVMSingleUpgrade$$' ./...
 
+# Run Docker E2E signed blob submission test against the evm binary and reth
+[group('test')]
+test-docker-signed-submit-evm:
+    @echo "--> Running Docker signed blob submission EVM E2E test"
+    @cd test/docker-e2e && go test -mod=readonly -failfast -v -tags='docker_e2e evm' -timeout=30m -run '^TestDockerSuite$$/^TestSignedBlobSubmissionEVM$$' ./...
+
 # Run Docker E2E cross-version compatibility tests
 [group('test')]
 test-docker-compat:

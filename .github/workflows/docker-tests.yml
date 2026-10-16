@@ -56,6 +56,26 @@ jobs:
           EVM_IMAGE_REPO: ghcr.io/${{ github.repository_owner }}/ev-node-evm
           EVM_NODE_IMAGE_TAG: ${{ inputs.image-tag }}
 
+  docker-signed-submit-evm-tests:
+    name: Docker Signed Submit EVM E2E Tests
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: set up go
+        uses: actions/setup-go@v6.5.0
+        with:
+          go-version: "1.27.0"
+          cache-dependency-path: "**/go.sum"
+      - name: Install just
+        uses: extractions/setup-just@v4
+      - name: Run Docker Signed Submit EVM E2E Tests
+        run: just test-docker-signed-submit-evm
+        env:
+          EVM_IMAGE_REPO: ghcr.io/${{ github.repository_owner }}/ev-node-evm
+          EVM_NODE_IMAGE_TAG: ${{ inputs.image-tag }}
+
   test-docker-compat:
     name: Docker Compatibility E2E Tests
     permissions:
