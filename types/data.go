@@ -80,7 +80,7 @@ func Validate(header *SignedHeader, data *Data) error {
 	return nil
 }
 
-// New returns a new Block.
+// New returns a new Data.
 func (d *Data) New() *Data {
 	return new(Data)
 }
