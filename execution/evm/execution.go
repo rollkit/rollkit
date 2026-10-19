@@ -347,7 +347,7 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 //
 // ExecMeta tracking (if store is configured):
 // - Checks for already-promoted blocks to enable idempotent execution
-// - Saves ExecMeta with payloadID after forkchoiceUpdatedV3 for crash recovery
+// - Saves ExecMeta with the payload ID returned by forkchoiceUpdated for crash recovery
 // - Updates ExecMeta to "promoted" after successful execution
 func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (execution.ExecuteResult, error) {
 

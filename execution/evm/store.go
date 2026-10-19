@@ -35,9 +35,9 @@ type ExecMeta struct {
 	Height uint64
 	// ParentHash is the EL parent block hash used for this execution
 	ParentHash []byte
-	// PayloadID is the Engine API payload ID (optional, set after forkchoiceUpdatedV3)
+	// PayloadID is the Engine API payload ID (optional, set after forkchoiceUpdated)
 	PayloadID []byte
-	// BlockHash is the EL block hash once built (set after getPayloadV4)
+	// BlockHash is the EL block hash once built (set after getPayload)
 	BlockHash []byte
 	// StateRoot is the state root from the execution payload
 	StateRoot []byte
@@ -45,11 +45,14 @@ type ExecMeta struct {
 	TxHash []byte
 	// Timestamp is the block timestamp
 	Timestamp int64
-	// Stage indicates the current execution stage:
-	// "started" - forkchoiceUpdatedV3 called, payloadID obtained
-	// "built" - getPayloadV4 called, payload retrieved
-	// "submitted" - newPayloadV4 called, payload marked VALID
-	// "promoted" - final forkchoiceUpdatedV3 called, block is head
+	// Stage indicates the current execution stage. forkchoiceUpdated (V3/V4) and
+	// getPayload (V4/V5/V6) negotiate their version at runtime and fall back on
+	// "Unsupported fork"; newPayload is picked from the payload fields (V4 or V5)
+	// and is not retried with another version:
+	// "started" - forkchoiceUpdated returned a payload ID
+	// "built" - getPayload returned the payload
+	// "submitted" - newPayload accepted the payload as VALID
+	// "promoted" - final forkchoiceUpdated made the block the head
 	Stage string
 	// UpdatedAtUnix is the Unix timestamp when this metadata was last updated
 	UpdatedAtUnix int64
