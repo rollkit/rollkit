@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792391422133,
+  "lastUpdate": 1792391447612,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -382,6 +382,54 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkEvmContractRoundtrip - allocs/op",
             "value": 36975,
+            "unit": "allocs/op",
+            "extra": "2 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "kleonyuan@outlook.com",
+            "name": "kleonyuan",
+            "username": "kleonyuan"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e09932eabcfd68ec589ac9625f10785cb34df86b",
+          "message": "chore: fix grammar in pending cache comments (#3488)\n\n\"temporary\" is an adjective; both comments need the adverb \"temporarily\". Introduced together in #2985.\n\nSigned-off-by: kleonyuan <kleonyuan@outlook.com>",
+          "timestamp": "2026-10-19T08:24:22+02:00",
+          "tree_id": "24059d7f85033236ceb2fc56d80ec386589db1c6",
+          "url": "https://github.com/evstack/ev-node/commit/e09932eabcfd68ec589ac9625f10785cb34df86b"
+        },
+        "date": 1792391441879,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkEvmContractRoundtrip",
+            "value": 900516368,
+            "unit": "ns/op\t 4214876 B/op\t   36195 allocs/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - ns/op",
+            "value": 900516368,
+            "unit": "ns/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - B/op",
+            "value": 4214876,
+            "unit": "B/op",
+            "extra": "2 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkEvmContractRoundtrip - allocs/op",
+            "value": 36195,
             "unit": "allocs/op",
             "extra": "2 times\n4 procs"
           }
