@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792391447612,
+  "lastUpdate": 1792391450758,
   "repoUrl": "https://github.com/evstack/ev-node",
   "entries": {
     "EVM Contract Roundtrip": [
@@ -1202,6 +1202,102 @@ window.BENCHMARK_DATA = {
             "value": 55,
             "unit": "allocs/op",
             "extra": "42483 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "kleonyuan@outlook.com",
+            "name": "kleonyuan",
+            "username": "kleonyuan"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e09932eabcfd68ec589ac9625f10785cb34df86b",
+          "message": "chore: fix grammar in pending cache comments (#3488)\n\n\"temporary\" is an adjective; both comments need the adverb \"temporarily\". Introduced together in #2985.\n\nSigned-off-by: kleonyuan <kleonyuan@outlook.com>",
+          "timestamp": "2026-10-19T08:24:22+02:00",
+          "tree_id": "24059d7f85033236ceb2fc56d80ec386589db1c6",
+          "url": "https://github.com/evstack/ev-node/commit/e09932eabcfd68ec589ac9625f10785cb34df86b"
+        },
+        "date": 1792391450025,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkProduceBlock/single_tx",
+            "value": 35683,
+            "unit": "ns/op\t    5038 B/op\t      55 allocs/op",
+            "extra": "33525 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx - ns/op",
+            "value": 35683,
+            "unit": "ns/op",
+            "extra": "33525 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx - B/op",
+            "value": 5038,
+            "unit": "B/op",
+            "extra": "33525 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/single_tx - allocs/op",
+            "value": 55,
+            "unit": "allocs/op",
+            "extra": "33525 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs",
+            "value": 42715,
+            "unit": "ns/op\t   10350 B/op\t      55 allocs/op",
+            "extra": "28159 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs - ns/op",
+            "value": 42715,
+            "unit": "ns/op",
+            "extra": "28159 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs - B/op",
+            "value": 10350,
+            "unit": "B/op",
+            "extra": "28159 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/100_txs - allocs/op",
+            "value": 55,
+            "unit": "allocs/op",
+            "extra": "28159 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch",
+            "value": 35437,
+            "unit": "ns/op\t    4838 B/op\t      51 allocs/op",
+            "extra": "33877 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch - ns/op",
+            "value": 35437,
+            "unit": "ns/op",
+            "extra": "33877 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch - B/op",
+            "value": 4838,
+            "unit": "B/op",
+            "extra": "33877 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkProduceBlock/empty_batch - allocs/op",
+            "value": 51,
+            "unit": "allocs/op",
+            "extra": "33877 times\n4 procs"
           }
         ]
       }
