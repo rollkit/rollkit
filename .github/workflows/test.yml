@@ -55,7 +55,7 @@ jobs:
       - name: Run unit test
         run: just test-cover
       - name: Upload unit test coverage report
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: unit-test-coverage-report-${{ github.sha }}
           path: ./coverage.txt
@@ -75,7 +75,7 @@ jobs:
       - name: Run integration test
         run: just test-integration-cover
       - name: Upload integration test coverage report
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: integration-test-coverage-report-${{ github.sha }}
           path: ./node/coverage.txt
@@ -135,12 +135,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Download unit test coverage report
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         with:
           name: unit-test-coverage-report-${{ github.sha }}
           path: ./unit-coverage
       - name: Download integration test coverage report
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         with:
           name: integration-test-coverage-report-${{ github.sha }}
           path: ./integration-coverage
