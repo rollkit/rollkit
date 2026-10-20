@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	keyring99 "github.com/99designs/keyring"
 	"github.com/celestiaorg/celestia-app/v10/app"
@@ -34,6 +35,10 @@ import (
 // PassphraseEnv holds the file-backend keyring passphrase; it takes precedence
 // over tx_signer.passphrase_file.
 const PassphraseEnv = "EVNODE_DA_KEYRING_PASSPHRASE" //nolint:gosec // env var name, not a credential
+
+// queryTimeout bounds startup queries so an endpoint that accepts connections
+// but never answers fails startup instead of hanging it.
+const queryTimeout = 30 * time.Second
 
 var errSignerAddress = errors.New("submit option signer_address is not supported with da.tx_signer; use key_name")
 
@@ -132,8 +137,10 @@ func New(ctx context.Context, cfg Config, logger zerolog.Logger) (*Submitter, er
 		_ = conn.Close()
 		return nil, err
 	}
-	if _, _, err := user.QueryAccount(ctx, conn, encCfg.InterfaceRegistry, addr); err != nil {
-		return fail(fmt.Errorf("DA signer %s has no account on chain, fund it first: %w", addr, err))
+	qctx, qcancel := context.WithTimeout(ctx, queryTimeout)
+	defer qcancel()
+	if _, _, err := user.QueryAccount(qctx, conn, encCfg.InterfaceRegistry, addr); err != nil {
+		return fail(fmt.Errorf("query DA signer account %s (a new key must be funded first): %w", addr, err))
 	}
 
 	tc, err := user.SetupTxClient(ctx, kr, conn, encCfg, user.WithDefaultAccount(cfg.KeyName))
@@ -142,7 +149,9 @@ func New(ctx context.Context, cfg Config, logger zerolog.Logger) (*Submitter, er
 	}
 
 	l := logger.With().Str("component", "da_tx_signer").Str("address", addr.String()).Logger()
-	if bal, err := user.QueryAccountBalance(ctx, conn, encCfg.InterfaceRegistry, addr, appconsts.BondDenom); err != nil {
+	bctx, bcancel := context.WithTimeout(ctx, queryTimeout)
+	defer bcancel()
+	if bal, err := user.QueryAccountBalance(bctx, conn, encCfg.InterfaceRegistry, addr, appconsts.BondDenom); err != nil {
 		l.Warn().Err(err).Msg("could not query DA signer balance")
 	} else {
 		l.Info().Str("balance", bal.String()).Str("grpc", cfg.GRPCAddress).Msg("DA tx signer ready")
