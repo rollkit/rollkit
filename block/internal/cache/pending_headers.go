@@ -33,7 +33,7 @@ func fetchSignedHeader(ctx context.Context, store storepkg.Store, height uint64)
 	if err != nil {
 		return nil, err
 	}
-	// in the executor, WIP headers are temporary stored. skip them until the process is completed
+	// in the executor, WIP headers are temporarily stored. skip them until the process is completed
 	if header.Height() == 0 {
 		return nil, errInFlightHeader
 	}

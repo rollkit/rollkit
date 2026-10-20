@@ -123,7 +123,7 @@ const (
 	FilterOK FilterStatus = iota
 	// FilterRemove is the result of a transaction that will be filtered out because invalid (too big, malformed, etc.)
 	FilterRemove
-	// FilterPostpone is the result of a transaction that is valid but postponed for later processing due to size constraint
+	// FilterPostpone is the result of a valid transaction postponed because it would exceed a size or gas limit.
 	FilterPostpone
 )
 
