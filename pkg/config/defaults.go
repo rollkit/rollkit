@@ -85,6 +85,11 @@ func DefaultConfig() Config {
 			BatchSizeThreshold:       0.8,
 			BatchMaxDelay:            DurationWrapper{0}, // 0 means use DA BlockTime
 			BatchMinItems:            1,
+			TxSigner: DATxSignerConfig{
+				GRPCTLS:        true,
+				KeyringDir:     "keys",
+				KeyringBackend: "file",
+			},
 		},
 		Instrumentation: DefaultInstrumentationConfig(),
 		Log: LogConfig{

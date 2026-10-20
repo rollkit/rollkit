@@ -22,6 +22,7 @@ WORKDIR /ev-node
 COPY go.mod go.sum ./
 COPY apps/testapp/go.mod apps/testapp/go.sum ./apps/testapp/
 COPY core/go.mod core/go.sum ./core/
+COPY da/celestia/go.mod da/celestia/go.sum ./da/celestia/
 RUN go mod download && (cd apps/testapp && go mod download)
 
 # Copy the rest of the source and build.

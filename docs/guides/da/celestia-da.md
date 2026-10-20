@@ -140,7 +140,7 @@ gmd start \
 
 Now, the chain is running and posting blocks (aggregated in batches) to Celestia. You can view your chain by using your namespace or account on one of Celestia's block explorers.
 
-For example, [here on Celenium for Arabica](https://arabica.celenium.io/).
+For example, [here on Celenium for Mocha](https://mocha.celenium.io/).
 
 Other explorers:
 

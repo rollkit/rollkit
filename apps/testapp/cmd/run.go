@@ -13,6 +13,7 @@ import (
 	"github.com/evstack/ev-node/block"
 	"github.com/evstack/ev-node/core/execution"
 	coresequencer "github.com/evstack/ev-node/core/sequencer"
+	"github.com/evstack/ev-node/da/celestia"
 	"github.com/evstack/ev-node/node"
 	"github.com/evstack/ev-node/pkg/cmd"
 	"github.com/evstack/ev-node/pkg/config"
@@ -97,7 +98,21 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
-		return cmd.StartNode(logger, command, executor, sequencer, nodeKey, datastore, nodeConfig, genesis, node.NodeOptions{})
+		var daOpts []block.DAClientOption
+		if nodeConfig.DA.TxSigner.Enabled && (nodeConfig.Node.Aggregator || nodeConfig.Node.Promotable) {
+			signerCfg, err := celestia.ConfigFromNode(nodeConfig)
+			if err != nil {
+				return err
+			}
+			submitter, err := celestia.New(ctx, signerCfg, logger)
+			if err != nil {
+				return fmt.Errorf("failed to create DA tx signer: %w", err)
+			}
+			defer submitter.Close()
+			daOpts = append(daOpts, block.WithSubmitter(submitter))
+		}
+
+		return cmd.StartNode(logger, command, executor, sequencer, nodeKey, datastore, nodeConfig, genesis, node.NodeOptions{}, daOpts...)
 	},
 }
 

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Client-side signed blob submission via the new `da/celestia` module: with `da.tx_signer.enabled`, `testapp` and `evm` sign PayForBlobs locally and broadcast them over consensus gRPC (`x-token` auth), so they can submit through DA endpoints that cannot sign, such as da-proxy. Off by default. `block.NewDAClient` and `pkg/cmd.StartNode` accept options (`block.WithSubmitter`) to inject a submitter; existing callers are unaffected.
+
 ### Fixed
 
 - Prune per-height state snapshots in `all` pruning mode, keep the state needed to replay the oldest retained block, and stop pruning from falling behind when more than 10k blocks are produced per interval [#3469](https://github.com/evstack/ev-node/pull/3469).

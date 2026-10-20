@@ -17,9 +17,15 @@ import (
 	datypes "github.com/evstack/ev-node/pkg/da/types"
 )
 
+// BlobSubmitter turns blobs into a committed DA height.
+type BlobSubmitter interface {
+	Submit(ctx context.Context, blobs []*blobrpc.Blob, opts *blobrpc.SubmitOptions) (uint64, error)
+}
+
 // Config contains configuration for the blob DA client.
 type Config struct {
 	DA                       *blobrpc.Client
+	Submitter                BlobSubmitter // nil submits through DA.Blob
 	Logger                   zerolog.Logger
 	DefaultTimeout           time.Duration
 	Namespace                string
@@ -31,6 +37,7 @@ type Config struct {
 // It is unexported; callers should use the exported Client interface.
 type client struct {
 	blobAPI            *blobrpc.BlobAPI
+	submitter          BlobSubmitter
 	headerAPI          *blobrpc.HeaderAPI
 	da                 *blobrpc.Client // kept to read live IsWebSocket after transport upgrades
 	logger             zerolog.Logger
@@ -129,8 +136,13 @@ func NewClient(cfg Config) FullClient {
 		forcedNamespaceBz = datypes.NamespaceFromString(cfg.ForcedInclusionNamespace).Bytes()
 	}
 
+	if cfg.Submitter == nil {
+		cfg.Submitter = &cfg.DA.Blob
+	}
+
 	return &client{
 		blobAPI:            &cfg.DA.Blob,
+		submitter:          cfg.Submitter,
 		headerAPI:          &cfg.DA.Header,
 		da:                 cfg.DA,
 		logger:             cfg.Logger.With().Str("component", "da_client").Logger(),
@@ -194,19 +206,22 @@ func (c *client) Submit(ctx context.Context, data [][]byte, _ float64, namespace
 		}
 	}
 
-	height, err := c.blobAPI.Submit(ctx, blobs, &submitOpts)
+	height, err := c.submitter.Submit(ctx, blobs, &submitOpts)
 	if err != nil {
 		code := datypes.StatusError
 		switch {
 		case errors.Is(err, context.Canceled):
 			code = datypes.StatusContextCanceled
-		case strings.Contains(err.Error(), datypes.ErrTxTimedOut.Error()):
+		case strings.Contains(err.Error(), datypes.ErrTxTimedOut.Error()),
+			strings.Contains(err.Error(), "eviction poll timeout"):
 			code = datypes.StatusNotIncludedInBlock
 		case strings.Contains(err.Error(), datypes.ErrTxAlreadyInMempool.Error()):
 			code = datypes.StatusAlreadyInMempool
 		case strings.Contains(err.Error(), datypes.ErrTxIncorrectAccountSequence.Error()):
 			code = datypes.StatusIncorrectAccountSequence
-		case strings.Contains(err.Error(), datypes.ErrBlobSizeOverLimit.Error()):
+		case strings.Contains(err.Error(), datypes.ErrBlobSizeOverLimit.Error()),
+			strings.Contains(strings.ToLower(err.Error()), "too large"),
+			strings.Contains(err.Error(), "size exceeds maximum allowed limit"):
 			code = datypes.StatusTooBig
 		case strings.Contains(err.Error(), datypes.ErrContextDeadline.Error()):
 			code = datypes.StatusContextDeadline

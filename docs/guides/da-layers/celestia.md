@@ -102,11 +102,72 @@ appd start \
     --evnode.da.address $DA_ADDRESS
 ```
 
+## Bring Your Own Key (Signed Submission)
+
+By default ev-node calls `blob.Submit` on the Celestia node, which signs and pays with **the node's** keyring. Shared DA endpoints such as da-proxy have no funded account, so `blob.Submit` through them cannot succeed. With `da.tx_signer` enabled, ev-node holds the key itself: it signs each PayForBlobs locally and broadcasts it over Celestia consensus gRPC. Reads (retrieval, headers, proofs) still use `--evnode.da.address`.
+
+This is supported by the `testapp` and `evm` binaries.
+
+### da-proxy Endpoints
+
+da-proxy fronts DA JSON-RPC and consensus gRPC behind one token with `write` scope:
+
+| Network | DA JSON-RPC (`da.address`) | Consensus gRPC (`tx_signer.grpc_address`) |
+|---|---|---|
+| Mocha | `https://da.da-proxy-lb.celestia-mocha.com` | `grpc.da-proxy-lb.celestia-mocha.com:443` |
+| Mainnet | `https://da.da-proxy-lb.lunaroasis.net` | `grpc.da-proxy-lb.lunaroasis.net:443` |
+
+The token is sent as `Authorization: Bearer` on JSON-RPC and as `x-token` metadata on gRPC. Set it once in `--evnode.da.auth_token`; `tx_signer.grpc_auth_token` defaults to it.
+
+### Create the Key
+
+Use `cel-key` (shipped with celestia-node) to create or import a key into a keyring directory under the node home (default `<home>/keys`):
+
+```bash
+cel-key add evnode --keyring-backend file --keyring-dir ~/.evm/keys
+# or import an existing mnemonic (BIP44 path m/44'/118'/0'/0/0):
+cel-key add evnode --recover --keyring-backend file --keyring-dir ~/.evm/keys
+```
+
+The passphrase you choose (at least 8 characters) unlocks the keyring at startup. Provide it through `EVNODE_DA_KEYRING_PASSPHRASE` or a file passed via `--evnode.da.tx_signer.passphrase_file`; never on the command line. The `test` backend is unencrypted and only for local development.
+
+### Fund the Key
+
+Show the address and fund it from a faucet (testnets) or a TIA transfer (Mainnet):
+
+```bash
+cel-key show evnode -a --keyring-backend file --keyring-dir ~/.evm/keys
+```
+
+ev-node logs the address and balance when it starts. Watch the balance: once the key runs out of TIA, blob submission stops.
+
+### Start the Node
+
+```bash
+export EVNODE_DA_KEYRING_PASSPHRASE=...   # or --evnode.da.tx_signer.passphrase_file
+evm start \
+    --evnode.node.aggregator \
+    --evnode.da.address https://da.da-proxy-lb.celestia-mocha.com \
+    --evnode.da.auth_token $DA_PROXY_TOKEN \
+    --evnode.da.namespace $DA_HEADER_NAMESPACE \
+    --evnode.da.data_namespace $DA_DATA_NAMESPACE \
+    --evnode.da.tx_signer.enabled \
+    --evnode.da.tx_signer.grpc_address grpc.da-proxy-lb.celestia-mocha.com:443 \
+    --evnode.da.tx_signer.key_name evnode
+```
+
+The chain-id is taken from the gRPC endpoint. Startup fails if the key is missing from the keyring or its account does not exist on chain yet, so fund it first. See the [configuration reference](/learn/config#da-tx-signer) for every option.
+
+### Notes
+
+- `--evnode.da.signing_addresses` cannot be combined with `tx_signer`; one key signs every submission.
+- Submit options such as `gas_price` and `max_gas_price` in `--evnode.da.submit_options` apply as before. Set `max_gas_price` to cap fees during gas spikes.
+- A transaction that times out may still be committed later and posted again, as with node-side signing. Keep `da.block_time × da.mempool_ttl` at or above the confirmation window.
+
 ## Viewing Your Chain Data
 
 Once running, you can view your chain's data on Celestia block explorers:
 
-- [Celenium (Arabica)](https://arabica.celenium.io/)
 - [Celenium (Mocha)](https://mocha.celenium.io/)
 - [Celenium (Mainnet)](https://celenium.io/)
 

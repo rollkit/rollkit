@@ -104,6 +104,10 @@ func (s *DockerTestSuite) SetupDockerResources() {
 
 // CreateChain creates a chain using the ChainBuilder pattern.
 func (s *DockerTestSuite) CreateChain() *cosmos.Chain {
+	return s.createChain(celestiaAppVersion)
+}
+
+func (s *DockerTestSuite) createChain(appVersion string) *cosmos.Chain {
 	ctx := context.Background()
 	t := s.T()
 	encConfig := testutil.MakeTestEncodingConfig(auth.AppModuleBasic{}, bank.AppModuleBasic{})
@@ -119,7 +123,7 @@ func (s *DockerTestSuite) CreateChain() *cosmos.Chain {
 		WithGasPrices("0.025utia").
 		WithGasAdjustment(1.3).
 		WithEncodingConfig(&encConfig).
-		WithImage(container.NewImage("ghcr.io/celestiaorg/celestia-app", celestiaAppVersion, "10001:10001")).
+		WithImage(container.NewImage("ghcr.io/celestiaorg/celestia-app", appVersion, "10001:10001")).
 		WithAdditionalStartArgs(
 			"--force-no-bbr",
 			"--grpc.enable",
@@ -141,6 +145,10 @@ func (s *DockerTestSuite) CreateChain() *cosmos.Chain {
 
 // CreateDANetwork creates a DA network using the builder pattern
 func (s *DockerTestSuite) CreateDANetwork() *da.Network {
+	return s.createDANetwork("v0.25.3")
+}
+
+func (s *DockerTestSuite) createDANetwork(nodeVersion string) *da.Network {
 	ctx := context.Background()
 	t := s.T()
 
@@ -151,7 +159,7 @@ func (s *DockerTestSuite) CreateDANetwork() *da.Network {
 	daNetwork, err := da.NewNetworkBuilder(t).
 		WithDockerClient(s.dockerClient).
 		WithDockerNetworkID(s.dockerNetworkID).
-		WithImage(container.NewImage("ghcr.io/celestiaorg/celestia-node", "v0.25.3", "10001:10001")).
+		WithImage(container.NewImage("ghcr.io/celestiaorg/celestia-node", nodeVersion, "10001:10001")).
 		WithNode(bridgeNodeConfig).
 		Build(ctx)
 	s.Require().NoError(err)

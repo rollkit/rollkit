@@ -39,6 +39,7 @@ This document provides a comprehensive reference for all configuration options a
   - [DA Batch Size Threshold](#da-batch-size-threshold)
   - [DA Batch Max Delay](#da-batch-max-delay)
   - [DA Batch Min Items](#da-batch-min-items)
+  - [DA Tx Signer](#da-tx-signer)
 - [P2P Configuration (`p2p`)](#p2p-configuration-p2p)
   - [P2P Listen Address](#p2p-listen-address)
   - [P2P Peers](#p2p-peers)
@@ -774,6 +775,49 @@ da:
 _Example:_ `--evnode.da.batch_min_items 5`
 _Default:_ `1`
 _Constant:_ `FlagDABatchMinItems`
+
+### DA Tx Signer
+
+**Description:**
+Signs PayForBlobs transactions locally and broadcasts them over Celestia consensus gRPC, instead of asking the DA node to sign with its own keyring through `blob.Submit`. Use it with DA endpoints that cannot sign, such as da-proxy. Reads still go through `da.address`. Disabled by default; when disabled, submission is unchanged.
+
+Only binaries built with the `da/celestia` module (`testapp`, `evm`) act on this section; other binaries ignore it.
+
+**YAML:**
+
+```yaml
+da:
+  tx_signer:
+    enabled: true
+    grpc_address: "grpc.da-proxy-lb.celestia-mocha.com:443"
+    grpc_auth_token: "" # defaults to da.auth_token
+    grpc_tls: true
+    keyring_dir: "keys" # relative to the node home
+    keyring_backend: "file"
+    key_name: "evnode"
+    passphrase_file: "/run/secrets/da_keyring_passphrase"
+```
+
+| Key | Flag | Default | Notes |
+|---|---|---|---|
+| `enabled` | `--evnode.da.tx_signer.enabled` | `false` | |
+| `grpc_address` | `--evnode.da.tx_signer.grpc_address` | `""` | Required when enabled. `host:port`. |
+| `grpc_auth_token` | `--evnode.da.tx_signer.grpc_auth_token` | `da.auth_token` | Sent as `x-token` gRPC metadata. One da-proxy token covers both endpoints. |
+| `grpc_tls` | `--evnode.da.tx_signer.grpc_tls` | `true` | |
+| `keyring_dir` | `--evnode.da.tx_signer.keyring_dir` | `keys` | Relative paths resolve against the node home. |
+| `keyring_backend` | `--evnode.da.tx_signer.keyring_backend` | `file` | `file` or `test` (unencrypted, local development only). |
+| `key_name` | `--evnode.da.tx_signer.key_name` | `""` | Required. Key that signs and pays for blobs. |
+| `passphrase_file` | `--evnode.da.tx_signer.passphrase_file` | `""` | File holding the `file` keyring passphrase. |
+
+**Passphrase:**
+The `file` backend needs a passphrase of at least 8 characters, read from the `EVNODE_DA_KEYRING_PASSPHRASE` environment variable or, if unset, from `passphrase_file`. Never put the passphrase itself in YAML or flags.
+
+**Validation:**
+
+- `grpc_address`, `key_name` and `da.address` are required when enabled.
+- `da.signing_addresses` must be empty when enabled.
+
+At startup the node logs the signer address and balance, and fails if the key is not in the keyring.
 
 ## P2P Configuration (`p2p`)
 

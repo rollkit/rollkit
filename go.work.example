@@ -1,4 +1,4 @@
-go 1.25.6
+go 1.26.6
 
 use (
 	.
@@ -6,5 +6,5 @@ use (
 	./apps/testapp
 	./apps/evm
 	./execution/evm
-	./da/
+	./da/celestia
 )

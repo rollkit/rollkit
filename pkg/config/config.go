@@ -93,6 +93,22 @@ const (
 	FlagDABatchMinItems = FlagPrefixEvnode + "da.batch_min_items"
 	// FlagDAStartHeight is a flag for forcing the DA retrieval height to start from a specific height
 	FlagDAStartHeight = FlagPrefixEvnode + "da.start_height"
+	// FlagDATxSignerEnabled enables signing PayForBlobs locally instead of via the DA node
+	FlagDATxSignerEnabled = FlagPrefixEvnode + "da.tx_signer.enabled"
+	// FlagDATxSignerGRPCAddress is the consensus gRPC endpoint transactions are broadcast to
+	FlagDATxSignerGRPCAddress = FlagPrefixEvnode + "da.tx_signer.grpc_address"
+	// FlagDATxSignerGRPCAuthToken is sent as x-token metadata on consensus gRPC calls
+	FlagDATxSignerGRPCAuthToken = FlagPrefixEvnode + "da.tx_signer.grpc_auth_token" // #nosec G101
+	// FlagDATxSignerGRPCTLS enables TLS for the consensus gRPC connection
+	FlagDATxSignerGRPCTLS = FlagPrefixEvnode + "da.tx_signer.grpc_tls"
+	// FlagDATxSignerKeyringDir is the keyring directory
+	FlagDATxSignerKeyringDir = FlagPrefixEvnode + "da.tx_signer.keyring_dir"
+	// FlagDATxSignerKeyringBackend is the keyring backend (file, test)
+	FlagDATxSignerKeyringBackend = FlagPrefixEvnode + "da.tx_signer.keyring_backend"
+	// FlagDATxSignerKeyName is the keyring key that signs and pays for blobs
+	FlagDATxSignerKeyName = FlagPrefixEvnode + "da.tx_signer.key_name"
+	// FlagDATxSignerPassphraseFile is the file holding the keyring passphrase for the file backend
+	FlagDATxSignerPassphraseFile = FlagPrefixEvnode + "da.tx_signer.passphrase_file"
 
 	// P2P configuration flags
 
@@ -268,6 +284,54 @@ type DAConfig struct {
 	BatchSizeThreshold float64         `mapstructure:"batch_size_threshold" yaml:"batch_size_threshold" comment:"Minimum blob size threshold (as fraction of max blob size, 0.0-1.0) before submitting. Only applies to 'size' and 'adaptive' strategies. Example: 0.8 means wait until batch is 80% full. Default: 0.8."`
 	BatchMaxDelay      DurationWrapper `mapstructure:"batch_max_delay" yaml:"batch_max_delay" comment:"Maximum time to wait before submitting a batch regardless of size. Applies to 'time' and 'adaptive' strategies. Lower values reduce latency but may increase costs. Examples: \"6s\", \"12s\", \"30s\". Default: DA BlockTime."`
 	BatchMinItems      uint64          `mapstructure:"batch_min_items" yaml:"batch_min_items" comment:"Minimum number of items (headers or data) to accumulate before considering submission. Helps avoid submitting single items when more are expected soon. Default: 1."`
+
+	TxSigner DATxSignerConfig `mapstructure:"tx_signer" yaml:"tx_signer"`
+}
+
+// DATxSignerConfig configures signing PayForBlobs locally and broadcasting
+// them over consensus gRPC, for DA endpoints that cannot sign (e.g. da-proxy).
+// Reads still go through da.address.
+type DATxSignerConfig struct {
+	Enabled        bool   `mapstructure:"enabled" yaml:"enabled" comment:"Sign blob submissions locally and broadcast them over consensus gRPC instead of calling blob.Submit on the DA node."`
+	GRPCAddress    string `mapstructure:"grpc_address" yaml:"grpc_address" comment:"Consensus gRPC endpoint (host:port), e.g. grpc.da-proxy-lb.celestia-mocha.com:443."`
+	GRPCAuthToken  string `mapstructure:"grpc_auth_token" yaml:"grpc_auth_token" comment:"Token sent as x-token metadata on consensus gRPC calls. Defaults to da.auth_token."` //nolint:gosec // user-provided config
+	GRPCTLS        bool   `mapstructure:"grpc_tls" yaml:"grpc_tls" comment:"Use TLS for the consensus gRPC connection."`
+	KeyringDir     string `mapstructure:"keyring_dir" yaml:"keyring_dir" comment:"Keyring directory; relative paths are resolved against the node home."`
+	KeyringBackend string `mapstructure:"keyring_backend" yaml:"keyring_backend" comment:"Keyring backend: file, or test for local development."`
+	KeyName        string `mapstructure:"key_name" yaml:"key_name" comment:"Keyring key that signs and pays for blobs."`
+	PassphraseFile string `mapstructure:"passphrase_file" yaml:"passphrase_file" comment:"File holding the file-backend keyring passphrase. EVNODE_DA_KEYRING_PASSPHRASE takes precedence."`
+}
+
+// GRPCAuthTokenOrDefault returns the consensus gRPC token, falling back to
+// da.auth_token since one da-proxy token covers both endpoints.
+func (d *DAConfig) GRPCAuthTokenOrDefault() string {
+	if d.TxSigner.GRPCAuthToken != "" {
+		return d.TxSigner.GRPCAuthToken
+	}
+	return d.AuthToken
+}
+
+func (d *DAConfig) validateTxSigner() error {
+	t := d.TxSigner
+	if !t.Enabled {
+		return nil
+	}
+	if d.Address == "" {
+		return errors.New("evnode.da.address is required when tx_signer is enabled")
+	}
+	if t.GRPCAddress == "" {
+		return errors.New("evnode.da.tx_signer.grpc_address is required when tx_signer is enabled")
+	}
+	if t.KeyName == "" {
+		return errors.New("evnode.da.tx_signer.key_name is required when tx_signer is enabled")
+	}
+	if t.KeyringBackend != "file" && t.KeyringBackend != "test" {
+		return fmt.Errorf("evnode.da.tx_signer.keyring_backend must be file or test, got %q", t.KeyringBackend)
+	}
+	if len(d.SigningAddresses) > 0 {
+		return errors.New("evnode.da.signing_addresses must be empty when tx_signer is enabled")
+	}
+	return nil
 }
 
 // DAEnabled reports whether this node should initialize a DA client. Full
@@ -559,6 +623,10 @@ func (c *Config) Validate() error {
 			c.Node.LazyBlockInterval.Duration, c.Node.BlockTime.Duration)
 	}
 
+	if err := c.DA.validateTxSigner(); err != nil {
+		return err
+	}
+
 	if err := c.Raft.Validate(); err != nil {
 		return err
 	}
@@ -648,6 +716,14 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64(FlagDABatchMinItems, def.DA.BatchMinItems, "minimum number of items to accumulate before submission")
 	cmd.Flags().Uint64(FlagDAStartHeight, def.DA.StartHeight, "force DA retrieval to start from a specific height (0 for disabled)")
 	cmd.Flags().MarkHidden(FlagDAStartHeight)
+	cmd.Flags().Bool(FlagDATxSignerEnabled, def.DA.TxSigner.Enabled, "sign blob submissions locally and broadcast them over consensus gRPC")
+	cmd.Flags().String(FlagDATxSignerGRPCAddress, def.DA.TxSigner.GRPCAddress, "consensus gRPC endpoint (host:port) for signed blob submission")
+	cmd.Flags().String(FlagDATxSignerGRPCAuthToken, def.DA.TxSigner.GRPCAuthToken, "x-token for consensus gRPC (defaults to the DA auth token)")
+	cmd.Flags().Bool(FlagDATxSignerGRPCTLS, def.DA.TxSigner.GRPCTLS, "use TLS for consensus gRPC")
+	cmd.Flags().String(FlagDATxSignerKeyringDir, def.DA.TxSigner.KeyringDir, "keyring directory, relative to home unless absolute")
+	cmd.Flags().String(FlagDATxSignerKeyringBackend, def.DA.TxSigner.KeyringBackend, "keyring backend (file, test)")
+	cmd.Flags().String(FlagDATxSignerKeyName, def.DA.TxSigner.KeyName, "keyring key that signs and pays for blobs")
+	cmd.Flags().String(FlagDATxSignerPassphraseFile, def.DA.TxSigner.PassphraseFile, "file holding the keyring passphrase (file backend)")
 
 	// P2P configuration flags
 	cmd.Flags().String(FlagP2PListenAddress, def.P2P.ListenAddress, "P2P listen address (host:port)")

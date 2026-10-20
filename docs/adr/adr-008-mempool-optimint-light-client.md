@@ -33,7 +33,7 @@ If light clients do not check transactions, they do not need the mempool.
 
 If the transaction originates from the light client i.e. submitting a new transaction, then this transaction must be gossiped to the network.
 
-A light client will use the [fan-out](https://docs.libp2p.io/concepts/publish-subscribe/#fan-out) functionality of pubsub. It will send its transaction to the network but will not subscribe to receiving and propagating other transactions.
+A light client will use the [fan-out](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/gossipsub-v1.0.md#fanout-maintenance) functionality of pubsub. It will send its transaction to the network but will not subscribe to receiving and propagating other transactions.
 
 ## Alternative Approaches
 

@@ -40,6 +40,7 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, "config", def.Signer.SignerPath)
 	assert.Equal(t, "127.0.0.1:7331", def.RPC.Address)
 	assert.Equal(t, PruningModeDisabled, def.Pruning.Mode)
+	assert.Equal(t, DATxSignerConfig{GRPCTLS: true, KeyringDir: "keys", KeyringBackend: "file"}, def.DA.TxSigner)
 	assert.NoError(t, def.Validate())
 }
 
@@ -153,6 +154,14 @@ func TestAddFlags(t *testing.T) {
 		assertFlagValue(t, flags, FlagDAMempoolTTL, DefaultConfig().DA.MempoolTTL)
 		assertFlagValue(t, flags, FlagDAMaxSubmitAttempts, DefaultConfig().DA.MaxSubmitAttempts)
 		assertFlagValue(t, flags, FlagDARequestTimeout, DefaultConfig().DA.RequestTimeout.Duration)
+		assertFlagValue(t, flags, FlagDATxSignerEnabled, false)
+		assertFlagValue(t, flags, FlagDATxSignerGRPCAddress, "")
+		assertFlagValue(t, flags, FlagDATxSignerGRPCAuthToken, "")
+		assertFlagValue(t, flags, FlagDATxSignerGRPCTLS, true)
+		assertFlagValue(t, flags, FlagDATxSignerKeyringDir, "keys")
+		assertFlagValue(t, flags, FlagDATxSignerKeyringBackend, "file")
+		assertFlagValue(t, flags, FlagDATxSignerKeyName, "")
+		assertFlagValue(t, flags, FlagDATxSignerPassphraseFile, "")
 
 		// P2P flags
 		assertFlagValue(t, flags, FlagP2PListenAddress, DefaultConfig().P2P.ListenAddress)
@@ -219,7 +228,7 @@ func TestAddFlags(t *testing.T) {
 		assertFlagValue(t, flags, FlagPruningInterval, DefaultConfig().Pruning.Interval.Duration)
 
 		// Count the number of flags we're explicitly checking
-		expectedFlagCount := 83 // Update this number if you add more flag checks above
+		expectedFlagCount := 91 // Update this number if you add more flag checks above
 
 		// Get the actual number of flags (both regular and persistent)
 		actualFlagCount := 0
@@ -785,4 +794,71 @@ func TestSignerValidation(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.expectError)
 		})
 	}
+}
+
+func TestTxSignerValidation(t *testing.T) {
+	enabled := func(cfg *Config) {
+		cfg.DA.Address = "https://da.da-proxy-lb.celestia-mocha.com"
+		cfg.DA.TxSigner.Enabled = true
+		cfg.DA.TxSigner.GRPCAddress = "grpc.da-proxy-lb.celestia-mocha.com:443"
+		cfg.DA.TxSigner.KeyName = "ev"
+	}
+	tests := []struct {
+		name        string
+		modify      func(cfg *Config)
+		expectError string
+	}{
+		{name: "disabled ignores missing fields", modify: func(cfg *Config) { cfg.DA.TxSigner.KeyringBackend = "os" }},
+		{name: "enabled and complete", modify: enabled},
+		{name: "test backend allowed", modify: func(cfg *Config) { enabled(cfg); cfg.DA.TxSigner.KeyringBackend = "test" }},
+		{
+			name:        "requires grpc address",
+			modify:      func(cfg *Config) { enabled(cfg); cfg.DA.TxSigner.GRPCAddress = "" },
+			expectError: "evnode.da.tx_signer.grpc_address is required",
+		},
+		{
+			name:        "requires da address",
+			modify:      func(cfg *Config) { enabled(cfg); cfg.DA.Address = "" },
+			expectError: "evnode.da.address is required",
+		},
+		{
+			name:        "requires key name",
+			modify:      func(cfg *Config) { enabled(cfg); cfg.DA.TxSigner.KeyName = "" },
+			expectError: "evnode.da.tx_signer.key_name is required",
+		},
+		{
+			name:        "rejects os backend",
+			modify:      func(cfg *Config) { enabled(cfg); cfg.DA.TxSigner.KeyringBackend = "os" },
+			expectError: "evnode.da.tx_signer.keyring_backend must be file or test",
+		},
+		{
+			name: "rejects signing addresses",
+			modify: func(cfg *Config) {
+				enabled(cfg)
+				cfg.DA.SigningAddresses = []string{"celestia1abc"}
+			},
+			expectError: "evnode.da.signing_addresses must be empty when tx_signer is enabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := DefaultConfig()
+			cfg.RootDir = t.TempDir()
+			tt.modify(&cfg)
+			err := cfg.Validate()
+			if tt.expectError == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.expectError)
+		})
+	}
+}
+
+func TestDAConfig_GRPCAuthTokenOrDefault(t *testing.T) {
+	d := DAConfig{AuthToken: "da"}
+	assert.Equal(t, "da", d.GRPCAuthTokenOrDefault())
+	d.TxSigner.GRPCAuthToken = "grpc"
+	assert.Equal(t, "grpc", d.GRPCAuthTokenOrDefault())
 }

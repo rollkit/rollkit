@@ -88,7 +88,8 @@ func SetupLogger(config rollconf.LogConfig) zerolog.Logger {
 	return logger
 }
 
-// StartNode handles the node startup logic
+// StartNode handles the node startup logic. daOpts configure the DA client,
+// e.g. block.WithSubmitter to sign blob submissions locally.
 func StartNode(
 	logger zerolog.Logger,
 	cmd *cobra.Command,
@@ -99,6 +100,7 @@ func StartNode(
 	nodeConfig rollconf.Config,
 	genesis genesispkg.Genesis,
 	nodeOptions node.NodeOptions,
+	daOpts ...block.DAClientOption,
 ) error {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
@@ -170,7 +172,7 @@ func StartNode(
 			return fmt.Errorf("failed to create blob client: %w", err)
 		}
 		defer blobClient.Close()
-		daClient = block.NewDAClient(blobClient, nodeConfig, logger)
+		daClient = block.NewDAClient(blobClient, nodeConfig, logger, daOpts...)
 	} else {
 		logger.Info().Msg("DA address is not configured; syncing through P2P only")
 	}

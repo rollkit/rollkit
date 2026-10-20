@@ -108,7 +108,7 @@ If you'd ever like to restart a fresh node, make sure to remove the originally c
 
 The EVM app includes a Force Inclusion API server that exposes an Ethereum-compatible JSON-RPC endpoint for submitting transactions directly to the DA layer for force inclusion.
 
-When enabling this server, the node operator will be paying for the gas costs of the transactions submitted through the API on the DA layer. The application costs are still paid by the transaction signer.
+When enabling this server, the node operator will be paying for the gas costs of the transactions submitted through the API on the DA layer. The application costs are still paid by the transaction signer. With `--evnode.da.tx_signer.enabled`, those submissions are signed with the `da.tx_signer` key on any node role, so the key must be funded.
 
 ### Enabling the Force Inclusion API
 
