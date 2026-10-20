@@ -60,8 +60,14 @@ var RunCmd = &cobra.Command{
 			return err
 		}
 
+		forceInclusionAddr, err := cmd.Flags().GetString(flagForceInclusionServer)
+		if err != nil {
+			return fmt.Errorf("failed to get '%s' flag: %w", flagForceInclusionServer, err)
+		}
+
+		// The force inclusion server submits to DA too, so it needs the signer on any node role.
 		var daOpts []block.DAClientOption
-		if nodeConfig.DA.TxSigner.Enabled && (nodeConfig.Node.Aggregator || nodeConfig.Node.Promotable) {
+		if nodeConfig.DA.TxSigner.Enabled && (nodeConfig.Node.Aggregator || nodeConfig.Node.Promotable || forceInclusionAddr != "") {
 			signerCfg, err := celestia.ConfigFromNode(nodeConfig)
 			if err != nil {
 				return err
@@ -113,11 +119,6 @@ var RunCmd = &cobra.Command{
 		}
 
 		// Start force inclusion API server if address is provided
-		forceInclusionAddr, err := cmd.Flags().GetString(flagForceInclusionServer)
-		if err != nil {
-			return fmt.Errorf("failed to get '%s' flag: %w", flagForceInclusionServer, err)
-		}
-
 		if forceInclusionAddr != "" {
 			if daClient == nil {
 				return fmt.Errorf("force inclusion server requires a DA address")
