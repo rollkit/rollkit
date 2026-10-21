@@ -100,7 +100,7 @@ func (d *Data) Height() uint64 {
 	return d.Metadata.Height
 }
 
-// LastHeader returns last header hash of the block.
+// LastHeader returns the previous block's data hash.
 func (d *Data) LastHeader() Hash {
 	return d.LastDataHash
 }
@@ -116,7 +116,7 @@ func (d *Data) Verify(untrustedData *Data) error {
 		return errors.New("untrusted block cannot be nil")
 	}
 	dataHash := d.Hash()
-	// Check if the data hash of the untrusted block matches the last data hash of the trusted block
+	// Check if the trusted block's data hash matches the untrusted block's last data hash.
 	if !bytes.Equal(dataHash[:], untrustedData.LastDataHash[:]) {
 		return errors.New("data hash of the trusted data does not match with last data hash of the untrusted data")
 	}
