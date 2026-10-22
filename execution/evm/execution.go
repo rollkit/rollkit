@@ -187,6 +187,7 @@ type EngineClient struct {
 	currentSafeBlockHash      common.Hash            // Store last non-finalized SafeBlockHash
 	currentFinalizedBlockHash common.Hash            // Store last finalized block hash
 	blockHashCache            map[uint64]common.Hash // height -> hash cache for safe block lookups
+	forkchoiceInitialized     bool                   // Whether forkchoice state was restored from the execution layer
 
 	cachedExecutionInfo atomic.Pointer[execution.ExecutionInfo] // Cached execution info (gas limit)
 
@@ -311,6 +312,18 @@ func (c *EngineClient) InitChain(ctx context.Context, genesisTime time.Time, ini
 		return nil, err
 	}
 
+	c.mu.Lock()
+	c.currentHeadBlockHash = c.genesisHash
+	c.currentHeadHeight = 0
+	c.currentSafeBlockHash = c.genesisHash
+	c.currentFinalizedBlockHash = c.genesisHash
+	if c.blockHashCache == nil {
+		c.blockHashCache = make(map[uint64]common.Hash)
+	}
+	c.blockHashCache[0] = c.genesisHash
+	c.forkchoiceInitialized = true
+	c.mu.Unlock()
+
 	_, stateRoot, _, _, err := c.getBlockInfo(ctx, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block info: %w", err)
@@ -343,6 +356,96 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 	return txs, nil
 }
 
+// ensureForkchoiceInitialized restores the forkchoice state persisted by the
+// execution layer. Initialization is serialized and remains retryable until all
+// required block tags have been read and validated successfully.
+func (c *EngineClient) ensureForkchoiceInitialized(ctx context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.forkchoiceInitialized {
+		return nil
+	}
+
+	latest, latestErr := c.headerByBlockTag(ctx, rpc.LatestBlockNumber)
+	safe, safeErr := c.headerByBlockTag(ctx, rpc.SafeBlockNumber)
+	finalized, finalizedErr := c.headerByBlockTag(ctx, rpc.FinalizedBlockNumber)
+	if latestErr != nil {
+		return latestErr
+	}
+
+	headHeight := latest.Number.Uint64()
+	if headHeight == 0 {
+		if latest.Hash() != c.genesisHash {
+			return fmt.Errorf("latest genesis hash %s does not match configured genesis hash %s", latest.Hash(), c.genesisHash)
+		}
+
+		// Some execution clients do not expose safe/finalized tags until their
+		// first forkchoice update. A genesis-only chain has no state to recover
+		// beyond the configured genesis hash.
+		c.currentHeadBlockHash = c.genesisHash
+		c.currentHeadHeight = 0
+		c.currentSafeBlockHash = c.genesisHash
+		c.currentFinalizedBlockHash = c.genesisHash
+		if c.blockHashCache == nil {
+			c.blockHashCache = make(map[uint64]common.Hash)
+		}
+		c.blockHashCache[0] = c.genesisHash
+		c.forkchoiceInitialized = true
+		return nil
+	}
+
+	if safeErr != nil {
+		return safeErr
+	}
+	if finalizedErr != nil {
+		return finalizedErr
+	}
+
+	safeHeight := safe.Number.Uint64()
+	finalizedHeight := finalized.Number.Uint64()
+	if finalizedHeight > safeHeight || safeHeight > headHeight {
+		return fmt.Errorf("inconsistent forkchoice heights: finalized=%d safe=%d head=%d", finalizedHeight, safeHeight, headHeight)
+	}
+	if safeHeight == headHeight && safe.Hash() != latest.Hash() {
+		return fmt.Errorf("inconsistent forkchoice hashes at head height %d", headHeight)
+	}
+	if finalizedHeight == safeHeight && finalized.Hash() != safe.Hash() {
+		return fmt.Errorf("inconsistent forkchoice hashes at safe height %d", safeHeight)
+	}
+
+	c.currentHeadBlockHash = latest.Hash()
+	c.currentHeadHeight = headHeight
+	c.currentSafeBlockHash = safe.Hash()
+	c.currentFinalizedBlockHash = finalized.Hash()
+	if c.blockHashCache == nil {
+		c.blockHashCache = make(map[uint64]common.Hash)
+	}
+	c.blockHashCache[headHeight] = latest.Hash()
+	c.blockHashCache[safeHeight] = safe.Hash()
+	c.blockHashCache[finalizedHeight] = finalized.Hash()
+	c.forkchoiceInitialized = true
+
+	c.logger.Info().
+		Uint64("head_height", headHeight).
+		Uint64("safe_height", safeHeight).
+		Uint64("finalized_height", finalizedHeight).
+		Msg("restored forkchoice state from execution layer")
+
+	return nil
+}
+
+func (c *EngineClient) headerByBlockTag(ctx context.Context, tag rpc.BlockNumber) (*types.Header, error) {
+	header, err := c.ethClient.HeaderByNumber(ctx, big.NewInt(tag.Int64()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s block: %w", tag.String(), err)
+	}
+	if header == nil || header.Number == nil {
+		return nil, fmt.Errorf("execution layer returned missing %s block", tag.String())
+	}
+	return header, nil
+}
+
 // ExecuteTxs executes the given transactions at the specified block height and timestamp.
 //
 // ExecMeta tracking (if store is configured):
@@ -350,6 +453,9 @@ func (c *EngineClient) GetTxs(ctx context.Context) ([][]byte, error) {
 // - Saves ExecMeta with the payload ID returned by forkchoiceUpdated for crash recovery
 // - Updates ExecMeta to "promoted" after successful execution
 func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight uint64, timestamp time.Time, prevStateRoot []byte) (execution.ExecuteResult, error) {
+	if err := c.ensureForkchoiceInitialized(ctx); err != nil {
+		return execution.ExecuteResult{}, fmt.Errorf("initialize forkchoice state: %w", err)
+	}
 
 	// 1. Check for idempotent execution
 	stateRoot, payloadID, found, idempotencyErr := c.reconcileExecutionAtHeight(ctx, blockHeight, timestamp, txs)
@@ -460,6 +566,10 @@ func (c *EngineClient) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight
 // setHead updates the head block hash without changing safe or finalized.
 // This is used when reusing an existing block (idempotency check).
 func (c *EngineClient) setHead(ctx context.Context, blockHash common.Hash) error {
+	if err := c.ensureForkchoiceInitialized(ctx); err != nil {
+		return fmt.Errorf("initialize forkchoice state: %w", err)
+	}
+
 	c.mu.Lock()
 	c.currentHeadBlockHash = blockHash
 	// Note: safe and finalized are NOT updated - they advance separately via derivation
@@ -484,6 +594,10 @@ func (c *EngineClient) setFinal(ctx context.Context, blockHash common.Hash, isFi
 //
 // Note: The finalized lag is a temporary mock until proper DA-based finalization is wired up.
 func (c *EngineClient) setFinalWithHeight(ctx context.Context, blockHash common.Hash, headHeight uint64, isFinal bool) error {
+	if err := c.ensureForkchoiceInitialized(ctx); err != nil {
+		return fmt.Errorf("initialize forkchoice state: %w", err)
+	}
+
 	var safeHash, finalizedHash common.Hash
 	updateSafe := !isFinal && headHeight > SafeBlockLag
 	updateFinalized := !isFinal && headHeight > FinalizedBlockLag
@@ -633,6 +747,10 @@ func isHistoryUnavailable(err error) bool {
 // This allows the derivation layer to advance the safe block independently of head.
 // Safe indicates a block that is unlikely to be reorged (e.g., confirmed by DA).
 func (c *EngineClient) SetSafe(ctx context.Context, blockHash common.Hash) error {
+	if err := c.ensureForkchoiceInitialized(ctx); err != nil {
+		return fmt.Errorf("initialize forkchoice state: %w", err)
+	}
+
 	c.mu.Lock()
 	c.currentSafeBlockHash = blockHash
 	args := engine.ForkchoiceStateV1{
@@ -699,6 +817,10 @@ func (c *EngineClient) cacheBlockHash(height uint64, hash common.Hash) {
 // This allows the derivation layer to advance finalization independently.
 // Finalized indicates a block that will never be reorged (e.g., included in DA with sufficient confirmations).
 func (c *EngineClient) SetFinalized(ctx context.Context, blockHash common.Hash) error {
+	if err := c.ensureForkchoiceInitialized(ctx); err != nil {
+		return fmt.Errorf("initialize forkchoice state: %w", err)
+	}
+
 	c.mu.Lock()
 	c.currentFinalizedBlockHash = blockHash
 	// Finalized implies safe.
@@ -720,6 +842,9 @@ func (c *EngineClient) SetFinalized(ctx context.Context, blockHash common.Hash) 
 // Returns the state root from the payload, or an error if resumption fails.
 // Implements the execution.PayloadResumer interface.
 func (c *EngineClient) ResumePayload(ctx context.Context, payloadIDBytes []byte) (stateRoot []byte, err error) {
+	if err := c.ensureForkchoiceInitialized(ctx); err != nil {
+		return nil, fmt.Errorf("initialize forkchoice state: %w", err)
+	}
 
 	// Convert bytes to PayloadID
 	if len(payloadIDBytes) != 8 {
@@ -1187,6 +1312,10 @@ func (c *EngineClient) GetLatestHeight(ctx context.Context) (uint64, error) {
 //
 // Implements the execution.Rollbackable interface.
 func (c *EngineClient) Rollback(ctx context.Context, targetHeight uint64) error {
+	if err := c.ensureForkchoiceInitialized(ctx); err != nil {
+		return fmt.Errorf("initialize forkchoice state: %w", err)
+	}
+
 	// Get block hash at target height
 	blockHash, _, _, _, err := c.getBlockInfo(ctx, targetHeight)
 	if err != nil {

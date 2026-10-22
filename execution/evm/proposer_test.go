@@ -102,6 +102,7 @@ func TestExecuteTxsReturnsNextProposerWhenChanged(t *testing.T) {
 		store:                     store,
 		currentSafeBlockHash:      common.HexToHash("0x10"),
 		currentFinalizedBlockHash: common.HexToHash("0x10"),
+		forkchoiceInitialized:     true,
 		logger:                    zerolog.Nop(),
 	}
 
