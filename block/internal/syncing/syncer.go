@@ -43,6 +43,14 @@ const (
 	fullnessThreshold = 0.8
 )
 
+type syncerLifecycleState uint8
+
+const (
+	syncerLifecycleNew syncerLifecycleState = iota
+	syncerLifecycleStarted
+	syncerLifecycleStopped
+)
+
 // Syncer handles block synchronization from DA and P2P sources.
 type Syncer struct {
 	// Core components
@@ -91,6 +99,8 @@ type Syncer struct {
 	lastCheckedEpochEnd  uint64              // highest epochEnd fully verified so far
 
 	// Lifecycle
+	lifecycleMu      sync.Mutex
+	lifecycleState   syncerLifecycleState
 	ctx              context.Context
 	cancel           context.CancelFunc
 	wg               sync.WaitGroup
@@ -165,11 +175,19 @@ func (s *Syncer) SetBlockSyncer(bs BlockSyncer) {
 // Start begins the syncing component
 // The component should not be started after being stopped.
 func (s *Syncer) Start(ctx context.Context) (err error) {
-	if s.cancel != nil {
+	s.lifecycleMu.Lock()
+	switch s.lifecycleState {
+	case syncerLifecycleStarted:
+		s.lifecycleMu.Unlock()
 		return errors.New("syncer already started")
+	case syncerLifecycleStopped:
+		s.lifecycleMu.Unlock()
+		return errors.New("syncer cannot be restarted after stopping")
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	s.ctx, s.cancel = ctx, cancel
+	s.lifecycleState = syncerLifecycleStarted
+	s.lifecycleMu.Unlock()
 
 	defer func() { //nolint: contextcheck // use new context as parent can be cancelled already
 		if err != nil {
@@ -240,11 +258,17 @@ func (s *Syncer) Start(ctx context.Context) (err error) {
 
 // Stop shuts down the syncing component
 func (s *Syncer) Stop(ctx context.Context) error {
-	if s.cancel == nil {
+	s.lifecycleMu.Lock()
+	if s.lifecycleState != syncerLifecycleStarted {
+		s.lifecycleMu.Unlock()
 		return nil
 	}
+	cancel := s.cancel
+	s.cancel = nil
+	s.lifecycleState = syncerLifecycleStopped
+	s.lifecycleMu.Unlock()
 
-	s.cancel()
+	cancel()
 	s.cancelP2PWait(0)
 
 	if s.fiRetriever != nil {

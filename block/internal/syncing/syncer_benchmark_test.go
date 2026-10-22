@@ -137,6 +137,7 @@ func newBenchFixture(b *testing.B, totalHeights uint64, shuffledTx bool, daDelay
 	)
 	require.NoError(b, s.initializeState())
 	s.ctx, s.cancel = ctx, cancel
+	s.lifecycleState = syncerLifecycleStarted
 
 	// prepare height events to emit
 	heightEvents := make([]common.DAHeightEvent, totalHeights)

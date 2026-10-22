@@ -42,6 +42,34 @@ type stubRaftNode struct {
 	callbacks []chan<- raft.RaftApplyMsg
 }
 
+type countingForcedInclusionRetriever struct {
+	stopCalls int
+}
+
+func (*countingForcedInclusionRetriever) RetrieveForcedIncludedTxs(context.Context, uint64) (*da.ForcedInclusionEvent, error) {
+	return nil, nil
+}
+
+func (*countingForcedInclusionRetriever) Start(context.Context) {}
+
+func (r *countingForcedInclusionRetriever) Stop() {
+	r.stopCalls++
+}
+
+type countingDAFollower struct {
+	stopCalls int
+}
+
+func (*countingDAFollower) Start(context.Context) error { return nil }
+
+func (f *countingDAFollower) Stop() {
+	f.stopCalls++
+}
+
+func (*countingDAFollower) HasReachedHead() bool { return false }
+
+func (*countingDAFollower) QueuePriorityHeight(uint64) {}
+
 func (s *stubRaftNode) IsLeader() bool                                        { return false }
 func (s *stubRaftNode) HasQuorum() bool                                       { return false }
 func (s *stubRaftNode) GetState() *raft.RaftBlockState                        { return nil }
@@ -1073,6 +1101,7 @@ func TestSyncer_Stop_CallsRaftRetrieverStop(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	s.ctx = ctx
 	s.cancel = cancel
+	s.lifecycleState = syncerLifecycleStarted
 
 	require.NoError(t, s.Stop(t.Context()))
 
@@ -1081,6 +1110,48 @@ func TestSyncer_Stop_CallsRaftRetrieverStop(t *testing.T) {
 	callbacks := raftNode.recordedCallbacks()
 	require.NotEmpty(t, callbacks, "expected at least one callback registration")
 	assert.Nil(t, callbacks[len(callbacks)-1], "last callback should be nil after Stop")
+}
+
+func TestSyncer_Stop_IsIdempotentAfterStartFailure(t *testing.T) {
+	mockStore := testmocks.NewMockStore(t)
+	mockStore.EXPECT().GetState(mock.Anything).Return(types.State{DAHeight: 1}, nil).Once()
+
+	raftNode := &stubRaftNode{}
+	fiRetriever := &countingForcedInclusionRetriever{}
+	daFollower := &countingDAFollower{}
+	s := NewSyncer(
+		mockStore,
+		nil,
+		nil,
+		nil,
+		common.NopMetrics(),
+		config.DefaultConfig(),
+		genesis.Genesis{DAStartHeight: 2},
+		nil,
+		nil,
+		zerolog.Nop(),
+		common.DefaultBlockOptions(),
+		make(chan error, 1),
+		raftNode,
+	)
+	s.fiRetriever = fiRetriever
+	s.daFollower = daFollower
+
+	err := s.Start(t.Context())
+	require.ErrorContains(t, err, "DA height (1) is lower than DA start height (2)")
+	require.NoError(t, s.Stop(t.Context()))
+	require.NoError(t, s.Stop(t.Context()))
+
+	assert.Nil(t, s.cancel)
+	assert.Equal(t, syncerLifecycleStopped, s.lifecycleState)
+	assert.Equal(t, 1, fiRetriever.stopCalls, "forced inclusion retriever should only be stopped once")
+	assert.Equal(t, 1, daFollower.stopCalls, "DA follower should only be stopped once")
+	_, open := <-s.heightInCh
+	assert.False(t, open, "height input channel should be closed")
+
+	callbacks := raftNode.recordedCallbacks()
+	require.Len(t, callbacks, 1, "raft retriever should only be stopped once")
+	assert.Nil(t, callbacks[0])
 }
 
 func TestSyncer_processPendingEvents(t *testing.T) {
@@ -2019,6 +2090,7 @@ func TestSyncer_Stop_SkipsDrainOnCriticalError(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	s.ctx = ctx
 	s.cancel = cancel
+	s.lifecycleState = syncerLifecycleStarted
 
 	// Enqueue events into heightInCh that would trigger ExecuteTxs if drained
 	lastState := s.getLastState()
@@ -2099,6 +2171,7 @@ func TestSyncer_Stop_DrainWorksWithoutCriticalError(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		s.ctx = ctx
 		s.cancel = cancel
+		s.lifecycleState = syncerLifecycleStarted
 
 		// Build a valid height-1 event that will actually reach ExecuteTxs during drain
 		lastState := s.getLastState()
