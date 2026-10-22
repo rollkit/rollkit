@@ -624,6 +624,81 @@ func TestStoreAdapter_DeleteRangeRemovesFromPending(t *testing.T) {
 	assert.False(t, adapter.HasAt(ctx, 3))
 	assert.True(t, adapter.HasAt(ctx, 4))
 	assert.True(t, adapter.HasAt(ctx, 5))
+
+	// The head is untouched by the deletion, so the reported height must stay 5
+	assert.Equal(t, uint64(5), adapter.Height())
+	head, err := adapter.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(5), head.Height())
+}
+
+// TestStoreAdapter_DeleteRangeHeight tests that DeleteRange only lowers the reported
+// height when the deleted range actually contained the head.
+func TestStoreAdapter_DeleteRangeHeight(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		heights  []uint64
+		from, to uint64
+		want     uint64
+	}{
+		{
+			name:    "non-head range keeps head",
+			heights: []uint64{1, 2, 3, 4, 5},
+			from:    2, to: 4,
+			want: 5,
+		},
+		{
+			name:    "range covering the head falls back to highest survivor",
+			heights: []uint64{1, 2, 3, 4, 5},
+			from:    4, to: 6,
+			want: 3,
+		},
+		{
+			name:    "single head deletion",
+			heights: []uint64{1, 2, 3},
+			from:    3, to: 4,
+			want: 2,
+		},
+		{
+			name:    "gap below deleted head is not skipped over",
+			heights: []uint64{1, 3, 5},
+			from:    5, to: 6,
+			want: 3,
+		},
+		{
+			name:    "zero lower bound does not underflow",
+			heights: []uint64{1, 2, 3},
+			from:    0, to: 2,
+			want: 3,
+		},
+		{
+			name:    "empty range is a no-op",
+			heights: []uint64{1, 2, 3},
+			from:    2, to: 2,
+			want: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+
+			ds, err := NewTestInMemoryKVStore()
+			require.NoError(t, err)
+			st := New(ds)
+			adapter := NewHeaderStoreAdapter(st, testGenesis())
+
+			for _, height := range tt.heights {
+				h, _ := types.GetRandomBlock(height, 1, "test-chain")
+				require.NoError(t, adapter.Append(ctx, &types.P2PSignedHeader{SignedHeader: h}))
+			}
+			require.NoError(t, adapter.DeleteRange(ctx, tt.from, tt.to))
+			assert.Equal(t, tt.want, adapter.Height())
+		})
+	}
 }
 
 // TestStoreAdapter_ConcurrentAppendAndRead tests concurrent access to the adapter

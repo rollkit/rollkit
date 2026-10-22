@@ -760,9 +760,18 @@ func (a *StoreAdapter[H]) DeleteRange(ctx context.Context, from, to uint64) erro
 		}
 	}
 
-	// Update cached height if necessary
-	if from <= a.heightSub.Height() {
-		a.heightSub.SetHeight(from - 1)
+	// Update the cached height to reflect the highest item that still exists.
+	// The head is only gone when the deleted range actually covered it: since the
+	// range is half-open, deleting a non-head range leaves higher items behind and
+	// must not lower the cached height. Recomputing instead of using `from - 1`
+	// also handles pending caches with gaps and avoids the uint64 underflow that
+	// `from - 1` causes when from == 0.
+	newHeight := a.pending.getMaxHeight()
+	if storeHeight, err := a.getter.Height(ctx); err == nil && storeHeight > newHeight {
+		newHeight = storeHeight
+	}
+	if current := a.heightSub.Height(); newHeight < current {
+		a.heightSub.SetHeight(newHeight)
 	}
 
 	return nil

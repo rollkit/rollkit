@@ -374,6 +374,41 @@ func TestHeaderStoreAdapter_DeleteRange(t *testing.T) {
 	assert.True(t, adapter.HasAt(ctx, 1))
 }
 
+// TestHeaderStoreAdapter_DeleteRangeUsesPersistedHeight tests that deleting the pending
+// head falls back to the persisted store height instead of the deleted range.
+func TestHeaderStoreAdapter_DeleteRangeUsesPersistedHeight(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	ds, err := NewTestInMemoryKVStore()
+	require.NoError(t, err)
+	store := New(ds)
+
+	// Persist blocks 1-3 directly to the store
+	batch, err := store.NewBatch(ctx)
+	require.NoError(t, err)
+	for i := uint64(1); i <= 3; i++ {
+		h, d := types.GetRandomBlock(i, 1, "test-chain")
+		require.NoError(t, batch.SaveBlockData(h, d, &h.Signature))
+	}
+	require.NoError(t, batch.SetHeight(3))
+	require.NoError(t, batch.Commit())
+
+	adapter := NewHeaderStoreAdapter(store, testGenesis())
+	require.NoError(t, adapter.Start(ctx))
+
+	// Blocks 4 and 5 arrive over P2P and only live in the pending cache
+	h4, _ := types.GetRandomBlock(4, 1, "test-chain")
+	h5, _ := types.GetRandomBlock(5, 1, "test-chain")
+	require.NoError(t, adapter.Append(ctx, wrapHeader(h4), wrapHeader(h5)))
+	require.Equal(t, uint64(5), adapter.Height())
+
+	require.NoError(t, adapter.DeleteRange(ctx, 4, 6))
+	assert.Equal(t, uint64(3), adapter.Height())
+	assert.False(t, adapter.HasAt(ctx, 4))
+	assert.False(t, adapter.HasAt(ctx, 5))
+}
+
 func TestHeaderStoreAdapter_OnDelete(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
